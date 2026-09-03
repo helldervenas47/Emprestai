@@ -761,11 +761,14 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                       {installments}x {form.interestType}
                     </Badge>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+                  <div className={cn(
+                    "grid gap-2 sm:gap-3",
+                    installments > 1 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-1 sm:grid-cols-3"
+                  )}>
                     <div className="p-2.5 sm:p-3 rounded-lg bg-card border border-border/50">
-                      <span className="text-[11px] sm:text-xs text-muted-foreground block mb-0.5">Parcela</span>
+                      <span className="text-[11px] sm:text-xs text-muted-foreground block mb-0.5">Emprestado</span>
                       <span className="text-sm sm:text-base font-bold text-foreground">
-                        {formatCurrency(calcMonthly)}
+                        {formatCurrency(amount)}
                       </span>
                     </div>
                     <div className="p-2.5 sm:p-3 rounded-lg bg-card border border-border/50">
@@ -780,6 +783,14 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                         {formatCurrency(calcTotal)}
                       </span>
                     </div>
+                    {installments > 1 && (
+                      <div className="p-2.5 sm:p-3 rounded-lg bg-card border border-border/50">
+                        <span className="text-[11px] sm:text-xs text-muted-foreground block mb-0.5">Parcela</span>
+                        <span className="text-sm sm:text-base font-bold text-foreground">
+                          {formatCurrency(calcMonthly)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
