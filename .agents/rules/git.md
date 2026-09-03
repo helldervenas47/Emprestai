@@ -18,6 +18,12 @@ Nunca execute automaticamente:
 * git rebase destrutivo;
 * exclusão de branches.
 
+## Branch padrão
+
+Todos os commits e pushes devem ser feitos na branch `fix/from-stable`.
+
+Nunca faça commit diretamente na `main` sem autorização explícita.
+
 ## Commits
 
 Um commit deve representar uma alteração coerente.

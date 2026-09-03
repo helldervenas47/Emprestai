@@ -493,11 +493,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                   type="number"
                   step="0.01"
                   value={interestOverride !== "" ? interestOverride : (calcInterest > 0 ? calcInterest.toFixed(2) : "")}
-                  onChange={(e) => {
-                    setInterestOverride(e.target.value);
-                    setInterestTouched(true);
-                    skipNextResetRef.current = true;
-                  }}
+                  onChange={(e) => handleInterestChange(e.target.value)}
                   placeholder="R$ 0,00"
                 />
                 <p className="text-[11px] text-muted-foreground mt-1">Total de juros calculado</p>
@@ -511,11 +507,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                   type="number"
                   step="0.01"
                   value={monthlyOverride !== "" ? monthlyOverride : (calcMonthly > 0 ? calcMonthly.toFixed(2) : "")}
-                  onChange={(e) => {
-                    setMonthlyOverride(e.target.value);
-                    setMonthlyTouched(true);
-                    skipNextResetRef.current = true;
-                  }}
+                  onChange={(e) => handleMonthlyChange(e.target.value)}
                   placeholder="R$ 0,00"
                 />
                 <p className="text-[11px] text-muted-foreground mt-1">Valor de cada parcela</p>
