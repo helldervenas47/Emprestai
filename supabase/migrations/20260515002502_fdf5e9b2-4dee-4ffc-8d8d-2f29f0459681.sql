@@ -1,0 +1,1 @@
+ALTER TABLE public.loans ADD COLUMN IF NOT EXISTS is_sale boolean NOT NULL DEFAULT false;

@@ -1,0 +1,1 @@
+ALTER TABLE public.loans ADD COLUMN remaining_amount numeric NOT NULL DEFAULT 0;

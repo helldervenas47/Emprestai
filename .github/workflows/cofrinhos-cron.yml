@@ -1,0 +1,38 @@
+name: Cofrinhos Cron
+
+on:
+  schedule:
+    # BACEN publica a CDI do dia por volta das 09h-11h BRT.
+    # Rodamos às 14:00 UTC (11:00 BRT) e 14:05 UTC (11:05 BRT) para garantir taxa disponível.
+    - cron: "0 14 * * *"
+    - cron: "5 14 * * *"
+  workflow_dispatch:
+
+jobs:
+  sync-taxas:
+    if: github.event.schedule == '0 14 * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync taxas financeiras
+        run: |
+          curl -X POST "$SUPABASE_URL/functions/v1/sync-taxas-financeiras" \
+          -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+          -H "Content-Type: application/json" \
+          -d '{}'
+
+  calcular-rendimento:
+    if: github.event.schedule == '5 14 * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Calcular rendimento cofrinhos
+        run: |
+          curl -X POST "$SUPABASE_URL/functions/v1/calcular-rendimento-cofrinhos" \
+          -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+          -H "X-Cron-Secret: $CRON_SECRET" \
+          -H "Content-Type: application/json" \
+          -d '{}'
+
+env:
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+  CRON_SECRET: ${{ secrets.CRON_SECRET }}

@@ -1,0 +1,1 @@
+UPDATE public.loans SET renegotiation_penalty_total = 0 WHERE id IN ('241ed56d-1efa-4549-8e84-836c582d680f', '8ade01c8-9b8b-4e63-ad4f-ddeb75d24f86');

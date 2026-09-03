@@ -1,0 +1,101 @@
+project_id = "syyxnqzxqabeuqbuptkh"
+
+[functions.telegram-poll]
+verify_jwt = false
+
+[functions.telegram-process]
+verify_jwt = false
+
+[functions.telegram-link-code]
+verify_jwt = false
+
+[functions.telegram-daily-summary]
+verify_jwt = false
+
+[functions.telegram-weekly-summary]
+verify_jwt = false
+
+[functions.telegram-monthly-summary]
+verify_jwt = false
+
+[functions.send-personal-insights-telegram]
+verify_jwt = false
+
+[functions.generate-personal-insights]
+verify_jwt = false
+
+[functions.daily-planning-summary]
+verify_jwt = false
+
+[functions.incomes-expenses-summary]
+verify_jwt = false
+
+[functions.notify-approval-request]
+verify_jwt = false
+
+[functions.telegram-accumulated-delinquency-summary]
+verify_jwt = false
+
+[functions.generate-risk-reduction-report]
+verify_jwt = false
+
+[functions.whatsapp-assistant-webhook]
+verify_jwt = false
+
+[functions.telegram-manager-weekly-summary]
+verify_jwt = false
+
+[functions.daily-backup]
+verify_jwt = false
+
+[functions.list-backups]
+verify_jwt = false
+
+[functions.restore-backup]
+verify_jwt = false
+
+[functions.migrate-sql]
+verify_jwt = false
+
+[functions.painel-migracao]
+verify_jwt = false
+
+[functions.telegram-webhook]
+verify_jwt = false
+
+[functions.telegram-webhook-setup]
+verify_jwt = false
+
+
+
+
+
+
+[functions.voice-expense-extract]
+verify_jwt = false
+
+[functions.help-chat]
+verify_jwt = false
+
+[functions.ensure-user-role]
+verify_jwt = false
+
+[functions.admin-subscription-manage]
+verify_jwt = false
+
+[functions.admin-manage-user]
+verify_jwt = false
+
+[functions.asaas-webhook]
+verify_jwt = false
+
+[functions.asaas-checkout]
+verify_jwt = false
+
+
+
+[functions.telegram-daily-loans-summary]
+verify_jwt = false
+
+[functions.ai-assistant]
+verify_jwt = false

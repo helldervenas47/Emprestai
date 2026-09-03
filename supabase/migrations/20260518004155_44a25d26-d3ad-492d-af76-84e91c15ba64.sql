@@ -1,0 +1,1 @@
+ALTER TABLE public.boleto_lookups ADD COLUMN IF NOT EXISTS pix_brcode TEXT;

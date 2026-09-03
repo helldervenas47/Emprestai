@@ -1,0 +1,1 @@
+ALTER TABLE public.locador_info ADD COLUMN profissao text NOT NULL DEFAULT '';

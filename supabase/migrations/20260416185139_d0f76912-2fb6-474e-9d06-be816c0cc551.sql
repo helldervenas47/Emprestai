@@ -1,0 +1,2 @@
+ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS parent_expense_id uuid NULL REFERENCES public.expenses(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_expenses_parent_expense_id ON public.expenses(parent_expense_id);

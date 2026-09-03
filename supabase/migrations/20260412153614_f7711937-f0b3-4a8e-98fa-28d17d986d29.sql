@@ -1,0 +1,1 @@
+ALTER TABLE public.loans ADD COLUMN custom_interest_value numeric DEFAULT NULL;

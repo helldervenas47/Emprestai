@@ -1,0 +1,1 @@
+ALTER TABLE public.sales ADD COLUMN customer_name text NOT NULL DEFAULT '';

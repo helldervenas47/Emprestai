@@ -1,0 +1,1 @@
+UPDATE public.telegram_bot_state SET last_webhook_recovery_at = NULL, updated_at = now() WHERE id = 1;

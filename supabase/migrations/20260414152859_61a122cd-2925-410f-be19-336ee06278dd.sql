@@ -1,0 +1,1 @@
+ALTER TABLE public.locador_info DROP CONSTRAINT IF EXISTS locador_info_user_id_key;

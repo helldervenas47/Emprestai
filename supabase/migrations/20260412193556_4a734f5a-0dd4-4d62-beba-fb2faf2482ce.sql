@@ -1,0 +1,1 @@
+ALTER TABLE public.sales ADD COLUMN installment_amounts jsonb DEFAULT NULL;

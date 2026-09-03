@@ -1,0 +1,1 @@
+ALTER TABLE public.loans ADD COLUMN IF NOT EXISTS auto_billing_enabled boolean NOT NULL DEFAULT true;

@@ -1,0 +1,23 @@
+// Categorias financeiras padrão para cofrinhos (metas de poupança).
+export const PIGGY_BANK_CATEGORIES = [
+  "Reserva de emergência",
+  "Viagem",
+  "Carro",
+  "Casa própria",
+  "Reforma",
+  "Educação",
+  "Saúde",
+  "Aposentadoria",
+  "Investimentos",
+  "Casamento",
+  "Filhos",
+  "Presentes",
+  "Eletrônicos",
+  "Eletrodomésticos",
+  "Festas e eventos",
+  "Impostos",
+  "Dívidas",
+  "Negócio próprio",
+  "Hobby / Lazer",
+  "Outros",
+] as const;

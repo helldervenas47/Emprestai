@@ -1,0 +1,1 @@
+ALTER TABLE public.personal_insights_telegram_prefs ADD COLUMN IF NOT EXISTS tone text NOT NULL DEFAULT 'balanced';

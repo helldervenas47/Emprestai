@@ -1,0 +1,2 @@
+ALTER TABLE public.piggy_banks
+  ADD COLUMN IF NOT EXISTS cdi_percent NUMERIC NOT NULL DEFAULT 100;

@@ -1,0 +1,1 @@
+DELETE FROM public.credit_limit_history;

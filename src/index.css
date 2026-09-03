@@ -1,0 +1,1725 @@
+/* Fonts (Space Grotesk display + DM Sans body) are preloaded in index.html for perf */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fluid responsive scaling: ajusta tipografia e espaçamentos suavemente
+   conforme o tamanho da tela, sem depender apenas de breakpoints fixos. */
+@layer base {
+  html {
+    /* base font-size escala de ~14px (mobile) até ~17px (desktop largo) */
+    font-size: clamp(14px, 0.6vw + 12px, 17px);
+  }
+  body {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Containers globais respeitam a largura disponível com padding fluido */
+  .container {
+    width: min(100%, 1400px);
+    padding-inline: clamp(0.75rem, 2.5vw, 2rem);
+  }
+}
+
+@layer base {
+  :root {
+    /* ─────────────────────────────────────────
+       Midnight Indigo — Light theme
+       Base: #0a0a1a / #141432 / #1e1e5a / #4f46e5
+       Sophisticated, tech-forward, product-focused
+       ───────────────────────────────────────── */
+    --background: 240 30% 98%;
+    --foreground: 240 40% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 40% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 40% 12%;
+
+    --primary: 244 76% 59%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 244 60% 96%;
+    --secondary-foreground: 244 76% 45%;
+
+    --muted: 240 20% 96%;
+    --muted-foreground: 240 10% 45%;
+
+    --accent: 244 76% 59%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 78% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 240 20% 90%;
+    --input: 240 20% 90%;
+    --ring: 244 76% 59%;
+
+    --radius: 1rem;
+
+    --warning: 32 92% 52%;
+    --warning-foreground: 240 40% 12%;
+
+    --success: 152 68% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --purple: 262 80% 62%;
+    --purple-foreground: 0 0% 100%;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 25% 25%;
+    --sidebar-primary: 244 76% 59%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 244 60% 96%;
+    --sidebar-accent-foreground: 244 76% 45%;
+    --sidebar-border: 240 20% 90%;
+    --sidebar-ring: 244 76% 59%;
+  }
+
+  .dark {
+    /* ─────────────────────────────────────────
+       Midnight Navy — Dark theme (premium, v2)
+       Layered blue-slate surfaces (never pure black):
+         bg → surface-1 → card → elevated → modal → dropdown
+         #0F172A → #111827 → #1E293B → #273449 → #233247 → #26354B
+       Depth is built by surface contrast, not heavy borders/shadows.
+       Primary blue drives all emphasis. Green reserved for success.
+       ───────────────────────────────────────── */
+    --background: 222 47% 11%;        /* #0F172A */
+    --foreground: 210 40% 98%;        /* #F8FAFC */
+
+    --surface-1: 220 39% 11%;         /* #111827 */
+    --surface-2: 217 33% 21%;         /* #1E293B */
+    --surface-3: 217 30% 28%;         /* #273449 */
+
+    --card: 217 33% 21%;              /* #1E293B */
+    --card-foreground: 210 40% 98%;
+
+    /* Dropdowns/menus sit above cards — slightly lighter for depth */
+    --popover: 217 32% 23%;           /* ~#26354B */
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 217 91% 60%;           /* EmprestAI blue */
+    --primary-foreground: 222 47% 11%;
+
+    --secondary: 217 30% 24%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 220 30% 17%;
+    --muted-foreground: 215 20% 78%;  /* comfortable long-read gray-blue */
+
+    --accent: 217 91% 60%;
+    --accent-foreground: 222 47% 11%;
+
+    --destructive: 0 74% 62%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Bordas discretas — separação vem principalmente do contraste
+       entre superfícies, não de linhas fortes. */
+    --border: 217 22% 30%;
+    --input: 217 22% 30%;
+    --ring: 217 91% 60%;
+
+    --radius: 1rem;
+
+    --warning: 38 92% 62%;
+    --warning-foreground: 222 47% 11%;
+
+    --success: 152 60% 50%;
+    --success-foreground: 222 47% 11%;
+
+    --purple: 262 83% 74%;
+    --purple-foreground: 222 47% 11%;
+
+    --sidebar-background: 220 39% 10%;
+    --sidebar-foreground: 215 20% 82%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 217 33% 18%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 22% 22%;
+    --sidebar-ring: 217 91% 60%;
+  }
+
+  /* Bordas ultra-discretas no dark — sobrepõe o border-color padrão
+     (`* { @apply border-border }`) por uma linha branca de baixíssima
+     opacidade, dando a separação sutil solicitada sem alterar os
+     componentes individualmente. */
+  .dark * {
+    border-color: hsl(0 0% 100% / 0.06);
+  }
+  .dark hr { border-color: hsl(0 0% 100% / 0.06); }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  /* Evita zoom automático do iOS Safari ao focar inputs:
+     em telas mobile, todo controle de formulário deve ter font-size >= 16px. */
+  @media (max-width: 767px) {
+    input,
+    textarea,
+    select,
+    [role="combobox"] {
+      font-size: 16px !important;
+    }
+  }
+
+
+  /* Transição suave ao alternar tema (claro/escuro).
+     Anima apenas propriedades de cor/sombra para não interferir em layout,
+     hover de scale, drawers etc. A classe .theme-transitioning é aplicada
+     temporariamente via JS no <html> apenas no momento da troca. */
+  html.theme-transitioning,
+  html.theme-transitioning *,
+  html.theme-transitioning *::before,
+  html.theme-transitioning *::after {
+    transition:
+      background-color 320ms ease,
+      border-color 320ms ease,
+      color 320ms ease,
+      fill 320ms ease,
+      stroke 320ms ease,
+      box-shadow 320ms ease,
+      backdrop-filter 320ms ease,
+      -webkit-backdrop-filter 320ms ease !important;
+  }
+
+  /* Respeita preferência de redução de movimento */
+  @media (prefers-reduced-motion: reduce) {
+    html.theme-transitioning,
+    html.theme-transitioning *,
+    html.theme-transitioning *::before,
+    html.theme-transitioning *::after {
+      transition: none !important;
+    }
+  }
+
+  /* Fase 4 — política global de redução de movimento.
+     O feedback visual (cor, opacidade, foco) permanece; apenas deslocamentos e
+     animações longas são neutralizados. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+    html {
+      scroll-behavior: auto !important;
+    }
+  }
+
+
+  html, body {
+    /* NUNCA usar `height: 100%` aqui. Com altura fixa de viewport, o
+       scroll-lock dos overlays (react-remove-scroll aplica `overflow: hidden`
+       no <body>) fazia o documento colapsar para a altura da tela e o
+       navegador CLAMPAVA o scroll para 0 — era esta a causa real do
+       "volta ao topo" ao abrir qualquer Dialog/Sheet/Drawer.
+       `min-height` mantém a altura real do conteúdo mesmo travado. */
+    height: auto;
+    min-height: 100%;
+
+    margin: 0;
+    padding: 0;
+    overscroll-behavior: none;
+    /* Trava global contra scroll horizontal em qualquer viewport
+       (mobile, tablet, notebook, desktop, ultrawide). Áreas que
+       precisam rolar horizontalmente ainda funcionam pois usam
+       .overflow-x-auto internamente.
+       IMPORTANTE: usamos `overflow-x: clip` em vez de `hidden` porque
+       `hidden` em <html> faz o Chrome mobile e iOS Safari tratarem
+       `position: fixed` como se fosse `absolute` relativo ao <html>,
+       fazendo a BottomNav (`bottom: 0`) "flutuar" e se reposicionar
+       a cada re-render. `clip` trava scroll horizontal sem criar
+       contêiner de posicionamento. */
+    overflow-x: clip;
+    max-width: 100vw;
+  }
+
+  /* Rede de segurança: enquanto um overlay está aberto (Radix marca o <body>
+     com data-scroll-locked), o scroll-lock não pode reduzir a altura do
+     documento — se reduzir, o navegador clampa a posição e a página "sobe". */
+  body[data-scroll-locked] {
+    height: auto !important;
+    min-height: 100% !important;
+  }
+
+
+
+  /* Mídia responsiva por padrão — evita quebrar layout com <img> largas ou distorcidas */
+  img, video, canvas, svg, iframe {
+    max-width: 100%;
+    height: auto;
+  }
+  img {
+    /* Preserva proporções naturais das imagens sem achatamento */
+    aspect-ratio: auto;
+    object-position: center;
+  }
+  svg {
+    /* SVG icons com dimensões explícitas mantêm seu tamanho, o "height:auto"
+       acima só se aplica se a largura for reduzida pelo container */
+    height: auto;
+  }
+
+  /* Formulários fluidos por padrão — inputs/textareas/selects nunca
+     estouram o container que os contém */
+  input, textarea, select {
+    max-width: 100%;
+  }
+
+  /* Tabelas não devem estourar o layout — quem precisa de scroll
+     horizontal envolve em .overflow-x-auto explicitamente */
+  table {
+    max-width: 100%;
+  }
+
+  /* Palavras muito longas (URLs, emails, códigos) não estouram containers */
+  p, span, dt, dd, li, td, th, label, small, strong, em, a, div {
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+
+  /* Blocos de código / pre — quebram linha em mobile em vez de estourar */
+  pre, code, kbd, samp {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
+  /* Botões e links nunca estouram containers estreitos (mobile 320px) */
+  button, a, [role="button"] {
+    max-width: 100%;
+  }
+
+  /* Áreas roláveis horizontais explícitas (tabelas amplas) preservam scroll */
+  .overflow-x-auto,
+  .overflow-x-scroll {
+    -webkit-overflow-scrolling: touch;
+    /* Momentum + evita "grudar" no meio do scroll horizontal em mobile */
+    scroll-snap-type: none;
+  }
+
+  /* Filhos diretos de flex/grid não devem forçar o pai a expandir além do
+     viewport quando têm conteúdo longo (nome de cliente, e-mail, valor, etc).
+     Aplica somente em containers onde já usamos min-w-0 explicitamente via
+     utility abaixo — mantém retrocompatibilidade. */
+  .min-w-0-children > * {
+    min-width: 0;
+  }
+
+  /* Alvo de toque confortável em dispositivos com ponteiro grosso
+     (mobile/tablet). Botões-ícones minúsculos são preservados via
+     min-h/min-w explícitos nas classes utilitárias do shadcn. */
+  @media (pointer: coarse) {
+    button:not([data-no-touch-target]):not(.h-6):not(.h-7):not(.h-8),
+    [role="button"]:not([data-no-touch-target]),
+    a[role="button"]:not([data-no-touch-target]) {
+      min-height: 40px;
+    }
+  }
+
+  /* ─── Global typography tokens ─────────────────────────────
+     Toda a tipografia do app é controlada por 2 variáveis CSS
+     (body + títulos). O seletor global de fontes altera essas
+     variáveis em tempo real e a interface inteira reage.
+     ─────────────────────────────────────────────────────────── */
+  :root {
+    --app-font-sans: "PicPay Sans", "PicPaySans", "Figtree", "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --app-font-display: var(--app-font-sans);
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--app-font-sans);
+    font-weight: 400;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.005em;
+    min-height: 100vh;
+    min-height: 100dvh;
+    background-image:
+      radial-gradient(1100px 600px at 10% -10%, hsl(244 76% 59% / 0.06), transparent 60%),
+      radial-gradient(900px 500px at 110% 5%, hsl(244 76% 65% / 0.04), transparent 60%);
+    /* NÃO usar background-attachment: fixed — em iOS Safari causa repaints
+       que deslocam elementos position: fixed (BottomNav) a cada re-render. */
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--app-font-display);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    font-feature-settings: "ss01", "cv11";
+  }
+  h1 { font-weight: 700; letter-spacing: -0.025em; }
+  h2 { font-weight: 700; letter-spacing: -0.02em; }
+  h3 { font-weight: 600; letter-spacing: -0.015em; }
+  h4, h5, h6 { font-weight: 600; letter-spacing: -0.01em; }
+
+  small, .text-xs, .text-\[10px\], .text-\[11px\] { letter-spacing: 0.005em; }
+
+  .dark body {
+    /* Mesma cor de --background para não criar faixa visível entre body e
+       barras do sistema (status/nav) no Android/iOS. Gradientes bem sutis
+       para dar profundidade sem poluir a tela. */
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(1200px 600px at 10% -10%, hsl(217 91% 60% / 0.07), transparent 60%),
+      radial-gradient(900px 500px at 110% 5%, hsl(217 91% 60% / 0.04), transparent 60%),
+      radial-gradient(900px 700px at 50% 115%, hsl(222 47% 8% / 0.5), transparent 65%);
+  }
+
+  /* Imersivo: quando rodando como PWA instalado, ocupa tela inteira sem chrome do browser */
+  @media (all and (display-mode: standalone)),
+         (all and (display-mode: fullscreen)),
+         (all and (display-mode: minimal-ui)) {
+    html, body {
+      width: 100%;
+      max-width: 100%;
+      /* min-height (não height): no PWA instalado a altura fixa de viewport
+         também colapsava o documento durante o scroll-lock dos overlays. */
+      height: auto;
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow-x: clip;
+      position: relative;
+      overscroll-behavior: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Bloqueia seleção apenas em elementos puramente interativos de UI,
+       permitindo que o usuário selecione/copie textos livremente do restante da tela. */
+    button,
+    nav,
+    [role="button"],
+    [role="tab"],
+    [role="menuitem"],
+    .no-select,
+    svg[aria-hidden="true"] {
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #root {
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+  }
+
+  /* Estado disabled acessível no modo escuro: opacidade controlada + cor mínima legível
+     (~4.5:1 sobre o background) sem parecer “apagado”. */
+  .dark :disabled,
+  .dark [aria-disabled="true"],
+  .dark [data-disabled="true"] {
+    color: hsl(220 7% 58%);
+  }
+  .dark .text-muted-foreground {
+    /* Garantia extra: nunca cair abaixo do limite de leitura confortável */
+    color: hsl(220 8% 72%);
+  }
+
+  /* iOS safe-area utilities — work in browser & PWA standalone (viewport-fit=cover) */
+  .pt-safe { padding-top: env(safe-area-inset-top); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  .pl-safe { padding-left: env(safe-area-inset-left); }
+  .pr-safe { padding-right: env(safe-area-inset-right); }
+  .px-safe { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+  .py-safe { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+  .mt-safe { margin-top: env(safe-area-inset-top); }
+  .mb-safe { margin-bottom: env(safe-area-inset-bottom); }
+  .top-safe { top: env(safe-area-inset-top); }
+  .min-h-screen-safe {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  /* Apply lateral & bottom safe insets globally so nothing sits under home indicator / curved edges */
+  /* Safe-area lateral aplicada globalmente para não sobrepor bordas curvas.
+     NÃO aplicar padding-bottom global no body — a BottomNav (fixed) e o
+     wrapper de conteúdo (Index.tsx) já reservam esse espaço. Aplicar aqui
+     causa duplicidade + gap visível abaixo da nav em iOS/Android PWA. */
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* Touch-action: only on clickable elements; inputs keep default behavior */
+  button, [role="button"], a {
+    touch-action: manipulation;
+  }
+  input, textarea, select {
+    touch-action: auto;
+  }
+
+  /* Translucent bar behind iOS status bar — matches background, blurs scrolled content */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-top);
+    background: hsl(var(--background) / 0.55);
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    z-index: 100;
+    pointer-events: none;
+    transition: background-color 0.25s ease, backdrop-filter 0.25s ease;
+  }
+  /* Deepen the tint once the user has scrolled past the header */
+  body[data-scrolled="true"]::before {
+    background: hsl(var(--background) / 0.92);
+    backdrop-filter: blur(20px) saturate(200%);
+    -webkit-backdrop-filter: blur(20px) saturate(200%);
+    box-shadow: 0 1px 0 0 hsl(var(--border) / 0.5);
+  }
+
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.2);
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.4);
+  }
+}
+
+@layer utilities {
+  .gradient-primary {
+    background: linear-gradient(135deg, hsl(244 76% 55%), hsl(262 80% 62%));
+  }
+  .gradient-premium {
+    background: linear-gradient(135deg, hsl(240 51% 24%), hsl(244 76% 59%));
+  }
+  .gradient-progress {
+    background: linear-gradient(90deg, hsl(244 76% 59%), hsl(262 80% 68%));
+  }
+  .gradient-success {
+    background: linear-gradient(135deg, hsl(152 68% 40%), hsl(170 65% 38%));
+  }
+  .gradient-warning {
+    background: linear-gradient(135deg, hsl(32 92% 52%), hsl(20 85% 50%));
+  }
+  .gradient-card {
+    background: linear-gradient(145deg, hsl(240 43% 14%), hsl(240 43% 10%));
+  }
+  .glass {
+    background: hsl(0 0% 100% / 0.72);
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
+    border: 1px solid hsl(214 32% 91% / 0.8);
+  }
+  .dark .glass {
+    background: hsl(222 44% 10% / 0.65);
+    border: 1px solid hsl(0 0% 100% / 0.06);
+  }
+  .glow-primary {
+    box-shadow: 0 0 20px -8px hsl(217 91% 60% / 0.22),
+                0 0 40px -16px hsl(213 94% 68% / 0.10);
+  }
+  .glow-success {
+    box-shadow: 0 0 20px -8px hsl(152 68% 42% / 0.18);
+  }
+  .glow-purple {
+    box-shadow: 0 0 20px -8px hsl(217 91% 60% / 0.18);
+  }
+
+  /* Reusable glassmorphism surface */
+  .glass-surface {
+    background: hsl(var(--card) / 0.6);
+    border: 1px solid hsl(0 0% 100% / 0.08);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    box-shadow:
+      0 8px 32px -12px hsl(220 30% 8% / 0.18),
+      inset 0 1px 0 0 hsl(0 0% 100% / 0.05);
+  }
+  .dark .glass-surface {
+    background: hsl(var(--card) / 0.55);
+    border-color: hsl(0 0% 100% / 0.06);
+    box-shadow:
+      0 12px 40px -16px hsl(220 40% 2% / 0.55),
+      inset 0 1px 0 0 hsl(0 0% 100% / 0.04);
+  }
+  .glass-surface-strong {
+    background: hsl(var(--card) / 0.78);
+    border: 1px solid hsl(0 0% 100% / 0.1);
+    backdrop-filter: blur(28px) saturate(200%);
+    -webkit-backdrop-filter: blur(28px) saturate(200%);
+  }
+}
+
+@layer utilities {
+  .btn-gradient-hover {
+    position: relative;
+    overflow: hidden;
+    z-index: 0;
+  }
+  .btn-gradient-hover::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+  }
+  .btn-gradient-hover:hover::before {
+    opacity: 1;
+  }
+  .btn-gradient-hover--primary::before {
+    background: linear-gradient(90deg, hsl(var(--primary)), hsl(213 94% 68%));
+  }
+  .btn-gradient-hover--destructive::before {
+    background: linear-gradient(90deg, hsl(var(--destructive)), hsl(20 85% 50%));
+  }
+  .btn-gradient-hover--success::before {
+    background: linear-gradient(90deg, hsl(var(--success)), hsl(190 70% 42%));
+  }
+
+  /* Sweep/loading hover effect for outline buttons */
+  .btn-sweep-hover {
+    position: relative;
+    overflow: hidden;
+    z-index: 0;
+    transition: color 0.4s ease;
+  }
+  .btn-sweep-hover::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .btn-sweep-hover:hover::before {
+    transform: scaleX(1);
+  }
+  .btn-sweep-hover:hover {
+    border-color: transparent;
+  }
+  .btn-sweep-hover::before {
+    background: currentColor;
+    opacity: 0.25;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .card-3d {
+    perspective: none;
+  }
+  .card-3d-inner {
+    transition: box-shadow 0.35s ease, border-color 0.25s ease, transform 0.25s ease;
+    transform-style: flat;
+  }
+  .card-3d-inner:hover {
+    transform: translateY(-1px);
+    border-color: hsl(var(--border));
+    box-shadow:
+      0 2px 4px hsl(220 30% 10% / 0.06),
+      0 12px 32px -20px hsl(var(--primary) / 0.18);
+  }
+  .dark .card-3d-inner:hover {
+    box-shadow:
+      0 2px 4px hsl(220 60% 2% / 0.5),
+      0 20px 48px -24px hsl(var(--accent) / 0.25);
+  }
+}
+
+/* Mobile ripple effect */
+@layer utilities {
+  .ripple-touch {
+    position: relative;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ripple-touch::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%), hsl(var(--primary) / 0.25) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.4s ease-out;
+    pointer-events: none;
+  }
+  .ripple-touch:active::after {
+    opacity: 1;
+    transition: opacity 0.1s ease-in;
+  }
+}
+
+/* Success animation particles */
+@layer utilities {
+  @keyframes success-particle {
+    0% {
+      transform: translate(-50%, -50%) rotate(var(--angle)) translateY(0) scale(1);
+      opacity: 1;
+    }
+    100% {
+      transform: translate(-50%, -50%) rotate(var(--angle)) translateY(-60px) scale(0);
+      opacity: 0;
+    }
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Dark mode — sombras suaves
+   Substitui sombras pesadas (preto opaco) por sombras difusas com baixa
+   opacidade, aproveitando o tom azulado do background para criar profundidade
+   sem peso visual.
+   ────────────────────────────────────────────────────────────────────────── */
+@layer utilities {
+  .dark {
+    /* Tailwind built-in shadows (shadow-sm, shadow, shadow-md, shadow-lg, shadow-xl, shadow-2xl) */
+    --tw-shadow-color: 220 30% 2%;
+  }
+  .dark .shadow-sm   { box-shadow: 0 1px 2px 0 hsl(220 30% 2% / 0.25); }
+  .dark .shadow      { box-shadow: 0 1px 3px 0 hsl(220 30% 2% / 0.30), 0 1px 2px -1px hsl(220 30% 2% / 0.25); }
+  .dark .shadow-md   { box-shadow: 0 4px 10px -2px hsl(220 30% 2% / 0.30), 0 2px 6px -2px hsl(220 30% 2% / 0.22); }
+  .dark .shadow-lg   { box-shadow: 0 10px 20px -6px hsl(220 30% 2% / 0.32), 0 4px 10px -4px hsl(220 30% 2% / 0.22); }
+  .dark .shadow-xl   { box-shadow: 0 18px 32px -10px hsl(220 30% 2% / 0.35), 0 6px 14px -6px hsl(220 30% 2% / 0.22); }
+  .dark .shadow-2xl  { box-shadow: 0 24px 48px -16px hsl(220 30% 2% / 0.40); }
+  .dark .shadow-none { box-shadow: none; }
+
+  /* Card 3D — hover mais suave no dark */
+  .dark .card-3d-inner:hover {
+    box-shadow:
+      0 6px 18px -10px hsl(220 30% 2% / 0.45),
+      0 0 12px -6px hsl(var(--primary) / 0.10);
+  }
+
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   App themes — escopo por [data-theme="..."] no <html>
+   "padrao" não tem overrides (usa as variáveis padrão acima).
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Cyberpunk Neon — sempre dark */
+html[data-theme="cyberpunk"].dark,
+html[data-theme="cyberpunk"] {
+  --background: 250 50% 5%;
+  --foreground: 280 20% 96%;
+  --card: 258 45% 9%;
+  --card-foreground: 280 20% 96%;
+  --popover: 258 45% 9%;
+  --popover-foreground: 280 20% 96%;
+  --primary: 280 95% 65%;
+  --primary-foreground: 250 50% 5%;
+  --secondary: 250 35% 16%;
+  --secondary-foreground: 195 95% 75%;
+  --muted: 250 30% 14%;
+  --muted-foreground: 270 25% 78%;
+  --accent: 195 100% 55%;
+  --accent-foreground: 250 50% 5%;
+  --destructive: 340 95% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 270 50% 28%;
+  --input: 270 40% 22%;
+  --ring: 280 95% 65%;
+  --warning: 50 100% 60%;
+  --warning-foreground: 250 50% 5%;
+  --success: 150 90% 55%;
+  --success-foreground: 250 50% 5%;
+  --purple: 280 95% 70%;
+  --sidebar-background: 252 55% 7%;
+  --sidebar-foreground: 280 20% 90%;
+  --sidebar-primary: 280 95% 65%;
+  --sidebar-accent: 250 35% 14%;
+  --sidebar-accent-foreground: 195 95% 75%;
+  --sidebar-border: 270 50% 26%;
+  --sidebar-ring: 280 95% 65%;
+}
+html[data-theme="cyberpunk"] body {
+  background-color: hsl(250 50% 4%);
+  background-image:
+    radial-gradient(1100px 600px at 8% -10%, hsl(280 95% 60% / 0.22), transparent 60%),
+    radial-gradient(900px 500px at 110% 8%, hsl(195 100% 55% / 0.18), transparent 60%),
+    radial-gradient(900px 700px at 50% 115%, hsl(225 100% 60% / 0.18), transparent 65%);
+}
+
+/* Glassmorphism — funciona em qualquer modo */
+html[data-theme="glass"] {
+  --background: 220 40% 96%;
+  --foreground: 222 45% 14%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 45% 14%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 45% 14%;
+  --primary: 222 80% 56%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 50% 92%;
+  --secondary-foreground: 222 45% 22%;
+  --muted: 220 35% 92%;
+  --muted-foreground: 222 20% 42%;
+  --accent: 200 95% 55%;
+  --accent-foreground: 0 0% 100%;
+  --border: 220 25% 86%;
+  --input: 220 25% 86%;
+  --ring: 222 80% 56%;
+}
+html[data-theme="glass"].dark {
+  --background: 222 38% 10%;
+  --foreground: 220 25% 95%;
+  --card: 222 35% 16%;
+  --card-foreground: 220 25% 95%;
+  --popover: 222 35% 16%;
+  --popover-foreground: 220 25% 95%;
+  --primary: 222 95% 70%;
+  --primary-foreground: 222 38% 8%;
+  --secondary: 222 30% 22%;
+  --secondary-foreground: 220 20% 90%;
+  --muted: 222 30% 18%;
+  --muted-foreground: 220 15% 75%;
+  --accent: 195 95% 60%;
+  --accent-foreground: 222 38% 8%;
+  --border: 220 25% 28%;
+  --input: 220 25% 28%;
+  --ring: 222 95% 70%;
+}
+html[data-theme="glass"] body,
+html[data-theme="glass"].dark body {
+  background-image:
+    radial-gradient(1200px 700px at 0% 0%, hsl(222 95% 65% / 0.18), transparent 60%),
+    radial-gradient(1000px 600px at 100% 10%, hsl(280 90% 65% / 0.16), transparent 60%),
+    radial-gradient(900px 700px at 50% 115%, hsl(195 95% 55% / 0.14), transparent 65%);
+}
+html[data-theme="glass"] .glass-surface,
+html[data-theme="glass"] .card {
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+}
+
+/* Dark AI — dark premium com verde/violeta */
+html[data-theme="dark-ai"].dark,
+html[data-theme="dark-ai"] {
+  --background: 222 30% 7%;
+  --foreground: 210 30% 95%;
+  --card: 222 28% 11%;
+  --card-foreground: 210 30% 95%;
+  --popover: 222 28% 11%;
+  --popover-foreground: 210 30% 95%;
+  --primary: 158 78% 48%;
+  --primary-foreground: 222 30% 7%;
+  --secondary: 222 22% 18%;
+  --secondary-foreground: 210 25% 88%;
+  --muted: 222 22% 14%;
+  --muted-foreground: 215 15% 72%;
+  --accent: 262 85% 70%;
+  --accent-foreground: 222 30% 7%;
+  --destructive: 0 78% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 222 18% 22%;
+  --input: 222 18% 22%;
+  --ring: 158 78% 48%;
+  --warning: 38 92% 60%;
+  --success: 158 78% 48%;
+  --purple: 262 85% 70%;
+  --sidebar-background: 222 30% 8%;
+  --sidebar-foreground: 215 15% 78%;
+  --sidebar-primary: 158 78% 48%;
+  --sidebar-accent: 222 28% 12%;
+  --sidebar-accent-foreground: 210 25% 90%;
+  --sidebar-border: 222 18% 22%;
+  --sidebar-ring: 158 78% 48%;
+}
+html[data-theme="dark-ai"] body {
+  background-image:
+    radial-gradient(1100px 600px at 12% -10%, hsl(158 78% 45% / 0.16), transparent 60%),
+    radial-gradient(900px 500px at 108% 5%, hsl(262 85% 65% / 0.16), transparent 60%),
+    radial-gradient(900px 700px at 50% 115%, hsl(195 80% 45% / 0.10), transparent 65%);
+}
+
+/* Data Vision — dashboards e gráficos */
+html[data-theme="data-vision"].dark,
+html[data-theme="data-vision"] {
+  --background: 205 60% 6%;
+  --foreground: 200 25% 96%;
+  --card: 205 50% 10%;
+  --card-foreground: 200 25% 96%;
+  --popover: 205 50% 10%;
+  --popover-foreground: 200 25% 96%;
+  --primary: 199 95% 55%;
+  --primary-foreground: 205 60% 6%;
+  --secondary: 205 40% 16%;
+  --secondary-foreground: 200 20% 90%;
+  --muted: 205 40% 13%;
+  --muted-foreground: 200 18% 75%;
+  --accent: 38 95% 58%;
+  --accent-foreground: 205 60% 6%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 205 35% 22%;
+  --input: 205 35% 22%;
+  --ring: 199 95% 55%;
+  --warning: 38 95% 58%;
+  --success: 158 78% 48%;
+  --purple: 262 80% 70%;
+  --sidebar-background: 205 60% 7%;
+  --sidebar-foreground: 200 18% 80%;
+  --sidebar-primary: 199 95% 55%;
+  --sidebar-accent: 205 50% 11%;
+  --sidebar-accent-foreground: 200 20% 92%;
+  --sidebar-border: 205 35% 22%;
+  --sidebar-ring: 199 95% 55%;
+}
+html[data-theme="data-vision"] body {
+  background-image:
+    radial-gradient(1100px 600px at 8% -10%, hsl(199 95% 50% / 0.18), transparent 60%),
+    radial-gradient(900px 500px at 110% 8%, hsl(38 95% 55% / 0.12), transparent 60%),
+    radial-gradient(900px 700px at 50% 115%, hsl(158 80% 45% / 0.12), transparent 65%);
+}
+
+/* Light Future — sempre claro */
+html[data-theme="light-future"],
+html[data-theme="light-future"].dark {
+  --background: 220 40% 98%;
+  --foreground: 230 35% 14%;
+  --card: 0 0% 100%;
+  --card-foreground: 230 35% 14%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 230 35% 14%;
+  --primary: 262 88% 62%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 50% 95%;
+  --secondary-foreground: 230 35% 24%;
+  --muted: 220 35% 94%;
+  --muted-foreground: 225 15% 42%;
+  --accent: 188 95% 50%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 82% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 25% 88%;
+  --input: 220 25% 88%;
+  --ring: 262 88% 62%;
+  --warning: 32 95% 55%;
+  --success: 158 78% 42%;
+  --purple: 262 88% 62%;
+  --sidebar-background: 220 45% 99%;
+  --sidebar-foreground: 230 28% 28%;
+  --sidebar-primary: 262 88% 62%;
+  --sidebar-accent: 220 50% 95%;
+  --sidebar-accent-foreground: 230 30% 14%;
+  --sidebar-border: 220 25% 88%;
+  --sidebar-ring: 262 88% 62%;
+}
+html[data-theme="light-future"] body,
+html[data-theme="light-future"].dark body {
+  background-color: hsl(220 40% 98%);
+  background-image:
+    radial-gradient(1200px 700px at 0% 0%, hsl(262 88% 70% / 0.18), transparent 60%),
+    radial-gradient(1000px 600px at 100% 10%, hsl(188 95% 55% / 0.18), transparent 60%),
+    radial-gradient(900px 700px at 50% 115%, hsl(330 90% 70% / 0.14), transparent 65%);
+}
+
+/* ── Nord Arctic — escuro, frio e minimalista ── */
+html[data-theme="nord"].dark,
+html[data-theme="nord"] {
+  --background: 220 16% 22%;
+  --foreground: 218 27% 92%;
+  --card: 222 16% 28%;
+  --card-foreground: 218 27% 92%;
+  --popover: 222 16% 28%;
+  --popover-foreground: 218 27% 92%;
+  --primary: 193 43% 67%;
+  --primary-foreground: 220 16% 18%;
+  --secondary: 220 17% 32%;
+  --secondary-foreground: 218 27% 92%;
+  --muted: 220 17% 28%;
+  --muted-foreground: 219 28% 78%;
+  --accent: 92 28% 65%;
+  --accent-foreground: 220 16% 18%;
+  --destructive: 354 42% 56%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 16% 36%;
+  --input: 220 16% 36%;
+  --ring: 193 43% 67%;
+  --warning: 40 71% 73%;
+  --success: 92 28% 65%;
+  --purple: 311 20% 63%;
+  --sidebar-background: 220 16% 20%;
+  --sidebar-foreground: 218 27% 88%;
+  --sidebar-primary: 193 43% 67%;
+  --sidebar-accent: 222 16% 26%;
+  --sidebar-accent-foreground: 218 27% 92%;
+  --sidebar-border: 220 16% 32%;
+  --sidebar-ring: 193 43% 67%;
+}
+html[data-theme="nord"] body {
+  background-image:
+    radial-gradient(1100px 600px at 10% -10%, hsl(193 43% 60% / 0.18), transparent 60%),
+    radial-gradient(900px 500px at 110% 8%, hsl(210 34% 52% / 0.16), transparent 60%);
+}
+
+/* ── Sunset Vibes — quente, vibrante, pôr-do-sol ── */
+html[data-theme="sunset"].dark,
+html[data-theme="sunset"] {
+  --background: 285 40% 8%;
+  --foreground: 30 50% 96%;
+  --card: 290 35% 13%;
+  --card-foreground: 30 50% 96%;
+  --popover: 290 35% 13%;
+  --popover-foreground: 30 50% 96%;
+  --primary: 16 100% 60%;
+  --primary-foreground: 285 40% 8%;
+  --secondary: 290 30% 20%;
+  --secondary-foreground: 30 40% 92%;
+  --muted: 290 30% 16%;
+  --muted-foreground: 30 25% 78%;
+  --accent: 328 95% 56%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 290 25% 28%;
+  --input: 290 25% 28%;
+  --ring: 16 100% 60%;
+  --warning: 42 100% 58%;
+  --success: 158 78% 48%;
+  --purple: 328 95% 65%;
+  --sidebar-background: 287 40% 9%;
+  --sidebar-foreground: 30 40% 90%;
+  --sidebar-primary: 16 100% 60%;
+  --sidebar-accent: 290 35% 14%;
+  --sidebar-accent-foreground: 30 40% 92%;
+  --sidebar-border: 290 25% 26%;
+  --sidebar-ring: 16 100% 60%;
+}
+html[data-theme="sunset"] body {
+  background-image:
+    radial-gradient(1100px 600px at 10% -10%, hsl(16 100% 55% / 0.28), transparent 60%),
+    radial-gradient(900px 500px at 110% 5%, hsl(328 95% 56% / 0.22), transparent 60%),
+    radial-gradient(900px 700px at 50% 115%, hsl(42 100% 55% / 0.16), transparent 65%);
+}
+
+/* ── Forest Zen — verdes naturais e orgânicos ── */
+html[data-theme="forest"].dark,
+html[data-theme="forest"] {
+  --background: 165 25% 10%;
+  --foreground: 80 25% 94%;
+  --card: 165 22% 14%;
+  --card-foreground: 80 25% 94%;
+  --popover: 165 22% 14%;
+  --popover-foreground: 80 25% 94%;
+  --primary: 88 50% 52%;
+  --primary-foreground: 165 25% 10%;
+  --secondary: 165 18% 20%;
+  --secondary-foreground: 80 20% 90%;
+  --muted: 165 18% 16%;
+  --muted-foreground: 80 15% 75%;
+  --accent: 36 45% 60%;
+  --accent-foreground: 165 25% 10%;
+  --destructive: 8 75% 55%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 165 15% 24%;
+  --input: 165 15% 24%;
+  --ring: 88 50% 52%;
+  --warning: 36 80% 58%;
+  --success: 88 50% 52%;
+  --purple: 280 30% 65%;
+  --sidebar-background: 165 25% 9%;
+  --sidebar-foreground: 80 18% 86%;
+  --sidebar-primary: 88 50% 52%;
+  --sidebar-accent: 165 22% 13%;
+  --sidebar-accent-foreground: 80 20% 90%;
+  --sidebar-border: 165 15% 22%;
+  --sidebar-ring: 88 50% 52%;
+}
+html[data-theme="forest"] body {
+  background-image:
+    radial-gradient(1100px 600px at 10% -10%, hsl(88 50% 40% / 0.18), transparent 60%),
+    radial-gradient(900px 500px at 110% 8%, hsl(160 50% 35% / 0.16), transparent 60%),
+    radial-gradient(900px 700px at 50% 115%, hsl(36 45% 45% / 0.12), transparent 65%);
+}
+
+/* ── Neo Brutalism — alto contraste, claro ── */
+html[data-theme="neo-brutal"],
+html[data-theme="neo-brutal"].dark {
+  --background: 50 92% 94%;
+  --foreground: 0 0% 5%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 5%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 5%;
+  --primary: 44 100% 52%;
+  --primary-foreground: 0 0% 5%;
+  --secondary: 50 80% 88%;
+  --secondary-foreground: 0 0% 5%;
+  --muted: 50 60% 90%;
+  --muted-foreground: 0 0% 30%;
+  --accent: 14 96% 53%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 5%;
+  --input: 0 0% 5%;
+  --ring: 14 96% 53%;
+  --warning: 44 100% 52%;
+  --success: 142 70% 40%;
+  --purple: 268 88% 55%;
+  --radius: 0.25rem;
+  --sidebar-background: 50 92% 92%;
+  --sidebar-foreground: 0 0% 5%;
+  --sidebar-primary: 14 96% 53%;
+  --sidebar-accent: 50 85% 86%;
+  --sidebar-accent-foreground: 0 0% 5%;
+  --sidebar-border: 0 0% 5%;
+  --sidebar-ring: 14 96% 53%;
+}
+html[data-theme="neo-brutal"] .card,
+html[data-theme="neo-brutal"] [class*="rounded"] {
+  box-shadow: 4px 4px 0 0 hsl(0 0% 5%);
+}
+
+/* ── Coffee Mocha — quente, aconchegante ── */
+html[data-theme="mocha"].dark,
+html[data-theme="mocha"] {
+  --background: 24 30% 8%;
+  --foreground: 33 50% 94%;
+  --card: 24 28% 13%;
+  --card-foreground: 33 50% 94%;
+  --popover: 24 28% 13%;
+  --popover-foreground: 33 50% 94%;
+  --primary: 30 55% 65%;
+  --primary-foreground: 24 30% 10%;
+  --secondary: 24 22% 20%;
+  --secondary-foreground: 33 40% 90%;
+  --muted: 24 22% 16%;
+  --muted-foreground: 33 25% 76%;
+  --accent: 18 65% 58%;
+  --accent-foreground: 24 30% 10%;
+  --destructive: 0 70% 55%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 24 20% 24%;
+  --input: 24 20% 24%;
+  --ring: 30 55% 65%;
+  --warning: 36 85% 60%;
+  --success: 142 50% 50%;
+  --purple: 280 35% 65%;
+  --sidebar-background: 24 30% 9%;
+  --sidebar-foreground: 33 35% 86%;
+  --sidebar-primary: 30 55% 65%;
+  --sidebar-accent: 24 28% 12%;
+  --sidebar-accent-foreground: 33 40% 90%;
+  --sidebar-border: 24 20% 22%;
+  --sidebar-ring: 30 55% 65%;
+}
+html[data-theme="mocha"] body {
+  background-image:
+    radial-gradient(1100px 600px at 10% -10%, hsl(30 55% 45% / 0.20), transparent 60%),
+    radial-gradient(900px 500px at 110% 8%, hsl(18 65% 40% / 0.18), transparent 60%);
+}
+
+/* ── Synthwave 84 — neon retrô anos 80 ── */
+html[data-theme="synthwave"].dark,
+html[data-theme="synthwave"] {
+  --background: 265 60% 8%;
+  --foreground: 300 100% 96%;
+  --card: 265 55% 13%;
+  --card-foreground: 300 100% 96%;
+  --popover: 265 55% 13%;
+  --popover-foreground: 300 100% 96%;
+  --primary: 335 100% 58%;
+  --primary-foreground: 265 60% 8%;
+  --secondary: 265 45% 20%;
+  --secondary-foreground: 186 100% 80%;
+  --muted: 265 45% 16%;
+  --muted-foreground: 300 30% 80%;
+  --accent: 186 95% 47%;
+  --accent-foreground: 265 60% 8%;
+  --destructive: 348 100% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 280 60% 32%;
+  --input: 280 50% 26%;
+  --ring: 335 100% 58%;
+  --warning: 50 100% 60%;
+  --success: 158 90% 55%;
+  --purple: 280 95% 70%;
+  --sidebar-background: 265 60% 9%;
+  --sidebar-foreground: 300 60% 92%;
+  --sidebar-primary: 335 100% 58%;
+  --sidebar-accent: 265 50% 14%;
+  --sidebar-accent-foreground: 186 100% 80%;
+  --sidebar-border: 280 60% 30%;
+  --sidebar-ring: 335 100% 58%;
+}
+html[data-theme="synthwave"] body {
+  background-color: hsl(265 60% 6%);
+  background-image:
+    radial-gradient(1100px 600px at 10% -10%, hsl(335 100% 55% / 0.28), transparent 60%),
+    radial-gradient(900px 500px at 110% 5%, hsl(186 95% 50% / 0.22), transparent 60%),
+    linear-gradient(180deg, transparent 0%, hsl(280 80% 18% / 0.35) 100%);
+}
+
+/* ── Rosé Pine — escuro elegante e quente ── */
+html[data-theme="rose-pine"].dark,
+html[data-theme="rose-pine"] {
+  --background: 249 22% 12%;
+  --foreground: 245 50% 91%;
+  --card: 247 23% 17%;
+  --card-foreground: 245 50% 91%;
+  --popover: 247 23% 17%;
+  --popover-foreground: 245 50% 91%;
+  --primary: 343 76% 83%;
+  --primary-foreground: 249 22% 12%;
+  --secondary: 248 24% 25%;
+  --secondary-foreground: 245 50% 91%;
+  --muted: 248 24% 20%;
+  --muted-foreground: 248 15% 78%;
+  --accent: 267 57% 78%;
+  --accent-foreground: 249 22% 12%;
+  --destructive: 343 76% 68%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 248 24% 28%;
+  --input: 248 24% 28%;
+  --ring: 343 76% 83%;
+  --warning: 35 88% 72%;
+  --success: 197 49% 67%;
+  --purple: 267 57% 78%;
+  --sidebar-background: 249 22% 11%;
+  --sidebar-foreground: 245 50% 88%;
+  --sidebar-primary: 343 76% 83%;
+  --sidebar-accent: 247 23% 16%;
+  --sidebar-accent-foreground: 245 50% 91%;
+  --sidebar-border: 248 24% 26%;
+  --sidebar-ring: 343 76% 83%;
+}
+html[data-theme="rose-pine"] body {
+  background-image:
+    radial-gradient(1100px 600px at 10% -10%, hsl(343 76% 70% / 0.16), transparent 60%),
+    radial-gradient(900px 500px at 110% 8%, hsl(267 57% 65% / 0.16), transparent 60%);
+}
+
+/* ── Pure Monochrome — editorial preto e branco ── */
+html[data-theme="monochrome"],
+html[data-theme="monochrome"].dark {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 5%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 5%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 5%;
+  --primary: 0 0% 9%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 95%;
+  --secondary-foreground: 0 0% 9%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 40%;
+  --accent: 0 0% 9%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 0% 9%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 90%;
+  --input: 0 0% 90%;
+  --ring: 0 0% 9%;
+  --warning: 0 0% 30%;
+  --success: 0 0% 9%;
+  --purple: 0 0% 9%;
+  --sidebar-background: 0 0% 98%;
+  --sidebar-foreground: 0 0% 9%;
+  --sidebar-primary: 0 0% 9%;
+  --sidebar-accent: 0 0% 95%;
+  --sidebar-accent-foreground: 0 0% 9%;
+  --sidebar-border: 0 0% 88%;
+  --sidebar-ring: 0 0% 9%;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Design system extensions — v2 polish
+   Escala tipográfica semântica, superfícies elevadas, card interativo e
+   utilitários de microinteração. Tudo aditivo — não sobrescreve nada.
+   ────────────────────────────────────────────────────────────────────────── */
+@layer components {
+  /* Escala tipográfica canônica.
+     Uso: <h1 className="text-display">, <p className="text-body-lg"> etc. */
+  .text-display {
+    font-family: var(--app-font-display);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+    font-size: clamp(1.875rem, 1.2rem + 2.4vw, 3rem);
+  }
+  .text-h1 {
+    font-family: var(--app-font-display);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    font-size: clamp(1.5rem, 1rem + 1.6vw, 2.25rem);
+  }
+  .text-h2 {
+    font-family: var(--app-font-display);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    font-size: clamp(1.25rem, 0.95rem + 1vw, 1.75rem);
+  }
+  .text-h3 {
+    font-family: var(--app-font-display);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.3;
+    font-size: clamp(1.125rem, 0.95rem + 0.6vw, 1.375rem);
+  }
+  .text-body-lg {
+    font-size: 1.0625rem;
+    line-height: 1.6;
+    letter-spacing: -0.005em;
+  }
+  .text-body {
+    font-size: 0.9375rem;
+    line-height: 1.55;
+  }
+  .text-body-sm {
+    font-size: 0.8125rem;
+    line-height: 1.5;
+  }
+  .text-caption {
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: hsl(var(--muted-foreground));
+  }
+  .text-overline {
+    font-size: 0.6875rem;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: hsl(var(--muted-foreground));
+  }
+  .text-metric {
+    font-family: var(--app-font-display);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+  }
+}
+
+@layer utilities {
+  /* Superfícies semânticas (fallback para --card no light theme) */
+  .bg-surface-1 { background-color: hsl(var(--surface-1, var(--card))); }
+  .bg-surface-2 { background-color: hsl(var(--surface-2, var(--card))); }
+  .bg-surface-3 { background-color: hsl(var(--surface-3, var(--card))); }
+
+  /* Card / linha clicável: hover leve + focus ring consistente */
+  .interactive {
+    @apply transition-colors duration-200 ease-out;
+    @apply hover:bg-muted/40;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    cursor: pointer;
+  }
+  .interactive-card {
+    @apply transition-[transform,box-shadow,border-color] duration-200 ease-out;
+    @apply hover:-translate-y-[1px] hover:border-primary/30;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    cursor: pointer;
+  }
+  .interactive-card:hover {
+    box-shadow:
+      0 2px 4px hsl(220 30% 10% / 0.06),
+      0 12px 32px -20px hsl(var(--primary) / 0.22);
+  }
+  .dark .interactive-card:hover {
+    box-shadow:
+      0 6px 18px -10px hsl(220 30% 2% / 0.5),
+      0 0 14px -6px hsl(var(--primary) / 0.14);
+  }
+
+  /* Chip discreto para meta-informação (usado em listas / detalhes) */
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full;
+    @apply bg-muted/60 text-muted-foreground;
+    @apply px-2 py-0.5 text-[11px] font-medium;
+    @apply border border-transparent;
+  }
+  .chip-primary {
+    @apply bg-primary/10 text-primary border-primary/15;
+  }
+  .chip-success {
+    @apply bg-success/12 text-success border-success/15;
+  }
+  .chip-warning {
+    background-color: hsl(var(--warning) / 0.14);
+    color: hsl(var(--warning));
+    border-color: hsl(var(--warning) / 0.18);
+  }
+  .chip-destructive {
+    @apply bg-destructive/10 text-destructive border-destructive/15;
+  }
+
+  /* Skeleton shimmer unificado (compatível com animate-pulse) */
+  .skeleton {
+    @apply relative overflow-hidden bg-muted/60 rounded-md;
+  }
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(0 0% 100% / 0.06) 50%,
+      transparent 100%
+    );
+    animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  }
+  @keyframes skeleton-shimmer {
+    100% { transform: translateX(100%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton::after { animation: none; }
+  }
+
+  /* Focus ring universal — aplique em wrappers custom (labels, cards role=button) */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Divisor sutil consistente */
+  .divider-subtle {
+    border-top: 1px solid hsl(var(--border) / 0.6);
+  }
+  .dark .divider-subtle {
+    border-top-color: hsl(0 0% 100% / 0.06);
+  }
+
+  /* Animação de entrada suave para listas / grids */
+  .animate-list-enter > * {
+    animation: list-item-enter 0.32s ease-out both;
+  }
+  .animate-list-enter > *:nth-child(1)  { animation-delay: 0ms; }
+  .animate-list-enter > *:nth-child(2)  { animation-delay: 30ms; }
+  .animate-list-enter > *:nth-child(3)  { animation-delay: 60ms; }
+  .animate-list-enter > *:nth-child(4)  { animation-delay: 90ms; }
+  .animate-list-enter > *:nth-child(5)  { animation-delay: 120ms; }
+  .animate-list-enter > *:nth-child(6)  { animation-delay: 150ms; }
+  .animate-list-enter > *:nth-child(7)  { animation-delay: 180ms; }
+  .animate-list-enter > *:nth-child(8)  { animation-delay: 210ms; }
+  @keyframes list-item-enter {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-list-enter > * { animation: none; }
+  }
+
+  /* Motion tokens — pares curados de duração + easing */
+  .transition-standard {
+    transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+    transition-duration: 200ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+  .transition-emphasized {
+    transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+    transition-duration: 320ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+}
+
+
+
+
+/* =========================================================
+   Dashboard Premium — escopo visual da área principal
+   (apenas apresentação; nenhuma regra de negócio envolvida)
+   ========================================================= */
+.dash-premium {
+  --dash-blue: 37 99 235;
+  --dash-blue-2: 59 130 246;
+  --dash-blue-light: 219 234 254;
+  --dash-surface: 245 248 255;
+  --dash-card-a: 255 255 255;
+  --dash-card-b: 255 255 255;
+  --dash-card-alpha-a: 0.97;
+  --dash-card-alpha-b: 0.88;
+  --dash-text: 30 41 59;
+  --dash-text-soft: 100 116 139;
+  --dash-border-color: 255 255 255;
+  --dash-border-alpha: 0.85;
+  --dash-shadow: 0 8px 24px rgba(37, 99, 235, 0.08), 0 2px 8px rgba(0, 0, 0, 0.03);
+  --dash-shadow-hover: 0 14px 34px rgba(37, 99, 235, 0.16), 0 4px 12px rgba(0, 0, 0, 0.05);
+  /* Azul como identidade principal dentro do dashboard */
+  --primary: 221 83% 53%;
+}
+
+.dark .dash-premium {
+  --dash-surface: 0 0 0;
+  --dash-card-a: 255 255 255;
+  --dash-card-b: 255 255 255;
+  --dash-card-alpha-a: 0.06;
+  --dash-card-alpha-b: 0.03;
+  --dash-text: 241 245 249;
+  --dash-text-soft: 148 163 184;
+  --dash-border-color: 148 163 184;
+  --dash-border-alpha: 0.18;
+  --dash-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --dash-shadow-hover: 0 16px 36px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.dash-surface {
+  background:
+    radial-gradient(1200px 420px at 10% -10%, rgba(37, 99, 235, 0.07), transparent 60%),
+    rgb(var(--dash-surface));
+}
+.dark .dash-surface {
+  background:
+    radial-gradient(1200px 420px at 10% -10%, rgba(59, 130, 246, 0.12), transparent 60%),
+    transparent;
+}
+
+.dash-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 20px;
+  background: linear-gradient(
+    180deg,
+    rgb(var(--dash-card-a) / var(--dash-card-alpha-a)),
+    rgb(var(--dash-card-b) / var(--dash-card-alpha-b))
+  );
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgb(var(--dash-border-color) / var(--dash-border-alpha));
+  box-shadow: var(--dash-shadow);
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 200ms ease;
+}
+.dash-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--dash-shadow-hover);
+}
+.dash-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 16px;
+  height: 3px;
+  border-radius: 0 0 6px 6px;
+  background: linear-gradient(90deg, rgb(var(--dash-blue)), rgb(var(--dash-blue-2)));
+  opacity: 0.9;
+  z-index: 1;
+}
+/* Linha branca removida a pedido do usuário: cards limpos sem destaque no topo. */
+.dash-card-hero::before,
+.dash-card-hero-soft::before {
+  content: none;
+  display: none;
+}
+.dash-card-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 140px;
+  background: linear-gradient(180deg, rgb(var(--dash-blue) / 0.09), transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+.dash-card-hero-soft::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 100px;
+  background: linear-gradient(180deg, rgb(var(--dash-blue) / 0.04), transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dash-card > * {
+  position: relative;
+  z-index: 2;
+}
+
+.dash-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  color: #fff;
+  background: linear-gradient(145deg, rgb(var(--dash-blue-2)), rgb(var(--dash-blue)));
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.dash-icon-success {
+  background: linear-gradient(145deg, #34d399, #059669);
+  box-shadow: 0 6px 14px rgba(5, 150, 105, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.dash-icon-warning {
+  background: linear-gradient(145deg, #fbbf24, #f97316);
+  box-shadow: 0 6px 14px rgba(249, 115, 22, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.dash-label {
+  color: rgb(var(--dash-text-soft));
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.dash-value {
+  color: rgb(var(--dash-text));
+}
+.dash-muted {
+  color: rgb(var(--dash-text-soft));
+}
+.dash-divider {
+  border-color: rgb(var(--dash-blue) / 0.1);
+}
+.dash-row {
+  border-radius: 12px;
+  background: rgb(var(--dash-blue) / 0.04);
+}
+.dark .dash-row {
+  background: rgb(255 255 255 / 0.04);
+}
+
+.dash-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 0.15rem 0.6rem;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  border: 1px solid currentColor;
+  background: rgb(255 255 255 / 0.6);
+}
+.dark .dash-badge {
+  background: rgb(255 255 255 / 0.06);
+}
+
+.dash-progress {
+  height: 10px;
+  border-radius: 9999px;
+  background: rgb(var(--dash-blue) / 0.12);
+  overflow: hidden;
+}
+.dash-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, rgb(var(--dash-blue-2)), rgb(var(--dash-blue)));
+  transition: width 400ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.dash-progress-fill-warning {
+  background: linear-gradient(90deg, #fbbf24, #f97316);
+}
+
+.dash-sparkline {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 62%;
+  width: 100%;
+  opacity: 0.32;
+  pointer-events: none;
+  z-index: 0;
+}
+
+
+
+@keyframes dash-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.dash-rise {
+  animation: dash-rise 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dash-rise { animation: none; }
+  .dash-card:hover { transform: none; }
+}
+
+/* =========================================================
+   Dashboard Premium — extensão para o restante da aba
+   (saúde financeira, metas, comissões, gráficos, insights)
+   Apenas apresentação; nenhuma regra de negócio envolvida.
+   ========================================================= */
+.dash-page {
+  border-radius: 22px;
+  padding: 0.75rem;
+  background:
+    radial-gradient(1200px 520px at 8% -8%, rgba(37, 99, 235, 0.07), transparent 60%),
+    rgb(var(--dash-surface));
+}
+.dark .dash-page {
+  background:
+    radial-gradient(1200px 520px at 8% -8%, rgba(59, 130, 246, 0.12), transparent 60%),
+    transparent;
+}
+@media (min-width: 768px) {
+  .dash-page { padding: 1rem; }
+}
+
+/* Cards genéricos dentro do dashboard herdam o visual premium */
+.dash-page .bg-card:not(.dash-card),
+.dash-page .card-3d-inner:not(.dash-card) {
+  border-radius: 20px !important;
+  background: linear-gradient(
+    180deg,
+    rgb(var(--dash-card-a) / var(--dash-card-alpha-a)),
+    rgb(var(--dash-card-b) / var(--dash-card-alpha-b))
+  ) !important;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgb(var(--dash-border-color) / var(--dash-border-alpha)) !important;
+  box-shadow: var(--dash-shadow) !important;
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 200ms ease;
+}
+.dash-page .bg-card:not(.dash-card):hover,
+.dash-page .card-3d-inner:not(.dash-card):hover {
+  box-shadow: var(--dash-shadow-hover) !important;
+}
+
+/* Títulos de seção com hierarquia mais forte */
+.dash-page h2,
+.dash-page h3 {
+  color: rgb(var(--dash-text));
+  letter-spacing: -0.01em;
+}
+
+/* Barras de progresso arredondadas dentro do dashboard */
+.dash-page [role="progressbar"] {
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+/* =========================================================
+   Fundo premium global — mesmo tratamento visual do Dashboard
+   aplicado a todas as abas do app (apenas apresentação).
+   ========================================================= */
+.app-page-bg {
+  background:
+    radial-gradient(1200px 520px at 8% -8%, rgba(37, 99, 235, 0.07), transparent 60%),
+    rgb(var(--dash-surface));
+}
+.dark .app-page-bg {
+  background:
+    radial-gradient(1200px 520px at 8% -8%, rgba(59, 130, 246, 0.12), transparent 60%),
+    hsl(var(--background));
+}
+/* Evita duplicar o gradiente quando o Dashboard já aplica o seu */
+.app-page-bg .dash-page {
+  background: transparent;
+}
+

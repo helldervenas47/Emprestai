@@ -1,0 +1,1 @@
+UPDATE public.expenses SET due_date='2026-04-17', notes='[Crédito] Cartão: 9982 (vence 2026-05-17)' WHERE id='c93aba00-079d-408f-bf92-9d2fb8b39062';

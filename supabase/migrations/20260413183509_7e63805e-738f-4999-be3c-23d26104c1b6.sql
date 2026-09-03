@@ -1,0 +1,1 @@
+CREATE POLICY "Users can view own user_owner" ON public.user_owner FOR SELECT TO authenticated USING (user_id = auth.uid());

@@ -1,0 +1,2 @@
+ALTER TABLE public.incomes ADD COLUMN IF NOT EXISTS actual_received_date date;
+UPDATE public.incomes SET actual_received_date = received_date WHERE status = 'received' AND actual_received_date IS NULL;

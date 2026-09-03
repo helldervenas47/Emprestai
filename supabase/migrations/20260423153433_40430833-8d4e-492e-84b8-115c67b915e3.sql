@@ -1,0 +1,1 @@
+ALTER TABLE public.telegram_pending_piggy_aporte ADD COLUMN IF NOT EXISTS notes text;

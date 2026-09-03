@@ -1,0 +1,1 @@
+ALTER TABLE public.sales ADD COLUMN frequency text NOT NULL DEFAULT 'Mensal';

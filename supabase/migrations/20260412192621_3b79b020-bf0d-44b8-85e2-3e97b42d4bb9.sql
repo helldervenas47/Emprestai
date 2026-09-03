@@ -1,0 +1,1 @@
+ALTER TABLE public.sales ADD COLUMN installment_value numeric DEFAULT NULL;

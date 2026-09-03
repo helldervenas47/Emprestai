@@ -1,0 +1,1 @@
+ALTER TABLE public.plans ADD COLUMN allowed_tabs text[] NOT NULL DEFAULT ARRAY['overview','dashboard','calendar','clients','products','vehicles','expenses','overdue'];

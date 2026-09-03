@@ -1,0 +1,1 @@
+ALTER TABLE public.sales ADD COLUMN partial_paid numeric NOT NULL DEFAULT 0;

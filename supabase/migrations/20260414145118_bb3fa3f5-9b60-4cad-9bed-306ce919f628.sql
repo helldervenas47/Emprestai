@@ -1,0 +1,1 @@
+ALTER TABLE public.sales ADD COLUMN locador_id uuid REFERENCES public.locador_info(id) ON DELETE SET NULL DEFAULT NULL;
