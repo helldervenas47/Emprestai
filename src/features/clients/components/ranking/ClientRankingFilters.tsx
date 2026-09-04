@@ -61,26 +61,28 @@ export function ClientRankingFilters({
 }: ClientRankingFiltersProps) {
   return (
     <div className="space-y-4">
-      {/* Abas horizontais dos rankings com scroll horizontal */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-        {rankingTabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = rankingType === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => onRankingTypeChange(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium rounded-lg whitespace-nowrap transition-all shrink-0 ${
-                isActive
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-card border border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              }`}
-            >
-              <Icon className={`h-4 w-4 shrink-0 ${isActive ? "text-primary-foreground" : "text-muted-foreground"}`} />
-              {tab.label}
-            </button>
-          );
-        })}
+      {/* Abas horizontais dos rankings com scroll lateral fluido no mobile */}
+      <div className="w-full overflow-x-auto pb-1.5 scrollbar-hide -mx-1 px-1 sm:mx-0 sm:px-0 touch-pan-x">
+        <div className="flex items-center gap-1.5 min-w-max">
+          {rankingTabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = rankingType === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => onRankingTypeChange(tab.id)}
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium rounded-lg whitespace-nowrap transition-all shrink-0 ${
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-card border border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                }`}
+              >
+                <Icon className={`h-4 w-4 shrink-0 ${isActive ? "text-primary-foreground" : "text-muted-foreground"}`} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Barra de Filtro de Período e Busca */}
