@@ -136,6 +136,28 @@ export function calculateFinancialSummaryForMonth(
     const paidAmount = totalPaidByLoan[loan.id] || 0;
     const calculatedPaidInstallments = Math.floor((paidAmount + 0.01) / installmentValue);
 
+    // Checagem de quitação do contrato
+    const isLoanFullyPaid =
+      loan.status === "paid" ||
+      loan.status === "completed" ||
+      (loan.remainingAmount != null && Number(loan.remainingAmount) <= 0.01) ||
+      (Number(loan.paidInstallments) || 0) >= installments;
+
+    if (isLoanFullyPaid) {
+      if (isClosed) {
+        const lPayments = payments.filter((p: any) => (p.loanId || p.loan_id) === loan.id);
+        const lastPayDate = lPayments
+          .map((p: any) => (p.date || "").slice(0, 10))
+          .sort()
+          .pop();
+        if (lastPayDate && lastPayDate <= cutoffDate) {
+          return;
+        }
+      } else {
+        return;
+      }
+    }
+
     const loanSchedules = installmentSchedules
       .filter((s) => s.loanId === loan.id)
       .sort((a, b) => a.installmentNumber - b.installmentNumber);
@@ -169,16 +191,24 @@ export function calculateFinancialSummaryForMonth(
       const isPaidAtCutoff = entry.installmentNumber <= calculatedPaidInstallments;
       if (isPaidAtCutoff || entry.dueDate >= cutoffDate) return;
 
-      hasOverdueInMonth = true;
-      overdueInstallmentNumbers.push(entry.installmentNumber);
-      if (!firstOverdueDate || entry.dueDate < firstOverdueDate) {
-        firstOverdueDate = entry.dueDate;
+      // Se estamos no mês vigente e o contrato já registrou a parcela como paga
+      if (!isClosed && entry.installmentNumber <= (Number(loan.paidInstallments) || 0)) {
+        return;
       }
 
       if (installments === 1) {
-        contractOverdueAmount += Math.max(0, totalWithInterest - paidAmount);
+        const remainingSingle = Math.max(0, totalWithInterest - paidAmount);
+        if (remainingSingle <= 0.05 || isLoanFullyPaid) return;
+        hasOverdueInMonth = true;
+        contractOverdueAmount += remainingSingle;
       } else {
+        hasOverdueInMonth = true;
         contractOverdueAmount += entry.amount;
+      }
+
+      overdueInstallmentNumbers.push(entry.installmentNumber);
+      if (!firstOverdueDate || entry.dueDate < firstOverdueDate) {
+        firstOverdueDate = entry.dueDate;
       }
     });
 

@@ -324,6 +324,8 @@ function computeProfitExpected(loans: Loan[], m: string): number {
 
 function computeDefaultRate(loans: Loan[], payments: Payment[], installmentSchedules: InstallmentSchedule[], m: string): number {
   const today = todayInAppTz();
+  const currentMonthKey = today.slice(0, 7);
+  const isClosed = m < currentMonthKey;
   const [yy, mm] = m.split("-").map(Number);
   // Ponto de corte para o cálculo: o fim do mês em questão ou hoje (o que for menor).
   // Para meses passados, o corte é sempre o último dia do mês às 23:59:59.
@@ -355,6 +357,28 @@ function computeDefaultRate(loans: Loan[], payments: Payment[], installmentSched
     // Calculamos a quantidade de parcelas pagas com base no saldo acumulado até o cutoff.
     const paidAmount = totalPaidByLoan[loan.id] || 0;
     const calculatedPaidInstallments = Math.floor((paidAmount + 0.01) / installmentValue);
+
+    // Checagem de quitação do contrato
+    const isLoanFullyPaid =
+      loan.status === "paid" ||
+      loan.status === "completed" ||
+      (loan.remainingAmount != null && Number(loan.remainingAmount) <= 0.01) ||
+      (Number(loan.paidInstallments) || 0) >= installments;
+
+    if (isLoanFullyPaid) {
+      if (isClosed) {
+        const lPayments = payments.filter((p: any) => (p.loanId || p.loan_id) === loan.id);
+        const lastPayDate = lPayments
+          .map((p: any) => (p.date || "").slice(0, 10))
+          .sort()
+          .pop();
+        if (lastPayDate && lastPayDate <= cutoffDate) {
+          return;
+        }
+      } else {
+        return;
+      }
+    }
 
     const loanSchedules = installmentSchedules
       .filter((schedule) => schedule.loanId === loan.id)
@@ -388,8 +412,15 @@ function computeDefaultRate(loans: Loan[], payments: Payment[], installmentSched
       const isPaidAtCutoff = entry.installmentNumber <= calculatedPaidInstallments;
       if (isPaidAtCutoff || entry.dueDate >= cutoffDate) return;
 
+      // Se estamos no mês vigente e o contrato já registrou a parcela como paga
+      if (!isClosed && entry.installmentNumber <= (Number(loan.paidInstallments) || 0)) {
+        return;
+      }
+
       if (installments === 1) {
-        overdueAmount += Math.max(0, totalWithInterest - paidAmount);
+        const remainingSingle = Math.max(0, totalWithInterest - paidAmount);
+        if (remainingSingle <= 0.05 || isLoanFullyPaid) return;
+        overdueAmount += remainingSingle;
         return;
       }
 

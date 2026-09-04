@@ -380,4 +380,79 @@ describe("Fechamento Mensal Automático + Integração com Metas", () => {
     expect(second?.clientName).toBe("Carlos Souza");
     expect(second?.overdueAmount).toBe(2200);
   });
+
+  it("Cenário 12 — Contratos quitados (status 'paid'/'completed' ou remainingAmount = 0) NUNCA aparecem como inadimplentes", () => {
+    const monthKey = "2026-08";
+
+    const loans: Loan[] = [
+      // Contrato 1: Quitado com status = "paid" e desconto nos juros (pagou 100 de 130)
+      {
+        id: "l_paid_1",
+        borrowerId: "c1",
+        borrowerName: "Jose Carlos Argolo Neto",
+        amount: 100,
+        interestRate: 30,
+        installments: 1,
+        startDate: "2026-08-01",
+        dueDate: "2026-08-22",
+        status: "paid",
+        paidInstallments: 1,
+        totalAmount: 130,
+        remainingAmount: 0,
+        createdAt: "2026-08-01",
+      },
+      // Contrato 2: Quitado com status = "completed" e centavos de diferença (pagou 212,50)
+      {
+        id: "l_paid_2",
+        borrowerId: "c2",
+        borrowerName: "Manoel Santana",
+        amount: 200,
+        interestRate: 6.5,
+        installments: 1,
+        startDate: "2026-08-01",
+        dueDate: "2026-08-22",
+        status: "completed",
+        paidInstallments: 1,
+        totalAmount: 213,
+        remainingAmount: 0,
+        createdAt: "2026-08-01",
+      },
+      // Contrato 3: Realmente em atraso
+      {
+        id: "l_real_overdue",
+        borrowerId: "c3",
+        borrowerName: "Ana Lima",
+        amount: 1000,
+        interestRate: 20,
+        installments: 1,
+        startDate: "2026-08-01",
+        dueDate: "2026-08-10",
+        status: "active",
+        paidInstallments: 0,
+        totalAmount: 1200,
+        remainingAmount: 1200,
+        createdAt: "2026-08-01",
+      },
+    ];
+
+    const payments: Payment[] = [
+      { id: "p1", loanId: "l_paid_1", amount: 100, date: "2026-08-22", installmentNumber: 1 },
+      { id: "p2", loanId: "l_paid_2", amount: 212.5, date: "2026-08-22", installmentNumber: 1 },
+    ];
+
+    const closing = computeMonthlyClosingData({
+      monthKey,
+      loans,
+      payments,
+      expenses: [],
+      clients: mockClients,
+      goals: [],
+    });
+
+    // Apenas o contrato de Ana Lima deve constar como inadimplente
+    expect(closing.financial.overdueLoansCount).toBe(1);
+    expect(closing.financial.overdueAmount).toBe(1200);
+    expect(closing.financial.overdueLoansList?.length).toBe(1);
+    expect(closing.financial.overdueLoansList?.[0].clientName).toBe("Ana Lima");
+  });
 });
