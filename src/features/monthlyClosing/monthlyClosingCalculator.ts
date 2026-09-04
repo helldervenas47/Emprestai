@@ -3,8 +3,8 @@ import type { MonthlyGoal } from "@/features/piggyBanks/hooks/useMonthlyGoals";
 import { formatMonthLabel } from "@/features/piggyBanks/hooks/useMonthlyGoals";
 import { computeActual } from "@/features/piggyBanks/components/GoalsCard";
 import { getLoanReceivable, getBaseRemainingAmount, getLoanLateFees } from "@/features/loans/lib/loanLateFees";
-import { getInstallmentAmount, getOverdueInstallments } from "@/features/loans/lib/loanInstallmentAmount";
-import { getDaysOverdue, getFirstPendingDate } from "@/features/loans/components/list/calculations";
+import { getInstallmentAmount, getOverdueInstallments, getOverdueAmount } from "@/features/loans/lib/loanInstallmentAmount";
+import { getDaysOverdue, getFirstPendingDate, getLoanCategory } from "@/features/loans/components/list/calculations";
 import { calculateInstallment, calculateTotalWithInterest } from "@/features/loans/hooks/useLoans";
 import { todayInAppTz } from "@/lib/timezone";
 import {
@@ -313,11 +313,15 @@ export function calculateFinancialSummaryForMonth(
   // Ordena por ordem alfabética do nome do cliente
   overdueLoansList.sort((a, b) => a.clientName.localeCompare(b.clientName, "pt-BR", { sensitivity: "base" }));
 
-  // 6.2 Lista Geral de Todos os Inadimplentes (Geral / Todo o histórico até a data atual)
+  // 6.2 Lista Geral de Todos os Inadimplentes (Geral / Todo o histórico - 100% alinhado com a aba Empréstimos)
   const allOverdueLoansList: import("./types").MonthlyClosingOverdueItem[] = [];
   let allOverdueTotalAmount = 0;
 
   loans.forEach((loan: any) => {
+    // Utiliza a exata mesma lógica da aba Empréstimos (getLoanCategory === "overdue")
+    const isOverdue = getLoanCategory(loan, payments, installmentSchedules) === "overdue";
+    if (!isOverdue) return;
+
     const installments = Math.max(1, Number(loan.installments) || 1);
     const principal = Number(loan.amount) || 0;
     const rate = Number(loan.interestRate ?? loan.interest_rate) || 0;
@@ -328,129 +332,73 @@ export function calculateFinancialSummaryForMonth(
       ? Number(loan.totalAmount)
       : calculateTotalWithInterest(principal, rate, installments);
 
-    const baseRemaining = loan.status === "paid" || loan.status === "completed"
-      ? 0
-      : loan.remainingAmount != null && Number(loan.remainingAmount) >= 0
+    const baseRemaining = loan.remainingAmount != null && Number(loan.remainingAmount) >= 0
       ? Number(loan.remainingAmount)
       : getBaseRemainingAmount(loan, payments, installmentSchedules);
 
     const nextInstallmentAmount = getInstallmentAmount(loan, installmentSchedules, payments);
 
-    if (loan.status === "paid" || loan.status === "completed" || baseRemaining <= 0.01 || paidInstallments >= installments) {
-      return;
+    const overdueInsts = getOverdueInstallments(loan, installmentSchedules, today);
+    const overdueInstallmentNumbers = overdueInsts.map((i) => i.installmentNumber);
+
+    const firstPending = getFirstPendingDate(loan, installmentSchedules);
+    const firstOverdueDate = !isNaN(firstPending.getTime())
+      ? `${firstPending.getFullYear()}-${String(firstPending.getMonth() + 1).padStart(2, "0")}-${String(firstPending.getDate()).padStart(2, "0")}`
+      : (loan.dueDate || loan.due_date || "");
+
+    const daysLate = Math.max(1, getDaysOverdue(loan, installmentSchedules));
+
+    let nominalOverdue = overdueInsts.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+    if (nominalOverdue <= 0.01) {
+      nominalOverdue = nextInstallmentAmount > 0 ? nextInstallmentAmount : (baseRemaining > 0 ? baseRemaining : totalAmount);
     }
+    nominalOverdue = Math.min(nominalOverdue, baseRemaining > 0 ? baseRemaining : nominalOverdue);
 
-    const loanSchedules = installmentSchedules
-      .filter((s) => s.loanId === loan.id)
-      .sort((a, b) => a.installmentNumber - b.installmentNumber);
+    const lateFeesResult = getLoanLateFees(loan, payments, installmentSchedules);
+    const lateInterestTotal = lateFeesResult.lateInterestTotal || 0;
+    const penaltyTotal = (lateFeesResult.penaltyTotal || 0) + (installments < 2 ? Number(loan.renegotiationPenaltyTotal || 0) : 0);
+    const totalFees = Math.round((lateInterestTotal + penaltyTotal) * 100) / 100;
 
-    const currentSchedule = loanSchedules.find((s) => s.installmentNumber === currentInstallmentNumber);
-    const activeDueDate = (currentSchedule?.dueDate || loan.dueDate || loan.due_date || "").slice(0, 10);
-    const daysOverdue = getDaysOverdue(loan, installmentSchedules);
+    const finalOverdueAmount = Math.round((nominalOverdue + totalFees) * 100) / 100;
+    const finalRemainingAmount = Math.round((baseRemaining + totalFees) * 100) / 100;
+    const finalInstallmentAmount = Math.round((nextInstallmentAmount + totalFees) * 100) / 100;
+    const interestAmount = Math.max(0, Math.round((totalAmount - principal) * 100) / 100);
 
-    if (daysOverdue <= 0 && activeDueDate >= today) {
-      return;
-    }
+    allOverdueTotalAmount += finalOverdueAmount;
 
-    let isOverdue = false;
-    let contractOverdueAmount = 0;
-    const overdueInstallmentNumbers: number[] = [];
-    let firstOverdueDate = "";
+    const rawClientId = loan.clientId || loan.client_id || loan.borrowerId || loan.borrower_id || "";
+    const client = clients.find((c: any) => c.id === rawClientId);
+    const clientName = client?.name || loan.borrowerName || loan.clientName || loan.client_name || "Cliente";
+    const clientPhone = client?.phone || loan.clientPhone || "";
+    const clientPhotoUrl = client?.photo_url || (client as any)?.photoUrl || "";
+    const tags = Array.isArray(loan.tags) ? loan.tags : (loan as any).custom_tags || [];
 
-    if (installments <= 1) {
-      if (activeDueDate < today && baseRemaining > 0.05) {
-        isOverdue = true;
-        contractOverdueAmount = baseRemaining;
-        overdueInstallmentNumbers.push(1);
-        firstOverdueDate = activeDueDate;
-      }
-    } else if (loanSchedules.length > 0) {
-      const pendingSchedules = loanSchedules.filter((s) => s.installmentNumber > paidInstallments);
-      pendingSchedules.forEach((s) => {
-        if (s.dueDate < today) {
-          isOverdue = true;
-          overdueInstallmentNumbers.push(s.installmentNumber);
-          if (!firstOverdueDate || s.dueDate < firstOverdueDate) {
-            firstOverdueDate = s.dueDate;
-          }
-          const instVal = s.installmentNumber === currentInstallmentNumber
-            ? nextInstallmentAmount
-            : Number(s.amount) || 0;
-          contractOverdueAmount += instVal;
-        }
-      });
-      contractOverdueAmount = Math.min(contractOverdueAmount, baseRemaining);
-    } else {
-      const dueDates = Array.from({ length: installments }, (_, idx) => {
-        const base = new Date(`${(loan.dueDate || loan.due_date).slice(0, 10)}T00:00:00`);
-        const due = new Date(base.getFullYear(), base.getMonth() + idx, base.getDate());
-        return {
-          installmentNumber: idx + 1,
-          dueDate: `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, "0")}-${String(due.getDate()).padStart(2, "0")}`,
-        };
-      });
-
-      dueDates.forEach((d) => {
-        if (d.installmentNumber <= paidInstallments) return;
-        if (d.dueDate < today) {
-          isOverdue = true;
-          overdueInstallmentNumbers.push(d.installmentNumber);
-          if (!firstOverdueDate || d.dueDate < firstOverdueDate) {
-            firstOverdueDate = d.dueDate;
-          }
-          contractOverdueAmount += nextInstallmentAmount;
-        }
-      });
-      contractOverdueAmount = Math.min(contractOverdueAmount, baseRemaining);
-    }
-
-    if (isOverdue && contractOverdueAmount > 0.05) {
-      const lateFeesResult = getLoanLateFees(loan, payments, installmentSchedules);
-      const lateInterestTotal = lateFeesResult.lateInterestTotal || 0;
-      const penaltyTotal = (lateFeesResult.penaltyTotal || 0) + (installments < 2 ? Number(loan.renegotiationPenaltyTotal || 0) : 0);
-      const totalFees = Math.round((lateInterestTotal + penaltyTotal) * 100) / 100;
-
-      const finalOverdueAmount = Math.round((contractOverdueAmount + totalFees) * 100) / 100;
-      const finalRemainingAmount = Math.round((baseRemaining + totalFees) * 100) / 100;
-      const finalInstallmentAmount = Math.round((nextInstallmentAmount + totalFees) * 100) / 100;
-      const interestAmount = Math.max(0, Math.round((totalAmount - principal) * 100) / 100);
-
-      allOverdueTotalAmount += finalOverdueAmount;
-
-      const rawClientId = loan.clientId || loan.client_id || loan.borrowerId || loan.borrower_id || "";
-      const client = clients.find((c: any) => c.id === rawClientId);
-      const clientName = client?.name || loan.clientName || loan.client_name || "Cliente";
-      const clientPhone = client?.phone || loan.clientPhone || "";
-      const clientPhotoUrl = client?.photo_url || (client as any)?.photoUrl || "";
-      const tags = Array.isArray(loan.tags) ? loan.tags : (loan as any).custom_tags || [];
-
-      allOverdueLoansList.push({
-        loanId: loan.id,
-        loanNumber: loan.loanNumber || loan.loan_number || loan.id.slice(0, 8),
-        clientId: rawClientId,
-        clientName,
-        clientPhone,
-        clientPhotoUrl,
-        principalAmount: principal,
-        totalWithInterest: totalAmount,
-        totalAmount,
-        interestAmount,
-        remainingAmount: finalRemainingAmount,
-        installmentAmount: finalInstallmentAmount,
-        overdueAmount: finalOverdueAmount,
-        overdueInstallmentsCount: overdueInstallmentNumbers.length,
-        totalInstallments: installments,
-        paidInstallments,
-        currentInstallmentNumber,
-        firstOverdueDate: firstOverdueDate || activeDueDate || loan.dueDate,
-        daysLate: Math.max(0, daysOverdue),
-        overdueInstallmentNumbers,
-        tags,
-        lateFees: totalFees,
-        lateInterestTotal,
-        penaltyTotal,
-      });
-    }
+    allOverdueLoansList.push({
+      loanId: loan.id,
+      loanNumber: loan.loanNumber || loan.loan_number || loan.id.slice(0, 8),
+      clientId: rawClientId,
+      clientName,
+      clientPhone,
+      clientPhotoUrl,
+      principalAmount: principal,
+      totalWithInterest: totalAmount,
+      totalAmount,
+      interestAmount,
+      remainingAmount: finalRemainingAmount,
+      installmentAmount: finalInstallmentAmount,
+      overdueAmount: finalOverdueAmount,
+      overdueInstallmentsCount: Math.max(1, overdueInstallmentNumbers.length),
+      totalInstallments: installments,
+      paidInstallments,
+      currentInstallmentNumber,
+      firstOverdueDate,
+      daysLate,
+      overdueInstallmentNumbers: overdueInstallmentNumbers.length > 0 ? overdueInstallmentNumbers : [currentInstallmentNumber],
+      tags,
+      lateFees: totalFees,
+      lateInterestTotal,
+      penaltyTotal,
+    });
   });
 
   allOverdueLoansList.sort((a, b) => a.clientName.localeCompare(b.clientName, "pt-BR", { sensitivity: "base" }));

@@ -171,7 +171,7 @@ export function MonthlyClosingOverdueClientsDialog({
               </DialogTitle>
               <DialogDescription className="text-xs sm:text-sm text-muted-foreground line-clamp-1 sm:line-clamp-none">
                 {viewMode === "all"
-                  ? "Todos os contratos com pendências ativas em atraso em todo o histórico."
+                  ? "Todos os contratos com pendências em atraso conforme a aba Empréstimos."
                   : `Contratos com parcelas em atraso no período de ${monthLabel} (com juros e multas).`}
               </DialogDescription>
             </div>
@@ -296,6 +296,7 @@ export function MonthlyClosingOverdueClientsDialog({
                   : "-";
 
                 const interestAmount = item.interestAmount ?? Math.max(0, (item.totalAmount || item.totalWithInterest || 0) - (item.principalAmount || 0));
+                const itemHasLateFees = item.lateFees != null && item.lateFees > 0;
                 const tags = item.tags || [];
 
                 return (
@@ -326,17 +327,6 @@ export function MonthlyClosingOverdueClientsDialog({
                             >
                               {installmentLabel}
                             </Badge>
-
-                            {hasLateFees && (
-                              <Badge
-                                variant="outline"
-                                className="text-[9px] sm:text-[10px] font-semibold px-1.5 py-0 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25 shrink-0 inline-flex items-center gap-1"
-                                title="Valor inclui juros de mora e/ou multa de atraso"
-                              >
-                                <Coins className="h-2.5 w-2.5" />
-                                +{formatBRL(item.lateFees!)} juros/multa
-                              </Badge>
-                            )}
                           </div>
 
                           <div className="flex items-center gap-1.5 flex-wrap text-[10px] sm:text-[11px] text-muted-foreground">
@@ -376,7 +366,7 @@ export function MonthlyClosingOverdueClientsDialog({
                       </div>
                     </div>
 
-                    {/* Grade de Métricas Financeiras Otimizada para Mobile (2 colunas no mobile / flex no desktop) */}
+                    {/* Grade de Métricas Financeiras Otimizada: Juros e Juros/Multa posicionados ao lado do Saldo Restante */}
                     <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-x-2.5 gap-y-1.5 pt-2 border-t border-border/50 text-[10px] sm:text-[11px] text-muted-foreground">
                       <div className="flex items-center gap-1 min-w-0">
                         <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground shrink-0" />
@@ -394,6 +384,13 @@ export function MonthlyClosingOverdueClientsDialog({
                         <div className="flex items-center gap-1 min-w-0 text-emerald-600 dark:text-emerald-400 font-semibold">
                           <TrendingUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
                           <span className="truncate">Juros: <strong className="text-emerald-700 dark:text-emerald-300">{formatBRL(interestAmount)}</strong></span>
+                        </div>
+                      )}
+
+                      {itemHasLateFees && (
+                        <div className="flex items-center gap-1 min-w-0 text-amber-600 dark:text-amber-400 font-semibold">
+                          <Coins className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
+                          <span className="truncate">Juros/Multa: <strong className="text-amber-700 dark:text-amber-300">+{formatBRL(item.lateFees!)}</strong></span>
                         </div>
                       )}
 
@@ -482,17 +479,6 @@ export function MonthlyClosingOverdueClientsDialog({
                               <Layers className="h-3 w-3" />
                               {group.items.length} contratos em atraso
                             </Badge>
-
-                            {hasLateFees && (
-                              <Badge
-                                variant="outline"
-                                className="text-[9px] sm:text-[10px] font-semibold px-1.5 py-0 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25 shrink-0 inline-flex items-center gap-1"
-                                title="Total de juros de mora e multas acumuladas"
-                              >
-                                <Coins className="h-2.5 w-2.5" />
-                                +{formatBRL(group.totalLateFees)} juros/multa
-                              </Badge>
-                            )}
                           </div>
 
                           <p className="text-[10px] sm:text-[11px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
@@ -517,7 +503,7 @@ export function MonthlyClosingOverdueClientsDialog({
                       </div>
                     </div>
 
-                    {/* Grade de Métricas do Resumo Consolidado Otimizada para Mobile */}
+                    {/* Grade de Métricas do Resumo Consolidado: Juros e Juros/Multas ao lado do Saldo Restante */}
                     <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-x-2.5 gap-y-1.5 pt-2 border-t border-border/50 text-[10px] sm:text-[11px] text-muted-foreground">
                       {group.maxDaysLate > 0 && (
                         <div className="flex items-center gap-1 min-w-0 text-rose-600 dark:text-rose-400 font-semibold">
@@ -530,6 +516,13 @@ export function MonthlyClosingOverdueClientsDialog({
                         <div className="flex items-center gap-1 min-w-0 text-emerald-600 dark:text-emerald-400 font-semibold">
                           <TrendingUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
                           <span className="truncate">Juros Total: <strong className="text-emerald-700 dark:text-emerald-300">{formatBRL(group.totalInterestAmount)}</strong></span>
+                        </div>
+                      )}
+
+                      {hasLateFees && (
+                        <div className="flex items-center gap-1 min-w-0 text-amber-600 dark:text-amber-400 font-semibold">
+                          <Coins className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
+                          <span className="truncate">Juros/Multa: <strong className="text-amber-700 dark:text-amber-300">+{formatBRL(group.totalLateFees)}</strong></span>
                         </div>
                       )}
 
@@ -617,15 +610,6 @@ export function MonthlyClosingOverdueClientsDialog({
                                     >
                                       {installmentLabel}
                                     </Badge>
-                                    {hasItemLateFees && (
-                                      <Badge
-                                        variant="outline"
-                                        className="text-[9px] sm:text-[10px] font-semibold px-1.5 py-0 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25 shrink-0 inline-flex items-center gap-1"
-                                      >
-                                        <Coins className="h-2.5 w-2.5" />
-                                        +{formatBRL(item.lateFees!)} juros/multa
-                                      </Badge>
-                                    )}
                                   </div>
 
                                   {tags.length > 0 && (
@@ -633,7 +617,7 @@ export function MonthlyClosingOverdueClientsDialog({
                                       {tags.map((tag) => (
                                         <span
                                           key={tag}
-                                          className="inline-flex items-center gap-1 rounded-full bg-primary/10 dark:bg-primary/20 text-primary border border-primary/20 dark:border-primary/30 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-medium max-w-[120px] truncate"
+                                          className="inline-flex items-center gap-1 rounded-full bg-primary/10 dark:bg-primary/20 text-primary border border-primary/20 dark:border-primary/30 px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-medium max-w-[120px] truncate"
                                           title={`Etiqueta: ${tag}`}
                                         >
                                           <Tag className="h-2.5 w-2.5 shrink-0" />
@@ -654,7 +638,7 @@ export function MonthlyClosingOverdueClientsDialog({
                                 </div>
                               </div>
 
-                              {/* Grade de métricas do contrato individual */}
+                              {/* Grade de métricas do contrato individual: Juros e Juros/Multa ao lado do Saldo Restante */}
                               <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-x-2.5 gap-y-1 pt-1.5 border-t border-border/40 text-[10px] sm:text-[11px] text-muted-foreground">
                                 <div className="flex items-center gap-1 min-w-0">
                                   <Calendar className="h-3 w-3 text-muted-foreground shrink-0" />
@@ -672,6 +656,13 @@ export function MonthlyClosingOverdueClientsDialog({
                                   <div className="flex items-center gap-1 min-w-0 text-emerald-600 dark:text-emerald-400 font-semibold">
                                     <TrendingUp className="h-3 w-3 shrink-0" />
                                     <span className="truncate">Juros: <strong className="text-emerald-700 dark:text-emerald-300">{formatBRL(itemInterestAmount)}</strong></span>
+                                  </div>
+                                )}
+
+                                {hasItemLateFees && (
+                                  <div className="flex items-center gap-1 min-w-0 text-amber-600 dark:text-amber-400 font-semibold">
+                                    <Coins className="h-3 w-3 shrink-0" />
+                                    <span className="truncate">Juros/Multa: <strong className="text-amber-700 dark:text-amber-300">+{formatBRL(item.lateFees!)}</strong></span>
                                   </div>
                                 )}
 
