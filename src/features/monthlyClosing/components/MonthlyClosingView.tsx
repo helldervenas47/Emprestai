@@ -116,7 +116,7 @@ export function MonthlyClosingView({
         <div className="space-y-1">
           <div className="flex items-center justify-between sm:justify-start gap-2.5 flex-wrap">
             <span className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <span className="text-xl md:text-2xl">📊</span> Fechamento Mensal
+              <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" /> Fechamento Mensal
             </span>
             <Badge
               variant={closingData.isClosedMonth ? "default" : "secondary"}

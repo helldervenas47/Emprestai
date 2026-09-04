@@ -1517,7 +1517,7 @@ const Index = () => {
                             : "text-muted-foreground hover:text-foreground hover:bg-background/50"
                         }`}
                       >
-                        <Trophy className={`h-4 w-4 shrink-0 ${clientSubTab === "ranking" ? "!text-primary" : ""}`} /> 🏆 Ranking de Clientes
+                        <Trophy className={`h-4 w-4 shrink-0 ${clientSubTab === "ranking" ? "!text-primary" : ""}`} /> Ranking de Clientes
                       </button>
                     </nav>
                     {clientSubTab === "clientes" && (
