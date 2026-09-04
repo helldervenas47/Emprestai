@@ -143,31 +143,24 @@ export function computeClientRanking({
     });
     const openAmount = clientPending.capitalOnStreet + clientPending.interestPending;
 
-    // Empréstimos com histórico de atraso (pagos com atraso + em aberto com atraso ativo)
-    let delayedLoansCount = 0;
+    // Contratos em aberto que possuem atraso ativo na próxima parcela pendente (não considera contratos quitados)
+    let activeDelayedLoansCount = 0;
+    let activeMaxDelayDays = 0;
+    let activePendingDelays = 0;
+
     clientLoansAll.forEach((loan) => {
-      const isCurrentlyOverdue =
-        loan.status !== "paid" &&
-        loan.status !== "cancelled" &&
-        getDaysOverdue(loan, installmentSchedules, today) > 0;
-
-      const loanPayments = payments.filter((p) => p.loanId === loan.id && p.installmentNumber !== -1);
-      const hasLatePayment = loanPayments.some((p) => {
-        let dueDateStr: string | null = null;
-        if (p.installmentNumber === 0) {
-          dueDateStr = p.previousDueDate ?? loan.dueDate;
-        } else if (p.installmentNumber > 0) {
-          dueDateStr = getInstallmentDueDate(loan, p.installmentNumber, installmentSchedules);
+      if (loan.status !== "paid" && loan.status !== "cancelled") {
+        const currentDaysOverdue = getDaysOverdue(loan, installmentSchedules, today);
+        if (currentDaysOverdue > 0) {
+          const nextDue = getFirstPendingDate(loan, installmentSchedules);
+          if (period === "all" || nextDue <= pEnd) {
+            activeDelayedLoansCount++;
+            activePendingDelays++;
+            if (currentDaysOverdue > activeMaxDelayDays) {
+              activeMaxDelayDays = currentDaysOverdue;
+            }
+          }
         }
-        if (!dueDateStr) return false;
-        const dueDate = new Date(dueDateStr + "T00:00:00");
-        const toleranceDate = new Date(dueDate.getTime() + 3 * 24 * 60 * 60 * 1000);
-        const pDate = new Date(p.date.split("T")[0] + "T00:00:00");
-        return pDate > toleranceDate;
-      });
-
-      if (isCurrentlyOverdue || hasLatePayment) {
-        delayedLoansCount++;
       }
     });
 
@@ -176,7 +169,6 @@ export function computeClientRanking({
     let profitGenerated = 0;
     let onTimePayments = 0;
     let latePayments = 0;
-    let maxDelayDays = 0;
 
     clientLoansAll.forEach((loan) => {
       const loanPayments = payments.filter((p) => p.loanId === loan.id);
@@ -216,39 +208,11 @@ export function computeClientRanking({
             onTimePayments++;
           } else {
             latePayments++;
-            const diffDays = Math.max(0, Math.floor((pDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)));
-            if (diffDays > maxDelayDays) maxDelayDays = diffDays;
           }
         } else if (p.amount > 0) {
           onTimePayments++;
         }
       });
-
-      // Checa se há atraso ativo na próxima parcela pendente deste contrato ativo
-      if (loan.status !== "paid" && loan.status !== "cancelled") {
-        const currentDaysOverdue = getDaysOverdue(loan, installmentSchedules, today);
-        if (currentDaysOverdue > 0) {
-          const nextDue = getFirstPendingDate(loan, installmentSchedules);
-          if (period === "all" || nextDue <= pEnd) {
-            if (currentDaysOverdue > maxDelayDays) {
-              maxDelayDays = currentDaysOverdue;
-            }
-          }
-        }
-      }
-    });
-
-    // Quantidade de parcelas/contratos atualmente em atraso não quitados
-    let activePendingDelays = 0;
-    clientLoansAll.forEach((loan) => {
-      if (loan.status !== "paid" && loan.status !== "cancelled") {
-        if (getDaysOverdue(loan, installmentSchedules, today) > 0) {
-          const nextDue = getFirstPendingDate(loan, installmentSchedules);
-          if (period === "all" || nextDue <= pEnd) {
-            activePendingDelays++;
-          }
-        }
-      }
     });
 
     const totalPaymentsCount = onTimePayments + latePayments;
@@ -278,8 +242,8 @@ export function computeClientRanking({
       on_time_payments: onTimePayments,
       late_payments: latePayments,
       on_time_percentage: onTimePercentage,
-      max_delay_days: maxDelayDays,
-      overdue_loans: delayedLoansCount,
+      max_delay_days: activeMaxDelayDays,
+      overdue_loans: activeDelayedLoansCount,
     });
   });
 
