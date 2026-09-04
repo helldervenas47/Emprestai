@@ -122,33 +122,43 @@ export function ClientRankingCard({
       className="p-3.5 sm:p-4 rounded-xl border border-border/60 bg-card hover:border-primary/40 hover:shadow-sm transition-all cursor-pointer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 group"
     >
       {/* Lado Esquerdo: Posição, Avatar e Dados Principais */}
-      <div className="flex items-center gap-3 min-w-0 flex-1">
-        {positionBadge}
+      <div className="flex items-center justify-between sm:justify-start gap-3 min-w-0 flex-1 w-full sm:w-auto">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          {positionBadge}
 
-        <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 uppercase">
-          {item.client_name.slice(0, 2)}
-        </div>
+          <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 uppercase">
+            {item.client_name.slice(0, 2)}
+          </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="min-w-0 flex-1">
             <h3 className="font-semibold text-sm sm:text-base text-foreground truncate group-hover:text-primary transition-colors">
               {item.client_name}
             </h3>
-            <Badge
-              variant="outline"
-              className={`text-[10px] px-1.5 py-0 h-4.5 font-semibold ${riskInfo.color} border-current/30`}
-            >
-              Score: {riskInfo.score}/100 • {riskInfo.label}
-            </Badge>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+              {item.client_phone || item.client_cpf || "Cliente cadastrado"}
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5 truncate">
-            {item.client_phone || item.client_cpf || "Cliente cadastrado"}
-          </p>
         </div>
+
+        {/* Score no topo direito em telas mobile */}
+        <Badge
+          variant="outline"
+          className={`sm:hidden text-[10px] px-2 py-0.5 h-5 font-bold shrink-0 ${riskInfo.color} border-current/30`}
+        >
+          Score: {riskInfo.score}/100
+        </Badge>
       </div>
 
-      {/* Lado Direito: Métrica em Destaque e Ação */}
+      {/* Lado Direito: Score (desktop), Métrica em Destaque e Ação */}
       <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto border-t sm:border-t-0 pt-2 sm:pt-0 border-border/40">
+        {/* Score no lado direito em desktop */}
+        <Badge
+          variant="outline"
+          className={`hidden sm:inline-flex text-[11px] px-2.5 py-0.5 h-6 font-bold shrink-0 ${riskInfo.color} border-current/30`}
+        >
+          Score: {riskInfo.score}/100
+        </Badge>
+
         <div className="text-left sm:text-right">
           <div className="flex items-center sm:justify-end gap-1">
             <MetricIcon className={`h-3.5 w-3.5 ${primaryMetric.color}`} />
