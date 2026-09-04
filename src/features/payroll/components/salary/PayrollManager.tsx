@@ -314,16 +314,16 @@ export function PayrollManager({ readOnly }: Props) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard label="Total bruto" value={BRL(totals.gross)} />
         <StatCard label="Total líquido" value={BRL(totals.net)} />
         <StatCard label="Pago" value={BRL(totals.paid)} tone="success" />
         <StatCard label="Pendente" value={BRL(totals.pending)} tone={totals.pending > 0 ? "warn" : "muted"} />
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         {monthRows.length === 0 && (
-          <Card><CardContent className="p-8 text-center text-muted-foreground">
+          <Card className="rounded-2xl border-border/70"><CardContent className="p-8 text-center text-muted-foreground">
             Nenhuma folha gerada para esta competência.
           </CardContent></Card>
         )}
@@ -331,51 +331,131 @@ export function PayrollManager({ readOnly }: Props) {
           const emp = employees.find((e) => e.id === p.employeeId);
           const remaining = Math.max(0, p.netSalary - p.paidAmount);
           return (
-            <Card key={p.id}>
-              <CardContent className="p-4 flex flex-col md:flex-row md:items-center gap-3">
-                <div className="min-w-0 flex-1">
+            <Card key={p.id} className="rounded-2xl border-border/70 hover:border-primary/20 transition-all shadow-xs overflow-hidden">
+              <CardContent className="p-4 sm:p-5 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+                {/* 1. Informações do Funcionário */}
+                <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold truncate">{emp?.name ?? "Funcionário"}</p>
+                    <p className="font-bold text-sm sm:text-base text-foreground truncate">{emp?.name ?? "Funcionário"}</p>
                     <StatusBadge status={p.status} />
-                    {p.closed && <Badge variant="outline" className="text-[10px]"><Lock className="h-3 w-3" /> Fechada</Badge>}
+                    {p.closed && (
+                      <Badge variant="outline" className="text-[10px] gap-1 font-medium bg-muted/50 border-border/70">
+                        <Lock className="h-3 w-3" /> Fechada
+                      </Badge>
+                    )}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {emp?.role ?? ""}
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                    {emp?.role && <span className="font-medium">{emp.role}</span>}
+                    {emp?.role && p.dueDate && <span>·</span>}
                     {p.dueDate && (
-                      <span className="ml-1">· Vencimento {format(parseISO(p.dueDate), "dd/MM/yyyy", { locale: ptBR })}</span>
+                      <span>Vencimento {format(parseISO(p.dueDate), "dd/MM/yyyy", { locale: ptBR })}</span>
                     )}
                   </p>
                 </div>
-                <div className="grid grid-cols-3 gap-3 text-right text-sm">
-                  <div><div className="text-[10px] text-muted-foreground uppercase">Bruto</div><div>{BRL(p.grossSalary + p.totalBenefits)}</div></div>
-                  <div><div className="text-[10px] text-muted-foreground uppercase">Desc.</div><div className="text-destructive">{BRL(p.totalDeductions)}</div></div>
-                  <div><div className="text-[10px] text-muted-foreground uppercase">Líquido</div><div className="font-semibold">{BRL(p.netSalary)}</div></div>
-                </div>
-                <div className="flex flex-nowrap gap-1 md:gap-1.5 md:ml-2 justify-end w-full md:w-auto [&>button]:flex-1 md:[&>button]:flex-none">
-                  {!readOnly && remaining > 0 && (
-                    <Button data-mutation size="sm" onClick={() => setPayingId(p.id)}><Wallet className="h-3 w-3" /> <span className="hidden md:inline">Pagar</span></Button>
-                  )}
-                  {!readOnly && !p.closed && p.paidAmount <= 0.01 && (
-                    <Button data-mutation size="sm" variant="outline" onClick={() => setEditingId(p.id)}>
-                      <Pencil className="h-3 w-3" /> <span className="hidden md:inline">Editar</span>
+
+                {/* 2. Valores Financeiros e Ações */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between xl:justify-end gap-3 sm:gap-4 shrink-0">
+                  {/* Grid de Valores */}
+                  <div className="grid grid-cols-3 gap-2 sm:gap-4 text-center sm:text-right bg-muted/30 sm:bg-transparent p-2.5 sm:p-0 rounded-xl border sm:border-0 border-border/40 shrink-0">
+                    <div className="space-y-0.5">
+                      <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Bruto</div>
+                      <div className="text-xs sm:text-sm font-semibold text-foreground">{BRL(p.grossSalary + p.totalBenefits)}</div>
+                    </div>
+                    <div className="space-y-0.5">
+                      <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Desc.</div>
+                      <div className="text-xs sm:text-sm font-semibold text-rose-600 dark:text-rose-400">{BRL(p.totalDeductions)}</div>
+                    </div>
+                    <div className="space-y-0.5">
+                      <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Líquido</div>
+                      <div className="text-xs sm:text-sm font-bold text-foreground">{BRL(p.netSalary)}</div>
+                    </div>
+                  </div>
+
+                  {/* Botões de Ação */}
+                  <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap justify-end shrink-0">
+                    {!readOnly && remaining > 0 && (
+                      <Button
+                        data-mutation
+                        size="sm"
+                        className="rounded-xl font-medium gap-1.5 h-9 px-3"
+                        onClick={() => setPayingId(p.id)}
+                      >
+                        <Wallet className="h-3.5 w-3.5" />
+                        <span>Pagar</span>
+                      </Button>
+                    )}
+                    {!readOnly && !p.closed && p.paidAmount <= 0.01 && (
+                      <Button
+                        data-mutation
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl font-medium gap-1.5 h-9 px-3"
+                        onClick={() => setEditingId(p.id)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        <span>Editar</span>
+                      </Button>
+                    )}
+                    {p.paidAmount > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl font-medium gap-1.5 h-9 px-3"
+                        onClick={() => setHistoryId(p.id)}
+                      >
+                        <History className="h-3.5 w-3.5" />
+                        <span>Pagamentos</span>
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-xl font-medium gap-1.5 h-9 px-3"
+                      onClick={() => emp && generatePayslipPdf(p, emp, { brandName: branding.brand_name })}
+                    >
+                      <FileText className="h-3.5 w-3.5 text-primary" />
+                      <span>Contracheque</span>
                     </Button>
-                  )}
-                  {p.paidAmount > 0 && (
-                    <Button size="sm" variant="outline" onClick={() => setHistoryId(p.id)}>
-                      <History className="h-3 w-3" /> <span className="hidden md:inline">Pagamentos</span>
-                    </Button>
-                  )}
-                  <Button size="sm" variant="outline" onClick={() => emp && generatePayslipPdf(p, emp, { brandName: branding.brand_name })}>
-                    <FileText className="h-3 w-3" /> <span className="hidden md:inline">Contracheque</span>
-                  </Button>
-                  {!readOnly && (p.closed
-                    ? <Button size="sm" variant="ghost" onClick={() => reopenPayroll(p)}><Unlock className="h-3 w-3" /></Button>
-                    : <Button size="sm" variant="ghost" onClick={() => closePayroll(p)}><Lock className="h-3 w-3" /></Button>)}
-                  {!readOnly && (
-                    <Button size="sm" variant="ghost" onClick={async () => {
-                      if (confirmWithScroll("Excluir esta folha?")) { await deletePayroll(p.id); toast.success("Folha excluída"); }
-                    }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
-                  )}
+                    {!readOnly && (
+                      p.closed ? (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground shrink-0"
+                          title="Reabrir folha"
+                          onClick={() => reopenPayroll(p)}
+                        >
+                          <Unlock className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground shrink-0"
+                          title="Fechar folha"
+                          onClick={() => closePayroll(p)}
+                        >
+                          <Lock className="h-4 w-4" />
+                        </Button>
+                      )
+                    )}
+                    {!readOnly && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-9 w-9 rounded-xl text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 shrink-0"
+                        title="Excluir folha"
+                        onClick={async () => {
+                          if (confirmWithScroll("Excluir esta folha?")) {
+                            await deletePayroll(p.id);
+                            toast.success("Folha excluída");
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
