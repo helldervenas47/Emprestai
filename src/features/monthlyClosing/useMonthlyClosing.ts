@@ -3,6 +3,7 @@ import type { Loan, Payment, Expense, Client, InstallmentSchedule, LoanRenegotia
 import { useMonthlyGoals } from "@/features/piggyBanks/hooks/useMonthlyGoals";
 import { useGoalSnapshots } from "@/features/piggyBanks/hooks/useGoalSnapshots";
 import { useActiveCapitalSnapshots } from "@/features/piggyBanks/hooks/useActiveCapitalSnapshots";
+import { useLoanRenegotiations } from "@/features/loans/hooks/useLoanRenegotiations";
 import { todayInAppTz } from "@/lib/timezone";
 import { toast } from "sonner";
 import {
@@ -35,7 +36,7 @@ export function useMonthlyClosing({
   expenses,
   clients,
   installmentSchedules = [],
-  renegotiations = [],
+  renegotiations,
   initialMonth,
 }: UseMonthlyClosingParams) {
   // Mês selecionado inicia no mês recém-encerrado por padrão
@@ -53,6 +54,13 @@ export function useMonthlyClosing({
 
   const { goals, loading: goalsLoading, reload: reloadGoals } = useMonthlyGoals();
   const { getSnapshot: getGoalSnapshot } = useGoalSnapshots();
+  const { renegotiations: fetchedRenegotiations } = useLoanRenegotiations();
+
+  const effectiveRenegotiations = useMemo(() => {
+    return renegotiations && renegotiations.length > 0
+      ? renegotiations
+      : (fetchedRenegotiations || []);
+  }, [renegotiations, fetchedRenegotiations]);
 
   const currentActiveCapital = useMemo(() => {
     return (loans || [])
@@ -70,7 +78,7 @@ export function useMonthlyClosing({
       expenses,
       clients,
       installmentSchedules,
-      renegotiations,
+      renegotiations: effectiveRenegotiations,
       goals,
       getGoalSnapshot,
       getActiveCapitalSnapshot,
@@ -83,7 +91,7 @@ export function useMonthlyClosing({
     expenses,
     clients,
     installmentSchedules,
-    renegotiations,
+    effectiveRenegotiations,
     goals,
     getGoalSnapshot,
     getActiveCapitalSnapshot,

@@ -290,9 +290,16 @@ export function computeMonthlyClosingGoals(
       description: "",
     };
 
+    const today = todayInAppTz();
+    const currentMonthKey = today.slice(0, 7);
+    const isClosed = monthKey < currentMonthKey;
+    const isFuture = monthKey > currentMonthKey;
+
     let actual = 0;
     const snap = inputs.getGoalSnapshot ? inputs.getGoalSnapshot(g.goalType, monthKey) : null;
-    if (snap?.finalized) {
+    const snapFinalized = isClosed && !!snap?.finalized;
+
+    if (snapFinalized && g.goalType !== "daily_received_avg") {
       actual = Number(snap.realizedValue) || 0;
     } else if (g.goalType === "active_capital" && inputs.getActiveCapitalSnapshot) {
       const snapCap = inputs.getActiveCapitalSnapshot(monthKey);
@@ -308,6 +315,15 @@ export function computeMonthlyClosingGoals(
         inputs.installmentSchedules,
         inputs.renegotiations
       );
+    }
+
+    if (g.goalType === "daily_received_avg" && !isFuture && !snapFinalized) {
+      const [yy, mm] = monthKey.split("-").map(Number);
+      const daysInMonth = new Date(yy, mm, 0).getDate();
+      const isCurrent = monthKey === currentMonthKey;
+      const todayDate = Number(today.slice(8, 10)) || 1;
+      const days = isCurrent ? todayDate : daysInMonth;
+      actual = days > 0 ? actual / days : 0;
     }
 
     if (!isFinite(actual) || isNaN(actual)) actual = 0;

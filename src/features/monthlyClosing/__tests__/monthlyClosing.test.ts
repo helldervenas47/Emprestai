@@ -9,7 +9,7 @@ import {
   getPreviousMonthKey,
   getNextMonthKey,
 } from "../index";
-import type { Client, Loan, Payment, Expense, InstallmentSchedule } from "@/types/loan";
+import type { Client, Loan, Payment, Expense, LoanRenegotiation } from "@/types/loan";
 import type { MonthlyGoal } from "@/features/piggyBanks/hooks/useMonthlyGoals";
 
 describe("Fechamento Mensal Automático + Integração com Metas", () => {
@@ -254,5 +254,69 @@ describe("Fechamento Mensal Automático + Integração com Metas", () => {
     expect(closing.financial.defaultRate).toBeGreaterThan(0);
     expect(closing.executiveAnalysis.recommendation.action?.label).toContain("clientes");
     expect(closing.executiveAnalysis.recommendation.action?.targetTab).toBe("clientes");
+  });
+
+  it("Cenário 9 — Meta de Receita Média Diária (daily_received_avg calculada por dia do mês)", () => {
+    const monthKey = "2026-08"; // Agosto tem 31 dias
+
+    const loans: Loan[] = [
+      { id: "l1", borrowerId: "c1", borrowerName: "João Silva", amount: 10000, interestRate: 10, installments: 1, startDate: "2026-08-01", dueDate: "2026-08-15", status: "active", paidInstallments: 0, totalAmount: 11000, remainingAmount: 11000, createdAt: "2026-08-01" },
+    ];
+    // R$ 31.000 recebidos no mês / 31 dias = R$ 1.000 / dia
+    const payments: Payment[] = [
+      { id: "p1", loanId: "l1", amount: 31000, date: "2026-08-15", installmentNumber: 1 },
+    ];
+
+    const goals: MonthlyGoal[] = [
+      { id: "g_daily", goalType: "daily_received_avg", month: monthKey, targetValue: 1000 },
+    ];
+
+    const closing = computeMonthlyClosingData({
+      monthKey,
+      loans,
+      payments,
+      expenses: [],
+      clients: mockClients,
+      goals,
+    });
+
+    const goalItem = closing.goals.find((g) => g.goalType === "daily_received_avg");
+    expect(goalItem).toBeDefined();
+    expect(goalItem?.actualValue).toBe(1000); // R$ 1.000 / dia
+    expect(goalItem?.achievementPct).toBe(100);
+    expect(goalItem?.status).toBe("reached");
+  });
+
+  it("Cenário 10 — Meta de Contratos Renegociados (renegotiation_rate usando tabela loan_renegotiations)", () => {
+    const monthKey = "2026-08";
+
+    const loans: Loan[] = [
+      { id: "l1", borrowerId: "c1", borrowerName: "João Silva", amount: 10000, interestRate: 10, installments: 1, startDate: "2026-08-01", dueDate: "2026-08-15", status: "active", paidInstallments: 0, totalAmount: 11000, remainingAmount: 11000, createdAt: "2026-08-01" },
+      { id: "l2", borrowerId: "c2", borrowerName: "Carlos Souza", amount: 15000, interestRate: 10, installments: 1, startDate: "2026-08-01", dueDate: "2026-08-15", status: "active", paidInstallments: 0, totalAmount: 16500, remainingAmount: 16500, createdAt: "2026-08-01" },
+    ];
+
+    const renegotiations: LoanRenegotiation[] = [
+      { id: "r1", loanId: "l1", renegotiatedAt: "2026-08-10", newInterestRate: 20, newInstallments: 2, createdAt: "2026-08-10" },
+      { id: "r2", loanId: "l2", renegotiatedAt: "2026-08-12", newInterestRate: 20, newInstallments: 2, createdAt: "2026-08-12" },
+    ];
+
+    const goals: MonthlyGoal[] = [
+      { id: "g_reneg", goalType: "renegotiation_rate", month: monthKey, targetValue: 3 }, // Limite máximo: 3
+    ];
+
+    const closing = computeMonthlyClosingData({
+      monthKey,
+      loans,
+      payments: [],
+      expenses: [],
+      clients: mockClients,
+      renegotiations,
+      goals,
+    });
+
+    const goalItem = closing.goals.find((g) => g.goalType === "renegotiation_rate");
+    expect(goalItem).toBeDefined();
+    expect(goalItem?.actualValue).toBe(2); // 2 contratos renegociados
+    expect(goalItem?.status).toBe("reached"); // <= 3 contratos -> dentro do limite
   });
 });

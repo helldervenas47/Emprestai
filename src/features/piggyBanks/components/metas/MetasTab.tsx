@@ -3,7 +3,8 @@ import { emitAppUIEvent, onAppUIEvent } from "@/lib/appUIEvents";
 import { LineChart, ListChecks, BarChart3 } from "lucide-react";
 import { GoalsYearlyGrid } from "./GoalsYearlyGrid";
 import { MonthlyClosingView } from "@/features/monthlyClosing";
-import { Loan, Payment, Expense, Client, InstallmentSchedule } from "@/types/loan";
+import { useLoanRenegotiations } from "@/features/loans/hooks/useLoanRenegotiations";
+import { Loan, Payment, Expense, Client, InstallmentSchedule, LoanRenegotiation } from "@/types/loan";
 
 const MonthlyGoalsManager = lazy(() =>
   import("@/features/piggyBanks/components/MonthlyGoalsManager").then((m) => ({ default: m.MonthlyGoalsManager })),
@@ -17,13 +18,16 @@ interface Props {
   expenses: Expense[];
   clients: Client[];
   installmentSchedules: InstallmentSchedule[];
+  renegotiations?: LoanRenegotiation[];
   readOnly?: boolean;
 }
 
 export function MetasTab({
-  loans, payments, expenses, clients, installmentSchedules, readOnly,
+  loans, payments, expenses, clients, installmentSchedules, renegotiations: propRenegotiations, readOnly,
 }: Props) {
   const [sub, setSub] = useState<SubTab>("fechamento");
+  const { renegotiations: loadedRenegotiations } = useLoanRenegotiations();
+  const renegotiations = propRenegotiations || loadedRenegotiations || [];
   
   useEffect(() => {
     // Ao montar a aba de Metas, dispara recarregamento global de dados para garantir reatividade
@@ -73,6 +77,7 @@ export function MetasTab({
           expenses={expenses || []}
           clients={clients || []}
           installmentSchedules={installmentSchedules || []}
+          renegotiations={renegotiations}
           onNavigateToConfig={() => setSub("configuracao")}
         />
       )}
