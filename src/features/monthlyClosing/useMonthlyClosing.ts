@@ -24,10 +24,13 @@ interface UseMonthlyClosingParams {
   initialMonth?: string;
 }
 
-export function getDefaultClosedMonth(): string {
+export function getCurrentMonthKey(): string {
   const today = todayInAppTz(); // YYYY-MM-DD
-  const currentMonthKey = today.slice(0, 7);
-  return getPreviousMonthKey(currentMonthKey);
+  return today.slice(0, 7);
+}
+
+export function getDefaultClosedMonth(): string {
+  return getCurrentMonthKey();
 }
 
 export function useMonthlyClosing({
@@ -39,8 +42,8 @@ export function useMonthlyClosing({
   renegotiations,
   initialMonth,
 }: UseMonthlyClosingParams) {
-  // Mês selecionado inicia no mês recém-encerrado por padrão
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => initialMonth || getDefaultClosedMonth());
+  // Mês selecionado inicia no mês vigente por padrão
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => initialMonth || getCurrentMonthKey());
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string>(() =>
     new Date().toLocaleDateString("pt-BR", {
       day: "2-digit",
@@ -106,6 +109,10 @@ export function useMonthlyClosing({
     setSelectedMonth((prev) => getNextMonthKey(prev));
   }, []);
 
+  const resetToCurrentMonth = useCallback(() => {
+    setSelectedMonth(getCurrentMonthKey());
+  }, []);
+
   const recalculate = useCallback(async () => {
     const now = new Date().toLocaleDateString("pt-BR", {
       day: "2-digit",
@@ -139,6 +146,7 @@ export function useMonthlyClosing({
     goalsLoading,
     goToPrevMonth,
     goToNextMonth,
+    resetToCurrentMonth,
     recalculate,
     exportPdf,
     isExportingPdf,

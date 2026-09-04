@@ -61,6 +61,7 @@ export function MonthlyClosingView({
     closingData,
     goToPrevMonth,
     goToNextMonth,
+    resetToCurrentMonth,
     recalculate,
     exportPdf,
     isExportingPdf,
@@ -124,25 +125,29 @@ export function MonthlyClosingView({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          {/* Seletor de Mês */}
-          <div className="flex items-center bg-muted/70 rounded-xl p-1 border border-border/60">
+          {/* Seletor de Mês (Padrão do App) */}
+          <div className="flex items-center justify-center gap-1 sm:gap-2">
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 rounded-lg hover:bg-background/80"
+              className="h-8 w-8 text-foreground hover:bg-muted"
               onClick={goToPrevMonth}
               title="Mês anterior"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <div className="flex items-center gap-1.5 px-3 font-semibold text-xs sm:text-sm min-w-[130px] justify-center">
-              <Calendar className="h-3.5 w-3.5 text-primary" />
-              <span>{closingData.monthLabel}</span>
-            </div>
+            <button
+              type="button"
+              onClick={resetToCurrentMonth}
+              title="Voltar para o mês vigente"
+              className="text-base sm:text-lg font-medium text-foreground min-w-[140px] text-center capitalize hover:text-primary transition-colors cursor-pointer"
+            >
+              {closingData.monthLabel}
+            </button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 rounded-lg hover:bg-background/80"
+              className="h-8 w-8 text-foreground hover:bg-muted"
               onClick={goToNextMonth}
               title="Próximo mês"
             >
