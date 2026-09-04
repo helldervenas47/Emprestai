@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useCreditLimits } from "@/features/creditCards/hooks/useCreditLimits";
+import { computeUsedLimit, computeAvailableLimit, formatBRL } from "@/features/creditCards/lib/creditLimit";
 import { Wallet, AlertTriangle as AlertTriangleIcon, ShieldCheck } from "lucide-react";
 import { buildRiskProfile } from "@/features/loans/lib/clientRisk";
 import { LoanPaymentSplitEditor, buildSplitFromState, type SplitState } from "@/features/loans/components/LoanPaymentSplitEditor";
