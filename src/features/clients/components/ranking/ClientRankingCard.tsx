@@ -89,7 +89,7 @@ export function ClientRankingCard({
       case "risk":
         return {
           label: "Risco Atual",
-          value: riskInfo.label,
+          value: riskInfo.riskLevel,
           subValue: `Em aberto: ${formatBRL(item.open_amount)}`,
           icon: ShieldCheck,
           color: riskInfo.color,
@@ -119,63 +119,72 @@ export function ClientRankingCard({
   return (
     <div
       onClick={onClick}
-      className="p-3.5 sm:p-4 rounded-xl border border-border/60 bg-card hover:border-primary/40 hover:shadow-sm transition-all cursor-pointer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 group"
+      className="p-3.5 sm:p-4 rounded-xl border border-border/60 bg-card hover:border-primary/40 hover:shadow-sm transition-all cursor-pointer flex flex-col items-start justify-between gap-3 group"
     >
-      {/* Lado Esquerdo: Posição, Avatar e Dados Principais */}
-      <div className="flex items-center justify-between sm:justify-start gap-3 min-w-0 flex-1 w-full sm:w-auto">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          {positionBadge}
+      <div className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        {/* Lado Esquerdo: Posição, Avatar e Dados Principais */}
+        <div className="flex items-center justify-between sm:justify-start gap-3 min-w-0 flex-1 w-full sm:w-auto">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            {positionBadge}
 
-          <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 uppercase">
-            {item.client_name.slice(0, 2)}
+            <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 uppercase">
+              {item.client_name.slice(0, 2)}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-sm sm:text-base text-foreground truncate group-hover:text-primary transition-colors">
+                {item.client_name}
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                {item.client_phone || item.client_cpf || "Cliente cadastrado"}
+              </p>
+            </div>
           </div>
 
-          <div className="min-w-0 flex-1">
-            <h3 className="font-semibold text-sm sm:text-base text-foreground truncate group-hover:text-primary transition-colors">
-              {item.client_name}
-            </h3>
-            <p className="text-xs text-muted-foreground mt-0.5 truncate">
-              {item.client_phone || item.client_cpf || "Cliente cadastrado"}
-            </p>
-          </div>
+          {/* Score no topo direito em telas mobile */}
+          <Badge
+            variant="outline"
+            className={`sm:hidden text-[10px] px-2 py-0.5 h-5 font-bold shrink-0 ${riskInfo.color} border-current/30`}
+          >
+            Score: {riskInfo.score}/100
+          </Badge>
         </div>
 
-        {/* Score no topo direito em telas mobile */}
-        <Badge
-          variant="outline"
-          className={`sm:hidden text-[10px] px-2 py-0.5 h-5 font-bold shrink-0 ${riskInfo.color} border-current/30`}
-        >
-          Score: {riskInfo.score}/100
-        </Badge>
-      </div>
+        {/* Lado Direito: Score (desktop), Métrica em Destaque e Ação */}
+        <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto border-t sm:border-t-0 pt-2 sm:pt-0 border-border/40">
+          {/* Score no lado direito em desktop */}
+          <Badge
+            variant="outline"
+            className={`hidden sm:inline-flex text-[11px] px-2.5 py-0.5 h-6 font-bold shrink-0 ${riskInfo.color} border-current/30`}
+          >
+            Score: {riskInfo.score}/100
+          </Badge>
 
-      {/* Lado Direito: Score (desktop), Métrica em Destaque e Ação */}
-      <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto border-t sm:border-t-0 pt-2 sm:pt-0 border-border/40">
-        {/* Score no lado direito em desktop */}
-        <Badge
-          variant="outline"
-          className={`hidden sm:inline-flex text-[11px] px-2.5 py-0.5 h-6 font-bold shrink-0 ${riskInfo.color} border-current/30`}
-        >
-          Score: {riskInfo.score}/100
-        </Badge>
-
-        <div className="text-left sm:text-right">
-          <div className="flex items-center sm:justify-end gap-1">
-            <MetricIcon className={`h-3.5 w-3.5 ${primaryMetric.color}`} />
-            <span className="text-xs font-medium text-muted-foreground">
-              {primaryMetric.label}:
-            </span>
-            <span className={`text-sm sm:text-base font-bold ${primaryMetric.color}`}>
-              {primaryMetric.value}
+          <div className="text-left sm:text-right">
+            <div className="flex items-center sm:justify-end gap-1">
+              <MetricIcon className={`h-3.5 w-3.5 ${primaryMetric.color}`} />
+              <span className="text-xs font-medium text-muted-foreground">
+                {primaryMetric.label}:
+              </span>
+              <span className={`text-sm sm:text-base font-bold ${primaryMetric.color}`}>
+                {primaryMetric.value}
+              </span>
+            </div>
+            <span className="text-[11px] text-muted-foreground block">
+              {primaryMetric.subValue}
             </span>
           </div>
-          <span className="text-[11px] text-muted-foreground block">
-            {primaryMetric.subValue}
-          </span>
-        </div>
 
-        <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+        </div>
       </div>
+
+      {/* Descrição oficial do nível de risco na visualização de maior risco */}
+      {rankingType === "risk" && riskInfo.description && (
+        <p className="text-[11px] sm:text-xs text-muted-foreground w-full pt-2 border-t border-border/40 leading-relaxed">
+          {riskInfo.description}
+        </p>
+      )}
     </div>
   );
 }

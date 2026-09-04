@@ -75,7 +75,7 @@ export function ClientRankingDetailDialog({
               className={`text-xs px-2.5 py-0.5 font-bold ${riskInfo.color} ${riskInfo.bgColor}/10 border-current/30`}
             >
               <ShieldCheck className="h-3.5 w-3.5 mr-1" />
-              Score: {riskInfo.score}/100 • {riskInfo.label}
+              Score: {riskInfo.score}/100 • {riskInfo.riskLevel}
             </Badge>
             <Badge variant="secondary" className="text-xs">
               Pontualidade: {item.on_time_percentage.toFixed(0)}%
