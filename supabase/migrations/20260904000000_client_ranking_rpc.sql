@@ -1,6 +1,7 @@
 -- ==============================================================================
 -- Migration: RPC Consolidada de Ranking de Clientes (Módulo Cadastro)
 -- Utiliza as tabelas reais do sistema: public.clients, public.loans, public.payments
+-- Exibe apenas clientes com pelo menos 1 empréstimo cadastrado.
 -- ==============================================================================
 
 -- 1. ÍNDICES DE PERFORMANCE (IDEMPOTENTES)
@@ -82,6 +83,10 @@ BEGIN
       COALESCE(c.score_tempo_real, c.score_risco, 100.0) AS base_score
     FROM public.clients c
     WHERE c.user_id = v_user_id
+      AND EXISTS (
+        SELECT 1 FROM public.loans l_exist 
+        WHERE l_exist.borrower_id = c.id
+      )
       AND (
         p_search = '' 
         OR c.name ILIKE '%' || p_search || '%'
@@ -118,7 +123,6 @@ BEGIN
           ELSE 0 
         END
       ), 0) AS profit_generated,
-      -- Pontualidade estimada a partir da data de início do empréstimo e número da parcela
       COUNT(p.id) FILTER (
         WHERE p.date::DATE <= (l.start_date::DATE + (p.installment_number * interval '1 month') + interval '3 days')::DATE
       ) AS on_time_payments,
@@ -144,7 +148,6 @@ BEGIN
       cb.phone AS client_phone,
       cb.cpf AS client_cpf,
       cb.cnpj AS client_cnpj,
-      -- Cálculo de Score dinâmico baseado no histórico
       GREATEST(0, LEAST(150,
         CASE
           WHEN COALESCE(la.total_loans, 0) = 0 THEN 100

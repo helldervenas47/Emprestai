@@ -78,10 +78,15 @@ export function computeClientRanking({
     );
   });
 
-  // Agregação dos indicadores por cliente
-  const items: ClientRankingItem[] = filteredClients.map((client) => {
-    // Empréstimos pertencentes ao cliente
+  // Agregação dos indicadores por cliente (apenas clientes com pelo menos 1 empréstimo em todo o app)
+  const items: ClientRankingItem[] = [];
+
+  filteredClients.forEach((client) => {
+    // Empréstimos pertencentes ao cliente em todo o app
     const clientLoansAll = getClientLoans(client, loans);
+    if (clientLoansAll.length === 0) {
+      return; // Ignora clientes sem empréstimos cadastrados
+    }
 
     // Empréstimos no período selecionado
     const clientLoans = clientLoansAll.filter((l) => {
@@ -173,20 +178,14 @@ export function computeClientRanking({
     });
 
     const totalPaymentsCount = onTimePayments + latePayments;
-    const onTimePercentage = totalPaymentsCount > 0 ? (onTimePayments / totalPaymentsCount) * 100 : (clientLoansAll.length > 0 ? (overdueLoans > 0 ? 0 : 100) : 100);
+    const onTimePercentage = totalPaymentsCount > 0 ? (onTimePayments / totalPaymentsCount) * 100 : (overdueLoans > 0 ? 0 : 100);
 
     // Cálculo dinâmico do Score oficial (escala 0 a 150)
-    let score = 100;
-    if (clientLoansAll.length === 0 && totalPaymentsCount === 0) {
-      score = 100;
-    } else {
-      // Score vivo: +3 por pgto em dia, -5 por pgto com atraso, +5 por contrato quitado, -15 por contrato atrasado no momento, -2 por dia de atraso ativo
-      const overduePenalty = overdueLoans * 15 + Math.min(40, maxDelayDays * 1.5);
-      const dynamicScore = 100 + (onTimePayments * 3) - (latePayments * 5) + (paidLoans * 5) - overduePenalty;
-      score = Math.max(0, Math.min(150, Math.round(dynamicScore)));
-    }
+    const overduePenalty = overdueLoans * 15 + Math.min(40, maxDelayDays * 1.5);
+    const dynamicScore = 100 + (onTimePayments * 3) - (latePayments * 5) + (paidLoans * 5) - overduePenalty;
+    const score = Math.max(0, Math.min(150, Math.round(dynamicScore)));
 
-    return {
+    items.push({
       position: 1,
       client_id: client.id,
       client_name: client.name || "Sem Nome",
@@ -204,7 +203,7 @@ export function computeClientRanking({
       late_payments: latePayments,
       on_time_percentage: onTimePercentage,
       max_delay_days: maxDelayDays,
-    };
+    });
   });
 
   // Ordenação de acordo com o ranking selecionado
