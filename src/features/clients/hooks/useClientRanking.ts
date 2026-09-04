@@ -6,8 +6,16 @@ import {
   ClientRankingPeriod,
   ClientRankingItem,
 } from "../types/clientRanking";
+import { Client, Loan, Payment } from "@/types/loan";
+import { computeClientRanking } from "../lib/computeClientRanking";
 
-export function useClientRanking() {
+interface UseClientRankingOptions {
+  clients?: Client[];
+  loans?: Loan[];
+  payments?: Payment[];
+}
+
+export function useClientRanking(options?: UseClientRankingOptions) {
   const [rankingType, setRankingType] = useState<ClientRankingType>("best");
   const [period, setPeriod] = useState<ClientRankingPeriod>("all");
   const [startDate, setStartDate] = useState<string | undefined>();
@@ -17,10 +25,41 @@ export function useClientRanking() {
   const [pageSize, setPageSize] = useState<number>(20);
   const [selectedClient, setSelectedClient] = useState<ClientRankingItem | null>(null);
 
-  // Query React Query com cache inteligente
+  const hasLocalData = !!options?.clients;
+
+  // Cálculo local caso os dados do app já estejam em memória
+  const localResult = useMemo(() => {
+    if (!hasLocalData || !options?.clients) return null;
+    return computeClientRanking({
+      clients: options.clients,
+      loans: options.loans || [],
+      payments: options.payments || [],
+      rankingType,
+      period,
+      startDate,
+      endDate,
+      search,
+      page,
+      pageSize,
+    });
+  }, [
+    hasLocalData,
+    options?.clients,
+    options?.loans,
+    options?.payments,
+    rankingType,
+    period,
+    startDate,
+    endDate,
+    search,
+    page,
+    pageSize,
+  ]);
+
+  // Query React Query remota caso não tenha dados locais
   const {
-    data,
-    isLoading,
+    data: remoteData,
+    isLoading: isRemoteLoading,
     isFetching,
     error,
     refetch,
@@ -45,7 +84,8 @@ export function useClientRanking() {
         pageSize,
         search,
       }),
-    staleTime: 1000 * 60 * 3, // 3 minutos de cache
+    enabled: !hasLocalData,
+    staleTime: 1000 * 60 * 3,
     refetchOnWindowFocus: false,
   });
 
@@ -64,6 +104,8 @@ export function useClientRanking() {
     setPage(1);
   };
 
+  const activeData = hasLocalData ? localResult : remoteData;
+
   return {
     rankingType,
     setRankingType: handleRankingTypeChange,
@@ -81,11 +123,11 @@ export function useClientRanking() {
     setPageSize,
     selectedClient,
     setSelectedClient,
-    items: data?.data ?? [],
-    totalCount: data?.total_count ?? 0,
-    totalPages: data?.total_pages ?? 0,
-    isLoading,
-    isFetching,
+    items: activeData?.data ?? [],
+    totalCount: activeData?.total_count ?? 0,
+    totalPages: activeData?.total_pages ?? 0,
+    isLoading: hasLocalData ? false : isRemoteLoading,
+    isFetching: hasLocalData ? false : isFetching,
     error: error ? (error as Error).message : null,
     refetch,
   };

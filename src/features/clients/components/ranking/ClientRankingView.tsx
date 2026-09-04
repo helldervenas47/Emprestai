@@ -5,8 +5,20 @@ import { ClientRankingDetailDialog } from "./ClientRankingDetailDialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Trophy, ChevronLeft, ChevronRight, AlertCircle, Users } from "lucide-react";
+import { Client, Loan, Payment, InstallmentSchedule } from "@/types/loan";
 
-export function ClientRankingView() {
+interface ClientRankingViewProps {
+  clients?: Client[];
+  loans?: Loan[];
+  payments?: Payment[];
+  installmentSchedules?: InstallmentSchedule[];
+}
+
+export function ClientRankingView({
+  clients,
+  loans,
+  payments,
+}: ClientRankingViewProps) {
   const {
     rankingType,
     setRankingType,
@@ -29,7 +41,7 @@ export function ClientRankingView() {
     isFetching,
     error,
     refetch,
-  } = useClientRanking();
+  } = useClientRanking({ clients, loans, payments });
 
   return (
     <div className="space-y-6">
@@ -130,7 +142,7 @@ export function ClientRankingView() {
         </div>
       )}
 
-      {/* Paginação do Servidor */}
+      {/* Paginação do Servidor / Local */}
       {!isLoading && !error && totalPages > 1 && (
         <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/50">
           <span className="text-xs text-muted-foreground">

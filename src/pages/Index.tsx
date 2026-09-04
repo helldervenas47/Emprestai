@@ -1532,7 +1532,12 @@ const Index = () => {
                       />
                     )}
                     {clientSubTab === "ranking" && (
-                      <ClientRankingView />
+                      <ClientRankingView
+                        clients={filteredClients}
+                        loans={filteredLoans}
+                        payments={filteredPayments}
+                        installmentSchedules={filteredInstallments}
+                      />
                     )}
                     {clientSubTab === "veiculos" && !isReadOnly && (
                       <>

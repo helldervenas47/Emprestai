@@ -1,7 +1,6 @@
 -- ==============================================================================
 -- Migration: RPC Consolidada de Ranking de Clientes (Módulo Cadastro)
--- Agregação otimizada no banco para prevenir N+1 queries, com paginação,
--- filtros de período e ordenação direta no PostgreSQL.
+-- Utiliza as tabelas reais do sistema: public.clients, public.loans, public.payments
 -- ==============================================================================
 
 -- 1. ÍNDICES DE PERFORMANCE (IDEMPOTENTES)
@@ -80,8 +79,8 @@ BEGIN
       c.phone,
       c.cpf,
       c.cnpj,
-      COALESCE(c.score_tempo_real, c.score_risco, 100.0) AS effective_score
-    FROM public.vw_clientes_score c
+      COALESCE(c.score_tempo_real, c.score_risco, 100.0) AS base_score
+    FROM public.clients c
     WHERE c.user_id = v_user_id
       AND (
         p_search = '' 
@@ -94,6 +93,8 @@ BEGIN
     SELECT
       l.borrower_id AS client_id,
       COUNT(l.id) AS total_loans,
+      COUNT(l.id) FILTER (WHERE l.status = 'paid') AS paid_loans,
+      COUNT(l.id) FILTER (WHERE l.status != 'paid' AND l.due_date < CURRENT_DATE::TEXT) AS overdue_loans,
       COALESCE(SUM(l.amount), 0) AS total_borrowed,
       COALESCE(SUM(CASE WHEN l.status != 'paid' AND l.status != 'cancelled' THEN COALESCE(l.remaining_amount, l.amount) ELSE 0 END), 0) AS open_amount
     FROM public.loans l
@@ -101,7 +102,7 @@ BEGIN
       AND (
         p_period = 'all' 
         OR (l.created_at::DATE >= v_period_start AND l.created_at::DATE <= v_period_end)
-        OR (l.start_date >= v_period_start AND l.start_date <= v_period_end)
+        OR (l.start_date::DATE >= v_period_start AND l.start_date::DATE <= v_period_end)
       )
     GROUP BY l.borrower_id
   ),
@@ -110,43 +111,31 @@ BEGIN
       l.borrower_id AS client_id,
       COUNT(p.id) AS total_payments,
       COALESCE(SUM(p.amount), 0) AS total_received,
-      -- Estima lucro realizado: parcela proporcional aos juros contratuais do empréstimo
       COALESCE(SUM(
         CASE 
           WHEN l.amount > 0 AND l.interest_rate > 0 THEN 
             p.amount * (l.interest_rate / (100.0 + l.interest_rate))
           ELSE 0 
         END
-      ), 0) AS profit_generated
+      ), 0) AS profit_generated,
+      -- Pontualidade estimada a partir da data de início do empréstimo e número da parcela
+      COUNT(p.id) FILTER (
+        WHERE p.date::DATE <= (l.start_date::DATE + (p.installment_number * interval '1 month') + interval '3 days')::DATE
+      ) AS on_time_payments,
+      COUNT(p.id) FILTER (
+        WHERE p.date::DATE > (l.start_date::DATE + (p.installment_number * interval '1 month') + interval '3 days')::DATE
+      ) AS late_payments,
+      COALESCE(MAX(
+        GREATEST(0, (p.date::DATE - (l.start_date::DATE + (p.installment_number * interval '1 month'))::DATE))
+      ), 0) AS max_delay_days
     FROM public.payments p
     JOIN public.loans l ON l.id = p.loan_id
     WHERE p.user_id = v_user_id
       AND (
         p_period = 'all' 
-        OR (p.date >= v_period_start AND p.date <= v_period_end)
+        OR (p.date::DATE >= v_period_start AND p.date::DATE <= v_period_end)
       )
     GROUP BY l.borrower_id
-  ),
-  punctuality_agg AS (
-    SELECT
-      p.cliente_id AS client_id,
-      COUNT(p.id) AS total_due_payments,
-      COUNT(p.id) FILTER (WHERE p.data_pagamento IS NOT NULL AND p.data_pagamento <= (p.data_vencimento + 3)) AS on_time_payments,
-      COUNT(p.id) FILTER (WHERE (p.data_pagamento IS NOT NULL AND p.data_pagamento > (p.data_vencimento + 3)) OR (p.data_pagamento IS NULL AND p.data_vencimento < CURRENT_DATE)) AS late_payments,
-      COALESCE(MAX(
-        CASE 
-          WHEN p.data_pagamento IS NOT NULL THEN GREATEST(0, p.data_pagamento - p.data_vencimento)
-          WHEN p.data_vencimento < CURRENT_DATE THEN GREATEST(0, CURRENT_DATE - p.data_vencimento)
-          ELSE 0
-        END
-      ), 0) AS max_delay_days
-    FROM public.pagamentos p
-    WHERE p.cliente_id IN (SELECT id FROM client_base)
-      AND (
-        p_period = 'all'
-        OR (p.data_vencimento >= v_period_start AND p.data_vencimento <= v_period_end)
-      )
-    GROUP BY p.cliente_id
   ),
   consolidated AS (
     SELECT
@@ -155,26 +144,36 @@ BEGIN
       cb.phone AS client_phone,
       cb.cpf AS client_cpf,
       cb.cnpj AS client_cnpj,
-      cb.effective_score AS score,
+      -- Cálculo de Score dinâmico baseado no histórico
+      GREATEST(0, LEAST(150,
+        CASE
+          WHEN COALESCE(la.total_loans, 0) = 0 THEN 100
+          ELSE (
+            100 
+            + (COALESCE(pa.on_time_payments, 0) * 3)
+            - (COALESCE(pa.late_payments, 0) * 5)
+            + (COALESCE(la.paid_loans, 0) * 5)
+            - (COALESCE(la.overdue_loans, 0) * 10)
+          )
+        END
+      )) AS score,
       COALESCE(la.total_loans, 0) AS total_loans,
       COALESCE(la.total_borrowed, 0.0) AS total_borrowed,
       COALESCE(la.open_amount, 0.0) AS open_amount,
       COALESCE(pa.total_payments, 0) AS total_payments,
       COALESCE(pa.total_received, 0.0) AS total_received,
       COALESCE(pa.profit_generated, 0.0) AS profit_generated,
-      COALESCE(punc.on_time_payments, 0) AS on_time_payments,
-      COALESCE(punc.late_payments, 0) AS late_payments,
-      COALESCE(punc.max_delay_days, 0) AS max_delay_days,
+      COALESCE(pa.on_time_payments, 0) AS on_time_payments,
+      COALESCE(pa.late_payments, 0) AS late_payments,
+      COALESCE(pa.max_delay_days, 0) AS max_delay_days,
       CASE 
-        WHEN COALESCE(punc.total_due_payments, 0) > 0 THEN
-          ROUND((punc.on_time_payments::NUMERIC / punc.total_due_payments::NUMERIC) * 100.0, 1)
-        WHEN COALESCE(pa.total_payments, 0) > 0 THEN 100.0
+        WHEN COALESCE(pa.total_payments, 0) > 0 THEN
+          ROUND((COALESCE(pa.on_time_payments, 0)::NUMERIC / COALESCE(pa.total_payments, 0)::NUMERIC) * 100.0, 1)
         ELSE 100.0
       END AS on_time_percentage
     FROM client_base cb
     LEFT JOIN loan_agg la ON la.client_id = cb.id
     LEFT JOIN payment_agg pa ON pa.client_id = cb.id
-    LEFT JOIN punctuality_agg punc ON punc.client_id = cb.id
   ),
   ranked AS (
     SELECT
