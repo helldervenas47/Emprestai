@@ -436,11 +436,11 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
               {/* Score e Risco do Cliente — acima do limite de crédito */}
               {selectedClient && clientRiskProfile && (
                 <div className="col-span-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5 flex items-center justify-between gap-2 flex-wrap">
-                  <span className="text-xs font-bold text-foreground">
-                    Score: {clientRiskProfile.score}/100
-                  </span>
-                  <Badge variant="outline" className={`text-xs px-2.5 py-0.5 font-bold ${clientRiskProfile.badgeClassName}`}>
-                    Risco: {clientRiskProfile.riskLevel}
+                  <Badge variant="outline" className={`text-xs px-2.5 py-0.5 font-bold uppercase ${clientRiskProfile.badgeClassName}`}>
+                    SCORE: {clientRiskProfile.score}/100
+                  </Badge>
+                  <Badge variant="outline" className={`text-xs px-2.5 py-0.5 font-bold uppercase ${clientRiskProfile.badgeClassName}`}>
+                    RISCO: {clientRiskProfile.riskLevel}
                   </Badge>
                 </div>
               )}
