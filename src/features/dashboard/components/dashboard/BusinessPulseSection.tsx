@@ -4,17 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   TrendingUp,
-  TrendingDown,
   AlertTriangle,
   AlertOctagon,
   Lightbulb,
-  ArrowUpRight,
-  ArrowDownRight,
   RefreshCw,
   Users,
   ChevronRight,
   Sparkles,
-  ShieldAlert,
 } from "lucide-react";
 import type { BusinessPulseAnalysis, PulseEventItem } from "../../lib/businessPulse/types";
 import { BusinessPulsePrioritaryClientsDialog } from "./BusinessPulsePrioritaryClientsDialog";
@@ -71,15 +67,15 @@ export function BusinessPulseSection({
   const renderEventIcon = (type: PulseEventItem["type"]) => {
     switch (type) {
       case "positive":
-        return <TrendingUp className="h-4 w-4 text-emerald-500" />;
+        return <TrendingUp className="h-4 w-4 text-emerald-500 shrink-0" />;
       case "attention":
-        return <AlertTriangle className="h-4 w-4 text-amber-500" />;
+        return <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />;
       case "critical":
-        return <AlertOctagon className="h-4 w-4 text-destructive" />;
+        return <AlertOctagon className="h-4 w-4 text-destructive shrink-0" />;
       case "opportunity":
-        return <Lightbulb className="h-4 w-4 text-primary" />;
+        return <Lightbulb className="h-4 w-4 text-primary shrink-0" />;
       default:
-        return <Sparkles className="h-4 w-4 text-primary" />;
+        return <Sparkles className="h-4 w-4 text-primary shrink-0" />;
     }
   };
 
@@ -92,18 +88,18 @@ export function BusinessPulseSection({
           style={{ background: toneConfig.glow }}
         />
 
-        <CardContent className="p-5 sm:p-6 space-y-5">
-          {/* Cabeçalho Responsivo Otimizado */}
-          <div className="flex items-start sm:items-center justify-between gap-2.5 sm:gap-3 pb-3 border-b border-border/50">
-            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-              <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 shadow-inner">
+        <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-5">
+          {/* Cabeçalho Otimizado para Mobile e Desktop */}
+          <div className="flex items-start justify-between gap-2.5 pb-3 border-b border-border/50">
+            <div className="flex items-start gap-2.5 min-w-0 flex-1">
+              <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 shadow-inner mt-0.5 sm:mt-0">
                 <span className="text-lg sm:text-xl select-none" role="img" aria-label="Cérebro">🧠</span>
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-foreground font-bold text-sm sm:text-base md:text-lg tracking-tight leading-snug">
+                <h3 className="text-foreground font-bold text-sm sm:text-base md:text-lg tracking-tight leading-snug break-words whitespace-normal">
                   O que está acontecendo com seu negócio?
                 </h3>
-                <p className="text-muted-foreground text-[10px] sm:text-[11px] tracking-wide mt-0.5">
+                <p className="text-muted-foreground text-[10px] sm:text-[11px] tracking-wide mt-0.5 leading-tight">
                   Análise baseada nos dados registrados até {analysis.generatedAt}
                 </p>
               </div>
@@ -115,7 +111,7 @@ export function BusinessPulseSection({
                 size="sm"
                 onClick={handleRefreshClick}
                 disabled={refreshing}
-                className="h-8 px-2 sm:px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1.5 shrink-0 bg-background/50 border-border/60 shadow-sm"
+                className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1.5 shrink-0 bg-background/60 border-border/60 shadow-sm"
                 title="Atualizar análise"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin text-primary" : ""}`} />
@@ -125,25 +121,25 @@ export function BusinessPulseSection({
           </div>
 
           {/* Diagnóstico Principal */}
-          <div className={`p-4 rounded-xl bg-muted/30 border-l-4 ${toneConfig.quoteBorder} space-y-1`}>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <div className={`p-3.5 sm:p-4 rounded-xl bg-muted/30 border-l-4 ${toneConfig.quoteBorder} space-y-1`}>
+            <p className="text-[11px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Diagnóstico Executivo
             </p>
-            <p className="text-base sm:text-lg font-bold text-foreground leading-snug">
+            <p className="text-sm sm:text-base md:text-lg font-bold text-foreground leading-snug break-words">
               {analysis.headline}
             </p>
           </div>
 
-          {/* Grid de Acontecimentos Relevantes */}
+          {/* Grid de Acontecimentos Relevantes (Sempre 4 cards) */}
           {analysis.events.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
               {analysis.events.map((ev) => (
                 <div
                   key={ev.id}
-                  className="rounded-xl border border-border/60 bg-card p-3.5 space-y-2 flex flex-col justify-between shadow-sm transition-all hover:border-border hover:shadow"
+                  className="rounded-xl border border-border/60 bg-card p-3 sm:p-3.5 space-y-2 flex flex-col justify-between shadow-sm transition-all hover:border-border hover:shadow"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                  <div className="flex items-start justify-between gap-1.5">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground min-w-0">
                       {renderEventIcon(ev.type)}
                       <span className="truncate">{ev.title}</span>
                     </div>
@@ -167,30 +163,30 @@ export function BusinessPulseSection({
             </div>
           )}
 
-          {/* Recomendação Prática */}
+          {/* Recomendação Prática com Botão 100% largura no Mobile */}
           {analysis.recommendation && (
-            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
-              <div className="flex items-start gap-3 min-w-0">
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-sm">
+              <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
                 <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
                   <Lightbulb className="h-4 w-4 text-primary" />
                 </div>
-                <div className="space-y-0.5 min-w-0">
+                <div className="space-y-0.5 min-w-0 flex-1">
                   <span className="text-xs font-bold text-primary uppercase tracking-wider block">
                     Recomendação Prática
                   </span>
-                  <p className="text-xs sm:text-sm text-foreground leading-relaxed font-medium">
+                  <p className="text-xs sm:text-sm text-foreground leading-relaxed font-medium break-words">
                     {analysis.recommendation.text}
                   </p>
                 </div>
               </div>
 
               {analysis.recommendation.actionLabel && (
-                <div className="self-end sm:self-center shrink-0">
+                <div className="w-full sm:w-auto shrink-0 pt-1 sm:pt-0">
                   {analysis.recommendation.actionType === "view_overdue_clients" ? (
                     <Button
                       size="sm"
                       onClick={() => setDialogOpen(true)}
-                      className="gap-1.5 text-xs h-8 font-semibold shadow-sm"
+                      className="w-full sm:w-auto gap-1.5 text-xs h-9 sm:h-8 font-semibold shadow-sm justify-center"
                     >
                       <Users className="h-3.5 w-3.5" />
                       {analysis.recommendation.actionLabel}
@@ -201,7 +197,7 @@ export function BusinessPulseSection({
                       size="sm"
                       variant="outline"
                       onClick={onNavigateToRanking || (() => setDialogOpen(true))}
-                      className="gap-1.5 text-xs h-8 font-semibold"
+                      className="w-full sm:w-auto gap-1.5 text-xs h-9 sm:h-8 font-semibold justify-center"
                     >
                       {analysis.recommendation.actionLabel}
                       <ChevronRight className="h-3 w-3" />
