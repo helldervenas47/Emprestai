@@ -1506,7 +1506,7 @@ const Index = () => {
                               : "text-muted-foreground hover:text-foreground hover:bg-background/50"
                           }`}
                         >
-                          <Car className={`h-4 w-4 shrink-0 ${clientSubTab === "veiculos" ? "!text-primary" : ""}`} /> Cadastro de Veículos
+                          <Car className={`h-4 w-4 shrink-0 ${clientSubTab === "veiculos" ? "!text-primary" : ""}`} /> Veículos
                         </button>
                       )}
                       <button

@@ -61,16 +61,21 @@ export function ClientRankingFilters({
 }: ClientRankingFiltersProps) {
   return (
     <div className="space-y-4">
-      {/* Abas dos rankings: Grid 3x3 no mobile e linha flex no desktop */}
+      {/* Abas dos rankings: "Melhores clientes" full width e os demais em grid 3x3 no mobile; linha flex no desktop */}
       <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1.5 sm:gap-1.5">
         {rankingTabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = rankingType === tab.id;
+          const isBest = tab.id === "best";
           return (
             <button
               key={tab.id}
               onClick={() => onRankingTypeChange(tab.id)}
-              className={`flex flex-col sm:flex-row items-center justify-center text-center sm:text-left gap-1 sm:gap-1.5 px-2 py-2 sm:px-3 sm:py-2 text-[11px] sm:text-sm font-medium rounded-lg transition-all sm:shrink-0 ${
+              className={`flex ${
+                isBest
+                  ? "col-span-3 flex-row py-2.5 font-semibold text-xs sm:text-sm"
+                  : "col-span-1 flex-col py-2 text-[11px] font-medium"
+              } sm:flex-row sm:col-auto items-center justify-center text-center sm:text-left gap-1 sm:gap-1.5 px-2.5 sm:px-3 sm:py-2 sm:text-sm rounded-lg transition-all sm:shrink-0 ${
                 isActive
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "bg-card border border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -85,21 +90,21 @@ export function ClientRankingFilters({
 
       {/* Barra de Filtro de Período e Busca */}
       <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between">
-        <div className="relative flex-1 max-w-md">
+        <div className="relative flex-1 max-w-full sm:max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Buscar por nome, CPF ou telefone..."
-            className="pl-9 h-9 text-xs sm:text-sm"
+            className="pl-9 h-9 text-xs sm:text-sm w-full"
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-1.5 w-full sm:w-auto">
+            <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
             <Select value={period} onValueChange={(v) => onPeriodChange(v as ClientRankingPeriod)}>
-              <SelectTrigger className="h-9 w-[160px] text-xs sm:text-sm bg-card">
+              <SelectTrigger className="h-9 w-full sm:w-[160px] text-xs sm:text-sm bg-card">
                 <SelectValue placeholder="Selecione o período" />
               </SelectTrigger>
               <SelectContent>
@@ -115,19 +120,19 @@ export function ClientRankingFilters({
           </div>
 
           {period === "custom" && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 w-full sm:w-auto justify-between sm:justify-start">
               <NativeDatePicker
                 value={startDate || ""}
                 onChange={(v) => onStartDateChange(v || undefined)}
                 placeholder="Início"
-                className="h-9 text-xs w-[120px]"
+                className="h-9 text-xs flex-1 sm:w-[120px]"
               />
-              <span className="text-xs text-muted-foreground">até</span>
+              <span className="text-xs text-muted-foreground shrink-0">até</span>
               <NativeDatePicker
                 value={endDate || ""}
                 onChange={(v) => onEndDateChange(v || undefined)}
                 placeholder="Fim"
-                className="h-9 text-xs w-[120px]"
+                className="h-9 text-xs flex-1 sm:w-[120px]"
               />
             </div>
           )}
