@@ -81,9 +81,6 @@ export function computeClientRanking({
     );
   });
 
-  // Mapeia a alocação oficial de juros/lucro por pagamento (regime canônico do app)
-  const interestAllocMap = allocateInterestByPayment(loans as any, payments as any);
-
   // Agregação dos indicadores por cliente (apenas clientes com pelo menos 1 empréstimo em todo o app)
   const items: ClientRankingItem[] = [];
 
@@ -93,6 +90,29 @@ export function computeClientRanking({
     if (clientLoansAll.length === 0) {
       return; // Ignora clientes sem empréstimos cadastrados
     }
+
+    const loanIds = new Set(clientLoansAll.map((l) => l.id));
+    const clientPaymentsAll = payments.filter((p) => loanIds.has(p.loanId));
+
+    // Alocação de juros idêntica à aba Histórico do Cliente (LoanHistory)
+    const allocatedInterestMap = allocateInterestByPayment(
+      clientLoansAll.map((l) => ({
+        id: l.id,
+        amount: l.amount || 0,
+        interestRate: l.interestRate,
+        installments: l.installments,
+        status: l.status,
+      })),
+      clientPaymentsAll.map((p) => ({
+        id: p.id,
+        loanId: p.loanId,
+        amount: p.amount,
+        date: p.date,
+        installmentNumber: p.installmentNumber,
+        createdAt: (p as any).createdAt,
+        metadata: (p as any).metadata,
+      })),
+    );
 
     // Empréstimos no período selecionado
     const clientLoans = clientLoansAll.filter((l) => {
@@ -138,8 +158,8 @@ export function computeClientRanking({
 
         totalReceived += p.amount || 0;
         
-        // Alocação exata e canônica de juros reconhecidos no pagamento
-        const paymentInterest = interestAllocMap.get(p.id) ?? 0;
+        // Alocação de juros recebidos (idêntica ao Histórico do Cliente)
+        const paymentInterest = allocatedInterestMap.get(p.id) ?? 0;
         profitGenerated += paymentInterest;
 
         // Amortização parcial avulsa (-1): não conta como parcela no cálculo de pontualidade
