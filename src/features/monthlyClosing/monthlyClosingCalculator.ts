@@ -266,7 +266,7 @@ export function calculateFinancialSummaryForMonth(
       const totalFees = Math.round((lateInterestTotal + penaltyTotal) * 100) / 100;
 
       const finalOverdueAmount = Math.round((contractOverdueAmount + totalFees) * 100) / 100;
-      const finalRemainingAmount = Math.round((baseRemaining + totalFees) * 100) / 100;
+      const finalRemainingAmount = baseRemaining;
       const finalInstallmentAmount = Math.round((nextInstallmentAmount + totalFees) * 100) / 100;
       const interestAmount = Math.max(0, Math.round((totalAmount - principal) * 100) / 100);
 
@@ -275,7 +275,7 @@ export function calculateFinancialSummaryForMonth(
 
       const rawClientId = loan.clientId || loan.client_id || loan.borrowerId || loan.borrower_id || "";
       const client = clients.find((c: any) => c.id === rawClientId);
-      const clientName = client?.name || loan.clientName || loan.client_name || "Cliente";
+      const clientName = client?.name || loan.borrowerName || loan.clientName || loan.client_name || "Cliente";
       const clientPhone = client?.phone || loan.clientPhone || "";
       const clientPhotoUrl = client?.photo_url || (client as any)?.photoUrl || "";
 
@@ -338,7 +338,7 @@ export function calculateFinancialSummaryForMonth(
 
     const nextInstallmentAmount = getInstallmentAmount(loan, installmentSchedules, payments);
 
-    const overdueInsts = getOverdueInstallments(loan, installmentSchedules, today);
+    const overdueInsts = getOverdueInstallments(loan, installmentSchedules, today, payments);
     const overdueInstallmentNumbers = overdueInsts.map((i) => i.installmentNumber);
 
     const firstPending = getFirstPendingDate(loan, installmentSchedules);
@@ -348,9 +348,12 @@ export function calculateFinancialSummaryForMonth(
 
     const daysLate = Math.max(1, getDaysOverdue(loan, installmentSchedules));
 
-    let nominalOverdue = overdueInsts.reduce((s, i) => s + (Number(i.amount) || 0), 0);
-    if (nominalOverdue <= 0.01) {
-      nominalOverdue = nextInstallmentAmount > 0 ? nextInstallmentAmount : (baseRemaining > 0 ? baseRemaining : totalAmount);
+    let nominalOverdue = installments <= 1
+      ? baseRemaining
+      : overdueInsts.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+
+    if (nominalOverdue <= 0.01 && installments > 1) {
+      nominalOverdue = nextInstallmentAmount > 0 ? nextInstallmentAmount : baseRemaining;
     }
     nominalOverdue = Math.min(nominalOverdue, baseRemaining > 0 ? baseRemaining : nominalOverdue);
 
@@ -360,7 +363,7 @@ export function calculateFinancialSummaryForMonth(
     const totalFees = Math.round((lateInterestTotal + penaltyTotal) * 100) / 100;
 
     const finalOverdueAmount = Math.round((nominalOverdue + totalFees) * 100) / 100;
-    const finalRemainingAmount = Math.round((baseRemaining + totalFees) * 100) / 100;
+    const finalRemainingAmount = baseRemaining;
     const finalInstallmentAmount = Math.round((nextInstallmentAmount + totalFees) * 100) / 100;
     const interestAmount = Math.max(0, Math.round((totalAmount - principal) * 100) / 100);
 

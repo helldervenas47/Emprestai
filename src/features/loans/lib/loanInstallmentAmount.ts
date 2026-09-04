@@ -1,6 +1,7 @@
 import type { Loan, InstallmentSchedule, Payment } from "@/types/loan";
 import { calculateInstallment } from "@/features/loans/hooks/useLoans";
 import { todayInAppTz } from "@/lib/timezone";
+import { getBaseRemainingAmount } from "./loanLateFees";
 
 /**
  * Retorna o valor da próxima parcela em aberto do contrato (apenas a próxima).
@@ -10,6 +11,9 @@ export function getInstallmentAmount(loan: Loan, schedules: InstallmentSchedule[
   if (loan.installments <= 1) {
     if (loan.remainingAmount != null && loan.remainingAmount > 0) {
       return loan.remainingAmount;
+    }
+    if (payments.length > 0) {
+      return getBaseRemainingAmount(loan, payments, schedules);
     }
     return loan.customInstallmentValue || calculateInstallment(loan.amount, loan.interestRate, 1);
   }
@@ -85,17 +89,22 @@ export function getOverdueInstallments(
   loan: Loan,
   schedules: InstallmentSchedule[],
   todayStr: string = todayInAppTz(),
+  payments: Payment[] = [],
 ): { installmentNumber: number; dueDate: string; amount: number }[] {
   const paid = loan.paidInstallments || 0;
   // Parcela única: trata como uma única parcela vencida se dueDate < hoje
   if (loan.installments <= 1) {
     if (loan.dueDate < todayStr && paid < 1) {
+      const baseRem = loan.remainingAmount != null && loan.remainingAmount >= 0
+        ? Number(loan.remainingAmount)
+        : getBaseRemainingAmount(loan, payments, schedules);
+
+      if (baseRem <= 0.01) return [];
+
       return [{
         installmentNumber: 1,
         dueDate: loan.dueDate,
-        amount: loan.remainingAmount && loan.remainingAmount > 0
-          ? loan.remainingAmount
-          : (loan.customInstallmentValue || calculateInstallment(loan.amount, loan.interestRate, 1)),
+        amount: baseRem,
       }];
     }
     return [];

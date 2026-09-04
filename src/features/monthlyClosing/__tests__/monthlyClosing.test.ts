@@ -639,5 +639,44 @@ describe("Fechamento Mensal Automático + Integração com Metas", () => {
     expect(closing.financial.allOverdueLoansList?.find((i) => i.loanId === "l_overdue_august")?.interestAmount).toBe(200);
     expect(closing.financial.allOverdueLoansList?.find((i) => i.loanId === "l_overdue_july")?.interestAmount).toBe(50);
   });
+
+  it("Cenário 17 — Consistência matemática exata entre Saldo Restante, Juros/Multa e Valor Vencido", () => {
+    const monthKey = "2026-09";
+
+    const loans: Loan[] = [
+      {
+        id: "l_partial_overdue",
+        borrowerId: "c1",
+        borrowerName: "Wendel Silva",
+        amount: 500,
+        interestRate: 20,
+        installments: 1,
+        startDate: "2026-06-01",
+        dueDate: "2026-07-01",
+        status: "active",
+        paidInstallments: 0,
+        totalAmount: 600,
+        remainingAmount: 250, // Cliente amortizou/pagou parcialmente R$ 350
+        penaltyValue: 250, // Multa fixa de R$ 250
+        createdAt: "2026-06-01",
+      },
+    ];
+
+    const closing = computeMonthlyClosingData({
+      monthKey,
+      loans,
+      payments: [],
+      expenses: [],
+      clients: mockClients,
+      goals: [],
+    });
+
+    const item = closing.financial.allOverdueLoansList?.find((i) => i.loanId === "l_partial_overdue");
+    expect(item).toBeDefined();
+    expect(item?.remainingAmount).toBe(250); // Saldo Restante base real
+    expect(item?.lateFees).toBe(250); // Multa/juros de atraso
+    expect(item?.overdueAmount).toBe(500); // Valor Total Vencido a pagar = 250 (saldo) + 250 (multa)
+    expect(item?.totalAmount).toBe(600); // Total original contratado
+  });
 });
 
