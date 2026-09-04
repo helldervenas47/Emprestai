@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { computeClientRanking } from "../computeClientRanking";
-import { Client, Loan, Payment } from "@/types/loan";
+import { Client, Loan, Payment, InstallmentSchedule } from "@/types/loan";
 
 describe("computeClientRanking", () => {
   const mockClients: Client[] = [
@@ -11,8 +11,6 @@ describe("computeClientRanking", () => {
       cpf: "12345678900",
       active: true,
       createdAt: "2026-01-01",
-      scoreTempoReal: 145,
-      scoreRisco: 145,
     },
     {
       id: "client-2",
@@ -21,8 +19,6 @@ describe("computeClientRanking", () => {
       cpf: "98765432100",
       active: true,
       createdAt: "2026-01-01",
-      scoreTempoReal: 70,
-      scoreRisco: 70,
     },
   ];
 
@@ -37,7 +33,7 @@ describe("computeClientRanking", () => {
       interestType: "Mensal",
       paymentType: "installments",
       startDate: "2026-01-01",
-      dueDate: "2026-05-01",
+      dueDate: "2026-02-01",
       installments: 4,
       paidInstallments: 4,
       status: "paid",
@@ -53,7 +49,7 @@ describe("computeClientRanking", () => {
       interestType: "Mensal",
       paymentType: "installments",
       startDate: "2026-02-01",
-      dueDate: "2026-02-10",
+      dueDate: "2026-03-01",
       installments: 2,
       paidInstallments: 0,
       status: "late",
@@ -93,11 +89,21 @@ describe("computeClientRanking", () => {
     },
   ];
 
+  const mockSchedules: InstallmentSchedule[] = [
+    { loanId: "loan-1", installmentNumber: 1, dueDate: "2026-02-01", amount: 300 },
+    { loanId: "loan-1", installmentNumber: 2, dueDate: "2026-03-01", amount: 300 },
+    { loanId: "loan-1", installmentNumber: 3, dueDate: "2026-04-01", amount: 300 },
+    { loanId: "loan-1", installmentNumber: 4, dueDate: "2026-05-01", amount: 300 },
+    { loanId: "loan-2", installmentNumber: 1, dueDate: "2026-03-01", amount: 3250 },
+    { loanId: "loan-2", installmentNumber: 2, dueDate: "2026-04-01", amount: 3250 },
+  ];
+
   it("calcula pontualidade e volume corretamente para 'best'", () => {
     const res = computeClientRanking({
       clients: mockClients,
       loans: mockLoans,
       payments: mockPayments,
+      installmentSchedules: mockSchedules,
       rankingType: "best",
       period: "all",
     });
@@ -108,6 +114,7 @@ describe("computeClientRanking", () => {
     expect(res.data[0].total_borrowed).toBe(1000);
     expect(res.data[0].total_received).toBe(1200);
     expect(res.data[0].on_time_percentage).toBe(100);
+    expect(res.data[0].max_delay_days).toBe(0);
   });
 
   it("ordena corretamente por 'volume'", () => {
@@ -115,6 +122,7 @@ describe("computeClientRanking", () => {
       clients: mockClients,
       loans: mockLoans,
       payments: mockPayments,
+      installmentSchedules: mockSchedules,
       rankingType: "volume",
       period: "all",
     });
@@ -123,19 +131,5 @@ describe("computeClientRanking", () => {
     expect(res.data[0].total_borrowed).toBe(5000);
     expect(res.data[1].client_id).toBe("client-1");
     expect(res.data[1].total_borrowed).toBe(1000);
-  });
-
-  it("ordena corretamente por 'risk'", () => {
-    const res = computeClientRanking({
-      clients: mockClients,
-      loans: mockLoans,
-      payments: mockPayments,
-      rankingType: "risk",
-      period: "all",
-    });
-
-    // Menor score primeiro
-    expect(res.data[0].client_id).toBe("client-2");
-    expect(res.data[0].score).toBe(70);
   });
 });

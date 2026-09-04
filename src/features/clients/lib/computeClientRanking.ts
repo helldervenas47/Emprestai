@@ -6,6 +6,11 @@ import {
   ClientRankingResponse,
 } from "../types/clientRanking";
 import { todayInAppTz } from "@/lib/timezone";
+import {
+  getClientLoans,
+  getInstallmentDueDate,
+  getDaysOverdue,
+} from "@/features/loans/lib/clientRisk";
 
 interface ComputeClientRankingParams {
   clients: Client[];
@@ -75,12 +80,10 @@ export function computeClientRanking({
 
   // Agregação dos indicadores por cliente
   const items: ClientRankingItem[] = filteredClients.map((client) => {
-    // Empréstimos pertencentes ao cliente (por id ou nome)
-    const clientLoansAll = loans.filter(
-      (l) => l.borrowerId === client.id || (l.borrowerName && client.name && l.borrowerName.trim().toLowerCase() === client.name.trim().toLowerCase())
-    );
+    // Empréstimos pertencentes ao cliente
+    const clientLoansAll = getClientLoans(client, loans);
 
-    // Empréstimos no período
+    // Empréstimos no período selecionado
     const clientLoans = clientLoansAll.filter((l) => {
       if (period === "all") return true;
       const d = l.startDate ? new Date(l.startDate + "T00:00:00") : (l.createdAt ? new Date(l.createdAt) : null);
@@ -90,15 +93,19 @@ export function computeClientRanking({
 
     const totalLoans = clientLoans.length;
     const paidLoans = clientLoansAll.filter((l) => l.status === "paid").length;
-    const activeLoans = clientLoansAll.filter((l) => l.status !== "paid").length;
-    const overdueLoans = clientLoansAll.filter((l) => l.status !== "paid" && l.dueDate && l.dueDate < todayStr).length;
+    
+    // Contratos que possuem atraso ativo na próxima parcela pendente
+    const overdueLoans = clientLoansAll.filter((l) => {
+      if (l.status === "paid" || l.status === "cancelled") return false;
+      return getDaysOverdue(l, installmentSchedules, today) > 0;
+    }).length;
 
-    // Total emprestado
+    // Total emprestado no período
     const totalBorrowed = clientLoans.reduce((sum, l) => sum + (l.amount || 0), 0);
 
     // Saldo em aberto (ativo)
     const openAmount = clientLoansAll
-      .filter((l) => l.status !== "paid")
+      .filter((l) => l.status !== "paid" && l.status !== "cancelled")
       .reduce((sum, l) => sum + (l.remainingAmount != null ? l.remainingAmount : (l.amount || 0)), 0);
 
     // Pagamentos do cliente
@@ -112,7 +119,8 @@ export function computeClientRanking({
       const loanPayments = payments.filter((p) => p.loanId === loan.id);
       
       loanPayments.forEach((p) => {
-        const pDate = new Date(p.date + "T00:00:00");
+        const pDateStr = p.date.split("T")[0];
+        const pDate = new Date(pDateStr + "T00:00:00");
         const inPeriod = period === "all" || (pDate >= pStart && pDate <= pEnd);
         
         if (inPeriod) {
@@ -125,36 +133,29 @@ export function computeClientRanking({
           }
         }
 
-        // Calcula pontualidade considerando a data de vencimento da parcela
-        let expectedDue: Date | null = null;
-        const savedSchedule = installmentSchedules.find(
-          (s) => s.loanId === loan.id && s.installmentNumber === p.installmentNumber
-        );
-
-        if (savedSchedule?.dueDate) {
-          expectedDue = new Date(savedSchedule.dueDate + "T00:00:00");
-        } else if (p.previousDueDate) {
-          expectedDue = new Date(p.previousDueDate + "T00:00:00");
-        } else if (loan.startDate && p.installmentNumber && p.installmentNumber > 0) {
-          const start = new Date(loan.startDate + "T00:00:00");
-          if (loan.interestType === "Semanal") {
-            expectedDue = new Date(start.getTime() + p.installmentNumber * 7 * 24 * 60 * 60 * 1000);
-          } else if (loan.interestType === "Quinzenal") {
-            expectedDue = new Date(start.getTime() + p.installmentNumber * 15 * 24 * 60 * 60 * 1000);
-          } else {
-            expectedDue = new Date(start.getFullYear(), start.getMonth() + p.installmentNumber, start.getDate());
-          }
-        } else if (loan.dueDate) {
-          expectedDue = new Date(loan.dueDate + "T00:00:00");
+        // Amortização parcial avulsa (-1): não conta como parcela atrasada
+        if (p.installmentNumber === -1) {
+          return;
         }
 
-        if (expectedDue) {
-          const toleranceDate = new Date(expectedDue.getTime() + 3 * 24 * 60 * 60 * 1000); // 3 dias de tolerância
+        // Identifica o vencimento da parcela de forma canônica
+        let dueDateStr: string | null = null;
+        if (p.installmentNumber === 0) {
+          dueDateStr = p.previousDueDate ?? loan.dueDate;
+        } else if (p.installmentNumber > 0) {
+          dueDateStr = getInstallmentDueDate(loan, p.installmentNumber, installmentSchedules);
+        }
+
+        if (dueDateStr) {
+          const dueDate = new Date(dueDateStr + "T00:00:00");
+          // 3 dias de tolerância
+          const toleranceDate = new Date(dueDate.getTime() + 3 * 24 * 60 * 60 * 1000);
+
           if (pDate <= toleranceDate) {
             onTimePayments++;
           } else {
             latePayments++;
-            const diffDays = Math.max(0, Math.floor((pDate.getTime() - expectedDue.getTime()) / (1000 * 60 * 60 * 24)));
+            const diffDays = Math.max(0, Math.floor((pDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)));
             if (diffDays > maxDelayDays) maxDelayDays = diffDays;
           }
         } else if (p.amount > 0) {
@@ -162,29 +163,27 @@ export function computeClientRanking({
         }
       });
 
-      // Checa se há atrasos ativos no empréstimo em aberto
-      if (loan.status !== "paid" && loan.dueDate && loan.dueDate < todayStr) {
-        const due = new Date(loan.dueDate + "T00:00:00");
-        const diffDays = Math.max(0, Math.floor((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24)));
-        if (diffDays > maxDelayDays) maxDelayDays = diffDays;
+      // Checa se há atraso ativo na próxima parcela pendente deste contrato ativo
+      if (loan.status !== "paid" && loan.status !== "cancelled") {
+        const currentDaysOverdue = getDaysOverdue(loan, installmentSchedules, today);
+        if (currentDaysOverdue > 0 && currentDaysOverdue > maxDelayDays) {
+          maxDelayDays = currentDaysOverdue;
+        }
       }
     });
 
     const totalPaymentsCount = onTimePayments + latePayments;
-    const onTimePercentage = totalPaymentsCount > 0 ? (onTimePayments / totalPaymentsCount) * 100 : 100;
+    const onTimePercentage = totalPaymentsCount > 0 ? (onTimePayments / totalPaymentsCount) * 100 : (clientLoansAll.length > 0 ? (overdueLoans > 0 ? 0 : 100) : 100);
 
-    // Cálculo dinâmico e preciso do Score (escala oficial 0 a 150)
+    // Cálculo dinâmico do Score oficial (escala 0 a 150)
     let score = 100;
     if (clientLoansAll.length === 0 && totalPaymentsCount === 0) {
       score = 100;
-    } else if (client.scoreTempoReal != null && Number(client.scoreTempoReal) !== 100) {
-      score = Math.max(0, Math.min(150, Number(client.scoreTempoReal)));
-    } else if (client.scoreRisco != null && Number(client.scoreRisco) !== 100) {
-      score = Math.max(0, Math.min(150, Number(client.scoreRisco)));
     } else {
-      // Score vivo calculado sobre os pagamentos e empréstimos
-      const dynamicScore = 100 + (onTimePayments * 3) - (latePayments * 5) + (paidLoans * 5) - (overdueLoans * 10);
-      score = Math.max(0, Math.min(150, dynamicScore));
+      // Score vivo: +3 por pgto em dia, -5 por pgto com atraso, +5 por contrato quitado, -15 por contrato atrasado no momento, -2 por dia de atraso ativo
+      const overduePenalty = overdueLoans * 15 + Math.min(40, maxDelayDays * 1.5);
+      const dynamicScore = 100 + (onTimePayments * 3) - (latePayments * 5) + (paidLoans * 5) - overduePenalty;
+      score = Math.max(0, Math.min(150, Math.round(dynamicScore)));
     }
 
     return {
