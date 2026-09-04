@@ -183,14 +183,15 @@ export function MonthlyClosingOverdueClientsDialog({
           <button
             type="button"
             onClick={() => setViewMode("month")}
-            className={`flex-1 py-1.5 px-2 rounded-lg font-medium transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`flex-1 py-1.5 px-2 rounded-lg font-medium transition-all text-center flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer text-[11px] sm:text-xs ${
               viewMode === "month"
                 ? "bg-card text-foreground shadow-xs font-bold border border-border/50"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <Calendar className="h-3.5 w-3.5 shrink-0 text-primary" />
-            <span className="truncate">Do Mês ({monthLabel})</span>
+            <span className="truncate sm:hidden">{monthLabel.split(" ")[0]}</span>
+            <span className="hidden sm:inline truncate">Do Mês ({monthLabel})</span>
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 shrink-0 font-bold">
               {overdueItems.length}
             </Badge>
@@ -199,14 +200,15 @@ export function MonthlyClosingOverdueClientsDialog({
           <button
             type="button"
             onClick={() => setViewMode("all")}
-            className={`flex-1 py-1.5 px-2 rounded-lg font-medium transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`flex-1 py-1.5 px-2 rounded-lg font-medium transition-all text-center flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer text-[11px] sm:text-xs ${
               viewMode === "all"
                 ? "bg-rose-500 text-white shadow-xs font-bold"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <Globe className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">Inadimplentes Gerais</span>
+            <span className="truncate sm:hidden">Geral</span>
+            <span className="hidden sm:inline truncate">Inadimplentes Gerais</span>
             <Badge
               variant="outline"
               className={`text-[10px] px-1.5 py-0 h-4 shrink-0 font-bold ${
@@ -219,31 +221,33 @@ export function MonthlyClosingOverdueClientsDialog({
         </div>
 
         {/* CARDS DE RESUMO EXECUTIVO */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-3 shrink-0">
-          <div className="rounded-xl border border-rose-500/20 bg-rose-500/[0.04] p-2 sm:p-3 space-y-0.5 sm:space-y-1">
-            <span className="text-[10px] sm:text-[11px] font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider block truncate">
-              Total em Atraso
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-3 shrink-0">
+          <div className="rounded-xl border border-rose-500/20 bg-rose-500/[0.04] p-2 sm:p-3 space-y-0.5 sm:space-y-1 min-w-0">
+            <span className="text-[9px] sm:text-[11px] font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider block truncate">
+              Total Atraso
             </span>
-            <span className="text-xs sm:text-base md:text-lg font-bold text-rose-600 dark:text-rose-400 truncate block">
+            <span className="text-[11px] xs:text-xs sm:text-base md:text-lg font-bold text-rose-600 dark:text-rose-400 truncate block">
               {formatBRL(currentTotalOverdueAmount)}
             </span>
           </div>
 
-          <div className="rounded-xl border border-border/70 bg-card p-2 sm:p-3 space-y-0.5 sm:space-y-1">
-            <span className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
+          <div className="rounded-xl border border-border/70 bg-card p-2 sm:p-3 space-y-0.5 sm:space-y-1 min-w-0">
+            <span className="text-[9px] sm:text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
               Contratos
             </span>
-            <span className="text-xs sm:text-base md:text-lg font-bold text-foreground truncate block">
-              {currentBaseItems.length} {currentBaseItems.length === 1 ? "contrato" : "contratos"}
+            <span className="text-[11px] xs:text-xs sm:text-base md:text-lg font-bold text-foreground truncate block">
+              <span className="sm:hidden">{currentBaseItems.length} contr.</span>
+              <span className="hidden sm:inline">{currentBaseItems.length} {currentBaseItems.length === 1 ? "contrato" : "contratos"}</span>
             </span>
           </div>
 
-          <div className="rounded-xl border border-border/70 bg-card p-2 sm:p-3 space-y-0.5 sm:space-y-1">
-            <span className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
+          <div className="rounded-xl border border-border/70 bg-card p-2 sm:p-3 space-y-0.5 sm:space-y-1 min-w-0">
+            <span className="text-[9px] sm:text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
               Clientes
             </span>
-            <span className="text-xs sm:text-base md:text-lg font-bold text-foreground truncate block">
-              {uniqueClientsCount} {uniqueClientsCount === 1 ? "cliente" : "clientes"}
+            <span className="text-[11px] xs:text-xs sm:text-base md:text-lg font-bold text-foreground truncate block">
+              <span className="sm:hidden">{uniqueClientsCount} clie.</span>
+              <span className="hidden sm:inline">{uniqueClientsCount} {uniqueClientsCount === 1 ? "cliente" : "clientes"}</span>
             </span>
           </div>
         </div>
