@@ -227,6 +227,7 @@ import {
   History,
   ChevronRight,
   Crown,
+  Trophy,
 } from "lucide-react";
 import type { Expense } from "@/types/loan";
 import { applyScopedExpenseDelete, type DeleteScope } from "@/features/financial/lib/expenseSeriesScope";
@@ -302,6 +303,9 @@ const ProductForm = lazy(() => import("@/features/sales/components/ProductForm")
 const SaleForm = lazy(() => import("@/features/sales/components/SaleForm").then((m) => ({ default: m.SaleForm })));
 const ProductSalesView = lazy(() =>
   import("@/features/sales/components/ProductSalesView").then((m) => ({ default: m.ProductSalesView })),
+);
+const ClientRankingView = lazy(() =>
+  import("@/features/clients/components/ranking/ClientRankingView").then((m) => ({ default: m.ClientRankingView })),
 );
 
 const BillingCalendar = lazy(() =>
@@ -450,7 +454,7 @@ type Tab =
   | "settings"
   | "system"
   | "help";
-type ClientSubTab = "clientes" | "veiculos";
+type ClientSubTab = "clientes" | "veiculos" | "ranking";
 type VehicleSubTab = "veiculos" | "locadores";
 type PlanMgmtSubTab = "subscribers" | "plans";
 type OverdueSubTab = "bot-telegram" | "whatsapp-cobranca";
@@ -892,7 +896,7 @@ const Index = () => {
     remove: removeVehicle,
   } = useVehicleRegistry(needsVehicles);
   const { locador, locadores, save: saveLocador, remove: removeLocador } = useLocadorInfo(needsLocadores);
-  const [clientSubTab, setClientSubTab] = usePersistentOption<ClientSubTab>("clients", ["clientes", "veiculos"], "clientes");
+  const [clientSubTab, setClientSubTab] = usePersistentOption<ClientSubTab>("clients", ["clientes", "veiculos", "ranking"], "clientes");
   const [loanSubTab, setLoanSubTab] = usePersistentOption<"loans" | "history">("loans", ["loans", "history"], "loans");
   // Histórico do Cliente: lista e histórico têm snapshots independentes.
   // A lista só é restaurada no FECHAMENTO; ao abrir, o histórico sempre começa no topo.
@@ -1491,7 +1495,7 @@ const Index = () => {
                             : "text-muted-foreground hover:text-foreground hover:bg-background/50"
                         }`}
                       >
-                        <Users className={`h-4 w-4 shrink-0 ${clientSubTab === "clientes" ? "!text-primary" : ""}`} /> Cadastro
+                        <Users className={`h-4 w-4 shrink-0 ${clientSubTab === "clientes" ? "!text-primary" : ""}`} /> Clientes
                       </button>
                       {!isReadOnly && (
                         <button
@@ -1502,9 +1506,19 @@ const Index = () => {
                               : "text-muted-foreground hover:text-foreground hover:bg-background/50"
                           }`}
                         >
-                          <Car className={`h-4 w-4 shrink-0 ${clientSubTab === "veiculos" ? "!text-primary" : ""}`} /> Veículos
+                          <Car className={`h-4 w-4 shrink-0 ${clientSubTab === "veiculos" ? "!text-primary" : ""}`} /> Cadastro de Veículos
                         </button>
                       )}
+                      <button
+                        onClick={() => setClientSubTab("ranking")}
+                        className={`flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap flex-1 sm:flex-none ${
+                          clientSubTab === "ranking"
+                            ? "bg-background !text-primary shadow-sm"
+                            : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                        }`}
+                      >
+                        <Trophy className={`h-4 w-4 shrink-0 ${clientSubTab === "ranking" ? "!text-primary" : ""}`} /> 🏆 Ranking de Clientes
+                      </button>
                     </nav>
                     {clientSubTab === "clientes" && (
                       <ClientList
@@ -1516,6 +1530,9 @@ const Index = () => {
                         onUpdate={updateClient}
                         readOnly={isReadOnly}
                       />
+                    )}
+                    {clientSubTab === "ranking" && (
+                      <ClientRankingView />
                     )}
                     {clientSubTab === "veiculos" && !isReadOnly && (
                       <>
