@@ -19,8 +19,8 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useCreditLimits } from "@/features/creditCards/hooks/useCreditLimits";
-import { computeAvailableLimit, computeUsedLimit, formatBRL } from "@/features/creditCards/lib/creditLimit";
-import { Wallet, AlertTriangle as AlertTriangleIcon } from "lucide-react";
+import { Wallet, AlertTriangle as AlertTriangleIcon, ShieldCheck } from "lucide-react";
+import { buildRiskProfile } from "@/features/loans/lib/clientRisk";
 import { LoanPaymentSplitEditor, buildSplitFromState, type SplitState } from "@/features/loans/components/LoanPaymentSplitEditor";
 import { formatCPF, formatCpfOrCnpj, onlyDigits } from "@/lib/brDocuments";
 
@@ -138,6 +138,10 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
 
   const managerClients = activeClients.filter((c) => c.isManager);
   const selectedClient = useMemo(() => activeClients.find((c) => c.id === form.borrowerName), [activeClients, form.borrowerName]);
+  const clientRiskProfile = useMemo(() => {
+    if (!selectedClient) return null;
+    return buildRiskProfile(selectedClient, loans, payments as any, installmentSchedules as any);
+  }, [selectedClient, loans, payments, installmentSchedules]);
 
   const { getLimitForClient } = useCreditLimits();
   const selectedClientLimit = selectedClient ? getLimitForClient(selectedClient.id) : undefined;
@@ -417,6 +421,26 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                 )}
               </div>
 
+
+              {/* Score e Risco do Cliente — acima do limite de crédito */}
+              {selectedClient && clientRiskProfile && (
+                <div className="col-span-2 rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4 text-primary" />
+                      <p className="text-sm font-medium text-foreground">Score e Risco do Cliente</p>
+                    </div>
+                    <Badge variant="outline" className={`text-xs px-2.5 py-0.5 font-bold ${clientRiskProfile.badgeClassName}`}>
+                      Score: {clientRiskProfile.score}/100 • {clientRiskProfile.riskLevel}
+                    </Badge>
+                  </div>
+                  {clientRiskProfile.description && (
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {clientRiskProfile.description}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Limite de crédito — full width */}
               {selectedClient && (
