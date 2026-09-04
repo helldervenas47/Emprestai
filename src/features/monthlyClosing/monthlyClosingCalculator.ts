@@ -2,7 +2,10 @@ import type { Loan, Payment, Expense, Client, InstallmentSchedule, LoanRenegotia
 import type { MonthlyGoal } from "@/features/piggyBanks/hooks/useMonthlyGoals";
 import { formatMonthLabel } from "@/features/piggyBanks/hooks/useMonthlyGoals";
 import { computeActual } from "@/features/piggyBanks/components/GoalsCard";
-import { getLoanReceivable } from "@/features/loans/lib/loanLateFees";
+import { getLoanReceivable, getBaseRemainingAmount, getLoanLateFees } from "@/features/loans/lib/loanLateFees";
+import { getInstallmentAmount, getOverdueInstallments } from "@/features/loans/lib/loanInstallmentAmount";
+import { getDaysOverdue, getFirstPendingDate } from "@/features/loans/components/list/calculations";
+import { calculateInstallment, calculateTotalWithInterest } from "@/features/loans/hooks/useLoans";
 import { todayInAppTz } from "@/lib/timezone";
 import {
   GOAL_TYPE_METADATA,
@@ -131,17 +134,30 @@ export function calculateFinancialSummaryForMonth(
     const installments = Math.max(1, Number(loan.installments) || 1);
     const principal = Number(loan.amount) || 0;
     const rate = Number(loan.interestRate ?? loan.interest_rate) || 0;
-    const totalWithInterest = Math.round(principal * (1 + rate / 100));
-    const installmentValue = totalWithInterest / installments;
-    const paidAmount = totalPaidByLoan[loan.id] || 0;
-    const calculatedPaidInstallments = Math.floor((paidAmount + 0.01) / installmentValue);
+    const paidInstallments = Number(loan.paidInstallments) || 0;
+    const currentInstallmentNumber = Math.min(installments, paidInstallments + 1);
+
+    // Valor Total com juros (mesmo padrão da aba Empréstimos)
+    const totalAmount = loan.totalAmount != null && Number(loan.totalAmount) > 0
+      ? Number(loan.totalAmount)
+      : calculateTotalWithInterest(principal, rate, installments);
+
+    // Saldo Devedor Restante Real (mesmo padrão da aba Empréstimos)
+    const baseRemaining = loan.status === "paid" || loan.status === "completed"
+      ? 0
+      : loan.remainingAmount != null && Number(loan.remainingAmount) >= 0
+      ? Number(loan.remainingAmount)
+      : getBaseRemainingAmount(loan, payments, installmentSchedules);
+
+    // Valor da próxima parcela pendente (mesmo padrão da aba Empréstimos)
+    const nextInstallmentAmount = getInstallmentAmount(loan, installmentSchedules, payments);
 
     // Checagem de quitação do contrato
     const isLoanFullyPaid =
       loan.status === "paid" ||
       loan.status === "completed" ||
-      (loan.remainingAmount != null && Number(loan.remainingAmount) <= 0.01) ||
-      (Number(loan.paidInstallments) || 0) >= installments;
+      baseRemaining <= 0.01 ||
+      paidInstallments >= installments;
 
     if (isLoanFullyPaid) {
       if (isClosed) {
@@ -162,57 +178,66 @@ export function calculateFinancialSummaryForMonth(
       .filter((s) => s.loanId === loan.id)
       .sort((a, b) => a.installmentNumber - b.installmentNumber);
 
-    const dueEntries =
-      loanSchedules.length > 0
-        ? loanSchedules.map((s) => ({
-            installmentNumber: s.installmentNumber,
-            dueDate: s.dueDate,
-            amount: Number(s.amount) || installmentValue,
-          }))
-        : installments <= 1
-        ? [{ installmentNumber: 1, dueDate: loan.dueDate || loan.due_date, amount: totalWithInterest }]
-        : Array.from({ length: installments }, (_, idx) => {
-            const base = new Date(`${(loan.dueDate || loan.due_date).slice(0, 10)}T00:00:00`);
-            const due = new Date(base.getFullYear(), base.getMonth() + idx, base.getDate());
-            return {
-              installmentNumber: idx + 1,
-              dueDate: `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, "0")}-${String(due.getDate()).padStart(2, "0")}`,
-              amount: installmentValue,
-            };
-          });
-
     let hasOverdueInMonth = false;
     let contractOverdueAmount = 0;
     const overdueInstallmentNumbers: number[] = [];
     let firstOverdueDate = "";
 
-    dueEntries.forEach((entry) => {
-      if (!inMonth(entry.dueDate, monthKey)) return;
-      const isPaidAtCutoff = entry.installmentNumber <= calculatedPaidInstallments;
-      if (isPaidAtCutoff || entry.dueDate >= cutoffDate) return;
-
-      // Se estamos no mês vigente e o contrato já registrou a parcela como paga
-      if (!isClosed && entry.installmentNumber <= (Number(loan.paidInstallments) || 0)) {
-        return;
-      }
-
-      if (installments === 1) {
-        const remainingSingle = Math.max(0, totalWithInterest - paidAmount);
-        if (remainingSingle <= 0.05 || isLoanFullyPaid) return;
+    if (installments <= 1) {
+      // Contrato de parcela única
+      const dueDate = (loan.dueDate || loan.due_date || "").slice(0, 10);
+      if (inMonth(dueDate, monthKey) && dueDate < cutoffDate && baseRemaining > 0.05) {
         hasOverdueInMonth = true;
-        contractOverdueAmount += remainingSingle;
-      } else {
+        contractOverdueAmount = baseRemaining;
+        overdueInstallmentNumbers.push(1);
+        firstOverdueDate = dueDate;
+      }
+    } else if (loanSchedules.length > 0) {
+      // Contrato parcelado com cronograma
+      const pendingSchedules = loanSchedules.filter((s) => s.installmentNumber > paidInstallments);
+      pendingSchedules.forEach((s) => {
+        if (!inMonth(s.dueDate, monthKey)) return;
+        if (s.dueDate >= cutoffDate) return;
+
         hasOverdueInMonth = true;
-        contractOverdueAmount += entry.amount;
-      }
+        overdueInstallmentNumbers.push(s.installmentNumber);
+        if (!firstOverdueDate || s.dueDate < firstOverdueDate) {
+          firstOverdueDate = s.dueDate;
+        }
 
-      overdueInstallmentNumbers.push(entry.installmentNumber);
-      if (!firstOverdueDate || entry.dueDate < firstOverdueDate) {
-        firstOverdueDate = entry.dueDate;
-      }
-    });
+        const instVal = s.installmentNumber === currentInstallmentNumber
+          ? nextInstallmentAmount
+          : Number(s.amount) || 0;
+        contractOverdueAmount += instVal;
+      });
+      contractOverdueAmount = Math.min(contractOverdueAmount, baseRemaining);
+    } else {
+      // Contrato parcelado sem cronograma
+      const dueDates = Array.from({ length: installments }, (_, idx) => {
+        const base = new Date(`${(loan.dueDate || loan.due_date).slice(0, 10)}T00:00:00`);
+        const due = new Date(base.getFullYear(), base.getMonth() + idx, base.getDate());
+        return {
+          installmentNumber: idx + 1,
+          dueDate: `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, "0")}-${String(due.getDate()).padStart(2, "0")}`,
+        };
+      });
 
-    if (hasOverdueInMonth) {
+      dueDates.forEach((d) => {
+        if (d.installmentNumber <= paidInstallments) return;
+        if (!inMonth(d.dueDate, monthKey)) return;
+        if (d.dueDate >= cutoffDate) return;
+
+        hasOverdueInMonth = true;
+        overdueInstallmentNumbers.push(d.installmentNumber);
+        if (!firstOverdueDate || d.dueDate < firstOverdueDate) {
+          firstOverdueDate = d.dueDate;
+        }
+        contractOverdueAmount += nextInstallmentAmount;
+      });
+      contractOverdueAmount = Math.min(contractOverdueAmount, baseRemaining);
+    }
+
+    if (hasOverdueInMonth && contractOverdueAmount > 0.05) {
       overdueLoansCount += 1;
       overdueAmount += contractOverdueAmount;
 
@@ -222,8 +247,8 @@ export function calculateFinancialSummaryForMonth(
       const clientPhone = client?.phone || loan.clientPhone || "";
       const clientPhotoUrl = client?.photo_url || (client as any)?.photoUrl || "";
 
-      let daysLate = 0;
-      if (firstOverdueDate) {
+      let daysLate = Math.max(0, getDaysOverdue(loan, installmentSchedules));
+      if (!daysLate && firstOverdueDate) {
         const dueMs = new Date(`${firstOverdueDate.slice(0, 10)}T00:00:00`).getTime();
         const refMs = new Date(`${today}T00:00:00`).getTime();
         daysLate = Math.max(0, Math.floor((refMs - dueMs) / (1000 * 60 * 60 * 24)));
@@ -237,11 +262,16 @@ export function calculateFinancialSummaryForMonth(
         clientPhone,
         clientPhotoUrl,
         principalAmount: principal,
-        totalWithInterest,
+        totalWithInterest: totalAmount,
+        totalAmount,
+        remainingAmount: baseRemaining,
+        installmentAmount: nextInstallmentAmount,
         overdueAmount: contractOverdueAmount,
         overdueInstallmentsCount: overdueInstallmentNumbers.length,
         totalInstallments: installments,
-        firstOverdueDate,
+        paidInstallments,
+        currentInstallmentNumber,
+        firstOverdueDate: firstOverdueDate || loan.dueDate,
         daysLate,
         overdueInstallmentNumbers,
       });

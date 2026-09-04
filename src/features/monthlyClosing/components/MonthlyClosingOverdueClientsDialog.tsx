@@ -146,9 +146,11 @@ export function MonthlyClosingOverdueClientsDialog({
           ) : (
             filteredItems.map((item, idx) => {
               const installmentLabel =
-                item.overdueInstallmentNumbers && item.overdueInstallmentNumbers.length > 0
+                item.totalInstallments <= 1
+                  ? "Parcela única"
+                  : item.overdueInstallmentNumbers && item.overdueInstallmentNumbers.length > 0
                   ? `Parcela ${item.overdueInstallmentNumbers.join(", ")}/${item.totalInstallments}`
-                  : `Parcela(s) em atraso (${item.overdueInstallmentsCount}/${item.totalInstallments})`;
+                  : `Parcela ${item.currentInstallmentNumber || 1}/${item.totalInstallments}`;
 
               const dueDateFormatted = item.firstOverdueDate
                 ? new Date(`${item.firstOverdueDate.slice(0, 10)}T00:00:00`).toLocaleDateString("pt-BR")
@@ -171,7 +173,7 @@ export function MonthlyClosingOverdueClientsDialog({
                       </Avatar>
 
                       <div className="space-y-0.5 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-bold text-xs sm:text-sm text-foreground truncate">
                             {item.clientName}
                           </h4>
@@ -182,7 +184,7 @@ export function MonthlyClosingOverdueClientsDialog({
                             {installmentLabel}
                           </Badge>
                         </div>
-                        <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                        <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
                           <span>Contrato #{item.loanNumber || item.loanId.slice(0, 8)}</span>
                           {item.clientPhone && (
                             <>
@@ -202,7 +204,7 @@ export function MonthlyClosingOverdueClientsDialog({
                     </div>
                   </div>
 
-                  {/* Detalhes do Atraso e Ações */}
+                  {/* Detalhes do Atraso, Saldo Restante e Ações */}
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2.5 border-t border-border/50 text-xs">
                     <div className="flex items-center gap-3 text-muted-foreground text-[11px] flex-wrap">
                       <span className="flex items-center gap-1">
@@ -215,13 +217,21 @@ export function MonthlyClosingOverdueClientsDialog({
                           {item.daysLate} dia(s) de atraso
                         </span>
                       )}
+                      {item.totalInstallments > 1 && item.installmentAmount > 0 && (
+                        <span className="flex items-center gap-1">
+                          <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
+                          Próx. Parcela: <strong className="text-foreground">{formatBRL(item.installmentAmount)}</strong>
+                        </span>
+                      )}
                       <span className="flex items-center gap-1">
-                        <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
-                        Total Contrato: <strong className="text-foreground">{formatBRL(item.totalWithInterest)}</strong>
+                        Saldo Restante: <strong className="text-foreground">{formatBRL(item.remainingAmount)}</strong>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        Total Contrato: <strong className="text-foreground">{formatBRL(item.totalAmount || item.totalWithInterest)}</strong>
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                    <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                       {item.clientPhone && (
                         <Button
                           type="button"

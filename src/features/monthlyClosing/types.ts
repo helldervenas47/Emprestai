@@ -11,9 +11,14 @@ export interface MonthlyClosingOverdueItem {
   clientPhotoUrl?: string;
   principalAmount: number;
   totalWithInterest: number;
+  totalAmount: number;
+  remainingAmount: number;
+  installmentAmount: number;
   overdueAmount: number;
   overdueInstallmentsCount: number;
   totalInstallments: number;
+  paidInstallments: number;
+  currentInstallmentNumber: number;
   firstOverdueDate: string;
   daysLate: number;
   overdueInstallmentNumbers: number[];
