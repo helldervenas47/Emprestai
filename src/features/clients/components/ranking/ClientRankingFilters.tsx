@@ -40,7 +40,7 @@ interface ClientRankingFiltersProps {
 const rankingTabs: { id: ClientRankingType; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "best", label: "Melhores clientes", icon: Trophy },
   { id: "on_time", label: "Mais pontuais", icon: Clock },
-  { id: "revenue", label: "Maior faturamento", icon: DollarSign },
+  { id: "revenue", label: "Juros recebidos", icon: DollarSign },
   { id: "volume", label: "Maior volume", icon: TrendingUp },
   { id: "frequent", label: "Mais frequentes", icon: Repeat },
   { id: "risk", label: "Maior risco", icon: AlertTriangle },

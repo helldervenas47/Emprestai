@@ -119,13 +119,13 @@ export function ClientRankingDetailDialog({
               <div className="p-3 rounded-lg border border-border/50 bg-card col-span-2 sm:col-span-1">
                 <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
                   <DollarSign className="h-3.5 w-3.5 text-amber-500" />
-                  <span>Faturamento / Lucro</span>
+                  <span>Juros Recebidos</span>
                 </div>
                 <span className="text-sm sm:text-base font-bold text-amber-600 dark:text-amber-400 block">
-                  {formatBRL(item.profit_generated || item.total_received * 0.2)}
+                  {formatBRL(item.profit_generated)}
                 </span>
                 <span className="text-[10px] text-muted-foreground">
-                  Lucro líquido apurado
+                  Total de juros recebidos
                 </span>
               </div>
             </div>
