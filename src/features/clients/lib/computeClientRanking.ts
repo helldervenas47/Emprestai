@@ -1,4 +1,4 @@
-import { Client, Loan, Payment } from "@/types/loan";
+import { Client, Loan, Payment, InstallmentSchedule } from "@/types/loan";
 import {
   ClientRankingType,
   ClientRankingPeriod,
@@ -11,6 +11,7 @@ interface ComputeClientRankingParams {
   clients: Client[];
   loans: Loan[];
   payments: Payment[];
+  installmentSchedules?: InstallmentSchedule[];
   rankingType: ClientRankingType;
   period: ClientRankingPeriod;
   startDate?: string;
@@ -24,6 +25,7 @@ export function computeClientRanking({
   clients,
   loans,
   payments,
+  installmentSchedules = [],
   rankingType,
   period,
   startDate,
@@ -87,8 +89,9 @@ export function computeClientRanking({
     });
 
     const totalLoans = clientLoans.length;
-    const paidLoans = clientLoans.filter((l) => l.status === "paid").length;
-    const overdueLoans = clientLoans.filter((l) => l.status !== "paid" && l.dueDate && l.dueDate < todayStr).length;
+    const paidLoans = clientLoansAll.filter((l) => l.status === "paid").length;
+    const activeLoans = clientLoansAll.filter((l) => l.status !== "paid").length;
+    const overdueLoans = clientLoansAll.filter((l) => l.status !== "paid" && l.dueDate && l.dueDate < todayStr).length;
 
     // Total emprestado
     const totalBorrowed = clientLoans.reduce((sum, l) => sum + (l.amount || 0), 0);
@@ -123,11 +126,30 @@ export function computeClientRanking({
         }
 
         // Calcula pontualidade considerando a data de vencimento da parcela
-        if (p.installmentNumber && p.installmentNumber > 0 && loan.startDate) {
-          const start = new Date(loan.startDate + "T00:00:00");
-          const expectedDue = new Date(start.getFullYear(), start.getMonth() + p.installmentNumber, start.getDate());
-          const toleranceDate = new Date(expectedDue.getTime() + 3 * 24 * 60 * 60 * 1000); // 3 dias de tolerância
+        let expectedDue: Date | null = null;
+        const savedSchedule = installmentSchedules.find(
+          (s) => s.loanId === loan.id && s.installmentNumber === p.installmentNumber
+        );
 
+        if (savedSchedule?.dueDate) {
+          expectedDue = new Date(savedSchedule.dueDate + "T00:00:00");
+        } else if (p.previousDueDate) {
+          expectedDue = new Date(p.previousDueDate + "T00:00:00");
+        } else if (loan.startDate && p.installmentNumber && p.installmentNumber > 0) {
+          const start = new Date(loan.startDate + "T00:00:00");
+          if (loan.interestType === "Semanal") {
+            expectedDue = new Date(start.getTime() + p.installmentNumber * 7 * 24 * 60 * 60 * 1000);
+          } else if (loan.interestType === "Quinzenal") {
+            expectedDue = new Date(start.getTime() + p.installmentNumber * 15 * 24 * 60 * 60 * 1000);
+          } else {
+            expectedDue = new Date(start.getFullYear(), start.getMonth() + p.installmentNumber, start.getDate());
+          }
+        } else if (loan.dueDate) {
+          expectedDue = new Date(loan.dueDate + "T00:00:00");
+        }
+
+        if (expectedDue) {
+          const toleranceDate = new Date(expectedDue.getTime() + 3 * 24 * 60 * 60 * 1000); // 3 dias de tolerância
           if (pDate <= toleranceDate) {
             onTimePayments++;
           } else {
@@ -151,15 +173,18 @@ export function computeClientRanking({
     const totalPaymentsCount = onTimePayments + latePayments;
     const onTimePercentage = totalPaymentsCount > 0 ? (onTimePayments / totalPaymentsCount) * 100 : 100;
 
-    // Cálculo do Score oficial (0 a 150)
-    let score = client.scoreTempoReal ?? client.scoreRisco ?? 100;
-    if (client.scoreTempoReal == null && client.scoreRisco == null) {
-      if (totalLoans === 0) {
-        score = 100;
-      } else {
-        score = 100 + (onTimePayments * 3) - (latePayments * 5) + (paidLoans * 5) - (overdueLoans * 10);
-        score = Math.max(0, Math.min(150, score));
-      }
+    // Cálculo dinâmico e preciso do Score (escala oficial 0 a 150)
+    let score = 100;
+    if (clientLoansAll.length === 0 && totalPaymentsCount === 0) {
+      score = 100;
+    } else if (client.scoreTempoReal != null && Number(client.scoreTempoReal) !== 100) {
+      score = Math.max(0, Math.min(150, Number(client.scoreTempoReal)));
+    } else if (client.scoreRisco != null && Number(client.scoreRisco) !== 100) {
+      score = Math.max(0, Math.min(150, Number(client.scoreRisco)));
+    } else {
+      // Score vivo calculado sobre os pagamentos e empréstimos
+      const dynamicScore = 100 + (onTimePayments * 3) - (latePayments * 5) + (paidLoans * 5) - (overdueLoans * 10);
+      score = Math.max(0, Math.min(150, dynamicScore));
     }
 
     return {

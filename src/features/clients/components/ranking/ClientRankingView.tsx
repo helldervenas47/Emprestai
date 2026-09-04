@@ -18,6 +18,7 @@ export function ClientRankingView({
   clients,
   loans,
   payments,
+  installmentSchedules,
 }: ClientRankingViewProps) {
   const {
     rankingType,
@@ -41,7 +42,7 @@ export function ClientRankingView({
     isFetching,
     error,
     refetch,
-  } = useClientRanking({ clients, loans, payments });
+  } = useClientRanking({ clients, loans, payments, installmentSchedules });
 
   return (
     <div className="space-y-6">
