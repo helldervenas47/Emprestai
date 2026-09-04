@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import { ClientCardView } from "@/features/clients/components/ClientCardView";
 import { getVisibleClients, type ClientStatusFilter, type ClientSortOption } from "@/features/clients/utils/clientListLogic";
 import { getClientRiskScoreInfo } from "@/features/clients/lib/clientRiskScore";
-import { getClientLoans, buildRiskProfile } from "@/features/loans/lib/clientRisk";
+import { getClientLoans, buildRiskProfile, getClientRiskMetrics } from "@/features/loans/lib/clientRisk";
 
 // P1 perf: dialogs pesados carregam sob demanda — reduz bundle inicial da aba.
 const ClientDetailDialog = lazy(() => import("@/features/clients/components/ClientDetailDialog").then(m => ({ default: m.ClientDetailDialog })));
@@ -136,6 +136,7 @@ function calculateCreditScore(
   }
 
   const riskProfile = buildRiskProfile(client, clientLoansAll, payments, installmentSchedules, referenceDate);
+  const metrics = getClientRiskMetrics(client, loans, payments, installmentSchedules, referenceDate);
   const numScore = riskProfile.historicalScore;
   const info = getClientRiskScoreInfo(numScore);
 
@@ -144,13 +145,13 @@ function calculateCreditScore(
     label: info.label,
     color: info.color,
     bgColor: info.bgColor,
-    totalLoans: riskProfile.metrics.activeLoans + riskProfile.metrics.paidLoans,
-    paidLoans: riskProfile.metrics.paidLoans,
-    activeLoans: riskProfile.metrics.activeLoans,
-    overdueLoans: riskProfile.metrics.overdueLoans,
-    onTimePayments: riskProfile.metrics.onTimePayments,
-    latePayments: riskProfile.metrics.latePayments,
-    totalPayments: riskProfile.metrics.totalTimedPayments,
+    totalLoans: metrics.activeLoans + metrics.paidLoans,
+    paidLoans: metrics.paidLoans,
+    activeLoans: metrics.activeLoans,
+    overdueLoans: metrics.overdueLoans,
+    onTimePayments: metrics.onTimePayments,
+    latePayments: metrics.latePayments,
+    totalPayments: metrics.totalTimedPayments,
   };
 }
 
