@@ -102,11 +102,11 @@ export function MonthlyClosingView({
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-300">
       {/* 1. BARRA SUPERIOR EXECUTIVA & NAVEGAÇÃO */}
-      <div className="bg-card/60 backdrop-blur-sm p-4 sm:p-5 rounded-2xl border border-border/60 shadow-sm space-y-3.5 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
+      <div className="bg-card/60 backdrop-blur-sm p-4 sm:p-5 rounded-2xl border border-border/60 shadow-sm space-y-4 md:space-y-0 md:flex md:items-center md:justify-between md:gap-4">
         <div className="space-y-1">
-          <div className="flex items-center justify-between sm:justify-start gap-2.5">
-            <span className="text-lg sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <span className="text-xl sm:text-2xl">📊</span> Fechamento Mensal
+          <div className="flex items-center justify-between sm:justify-start gap-2.5 flex-wrap">
+            <span className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+              <span className="text-xl md:text-2xl">📊</span> Fechamento Mensal
             </span>
             <Badge
               variant={closingData.isClosedMonth ? "default" : "secondary"}
@@ -124,9 +124,9 @@ export function MonthlyClosingView({
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
-          {/* Seletor de Mês (Padrão do App) */}
-          <div className="flex items-center justify-between sm:justify-center gap-1 sm:gap-2 bg-muted/40 sm:bg-transparent rounded-xl sm:rounded-none p-1 sm:p-0 border sm:border-0 border-border/40">
+        <div className="flex flex-col sm:flex-row items-center justify-between md:justify-end gap-3 sm:gap-4">
+          {/* Seletor de Mês (Mesmo design limpo em Mobile, Tablet e Desktop) */}
+          <div className="flex items-center justify-center gap-1">
             <Button
               variant="ghost"
               size="icon"
@@ -140,7 +140,7 @@ export function MonthlyClosingView({
               type="button"
               onClick={resetToCurrentMonth}
               title="Voltar para o mês vigente"
-              className="text-sm sm:text-base font-semibold text-foreground min-w-[130px] sm:min-w-[140px] text-center capitalize hover:text-primary transition-colors cursor-pointer select-none"
+              className="text-sm sm:text-base font-medium sm:font-semibold text-foreground min-w-[130px] sm:min-w-[140px] text-center capitalize hover:text-primary transition-colors cursor-pointer select-none"
             >
               {closingData.monthLabel}
             </button>
@@ -156,7 +156,7 @@ export function MonthlyClosingView({
           </div>
 
           {/* Botões de Ação */}
-          <div className="grid grid-cols-2 sm:flex items-center gap-2">
+          <div className="grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto">
             <Button
               variant="outline"
               size="sm"
