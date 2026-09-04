@@ -59,6 +59,11 @@ export function ClientDetailDialog({ open, onOpenChange, client, loans, payments
                         {riskProfile.trendLabel}
                       </span>
                     </div>
+                    {riskProfile.description && (
+                      <p className="mt-2.5 text-xs text-muted-foreground leading-relaxed bg-muted/40 p-2.5 rounded-lg border border-border/30 max-w-xl">
+                        {riskProfile.description}
+                      </p>
+                    )}
                   </div>
                   <div className="min-w-[220px] flex-1 max-w-sm">
                     <Progress value={scoreProgress} className="h-2.5" />

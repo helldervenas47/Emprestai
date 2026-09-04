@@ -26,6 +26,8 @@ export interface RiskScoreBreakdown {
 export interface ClientRiskScoreResult {
   score: number;
   label: ScoreBandConfig["label"];
+  riskLevel: ScoreBandConfig["riskLevel"];
+  description: string;
   color: string;
   bgColor: string;
   badgeClassName: string;
@@ -389,6 +391,8 @@ export function calculateClientRiskScore(
     return {
       score: defaultScore,
       label: band.label,
+      riskLevel: band.riskLevel,
+      description: band.description,
       color: band.color,
       bgColor: band.bgColor,
       badgeClassName: band.badgeClassName,
@@ -586,6 +590,8 @@ export function calculateClientRiskScore(
   return {
     score: finalScore,
     label: band.label,
+    riskLevel: band.riskLevel,
+    description: band.description,
     color: band.color,
     bgColor: band.bgColor,
     badgeClassName: band.badgeClassName,

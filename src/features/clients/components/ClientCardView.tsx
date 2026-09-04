@@ -16,6 +16,7 @@ import type { CreditLimit } from "@/features/creditCards/hooks/useCreditLimits";
 export interface ClientCardCreditScore {
   score: number;
   label: string;
+  description?: string;
   color: string;
   bgColor: string;
 }
@@ -118,11 +119,21 @@ export const ClientCardView = memo(function ClientCardView({
           </div>
 
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 rounded-xl border border-border/30 px-3 py-1.5">
-              <span className={`h-2 w-2 rounded-full ${score.bgColor}`} />
-              <span className="text-xs text-muted-foreground">Score</span>
-              <span className={`text-sm font-bold ${score.color}`}>{score.score}</span>
-            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-2 rounded-xl border border-border/30 px-3 py-1.5 cursor-help">
+                    <span className={`h-2 w-2 rounded-full ${score.bgColor}`} />
+                    <span className="text-xs text-muted-foreground">Score</span>
+                    <span className={`text-sm font-bold ${score.color}`}>{score.score}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-xs p-2.5">
+                  <p className="font-semibold mb-1">{score.label} ({score.score}/100)</p>
+                  {score.description && <p className="text-muted-foreground">{score.description}</p>}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             {!readOnly && (
               <div className="flex gap-0.5 sm:gap-1 items-center">
                 <Button

@@ -7,6 +7,8 @@ export interface RiskProfile {
   historicalScore: number;
   level: "baixo" | "moderado" | "alto" | "critico";
   label: string;
+  riskLevel: string;
+  description: string;
   classification: string;
   badgeClassName: string;
   reasons: string[];
@@ -334,6 +336,8 @@ export function buildConsolidatedRiskProfile(
     historicalScore: result.score,
     level: result.level,
     label: result.label,
+    riskLevel: result.riskLevel,
+    description: result.description,
     classification: getCombinedClassification(result.score, result.level),
     badgeClassName: result.badgeClassName,
     reasons: result.reasons,

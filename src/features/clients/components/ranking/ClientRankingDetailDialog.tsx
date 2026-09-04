@@ -69,7 +69,7 @@ export function ClientRankingDetailDialog({
           </div>
 
           {/* Badge de Score e Risco */}
-          <div className="mt-3 flex items-center gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <Badge
               variant="outline"
               className={`text-xs px-2.5 py-0.5 font-bold ${riskInfo.color} ${riskInfo.bgColor}/10 border-current/30`}
@@ -81,6 +81,11 @@ export function ClientRankingDetailDialog({
               Pontualidade: {item.on_time_percentage.toFixed(0)}%
             </Badge>
           </div>
+          {riskInfo.description && (
+            <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+              {riskInfo.description}
+            </p>
+          )}
         </DialogHeader>
 
         {/* Grade de Métricas Detalhadas */}

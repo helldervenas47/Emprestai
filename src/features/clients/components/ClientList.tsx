@@ -143,6 +143,7 @@ function calculateCreditScore(
   return {
     score: info.score,
     label: info.label,
+    description: info.description,
     color: info.color,
     bgColor: info.bgColor,
     totalLoans: metrics.activeLoans + metrics.paidLoans,
