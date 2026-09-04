@@ -83,8 +83,8 @@ export function calculateFinancialSummaryForMonth(
   );
   const expensesTotal = monthExpenses.reduce((sum, e: any) => sum + (Number(e.amount) || 0), 0);
 
-  // 4. Resultado operacional
-  const result = received - expensesTotal;
+  // 4. Resultado operacional: Recebimentos Totais - Despesas Operacionais - Faturamento (Novos Empréstimos)
+  const result = received - expensesTotal - revenue;
 
   // 5. Capital Ativo
   let activeCapital = 0;

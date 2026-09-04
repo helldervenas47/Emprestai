@@ -172,6 +172,7 @@ describe("Fechamento Mensal Automático + Integração com Metas", () => {
     expect(closing.financial.revenue).toBe(30000);
     expect(closing.financial.received).toBe(25000);
     expect(closing.financial.expenses).toBe(4000);
+    expect(closing.financial.result).toBe(-9000); // 25.000 - 4.000 - 30.000
     expect(closing.comparison.revenue.pctDiff).toBe(50); // +50%
     expect(closing.comparison.expenses.pctDiff).toBe(-20); // -20%
     expect(closing.comparison.expenses.isPositiveEvolution).toBe(true); // Despesa caindo é positivo

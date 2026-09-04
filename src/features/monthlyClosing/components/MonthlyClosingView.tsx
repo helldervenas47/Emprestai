@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import {
   ChevronLeft,
   ChevronRight,
@@ -26,6 +27,7 @@ import {
   Layers,
   BarChart3,
   Calendar,
+  Info,
 } from "lucide-react";
 import { formatBRL } from "@/features/creditCards/lib/creditLimit";
 import { emitAppUIEvent } from "@/lib/appUIEvents";
@@ -196,6 +198,7 @@ export function MonthlyClosingView({
             previousValue={formatBRL(comp.revenue.previous)}
             isPositiveEvolution={comp.revenue.isPositiveEvolution}
             previousLabel={closingData.previousMonthLabel}
+            tooltip="Soma do valor principal de todos os novos empréstimos criados e concedidos no mês."
           />
 
           {/* Card 2: Recebimentos */}
@@ -207,6 +210,7 @@ export function MonthlyClosingView({
             previousValue={formatBRL(comp.received.previous)}
             isPositiveEvolution={comp.received.isPositiveEvolution}
             previousLabel={closingData.previousMonthLabel}
+            tooltip="Soma de todos os pagamentos e entradas recebidas no mês (principal + juros + multas)."
           />
 
           {/* Card 3: Despesas */}
@@ -219,9 +223,10 @@ export function MonthlyClosingView({
             isPositiveEvolution={comp.expenses.isPositiveEvolution}
             previousLabel={closingData.previousMonthLabel}
             inverse
+            tooltip="Soma de todas as despesas pagas da empresa com vencimento ou pagamento no mês."
           />
 
-          {/* Card 4: Resultado Operacional */}
+          {/* Card 4: Resultado do Período */}
           <MetricCard
             title="Resultado do Período"
             value={formatBRL(fin.result)}
@@ -230,6 +235,7 @@ export function MonthlyClosingView({
             previousValue={formatBRL(comp.result.previous)}
             isPositiveEvolution={comp.result.isPositiveEvolution}
             previousLabel={closingData.previousMonthLabel}
+            tooltip="Fluxo líquido do mês: Recebimentos Totais − Despesas Operacionais − Faturamento (Novos Empréstimos)."
           />
 
           {/* Card 5: Capital Ativo */}
@@ -241,6 +247,7 @@ export function MonthlyClosingView({
             previousValue={formatBRL(comp.activeCapital.previous)}
             isPositiveEvolution={comp.activeCapital.isPositiveEvolution}
             previousLabel={closingData.previousMonthLabel}
+            tooltip="Soma do saldo restante a receber de todos os contratos ativos na data de fechamento do mês."
           />
 
           {/* Card 6: Inadimplência */}
@@ -255,6 +262,7 @@ export function MonthlyClosingView({
             inverse
             isRate
             extraInfo={(fin.overdueAmount ?? 0) > 0 ? `${formatBRL(fin.overdueAmount)} vencidos` : undefined}
+            tooltip="Percentual do valor vencido em atraso em relação ao total a receber da carteira no mês."
           />
         </div>
       </div>
@@ -490,6 +498,7 @@ interface MetricCardProps {
   inverse?: boolean;
   isRate?: boolean;
   extraInfo?: string;
+  tooltip?: string;
 }
 
 function MetricCard({
@@ -503,6 +512,7 @@ function MetricCard({
   previousLabel,
   isRate = false,
   extraInfo,
+  tooltip,
 }: MetricCardProps) {
   const hasDiff = isRate
     ? ppDiff !== undefined && isFinite(ppDiff) && Math.abs(ppDiff) >= 0.01
@@ -515,7 +525,25 @@ function MetricCard({
     <Card className="rounded-2xl border-border/70 bg-card p-4 sm:p-5 shadow-xs hover:border-primary/30 transition-all flex flex-col justify-between">
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-semibold text-muted-foreground truncate">{title}</span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-xs font-semibold text-muted-foreground truncate">{title}</span>
+            {tooltip && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="text-muted-foreground/60 hover:text-foreground transition-colors p-0.5 rounded-full inline-flex items-center justify-center shrink-0"
+                  >
+                    <Info className="h-3.5 w-3.5" />
+                    <span className="sr-only">Como é calculado</span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs max-w-xs text-center z-50">
+                  {tooltip}
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
           <div className="w-8 h-8 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
             <Icon className="h-4 w-4 text-primary" />
           </div>
