@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useCreditLimits } from "@/features/creditCards/hooks/useCreditLimits";
 import { computeUsedLimit, computeAvailableLimit, formatBRL } from "@/features/creditCards/lib/creditLimit";
-import { Wallet, AlertTriangle as AlertTriangleIcon, ShieldCheck } from "lucide-react";
+import { Wallet, AlertTriangle as AlertTriangleIcon } from "lucide-react";
 import { buildRiskProfile } from "@/features/loans/lib/clientRisk";
 import { LoanPaymentSplitEditor, buildSplitFromState, type SplitState } from "@/features/loans/components/LoanPaymentSplitEditor";
 import { formatCPF, formatCpfOrCnpj, onlyDigits } from "@/lib/brDocuments";
@@ -437,12 +437,11 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
               {selectedClient && clientRiskProfile && (
                 <div className="col-span-2 rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-2">
-                      <ShieldCheck className="h-4 w-4 text-primary" />
-                      <p className="text-sm font-medium text-foreground">Score e Risco do Cliente</p>
-                    </div>
+                    <span className="text-xs font-bold text-foreground">
+                      Score: {clientRiskProfile.score}/100
+                    </span>
                     <Badge variant="outline" className={`text-xs px-2.5 py-0.5 font-bold ${clientRiskProfile.badgeClassName}`}>
-                      Score: {clientRiskProfile.score}/100 • {clientRiskProfile.riskLevel}
+                      Risco: {clientRiskProfile.riskLevel}
                     </Badge>
                   </div>
                   {clientRiskProfile.description && (
