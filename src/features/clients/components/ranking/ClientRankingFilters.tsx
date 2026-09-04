@@ -61,28 +61,26 @@ export function ClientRankingFilters({
 }: ClientRankingFiltersProps) {
   return (
     <div className="space-y-4">
-      {/* Abas horizontais dos rankings com scroll lateral fluido no mobile */}
-      <div className="w-full overflow-x-auto pb-1.5 scrollbar-hide -mx-1 px-1 sm:mx-0 sm:px-0 touch-pan-x">
-        <div className="flex items-center gap-1.5 min-w-max">
-          {rankingTabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = rankingType === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => onRankingTypeChange(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium rounded-lg whitespace-nowrap transition-all shrink-0 ${
-                  isActive
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "bg-card border border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                }`}
-              >
-                <Icon className={`h-4 w-4 shrink-0 ${isActive ? "text-primary-foreground" : "text-muted-foreground"}`} />
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
+      {/* Abas dos rankings: Grid 3x3 no mobile e linha flex no desktop */}
+      <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1.5 sm:gap-1.5">
+        {rankingTabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = rankingType === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onRankingTypeChange(tab.id)}
+              className={`flex flex-col sm:flex-row items-center justify-center text-center sm:text-left gap-1 sm:gap-1.5 px-2 py-2 sm:px-3 sm:py-2 text-[11px] sm:text-sm font-medium rounded-lg transition-all sm:shrink-0 ${
+                isActive
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-card border border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              }`}
+            >
+              <Icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 ${isActive ? "text-primary-foreground" : "text-muted-foreground"}`} />
+              <span className="truncate max-w-full">{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Barra de Filtro de Período e Busca */}
