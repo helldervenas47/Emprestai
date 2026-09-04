@@ -272,67 +272,18 @@ function getRecentRecurrencePenalty(client: Client, loans: Loan[], payments: Pay
   return hadGoodPeriod && relapsedNow ? 30 : 0;
 }
 
-function buildScoreSnapshot(client: Client, loans: Loan[], payments: Payment[], installmentSchedules: InstallmentSchedule[], referenceDate = new Date()): ScoreSnapshot {
+import { calculateClientRiskScore, ClientRiskScoreResult } from "@/features/clients/lib/riskEngine/calculateClientRiskScore";
+
+function buildScoreSnapshot(client: Client, loans: Loan[], payments: Payment[], installmentSchedules: InstallmentSchedule[], referenceDate = new Date()): ScoreSnapshot & { result: ClientRiskScoreResult } {
   const metrics = getClientRiskMetrics(client, loans, payments, installmentSchedules, referenceDate);
-  const clientLoans = getClientLoans(client, loans).filter((loan) => loan.startDate <= referenceDate.toISOString().split("T")[0]);
-  const relationshipMonths = getClientRelationshipMonths(clientLoans, referenceDate);
-
-  let historicalScore = 75;
-  historicalScore += getPunctualityBonus(metrics);
-  historicalScore += getRelationshipBonus(relationshipMonths);
-  historicalScore += getHealthyVolumeBonus(metrics);
-
-  if (metrics.maxOverdueDays > 30) historicalScore -= 45;
-  else if (metrics.maxOverdueDays >= 16) historicalScore -= 28;
-  else if (metrics.maxOverdueDays >= 6) historicalScore -= 16;
-  else if (metrics.maxOverdueDays >= 1) historicalScore -= 8;
-
-  if (metrics.severeOverdueLoans > 0) {
-    historicalScore -= 20;
-  }
-
-  if (metrics.highOverdueLoans > 1 || metrics.severeOverdueLoans > 1) {
-    historicalScore -= 20;
-  } else if (metrics.latePayments >= 2 || metrics.overdueLoans >= 2) {
-    historicalScore -= 20;
-  }
-
-  historicalScore -= getRecentRecurrencePenalty(client, loans, payments, installmentSchedules, referenceDate);
-  historicalScore = clamp(Math.round(historicalScore), 0, 150);
-
-  let currentBaseScore = 100;
-  if (metrics.maxOverdueDays > 30) currentBaseScore -= 55;
-  else if (metrics.maxOverdueDays >= 16) currentBaseScore -= 35;
-  else if (metrics.maxOverdueDays >= 6) currentBaseScore -= 22;
-  else if (metrics.maxOverdueDays >= 1) currentBaseScore -= 10;
-  currentBaseScore -= metrics.overdueLoans * 10;
-  currentBaseScore -= metrics.severeOverdueLoans * 12;
-  currentBaseScore -= metrics.lateRatio * 35;
-  currentBaseScore -= Math.min(12, metrics.partialPayments * 4);
-  currentBaseScore -= metrics.activeLoans >= 4 ? 6 : 0;
-  currentBaseScore += metrics.totalTimedPayments > 0 ? metrics.onTimeRatio * 8 : 0;
-  currentBaseScore += Math.min(6, metrics.paidLoans * 2);
-  currentBaseScore = clamp(Math.round(currentBaseScore), 0, 100);
-
-  let currentScore = currentBaseScore + (historicalScore - 75) * 0.3;
-
-  if (metrics.severeOverdueLoans > 0) {
-    currentScore = Math.min(currentScore, 50);
-  }
-
-  if (metrics.maxOverdueDays > 30) {
-    currentScore = Math.min(currentScore, 35);
-  }
-
-  if (historicalScore < 50) {
-    currentScore = Math.min(currentScore, 60);
-  }
+  const result = calculateClientRiskScore(client, loans, payments, installmentSchedules, referenceDate);
 
   return {
-    currentScore: clamp(Math.round(currentScore), 0, 100),
-    currentBaseScore,
-    historicalScore,
+    currentScore: result.score,
+    currentBaseScore: result.breakdown.currentObligationsScore,
+    historicalScore: result.score,
     metrics,
+    result,
   };
 }
 
@@ -342,55 +293,12 @@ function getTrendLabel(trend: RiskProfile["trend"]) {
   return "Estável";
 }
 
-function getCombinedClassification(currentScore: number, historicalScore: number) {
-  if (currentScore <= 35) return "Alto risco crítico";
-  if (currentScore >= 80 && historicalScore >= 110) return "Cliente excelente";
-  if (currentScore < 60 && historicalScore >= 110) return "Queda recente";
-  if (currentScore >= 75 && historicalScore < 75) return "Risco oculto";
-  if (currentScore < 60 && historicalScore < 75) return "Alto risco crítico";
-  if (currentScore >= 70) return "Bom momento";
-  if (historicalScore >= 100) return "Histórico consistente";
-  return "Em observação";
-}
-
-function getProfileVisual(currentScore: number, maxOverdueDays: number) {
-  if (maxOverdueDays > 30) {
-    return {
-      level: "critico" as const,
-      label: "Risco crítico",
-      badgeClassName: "bg-destructive/15 text-destructive border-destructive/30",
-    };
-  }
-
-  if (currentScore >= 80) {
-    return {
-      level: "baixo" as const,
-      label: "Saudável",
-      badgeClassName: "bg-success/10 text-success border-success/20",
-    };
-  }
-
-  if (currentScore >= 60) {
-    return {
-      level: "moderado" as const,
-      label: "Atenção",
-      badgeClassName: "bg-warning/10 text-warning border-warning/20",
-    };
-  }
-
-  if (currentScore >= 40) {
-    return {
-      level: "alto" as const,
-      label: "Risco alto",
-      badgeClassName: "bg-destructive/10 text-destructive border-destructive/20",
-    };
-  }
-
-  return {
-    level: "critico" as const,
-    label: "Risco crítico",
-    badgeClassName: "bg-destructive/15 text-destructive border-destructive/30",
-  };
+function getCombinedClassification(score: number, level: RiskProfile["level"]) {
+  if (score >= 85) return "Excelente";
+  if (score >= 70) return "Bom";
+  if (score >= 55) return "Regular";
+  if (score >= 40) return "Risco elevado";
+  return "Alto risco";
 }
 
 export function buildRiskProfile(client: Client, loans: Loan[], payments: Payment[], installmentSchedules: InstallmentSchedule[], referenceDate = new Date()): RiskProfile {
@@ -411,48 +319,27 @@ export function buildConsolidatedRiskProfile(
   const previousSnapshot = buildScoreSnapshot(client, loans, payments, installmentSchedules, previousReference);
 
   const trendDelta = snapshot.currentScore - previousSnapshot.currentScore;
-  const trend: RiskProfile["trend"] = trendDelta >= 4 ? "improving" : trendDelta <= -4 ? "worsening" : "stable";
-  const visual = getProfileVisual(snapshot.currentScore, snapshot.metrics.maxOverdueDays);
+  const trend: RiskProfile["trend"] = trendDelta >= 3 ? "improving" : trendDelta <= -3 ? "worsening" : "stable";
 
-  const positiveFactors = [
-    snapshot.metrics.onTimeRatio >= 0.95 ? "Pontualidade histórica em nível excelente." : null,
-    snapshot.historicalScore >= 110 ? "Base histórica forte e consistente dentro do app." : null,
-    snapshot.metrics.paidLoans > 0 ? `${snapshot.metrics.paidLoans} contrato${snapshot.metrics.paidLoans > 1 ? "s" : ""} já foi(foram) quitado(s).` : null,
-    snapshot.metrics.totalLent > 0 ? `Volume movimentado no app: ${formatRiskCurrency(snapshot.metrics.totalLent)}.` : null,
-  ].filter(Boolean) as string[];
+  const result = snapshot.result;
 
   const negativeFactors = financialProfile?.negativeFactors?.length
     ? financialProfile.negativeFactors
-    : [
-        snapshot.metrics.overdueLoans > 0 ? `${snapshot.metrics.overdueLoans} contrato${snapshot.metrics.overdueLoans > 1 ? "s" : ""} em atraso no momento.` : null,
-        snapshot.metrics.maxOverdueDays > 30 ? `Maior atraso registrado: ${snapshot.metrics.maxOverdueDays} dias.` : null,
-        snapshot.metrics.severeOverdueLoans > 0 ? "Há atraso atual acima de 30 dias." : null,
-        snapshot.metrics.latePayments > 0 ? `${Math.round(snapshot.metrics.lateRatio * 100)}% dos pagamentos tiveram atraso.` : null,
-        snapshot.historicalScore < 50 ? "O histórico acumulado limita a confiança operacional." : null,
-      ].filter(Boolean) as string[];
-
-  const reasons = [
-    `Score Histórico em ${snapshot.historicalScore}/150.` ,
-    `Score Atual em ${snapshot.currentScore}/100.` ,
-    snapshot.metrics.maxOverdueDays > 0 ? `Pior atraso observado: ${snapshot.metrics.maxOverdueDays} dias.` : null,
-    snapshot.metrics.totalTimedPayments > 0 ? `${Math.round(snapshot.metrics.onTimeRatio * 100)}% de pagamentos em dia no histórico.` : "Ainda sem histórico suficiente de pagamentos.",
-    snapshot.metrics.severeOverdueLoans > 0 ? "Limite de proteção aplicado por atraso acima de 30 dias." : null,
-    snapshot.historicalScore < 50 ? "Limite de proteção aplicado por histórico abaixo do neutro." : null,
-  ].filter(Boolean) as string[];
+    : result.negativeFactors;
 
   return {
-    score: snapshot.currentScore,
-    currentScore: snapshot.currentScore,
+    score: result.score,
+    currentScore: result.score,
     currentBaseScore: snapshot.currentBaseScore,
-    historicalScore: snapshot.historicalScore,
-    level: visual.level,
-    label: visual.label,
-    classification: getCombinedClassification(snapshot.currentScore, snapshot.historicalScore),
-    badgeClassName: visual.badgeClassName,
-    reasons: Array.from(new Set(reasons)).slice(0, 6),
+    historicalScore: result.score,
+    level: result.level,
+    label: result.label,
+    classification: getCombinedClassification(result.score, result.level),
+    badgeClassName: result.badgeClassName,
+    reasons: result.reasons,
     trend,
     trendLabel: getTrendLabel(trend),
-    positiveFactors,
+    positiveFactors: result.positiveFactors,
     negativeFactors,
   };
 }

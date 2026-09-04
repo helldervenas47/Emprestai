@@ -138,7 +138,7 @@ export function ClientRankingCard({
               variant="outline"
               className={`text-[10px] px-1.5 py-0 h-4.5 font-semibold ${riskInfo.color} border-current/30`}
             >
-              Score: {riskInfo.score}/150 • {riskInfo.label}
+              Score: {riskInfo.score}/100 • {riskInfo.label}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5 truncate">

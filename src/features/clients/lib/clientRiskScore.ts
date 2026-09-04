@@ -1,18 +1,20 @@
+import { SCORE_BANDS, RISK_SCORE_CONFIG } from "./riskEngine/riskScoreConfig";
+
 export interface ClientRiskScoreInfo {
   score: number;
-  label: "Excelente" | "Bom" | "Regular" | "Ruim" | "Crítico" | "Sem Histórico";
+  label: "Excelente" | "Bom" | "Regular" | "Risco elevado" | "Alto risco" | "Sem Histórico";
   color: string;
   bgColor: string;
 }
 
 /**
- * Converte o valor de score_risco (0 a 150) armazenado na tabela clients em
- * badge visual estilizado com cor e classificação sem necessidade de recalcular histórico.
+ * Converte o valor de score de risco (escala de 0 a 100)
+ * em badge visual estilizado com cor e classificação.
  */
 export function getClientRiskScoreInfo(rawScore: number | string | null | undefined): ClientRiskScoreInfo {
   if (rawScore == null || rawScore === "") {
     return {
-      score: 100,
+      score: RISK_SCORE_CONFIG.DEFAULT_NEUTRAL_SCORE, // 60
       label: "Sem Histórico",
       color: "text-muted-foreground",
       bgColor: "bg-muted",
@@ -20,19 +22,22 @@ export function getClientRiskScoreInfo(rawScore: number | string | null | undefi
   }
 
   const score = typeof rawScore === "string" ? parseFloat(rawScore) : rawScore;
-  const numScore = isNaN(score) ? 100 : Math.max(0, Math.min(150, Math.round(score)));
+  const numScore = isNaN(score) ? RISK_SCORE_CONFIG.DEFAULT_NEUTRAL_SCORE : Math.max(0, Math.min(100, Math.round(score)));
 
-  if (numScore >= 130) {
-    return { score: numScore, label: "Excelente", color: "text-success", bgColor: "bg-success" };
+  const matchedBand = SCORE_BANDS.find((band) => numScore >= band.min && numScore <= band.max);
+  if (matchedBand) {
+    return {
+      score: numScore,
+      label: matchedBand.label,
+      color: matchedBand.color,
+      bgColor: matchedBand.bgColor,
+    };
   }
-  if (numScore >= 110) {
-    return { score: numScore, label: "Bom", color: "text-primary", bgColor: "bg-primary" };
-  }
-  if (numScore >= 90) {
-    return { score: numScore, label: "Regular", color: "text-warning", bgColor: "bg-warning" };
-  }
-  if (numScore >= 60) {
-    return { score: numScore, label: "Ruim", color: "text-orange-500", bgColor: "bg-orange-500" };
-  }
-  return { score: numScore, label: "Crítico", color: "text-destructive", bgColor: "bg-destructive" };
+
+  return {
+    score: numScore,
+    label: "Alto risco",
+    color: "text-destructive",
+    bgColor: "bg-destructive/15",
+  };
 }
