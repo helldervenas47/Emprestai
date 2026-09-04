@@ -9,7 +9,7 @@ import {
   getDaysOverdue,
   getFirstPendingDate,
   getInstallmentDueDate,
-} from "@/features/loans/lib/clientRisk";
+} from "@/features/loans/lib/clientRiskUtils";
 
 export interface RiskScoreBreakdown {
   currentObligationsScore: number; // 35%
@@ -377,12 +377,16 @@ export function applySevereDelinquencyCaps(
  */
 export function calculateClientRiskScore(
   client: Client,
-  loans: Loan[],
-  payments: Payment[],
+  loans: Loan[] = [],
+  payments: Payment[] = [],
   installmentSchedules: InstallmentSchedule[] = [],
   referenceDate = new Date()
 ): ClientRiskScoreResult {
-  const clientLoansAll = getClientLoans(client, loans);
+  const safeLoans = Array.isArray(loans) ? loans : [];
+  const safePayments = Array.isArray(payments) ? payments : [];
+  const safeSchedules = Array.isArray(installmentSchedules) ? installmentSchedules : [];
+
+  const clientLoansAll = getClientLoans(client, safeLoans);
 
   // Cliente novo sem nenhum empréstimo cadastrado
   if (clientLoansAll.length === 0) {
@@ -420,13 +424,13 @@ export function calculateClientRiskScore(
   }
 
   const clientLoanIds = new Set(clientLoansAll.map((l) => l.id));
-  const clientPayments = payments.filter((p) => clientLoanIds.has(p.loanId));
+  const clientPayments = safePayments.filter((p) => p && clientLoanIds.has(p.loanId));
 
   const activeLoans = clientLoansAll.filter((l) => l.status !== "paid" && l.status !== "cancelled");
   const paidLoans = clientLoansAll.filter((l) => l.status === "paid");
 
   // 1. Situação Atual das Obrigações (35%)
-  const currentObligations = calculateCurrentObligationsScore(activeLoans, installmentSchedules, referenceDate);
+  const currentObligations = calculateCurrentObligationsScore(activeLoans, safeSchedules, referenceDate);
 
   // Mapeia todos os pagamentos e identifica eventos de atraso
   const historicalEvents: HistoricalLateEvent[] = [];
@@ -438,12 +442,12 @@ export function calculateClientRiskScore(
   twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
 
   // Pagamentos ordenados por data para calcular sequências
-  const sortedPayments = [...clientPayments].sort((a, b) => a.date.localeCompare(b.date));
+  const sortedPayments = [...clientPayments].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   let recentStreakOnTime = 0;
   let recentOnTimeCountSinceSettlement = 0;
 
   sortedPayments.forEach((p) => {
-    if (p.installmentNumber === -1) return; // amortização avulsa
+    if (!p || p.installmentNumber === -1) return; // amortização avulsa
 
     const loan = clientLoansAll.find((l) => l.id === p.loanId);
     if (!loan) return;
@@ -452,10 +456,13 @@ export function calculateClientRiskScore(
     if (p.installmentNumber === 0) {
       dueDateStr = p.previousDueDate ?? loan.dueDate;
     } else if (p.installmentNumber > 0) {
-      dueDateStr = getInstallmentDueDate(loan, p.installmentNumber, installmentSchedules);
+      dueDateStr = getInstallmentDueDate(loan, p.installmentNumber, safeSchedules);
     }
 
-    const pDate = new Date(p.date.split("T")[0] + "T00:00:00");
+    const pDateStr = (p.date || "").split("T")[0];
+    if (!pDateStr) return;
+    const pDate = new Date(pDateStr + "T00:00:00");
+    if (isNaN(pDate.getTime())) return;
     const isRecent12m = pDate >= twelveMonthsAgo;
 
     if (dueDateStr) {

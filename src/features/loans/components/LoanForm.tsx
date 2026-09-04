@@ -140,7 +140,17 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
   const selectedClient = useMemo(() => activeClients.find((c) => c.id === form.borrowerName), [activeClients, form.borrowerName]);
   const clientRiskProfile = useMemo(() => {
     if (!selectedClient) return null;
-    return buildRiskProfile(selectedClient, loans, payments as any, installmentSchedules as any);
+    try {
+      return buildRiskProfile(
+        selectedClient,
+        loans || [],
+        (payments || []) as any,
+        (installmentSchedules || []) as any
+      );
+    } catch (err) {
+      console.error("[LoanForm] Erro ao calcular perfil de risco do cliente:", err);
+      return null;
+    }
   }, [selectedClient, loans, payments, installmentSchedules]);
 
   const { getLimitForClient } = useCreditLimits();
