@@ -10,6 +10,7 @@ import {
   getClientLoans,
   getInstallmentDueDate,
   getDaysOverdue,
+  buildRiskProfile,
 } from "@/features/loans/lib/clientRisk";
 
 interface ComputeClientRankingParams {
@@ -177,13 +178,24 @@ export function computeClientRanking({
       }
     });
 
-    const totalPaymentsCount = onTimePayments + latePayments;
-    const onTimePercentage = totalPaymentsCount > 0 ? (onTimePayments / totalPaymentsCount) * 100 : (overdueLoans > 0 ? 0 : 100);
+    // Quantidade de parcelas/contratos atualmente em atraso não quitados
+    let activePendingDelays = 0;
+    clientLoansAll.forEach((loan) => {
+      if (loan.status !== "paid" && loan.status !== "cancelled") {
+        if (getDaysOverdue(loan, installmentSchedules, today) > 0) {
+          activePendingDelays++;
+        }
+      }
+    });
 
-    // Cálculo dinâmico do Score oficial (escala 0 a 150)
-    const overduePenalty = overdueLoans * 15 + Math.min(40, maxDelayDays * 1.5);
-    const dynamicScore = 100 + (onTimePayments * 3) - (latePayments * 5) + (paidLoans * 5) - overduePenalty;
-    const score = Math.max(0, Math.min(150, Math.round(dynamicScore)));
+    const totalEvaluatedObligations = onTimePayments + latePayments + activePendingDelays;
+    const onTimePercentage = totalEvaluatedObligations > 0
+      ? (onTimePayments / totalEvaluatedObligations) * 100
+      : (overdueLoans > 0 ? 0 : 100);
+
+    // Score canônico do motor de risco (escala 0 a 150)
+    const riskProfile = buildRiskProfile(client, clientLoansAll, payments, installmentSchedules, today);
+    const score = riskProfile.historicalScore;
 
     items.push({
       position: 1,
@@ -210,12 +222,25 @@ export function computeClientRanking({
   items.sort((a, b) => {
     switch (rankingType) {
       case "best": {
-        const scoreA = a.score * 0.4 + a.on_time_percentage * 0.3 + Math.min(100, a.total_loans * 10) * 0.3;
-        const scoreB = b.score * 0.4 + b.on_time_percentage * 0.3 + Math.min(100, b.total_loans * 10) * 0.3;
+        const delayPenaltyA = a.max_delay_days > 0 ? 40 : 0;
+        const delayPenaltyB = b.max_delay_days > 0 ? 40 : 0;
+        const scoreA = a.score * 0.45 + a.on_time_percentage * 0.35 + Math.min(100, a.total_loans * 10) * 0.2 - delayPenaltyA;
+        const scoreB = b.score * 0.45 + b.on_time_percentage * 0.35 + Math.min(100, b.total_loans * 10) * 0.2 - delayPenaltyB;
         return scoreB - scoreA || b.total_received - a.total_received || b.total_borrowed - a.total_borrowed;
       }
       case "on_time":
-        return b.on_time_percentage - a.on_time_percentage || b.on_time_payments - a.on_time_payments || b.score - a.score;
+        return (
+          // 1. Maior taxa de pontualidade
+          b.on_time_percentage - a.on_time_percentage ||
+          // 2. Clientes com zero atraso primeiro
+          (a.max_delay_days === 0 ? 0 : 1) - (b.max_delay_days === 0 ? 0 : 1) ||
+          // 3. Maior score de saúde e histórico
+          b.score - a.score ||
+          // 4. Menor atraso em dias
+          a.max_delay_days - b.max_delay_days ||
+          // 5. Maior volume de pagamentos em dia
+          b.on_time_payments - a.on_time_payments
+        );
       case "revenue":
         return b.profit_generated - a.profit_generated || b.total_received - a.total_received;
       case "volume":

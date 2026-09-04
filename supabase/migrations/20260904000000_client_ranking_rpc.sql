@@ -170,8 +170,8 @@ BEGIN
       COALESCE(pa.late_payments, 0) AS late_payments,
       COALESCE(pa.max_delay_days, 0) AS max_delay_days,
       CASE 
-        WHEN COALESCE(pa.total_payments, 0) > 0 THEN
-          ROUND((COALESCE(pa.on_time_payments, 0)::NUMERIC / COALESCE(pa.total_payments, 0)::NUMERIC) * 100.0, 1)
+        WHEN (COALESCE(pa.total_payments, 0) + COALESCE(la.overdue_loans, 0)) > 0 THEN
+          ROUND((COALESCE(pa.on_time_payments, 0)::NUMERIC / (COALESCE(pa.total_payments, 0) + COALESCE(la.overdue_loans, 0))::NUMERIC) * 100.0, 1)
         ELSE 100.0
       END AS on_time_percentage
     FROM client_base cb
@@ -184,12 +184,14 @@ BEGIN
       COUNT(*) OVER() AS full_count,
       ROW_NUMBER() OVER (
         ORDER BY
-          CASE WHEN p_ranking_type = 'best' THEN (c.score * 0.4 + c.on_time_percentage * 0.3 + LEAST(100.0, c.total_loans * 10.0) * 0.3) END DESC NULLS LAST,
+          CASE WHEN p_ranking_type = 'best' THEN (c.score * 0.45 + c.on_time_percentage * 0.35 + LEAST(100.0, c.total_loans * 10.0) * 0.2 - (CASE WHEN c.max_delay_days > 0 THEN 40 ELSE 0 END)) END DESC NULLS LAST,
           CASE WHEN p_ranking_type = 'best' THEN c.total_received END DESC NULLS LAST,
           
           CASE WHEN p_ranking_type = 'on_time' THEN c.on_time_percentage END DESC NULLS LAST,
-          CASE WHEN p_ranking_type = 'on_time' THEN c.on_time_payments END DESC NULLS LAST,
+          CASE WHEN p_ranking_type = 'on_time' THEN (CASE WHEN c.max_delay_days = 0 THEN 0 ELSE 1 END) END ASC NULLS LAST,
           CASE WHEN p_ranking_type = 'on_time' THEN c.score END DESC NULLS LAST,
+          CASE WHEN p_ranking_type = 'on_time' THEN c.max_delay_days END ASC NULLS LAST,
+          CASE WHEN p_ranking_type = 'on_time' THEN c.on_time_payments END DESC NULLS LAST,
           
           CASE WHEN p_ranking_type = 'revenue' THEN c.profit_generated END DESC NULLS LAST,
           CASE WHEN p_ranking_type = 'revenue' THEN c.total_received END DESC NULLS LAST,
