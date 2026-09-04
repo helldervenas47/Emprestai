@@ -147,24 +147,27 @@ export function classifyGoalStatus(
 }
 
 export function formatGoalValue(value: number, unit: "%" | "R$" | "qtd"): string {
+  const val = typeof value === "number" && isFinite(value) ? value : 0;
   if (unit === "R$") {
-    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(val);
   }
   if (unit === "%") {
-    return `${value.toFixed(1).replace(".", ",")}%`;
+    return `${val.toFixed(1).replace(".", ",")}%`;
   }
-  return String(Math.round(value));
+  return String(Math.round(val));
 }
 
 export function formatDiffValue(diff: number, unit: "%" | "R$" | "qtd", isInverse: boolean): string {
-  const sign = diff > 0 ? "+" : "";
+  const d = typeof diff === "number" && isFinite(diff) ? diff : 0;
+  const sign = d > 0 ? "+" : "";
   if (unit === "R$") {
-    const formatted = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Math.abs(diff));
-    return `${diff >= 0 ? "+" : "-"}${formatted}`;
+    const formatted = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Math.abs(d));
+    return `${d >= 0 ? "+" : "-"}${formatted}`;
   }
   if (unit === "%") {
-    const formatted = Math.abs(diff).toFixed(1).replace(".", ",");
+    const formatted = Math.abs(d).toFixed(1).replace(".", ",");
     return `${sign}${formatted} p.p.`;
   }
-  return `${sign}${Math.round(diff)}`;
+  return `${sign}${Math.round(d)}`;
 }
+

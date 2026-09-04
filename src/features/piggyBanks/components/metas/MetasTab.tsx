@@ -68,21 +68,21 @@ export function MetasTab({
 
       {sub === "fechamento" && (
         <MonthlyClosingView
-          loans={loans}
-          payments={payments}
-          expenses={expenses}
-          clients={clients}
-          installmentSchedules={installmentSchedules}
+          loans={loans || []}
+          payments={payments || []}
+          expenses={expenses || []}
+          clients={clients || []}
+          installmentSchedules={installmentSchedules || []}
           onNavigateToConfig={() => setSub("configuracao")}
         />
       )}
       {sub === "evolucao" && (
         <GoalsYearlyGrid
-          loans={loans}
-          payments={payments}
-          expenses={expenses}
-          clients={clients}
-          installmentSchedules={installmentSchedules}
+          loans={loans || []}
+          payments={payments || []}
+          expenses={expenses || []}
+          clients={clients || []}
+          installmentSchedules={installmentSchedules || []}
         />
       )}
       {sub === "configuracao" && (

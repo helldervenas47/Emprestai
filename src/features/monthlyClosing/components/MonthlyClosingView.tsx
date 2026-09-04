@@ -246,15 +246,15 @@ export function MonthlyClosingView({
           {/* Card 6: Inadimplência */}
           <MetricCard
             title="Taxa de Inadimplência"
-            value={`${fin.defaultRate.toFixed(1).replace(".", ",")}%`}
+            value={`${(fin.defaultRate ?? 0).toFixed(1).replace(".", ",")}%`}
             icon={AlertTriangle}
-            ppDiff={comp.defaultRate.ppDiff}
-            previousValue={`${comp.defaultRate.previous.toFixed(1).replace(".", ",")}%`}
-            isPositiveEvolution={comp.defaultRate.isPositiveEvolution}
+            ppDiff={comp.defaultRate?.ppDiff}
+            previousValue={`${(comp.defaultRate?.previous ?? 0).toFixed(1).replace(".", ",")}%`}
+            isPositiveEvolution={comp.defaultRate?.isPositiveEvolution ?? true}
             previousLabel={closingData.previousMonthLabel}
             inverse
             isRate
-            extraInfo={fin.overdueAmount > 0 ? `${formatBRL(fin.overdueAmount)} vencidos` : undefined}
+            extraInfo={(fin.overdueAmount ?? 0) > 0 ? `${formatBRL(fin.overdueAmount)} vencidos` : undefined}
           />
         </div>
       </div>
@@ -288,14 +288,14 @@ export function MonthlyClosingView({
             <div className="mt-4 pt-3 border-t border-border/40 space-y-2">
               <div className="flex justify-between items-center text-xs font-medium">
                 <span className="text-foreground">
-                  Você atingiu <strong>{goalsSummary.overallAchievementPct.toFixed(0)}%</strong> das suas metas neste mês.
+                  Você atingiu <strong>{(goalsSummary.overallAchievementPct ?? 0).toFixed(0)}%</strong> das suas metas neste mês.
                 </span>
                 <span className="text-muted-foreground">
-                  {goalsSummary.reachedCount} de {goalsSummary.totalGoals} metas atingidas
+                  {goalsSummary.reachedCount ?? 0} de {goalsSummary.totalGoals ?? 0} metas atingidas
                 </span>
               </div>
               <Progress
-                value={goalsSummary.overallAchievementPct}
+                value={goalsSummary.overallAchievementPct ?? 0}
                 className="h-2 rounded-full bg-muted"
               />
             </div>
@@ -328,7 +328,7 @@ export function MonthlyClosingView({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-              {closingData.goals.map((g) => (
+              {(closingData.goals || []).map((g) => (
                 <GoalClosingCard key={g.goalType} goal={g} />
               ))}
             </div>
@@ -347,7 +347,7 @@ export function MonthlyClosingView({
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 sm:p-5 pt-2 space-y-2.5">
-            {closingData.executiveAnalysis.positiveHighlights.length === 0 ? (
+            {(!closingData.executiveAnalysis?.positiveHighlights || closingData.executiveAnalysis.positiveHighlights.length === 0) ? (
               <p className="text-xs sm:text-sm text-muted-foreground py-2">
                 Nenhum destaque positivo relevante registrado no período.
               </p>
@@ -384,7 +384,7 @@ export function MonthlyClosingView({
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 sm:p-5 pt-2 space-y-2.5">
-            {closingData.executiveAnalysis.attentionPoints.length === 0 ? (
+            {(!closingData.executiveAnalysis?.attentionPoints || closingData.executiveAnalysis.attentionPoints.length === 0) ? (
               <p className="text-xs sm:text-sm text-muted-foreground py-2">
                 Nenhum ponto crítico ou desvio identificado no período.
               </p>
@@ -427,10 +427,10 @@ export function MonthlyClosingView({
         <CardContent className="p-4 sm:p-5 pt-2 space-y-3">
           <div className="p-4 rounded-xl bg-background/80 border border-border/60 border-l-4 border-l-primary space-y-2">
             <p className="font-bold text-xs sm:text-sm text-foreground">
-              {closingData.executiveAnalysis.headline}
+              {closingData.executiveAnalysis?.headline || ""}
             </p>
             <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-              {closingData.executiveAnalysis.narrative}
+              {closingData.executiveAnalysis?.narrative || ""}
             </p>
           </div>
         </CardContent>
@@ -448,15 +448,15 @@ export function MonthlyClosingView({
                 💡 Recomendação para o próximo mês
               </span>
               <h4 className="text-sm sm:text-base font-bold text-foreground">
-                {closingData.executiveAnalysis.recommendation.title}
+                {closingData.executiveAnalysis?.recommendation?.title || "Acompanhamento de Metas"}
               </h4>
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-3xl">
-                {closingData.executiveAnalysis.recommendation.text}
+                {closingData.executiveAnalysis?.recommendation?.text || ""}
               </p>
             </div>
           </div>
 
-          {closingData.executiveAnalysis.recommendation.action && (
+          {closingData.executiveAnalysis?.recommendation?.action && (
             <Button
               variant="default"
               size="sm"
@@ -504,7 +504,12 @@ function MetricCard({
   isRate = false,
   extraInfo,
 }: MetricCardProps) {
-  const hasDiff = isRate ? ppDiff !== undefined && Math.abs(ppDiff) >= 0.01 : pctDiff !== undefined && Math.abs(pctDiff) >= 0.1;
+  const hasDiff = isRate
+    ? ppDiff !== undefined && isFinite(ppDiff) && Math.abs(ppDiff) >= 0.01
+    : pctDiff !== undefined && isFinite(pctDiff) && Math.abs(pctDiff) >= 0.1;
+
+  const displayPpDiff = typeof ppDiff === "number" && isFinite(ppDiff) ? ppDiff : 0;
+  const displayPctDiff = typeof pctDiff === "number" && isFinite(pctDiff) ? pctDiff : 0;
 
   return (
     <Card className="rounded-2xl border-border/70 bg-card p-4 sm:p-5 shadow-xs hover:border-primary/30 transition-all flex flex-col justify-between">
@@ -537,8 +542,8 @@ function MetricCard({
               )}
               <span>
                 {isRate
-                  ? `${ppDiff! > 0 ? "+" : ""}${ppDiff!.toFixed(1).replace(".", ",")} p.p.`
-                  : `${pctDiff! > 0 ? "+" : ""}${pctDiff!.toFixed(1).replace(".", ",")}%`}
+                  ? `${displayPpDiff > 0 ? "+" : ""}${displayPpDiff.toFixed(1).replace(".", ",")} p.p.`
+                  : `${displayPctDiff > 0 ? "+" : ""}${displayPctDiff.toFixed(1).replace(".", ",")}%`}
               </span>
             </Badge>
           )}
@@ -574,7 +579,10 @@ function GoalClosingCard({ goal }: { goal: MonthlyClosingGoalItem }) {
       progressClass: "[&>div]:bg-rose-500",
       dot: "🔴",
     },
-  }[goal.status];
+  }[goal.status || "reached"];
+
+  const achievement = typeof goal.achievementPct === "number" && isFinite(goal.achievementPct) ? goal.achievementPct : 0;
+  const diff = typeof goal.diffValue === "number" && isFinite(goal.diffValue) ? goal.diffValue : 0;
 
   return (
     <div className="p-3.5 sm:p-4 rounded-xl bg-card border border-border/70 shadow-xs space-y-3 flex flex-col justify-between">
@@ -599,22 +607,23 @@ function GoalClosingCard({ goal }: { goal: MonthlyClosingGoalItem }) {
             {goal.formattedActual}
           </span>
           <span className="text-xs font-bold text-muted-foreground">
-            {goal.achievementPct.toFixed(1).replace(".", ",")}% atingido
+            {achievement.toFixed(1).replace(".", ",")}% atingido
           </span>
         </div>
 
         <Progress
-          value={Math.min(100, Math.max(5, goal.achievementPct))}
+          value={Math.min(100, Math.max(5, achievement))}
           className={`h-1.5 rounded-full bg-muted ${statusConfig.progressClass}`}
         />
       </div>
 
       <div className="text-[11px] font-medium text-muted-foreground flex items-center justify-between pt-2 border-t border-border/40">
         <span>Diferença:</span>
-        <span className={goal.diffValue >= 0 && !goal.isInverse ? "text-emerald-600 font-bold" : "text-muted-foreground font-semibold"}>
+        <span className={diff >= 0 && !goal.isInverse ? "text-emerald-600 font-bold" : "text-muted-foreground font-semibold"}>
           {goal.formattedDiff}
         </span>
       </div>
     </div>
   );
 }
+

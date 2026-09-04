@@ -81,6 +81,7 @@ export function generateMonthlyClosingInsights(inputs: InsightGeneratorInputs): 
   const missedGoals = goals.filter((g) => g.status === "missed");
 
   reachedGoals.forEach((g) => {
+    const achievement = typeof g.achievementPct === "number" && isFinite(g.achievementPct) ? g.achievementPct : 0;
     if (g.isInverse) {
       positiveHighlights.push({
         id: `goal_reached_${g.goalType}`,
@@ -90,21 +91,24 @@ export function generateMonthlyClosingInsights(inputs: InsightGeneratorInputs): 
         badgeText: "Meta atingida",
       });
     } else {
-      const diffPct = g.achievementPct - 100;
+      const diffPct = achievement - 100;
       const diffText = diffPct > 0 ? ` (+${diffPct.toFixed(1).replace(".", ",")}% acima)` : "";
       positiveHighlights.push({
         id: `goal_reached_${g.goalType}`,
         type: "positive",
         title: `${g.label} atingida`,
         description: `Atingiu ${g.formattedActual} vs. meta de ${g.formattedTarget}${diffText}.`,
-        badgeText: `${g.achievementPct.toFixed(0)}% da meta`,
+        badgeText: `${achievement.toFixed(0)}% da meta`,
       });
     }
   });
 
   missedGoals.forEach((g) => {
+    const achievement = typeof g.achievementPct === "number" && isFinite(g.achievementPct) ? g.achievementPct : 0;
+    const actual = typeof g.actualValue === "number" && isFinite(g.actualValue) ? g.actualValue : 0;
+    const target = typeof g.targetValue === "number" && isFinite(g.targetValue) ? g.targetValue : 0;
     if (g.isInverse) {
-      const ppAbove = (g.actualValue - g.targetValue).toFixed(1).replace(".", ",");
+      const ppAbove = (actual - target).toFixed(1).replace(".", ",");
       attentionPoints.push({
         id: `goal_missed_${g.goalType}`,
         type: "attention",
@@ -118,7 +122,7 @@ export function generateMonthlyClosingInsights(inputs: InsightGeneratorInputs): 
         type: "attention",
         title: `${g.label} abaixo da meta`,
         description: `Realizado de ${g.formattedActual} ficou abaixo do planejado (${g.formattedTarget}). Faltaram ${g.formattedDiff.replace("-", "")}.`,
-        badgeText: `${g.achievementPct.toFixed(0)}% da meta`,
+        badgeText: `${achievement.toFixed(0)}% da meta`,
       });
     }
   });
@@ -127,15 +131,15 @@ export function generateMonthlyClosingInsights(inputs: InsightGeneratorInputs): 
   // B. ANÁLISE COMPARATIVA COM MÊS ANTERIOR
   // ==========================================
   // Faturamento / Volume
-  if (comparison.revenue.pctDiff >= 8 && comparison.revenue.current > 0) {
+  if ((comparison.revenue?.pctDiff ?? 0) >= 8 && (comparison.revenue?.current ?? 0) > 0) {
     positiveHighlights.push({
       id: "revenue_growth",
       type: "positive",
       title: "Crescimento de Empréstimos",
-      description: `Volume emprestado cresceu ${formatPct(comparison.revenue.pctDiff)} em relação a ${previousMonthLabel} (${formatBRL(financial.revenue)} vs. ${formatBRL(comparison.revenue.previous)}).`,
+      description: `Volume emprestado cresceu ${formatPct(comparison.revenue.pctDiff)} em relação a ${previousMonthLabel} (${formatBRL(financial.revenue ?? 0)} vs. ${formatBRL(comparison.revenue.previous ?? 0)}).`,
       badgeText: formatPct(comparison.revenue.pctDiff),
     });
-  } else if (comparison.revenue.pctDiff <= -10 && comparison.revenue.previous > 0) {
+  } else if ((comparison.revenue?.pctDiff ?? 0) <= -10 && (comparison.revenue?.previous ?? 0) > 0) {
     attentionPoints.push({
       id: "revenue_drop",
       type: "attention",
@@ -146,15 +150,15 @@ export function generateMonthlyClosingInsights(inputs: InsightGeneratorInputs): 
   }
 
   // Recebimentos
-  if (comparison.received.pctDiff >= 8 && comparison.received.current > 0) {
+  if ((comparison.received?.pctDiff ?? 0) >= 8 && (comparison.received?.current ?? 0) > 0) {
     positiveHighlights.push({
       id: "received_growth",
       type: "positive",
       title: "Recebimentos em Alta",
-      description: `Total arrecadado aumentou ${formatPct(comparison.received.pctDiff)} frente ao mês anterior (${formatBRL(financial.received)} vs. ${formatBRL(comparison.received.previous)}).`,
+      description: `Total arrecadado aumentou ${formatPct(comparison.received.pctDiff)} frente ao mês anterior (${formatBRL(financial.received ?? 0)} vs. ${formatBRL(comparison.received.previous ?? 0)}).`,
       badgeText: formatPct(comparison.received.pctDiff),
     });
-  } else if (comparison.received.pctDiff <= -10 && comparison.received.previous > 0) {
+  } else if ((comparison.received?.pctDiff ?? 0) <= -10 && (comparison.received?.previous ?? 0) > 0) {
     attentionPoints.push({
       id: "received_drop",
       type: "attention",
@@ -165,15 +169,15 @@ export function generateMonthlyClosingInsights(inputs: InsightGeneratorInputs): 
   }
 
   // Despesas
-  if (comparison.expenses.pctDiff <= -5 && comparison.expenses.previous > 0) {
+  if ((comparison.expenses?.pctDiff ?? 0) <= -5 && (comparison.expenses?.previous ?? 0) > 0) {
     positiveHighlights.push({
       id: "expenses_reduction",
       type: "positive",
       title: "Controle de Despesas",
-      description: `Despesas da empresa recuaram ${formatPct(comparison.expenses.pctDiff)} em relação a ${previousMonthLabel} (${formatBRL(financial.expenses)} vs. ${formatBRL(comparison.expenses.previous)}).`,
+      description: `Despesas da empresa recuaram ${formatPct(comparison.expenses.pctDiff)} em relação a ${previousMonthLabel} (${formatBRL(financial.expenses ?? 0)} vs. ${formatBRL(comparison.expenses.previous ?? 0)}).`,
       badgeText: formatPct(comparison.expenses.pctDiff),
     });
-  } else if (comparison.expenses.pctDiff >= 15 && comparison.expenses.current > 500) {
+  } else if ((comparison.expenses?.pctDiff ?? 0) >= 15 && (comparison.expenses?.current ?? 0) > 500) {
     attentionPoints.push({
       id: "expenses_increase",
       type: "attention",
@@ -184,28 +188,32 @@ export function generateMonthlyClosingInsights(inputs: InsightGeneratorInputs): 
   }
 
   // Inadimplência
-  if (comparison.defaultRate.ppDiff !== undefined) {
-    if (comparison.defaultRate.ppDiff <= -1.0 && comparison.defaultRate.previous > 0) {
+  const defaultRatePp = comparison.defaultRate?.ppDiff;
+  const currentDefaultRate = typeof financial.defaultRate === "number" && isFinite(financial.defaultRate) ? financial.defaultRate : 0;
+  const previousDefaultRate = typeof comparison.defaultRate?.previous === "number" && isFinite(comparison.defaultRate.previous) ? comparison.defaultRate.previous : 0;
+
+  if (defaultRatePp !== undefined && isFinite(defaultRatePp)) {
+    if (defaultRatePp <= -1.0 && previousDefaultRate > 0) {
       positiveHighlights.push({
         id: "default_rate_reduction",
         type: "positive",
         title: "Queda na Inadimplência",
-        description: `Taxa de inadimplência reduziu ${formatPp(comparison.defaultRate.ppDiff)} frente ao mês anterior (${financial.defaultRate.toFixed(1).replace(".", ",")}% vs. ${comparison.defaultRate.previous.toFixed(1).replace(".", ",")}%).`,
-        badgeText: formatPp(comparison.defaultRate.ppDiff),
+        description: `Taxa de inadimplência reduziu ${formatPp(defaultRatePp)} frente ao mês anterior (${currentDefaultRate.toFixed(1).replace(".", ",")}% vs. ${previousDefaultRate.toFixed(1).replace(".", ",")}%).`,
+        badgeText: formatPp(defaultRatePp),
       });
-    } else if (comparison.defaultRate.ppDiff >= 1.5 && financial.defaultRate > 5) {
+    } else if (defaultRatePp >= 1.5 && currentDefaultRate > 5) {
       attentionPoints.push({
         id: "default_rate_increase",
         type: "attention",
         title: "Inadimplência em Elevação",
-        description: `Índice de atraso subiu ${formatPp(comparison.defaultRate.ppDiff)}, fechando o mês em ${financial.defaultRate.toFixed(1).replace(".", ",")}% (${formatBRL(financial.overdueAmount)} em aberto).`,
-        badgeText: formatPp(comparison.defaultRate.ppDiff),
+        description: `Índice de atraso subiu ${formatPp(defaultRatePp)}, fechando o mês em ${currentDefaultRate.toFixed(1).replace(".", ",")}% (${formatBRL(financial.overdueAmount ?? 0)} em aberto).`,
+        badgeText: formatPp(defaultRatePp),
       });
     }
   }
 
   // Novos Clientes
-  if (financial.newClientsCount >= 3) {
+  if ((financial.newClientsCount ?? 0) >= 3) {
     positiveHighlights.push({
       id: "new_clients_highlight",
       type: "positive",
@@ -221,23 +229,24 @@ export function generateMonthlyClosingInsights(inputs: InsightGeneratorInputs): 
   let headline = "";
   let narrative = "";
 
-  const isDefaultHigh = financial.defaultRate > 8;
-  const isRevenueUp = comparison.revenue.pctDiff >= 0;
-  const isReceivedUp = comparison.received.pctDiff >= 0;
-  const hasGoodGoals = goalsSummary.hasGoals && goalsSummary.overallAchievementPct >= 70;
+  const isDefaultHigh = currentDefaultRate > 8;
+  const isRevenueUp = (comparison.revenue?.pctDiff ?? 0) >= 0;
+  const isReceivedUp = (comparison.received?.pctDiff ?? 0) >= 0;
+  const overallGoalsPct = typeof goalsSummary.overallAchievementPct === "number" && isFinite(goalsSummary.overallAchievementPct) ? goalsSummary.overallAchievementPct : 0;
+  const hasGoodGoals = goalsSummary.hasGoals && overallGoalsPct >= 70;
 
   if (hasGoodGoals && !isDefaultHigh) {
     headline = `${monthLabel} apresentou excelente desempenho operacional e metas superadas.`;
-    narrative = `O período encerrou com faturamento de ${formatBRL(financial.revenue)} e arrecadação total de ${formatBRL(financial.received)}. O cumprimento de ${goalsSummary.overallAchievementPct.toFixed(0)}% das metas planejadas e a inadimplência controlada em ${financial.defaultRate.toFixed(1).replace(".", ",")}% reforçam a solidez da operação.`;
+    narrative = `O período encerrou com faturamento de ${formatBRL(financial.revenue ?? 0)} e arrecadação total de ${formatBRL(financial.received ?? 0)}. O cumprimento de ${overallGoalsPct.toFixed(0)}% das metas planejadas e a inadimplência controlada em ${currentDefaultRate.toFixed(1).replace(".", ",")}% reforçam a solidez da operação.`;
   } else if (isDefaultHigh) {
     headline = `Crescimento financeiro registrado em ${monthLabel}, com alerta na inadimplência.`;
-    narrative = `Apesar do volume de ${formatBRL(financial.revenue)} movimentado, a taxa de inadimplência encerrou o mês em ${financial.defaultRate.toFixed(1).replace(".", ",")}% com ${formatBRL(financial.overdueAmount)} em atraso. A prioridade imediata deve ser a cobrança ativa dos contratos vencidos.`;
-  } else if (!isReceivedUp && !isRevenueUp && comparison.revenue.previous > 0) {
+    narrative = `Apesar do volume de ${formatBRL(financial.revenue ?? 0)} movimentado, a taxa de inadimplência encerrou o mês em ${currentDefaultRate.toFixed(1).replace(".", ",")}% com ${formatBRL(financial.overdueAmount ?? 0)} em atraso. A prioridade imediata deve ser a cobrança ativa dos contratos vencidos.`;
+  } else if (!isReceivedUp && !isRevenueUp && (comparison.revenue?.previous ?? 0) > 0) {
     headline = `${monthLabel} encerrou com desaceleração nas operações e recebimentos.`;
     narrative = `Houve redução no volume de empréstimos concedidos e nos recebimentos totais em comparação a ${previousMonthLabel}. Recomenda-se prospecção de novos tomadores e revisão das metas comerciais.`;
   } else {
-    headline = `Balanço equilibrado em ${monthLabel} com capital ativo em ${formatBRL(financial.activeCapital)}.`;
-    narrative = `O mês consolidou ${formatBRL(financial.received)} em recebimentos e resultado operacional de ${formatBRL(financial.result)}. O acompanhamento contínuo dos vencimentos manterá a rentabilidade da carteira.`;
+    headline = `Balanço equilibrado em ${monthLabel} com capital ativo em ${formatBRL(financial.activeCapital ?? 0)}.`;
+    narrative = `O mês consolidou ${formatBRL(financial.received ?? 0)} em recebimentos e resultado operacional de ${formatBRL(financial.result ?? 0)}. O acompanhamento contínuo dos vencimentos manterá a rentabilidade da carteira.`;
   }
 
   // ==========================================

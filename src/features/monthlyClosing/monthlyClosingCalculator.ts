@@ -224,25 +224,27 @@ function buildMetricComparison(
   isInverse = false,
   isRate = false
 ): MetricComparisonItem {
-  const absoluteDiff = current - previous;
+  const c = typeof current === "number" && isFinite(current) ? current : 0;
+  const p = typeof previous === "number" && isFinite(previous) ? previous : 0;
+  const absoluteDiff = c - p;
   let pctDiff = 0;
-  if (previous > 0) {
-    pctDiff = ((current - previous) / previous) * 100;
-  } else if (current > 0 && previous === 0) {
+  if (p > 0) {
+    pctDiff = ((c - p) / p) * 100;
+  } else if (c > 0 && p === 0) {
     pctDiff = 100;
   }
 
-  const ppDiff = isRate ? current - previous : undefined;
+  const ppDiff = isRate ? c - p : undefined;
   
   // Se for inversa (inadimplência/despesa), evolução positiva é quando DIMINUI
   const isPositiveEvolution = isInverse ? absoluteDiff < 0 : absoluteDiff > 0;
 
   return {
-    current,
-    previous,
+    current: c,
+    previous: p,
     absoluteDiff,
-    pctDiff,
-    ppDiff,
+    pctDiff: isFinite(pctDiff) ? pctDiff : 0,
+    ppDiff: ppDiff !== undefined && isFinite(ppDiff) ? ppDiff : undefined,
     isPositiveEvolution,
   };
 }

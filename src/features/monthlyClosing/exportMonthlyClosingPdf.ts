@@ -54,49 +54,54 @@ export async function exportMonthlyClosingPdf(data: MonthlyClosingData): Promise
   const fin = data.financial;
 
   const fmtPctDiff = (item: any) => {
-    if (item.ppDiff !== undefined) {
+    if (!item) return "-";
+    if (item.ppDiff !== undefined && isFinite(item.ppDiff)) {
       const sign = item.ppDiff > 0 ? "+" : "";
-      return `${sign}${item.ppDiff.toFixed(1).replace(".", ",")} p.p.`;
+      return `${sign}${Number(item.ppDiff).toFixed(1).replace(".", ",")} p.p.`;
     }
-    const sign = item.pctDiff > 0 ? "+" : "";
-    return `${sign}${item.pctDiff.toFixed(1).replace(".", ",")}%`;
+    const val = typeof item.pctDiff === "number" && isFinite(item.pctDiff) ? item.pctDiff : 0;
+    const sign = val > 0 ? "+" : "";
+    return `${sign}${val.toFixed(1).replace(".", ",")}%`;
   };
+
+  const currentDefRate = typeof fin.defaultRate === "number" && isFinite(fin.defaultRate) ? fin.defaultRate : 0;
+  const prevDefRate = typeof comp.defaultRate?.previous === "number" && isFinite(comp.defaultRate.previous) ? comp.defaultRate.previous : 0;
 
   const summaryBody = [
     [
       "Faturamento (Novos Empréstimos)",
-      fmtBRL(fin.revenue),
-      fmtBRL(comp.revenue.previous),
+      fmtBRL(fin.revenue ?? 0),
+      fmtBRL(comp.revenue?.previous ?? 0),
       fmtPctDiff(comp.revenue),
     ],
     [
       "Recebimentos Totais",
-      fmtBRL(fin.received),
-      fmtBRL(comp.received.previous),
+      fmtBRL(fin.received ?? 0),
+      fmtBRL(comp.received?.previous ?? 0),
       fmtPctDiff(comp.received),
     ],
     [
       "Despesas Operacionais",
-      fmtBRL(fin.expenses),
-      fmtBRL(comp.expenses.previous),
+      fmtBRL(fin.expenses ?? 0),
+      fmtBRL(comp.expenses?.previous ?? 0),
       fmtPctDiff(comp.expenses),
     ],
     [
       "Resultado do Período",
-      fmtBRL(fin.result),
-      fmtBRL(comp.result.previous),
+      fmtBRL(fin.result ?? 0),
+      fmtBRL(comp.result?.previous ?? 0),
       fmtPctDiff(comp.result),
     ],
     [
       "Capital Ativo em Carteira",
-      fmtBRL(fin.activeCapital),
-      fmtBRL(comp.activeCapital.previous),
+      fmtBRL(fin.activeCapital ?? 0),
+      fmtBRL(comp.activeCapital?.previous ?? 0),
       fmtPctDiff(comp.activeCapital),
     ],
     [
       "Taxa de Inadimplência",
-      `${fin.defaultRate.toFixed(1).replace(".", ",")}%`,
-      `${comp.defaultRate.previous.toFixed(1).replace(".", ",")}%`,
+      `${currentDefRate.toFixed(1).replace(".", ",")}%`,
+      `${prevDefRate.toFixed(1).replace(".", ",")}%`,
       fmtPctDiff(comp.defaultRate),
     ],
   ];
@@ -143,11 +148,12 @@ export async function exportMonthlyClosingPdf(data: MonthlyClosingData): Promise
           : g.status === "close"
           ? "PRÓXIMA"
           : "NÃO ATINGIDA";
+      const achievement = typeof g.achievementPct === "number" && isFinite(g.achievementPct) ? g.achievementPct : 0;
       return [
         g.label,
         g.formattedTarget,
         g.formattedActual,
-        `${g.achievementPct.toFixed(1).replace(".", ",")}%`,
+        `${achievement.toFixed(1).replace(".", ",")}%`,
         statusText,
         g.formattedDiff,
       ];
