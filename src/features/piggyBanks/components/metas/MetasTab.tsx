@@ -1,14 +1,15 @@
 import { lazy, Suspense, useState, useEffect } from "react";
-import { emitAppUIEvent } from "@/lib/appUIEvents";
-import { LineChart, ListChecks } from "lucide-react";
+import { emitAppUIEvent, onAppUIEvent } from "@/lib/appUIEvents";
+import { LineChart, ListChecks, BarChart3 } from "lucide-react";
 import { GoalsYearlyGrid } from "./GoalsYearlyGrid";
+import { MonthlyClosingView } from "@/features/monthlyClosing";
 import { Loan, Payment, Expense, Client, InstallmentSchedule } from "@/types/loan";
 
 const MonthlyGoalsManager = lazy(() =>
   import("@/features/piggyBanks/components/MonthlyGoalsManager").then((m) => ({ default: m.MonthlyGoalsManager })),
 );
 
-type SubTab = "evolucao" | "configuracao";
+type SubTab = "fechamento" | "evolucao" | "configuracao";
 
 interface Props {
   loans: Loan[];
@@ -22,14 +23,23 @@ interface Props {
 export function MetasTab({
   loans, payments, expenses, clients, installmentSchedules, readOnly,
 }: Props) {
-  const [sub, setSub] = useState<SubTab>("evolucao");
+  const [sub, setSub] = useState<SubTab>("fechamento");
   
   useEffect(() => {
     // Ao montar a aba de Metas, dispara recarregamento global de dados para garantir reatividade
     emitAppUIEvent({ type: "METAS_RELOAD" });
+
+    return onAppUIEvent("NAVIGATE", (event) => {
+      if (event.tab === "metas" && event.subTab) {
+        if (event.subTab === "configuracao" || event.subTab === "evolucao" || event.subTab === "fechamento") {
+          setSub(event.subTab as SubTab);
+        }
+      }
+    });
   }, []);
 
   const items = [
+    { id: "fechamento" as SubTab, label: "Fechamento Mensal", Icon: BarChart3 },
     { id: "evolucao" as SubTab, label: "Evolução Anual", Icon: LineChart },
     { id: "configuracao" as SubTab, label: "Configuração de Metas", Icon: ListChecks },
   ];
@@ -56,6 +66,16 @@ export function MetasTab({
         })}
       </nav>
 
+      {sub === "fechamento" && (
+        <MonthlyClosingView
+          loans={loans}
+          payments={payments}
+          expenses={expenses}
+          clients={clients}
+          installmentSchedules={installmentSchedules}
+          onNavigateToConfig={() => setSub("configuracao")}
+        />
+      )}
       {sub === "evolucao" && (
         <GoalsYearlyGrid
           loans={loans}
@@ -73,4 +93,5 @@ export function MetasTab({
     </div>
   );
 }
+
 
