@@ -238,8 +238,17 @@ export function calculateFinancialSummaryForMonth(
     }
 
     if (hasOverdueInMonth && contractOverdueAmount > 0.05) {
+      const lateFeesResult = getLoanLateFees(loan, payments, installmentSchedules);
+      const lateInterestTotal = lateFeesResult.lateInterestTotal || 0;
+      const penaltyTotal = (lateFeesResult.penaltyTotal || 0) + (installments < 2 ? Number(loan.renegotiationPenaltyTotal || 0) : 0);
+      const totalFees = Math.round((lateInterestTotal + penaltyTotal) * 100) / 100;
+
+      const finalOverdueAmount = Math.round((contractOverdueAmount + totalFees) * 100) / 100;
+      const finalRemainingAmount = Math.round((baseRemaining + totalFees) * 100) / 100;
+      const finalInstallmentAmount = Math.round((nextInstallmentAmount + totalFees) * 100) / 100;
+
       overdueLoansCount += 1;
-      overdueAmount += contractOverdueAmount;
+      overdueAmount += finalOverdueAmount;
 
       const rawClientId = loan.clientId || loan.client_id || loan.borrowerId || loan.borrower_id || "";
       const client = clients.find((c: any) => c.id === rawClientId);
@@ -254,6 +263,8 @@ export function calculateFinancialSummaryForMonth(
         daysLate = Math.max(0, Math.floor((refMs - dueMs) / (1000 * 60 * 60 * 24)));
       }
 
+      const tags = Array.isArray(loan.tags) ? loan.tags : (loan as any).custom_tags || [];
+
       overdueLoansList.push({
         loanId: loan.id,
         loanNumber: loan.loanNumber || loan.loan_number || loan.id.slice(0, 8),
@@ -264,9 +275,9 @@ export function calculateFinancialSummaryForMonth(
         principalAmount: principal,
         totalWithInterest: totalAmount,
         totalAmount,
-        remainingAmount: baseRemaining,
-        installmentAmount: nextInstallmentAmount,
-        overdueAmount: contractOverdueAmount,
+        remainingAmount: finalRemainingAmount,
+        installmentAmount: finalInstallmentAmount,
+        overdueAmount: finalOverdueAmount,
         overdueInstallmentsCount: overdueInstallmentNumbers.length,
         totalInstallments: installments,
         paidInstallments,
@@ -274,6 +285,10 @@ export function calculateFinancialSummaryForMonth(
         firstOverdueDate: firstOverdueDate || loan.dueDate,
         daysLate,
         overdueInstallmentNumbers,
+        tags,
+        lateFees: totalFees,
+        lateInterestTotal,
+        penaltyTotal,
       });
     }
   });

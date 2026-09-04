@@ -22,6 +22,10 @@ export interface MonthlyClosingOverdueItem {
   firstOverdueDate: string;
   daysLate: number;
   overdueInstallmentNumbers: number[];
+  tags?: string[];
+  lateFees?: number;
+  lateInterestTotal?: number;
+  penaltyTotal?: number;
 }
 
 export interface MonthlyClosingFinancialSummary {

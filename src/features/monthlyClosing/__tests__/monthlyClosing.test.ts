@@ -455,4 +455,47 @@ describe("Fechamento Mensal Automático + Integração com Metas", () => {
     expect(closing.financial.overdueLoansList?.length).toBe(1);
     expect(closing.financial.overdueLoansList?.[0].clientName).toBe("Ana Lima");
   });
+
+  it("Cenário 13 — Contratos em atraso com juros de mora, multa e etiquetas de contrato", () => {
+    const monthKey = "2026-08";
+
+    const loans: Loan[] = [
+      {
+        id: "l_with_fees_and_tags",
+        borrowerId: "c1",
+        borrowerName: "João Silva",
+        amount: 1000,
+        interestRate: 20,
+        installments: 1,
+        startDate: "2026-08-01",
+        dueDate: "2026-08-10",
+        status: "active",
+        paidInstallments: 0,
+        totalAmount: 1200,
+        remainingAmount: 1200,
+        lateInterestType: "fixed",
+        lateInterestValue: 5, // R$ 5/dia de mora
+        penaltyValue: 50, // R$ 50 de multa
+        tags: ["VIP", "Comércio", "Rota Norte"],
+        createdAt: "2026-08-01",
+      },
+    ];
+
+    const closing = computeMonthlyClosingData({
+      monthKey,
+      loans,
+      payments: [],
+      expenses: [],
+      clients: mockClients,
+      goals: [],
+    });
+
+    expect(closing.financial.overdueLoansCount).toBe(1);
+    const item = closing.financial.overdueLoansList?.[0];
+    expect(item).toBeDefined();
+    expect(item?.tags).toEqual(["VIP", "Comércio", "Rota Norte"]);
+    expect(item?.lateFees).toBeGreaterThan(0);
+    expect(item?.penaltyTotal).toBe(50);
+    expect(item?.overdueAmount).toBeGreaterThan(1200); // 1200 + multa + mora
+  });
 });

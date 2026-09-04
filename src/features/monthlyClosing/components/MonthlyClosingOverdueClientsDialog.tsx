@@ -14,6 +14,8 @@ import {
   Receipt,
   ArrowUpRight,
   ShieldAlert,
+  Tag,
+  Coins,
 } from "lucide-react";
 import type { MonthlyClosingOverdueItem } from "../types";
 
@@ -43,7 +45,8 @@ export function MonthlyClosingOverdueClientsDialog({
       const matchName = item.clientName.toLowerCase().includes(term);
       const matchPhone = (item.clientPhone || "").toLowerCase().includes(term);
       const matchLoan = String(item.loanNumber || item.loanId).toLowerCase().includes(term);
-      return matchName || matchPhone || matchLoan;
+      const matchTags = (item.tags || []).some((t) => t.toLowerCase().includes(term));
+      return matchName || matchPhone || matchLoan || matchTags;
     });
   }, [overdueItems, searchTerm]);
 
@@ -82,7 +85,7 @@ export function MonthlyClosingOverdueClientsDialog({
                 Clientes Inadimplentes — {monthLabel}
               </DialogTitle>
               <DialogDescription className="text-xs sm:text-sm text-muted-foreground">
-                Contratos com parcelas em atraso consideradas no fechamento deste período.
+                Contratos com parcelas em atraso consideradas no fechamento deste período (incluindo juros e multas de atraso).
               </DialogDescription>
             </div>
           </div>
@@ -90,29 +93,29 @@ export function MonthlyClosingOverdueClientsDialog({
 
         {/* CARDS DE RESUMO EXECUTIVO */}
         <div className="grid grid-cols-3 gap-2 sm:gap-3 shrink-0">
-          <div className="rounded-xl border border-rose-500/20 bg-rose-500/[0.04] p-3 space-y-1">
-            <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider block">
+          <div className="rounded-xl border border-rose-500/20 bg-rose-500/[0.04] p-2.5 sm:p-3 space-y-0.5 sm:space-y-1">
+            <span className="text-[10px] sm:text-[11px] font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider block">
               Total em Atraso
             </span>
-            <span className="text-sm sm:text-base md:text-lg font-bold text-rose-600 dark:text-rose-400">
+            <span className="text-xs sm:text-base md:text-lg font-bold text-rose-600 dark:text-rose-400 truncate block">
               {formatBRL(totalOverdueAmount)}
             </span>
           </div>
 
-          <div className="rounded-xl border border-border/70 bg-card p-3 space-y-1">
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+          <div className="rounded-xl border border-border/70 bg-card p-2.5 sm:p-3 space-y-0.5 sm:space-y-1">
+            <span className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
               Contratos
             </span>
-            <span className="text-sm sm:text-base md:text-lg font-bold text-foreground">
+            <span className="text-xs sm:text-base md:text-lg font-bold text-foreground truncate block">
               {overdueItems.length} {overdueItems.length === 1 ? "contrato" : "contratos"}
             </span>
           </div>
 
-          <div className="rounded-xl border border-border/70 bg-card p-3 space-y-1">
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+          <div className="rounded-xl border border-border/70 bg-card p-2.5 sm:p-3 space-y-0.5 sm:space-y-1">
+            <span className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
               Clientes
             </span>
-            <span className="text-sm sm:text-base md:text-lg font-bold text-foreground">
+            <span className="text-xs sm:text-base md:text-lg font-bold text-foreground truncate block">
               {uniqueClientsCount} {uniqueClientsCount === 1 ? "cliente" : "clientes"}
             </span>
           </div>
@@ -122,7 +125,7 @@ export function MonthlyClosingOverdueClientsDialog({
         <div className="relative shrink-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar por cliente, telefone ou contrato..."
+            placeholder="Buscar por cliente, telefone, contrato ou etiqueta..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9 h-10 rounded-xl bg-muted/40 border-border/70 text-xs sm:text-sm"
@@ -156,14 +159,17 @@ export function MonthlyClosingOverdueClientsDialog({
                 ? new Date(`${item.firstOverdueDate.slice(0, 10)}T00:00:00`).toLocaleDateString("pt-BR")
                 : "-";
 
+              const hasLateFees = (item.lateFees != null && item.lateFees > 0);
+              const tags = item.tags || [];
+
               return (
                 <div
                   key={`${item.loanId}_${idx}`}
-                  className="rounded-2xl border border-border/80 bg-card p-3.5 sm:p-4 space-y-3 shadow-xs hover:border-rose-500/30 transition-all"
+                  className="rounded-2xl border border-border/80 bg-card p-3 sm:p-4 space-y-3 shadow-xs hover:border-rose-500/30 transition-all"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Avatar className="h-10 w-10 rounded-xl border border-border shrink-0">
+                  <div className="flex items-start justify-between gap-2.5 sm:gap-3">
+                    <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0">
+                      <Avatar className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl border border-border shrink-0 mt-0.5 sm:mt-0">
                         {item.clientPhotoUrl ? (
                           <AvatarImage src={item.clientPhotoUrl} alt={item.clientName} />
                         ) : null}
@@ -172,9 +178,9 @@ export function MonthlyClosingOverdueClientsDialog({
                         </AvatarFallback>
                       </Avatar>
 
-                      <div className="space-y-0.5 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-bold text-xs sm:text-sm text-foreground truncate">
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                          <h4 className="font-bold text-xs sm:text-sm text-foreground truncate max-w-[180px] sm:max-w-[260px]">
                             {item.clientName}
                           </h4>
                           <Badge
@@ -183,8 +189,20 @@ export function MonthlyClosingOverdueClientsDialog({
                           >
                             {installmentLabel}
                           </Badge>
+
+                          {hasLateFees && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] font-semibold px-1.5 py-0 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25 shrink-0 inline-flex items-center gap-1"
+                              title="Valor inclui juros de mora e/ou multa de atraso"
+                            >
+                              <Coins className="h-2.5 w-2.5" />
+                              +{formatBRL(item.lateFees!)} juros/multa
+                            </Badge>
+                          )}
                         </div>
-                        <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
+
+                        <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-muted-foreground">
                           <span>Contrato #{item.loanNumber || item.loanId.slice(0, 8)}</span>
                           {item.clientPhone && (
                             <>
@@ -192,13 +210,29 @@ export function MonthlyClosingOverdueClientsDialog({
                               <span>{item.clientPhone}</span>
                             </>
                           )}
-                        </p>
+                        </div>
+
+                        {/* ETIQUETAS DO CONTRATO (RESPONSIVAS PARA PC, TABLET E MOBILE) */}
+                        {tags.length > 0 && (
+                          <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap pt-0.5">
+                            {tags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="inline-flex items-center gap-1 rounded-full bg-primary/10 dark:bg-primary/20 text-primary border border-primary/20 dark:border-primary/30 px-2 py-0.5 text-[10px] sm:text-[11px] font-medium max-w-[120px] sm:max-w-[160px] truncate"
+                                title={`Etiqueta: ${tag}`}
+                              >
+                                <Tag className="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0" />
+                                <span className="truncate">{tag}</span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     <div className="text-right shrink-0">
-                      <span className="text-[11px] text-muted-foreground block">Vencido no mês</span>
-                      <span className="font-bold text-xs sm:text-sm text-rose-600 dark:text-rose-400">
+                      <span className="text-[10px] sm:text-[11px] text-muted-foreground block">Vencido no mês</span>
+                      <span className="font-bold text-xs sm:text-base text-rose-600 dark:text-rose-400">
                         {formatBRL(item.overdueAmount)}
                       </span>
                     </div>
@@ -206,7 +240,7 @@ export function MonthlyClosingOverdueClientsDialog({
 
                   {/* Detalhes do Atraso, Saldo Restante e Ações */}
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2.5 border-t border-border/50 text-xs">
-                    <div className="flex items-center gap-3 text-muted-foreground text-[11px] flex-wrap">
+                    <div className="flex items-center gap-2 sm:gap-3 text-muted-foreground text-[11px] flex-wrap">
                       <span className="flex items-center gap-1">
                         <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
                         Vencimento: <strong className="text-foreground">{dueDateFormatted}</strong>
@@ -241,7 +275,7 @@ export function MonthlyClosingOverdueClientsDialog({
                           onClick={() => handleOpenWhatsApp(item.clientPhone!, item.clientName, item.overdueAmount)}
                         >
                           <MessageCircle className="h-3.5 w-3.5" />
-                          <span>Cobrar no WhatsApp</span>
+                          <span>Cobrar</span>
                         </Button>
                       )}
 
