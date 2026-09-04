@@ -158,7 +158,7 @@ export function ClientRankingDetailDialog({
                   {item.max_delay_days} dias
                 </span>
                 <span className="text-[10px] text-muted-foreground">
-                  {item.late_payments} pagamento(s) atrasados
+                  {item.overdue_loans} empréstimo(s) com atraso
                 </span>
               </div>
 
@@ -171,7 +171,7 @@ export function ClientRankingDetailDialog({
                   {formatBRL(item.open_amount)}
                 </span>
                 <span className="text-[10px] text-muted-foreground">
-                  Compromisso ativo
+                  Principal, juros e multas
                 </span>
               </div>
             </div>

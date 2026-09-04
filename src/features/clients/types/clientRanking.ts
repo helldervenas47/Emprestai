@@ -34,6 +34,7 @@ export interface ClientRankingItem {
   late_payments: number;
   on_time_percentage: number;
   max_delay_days: number;
+  overdue_loans: number;
 }
 
 export interface ClientRankingResponse {

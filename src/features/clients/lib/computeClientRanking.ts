@@ -14,6 +14,7 @@ import {
   buildRiskProfile,
 } from "@/features/loans/lib/clientRisk";
 import { allocateInterestByPayment } from "@/features/financial/lib/interestAllocation";
+import { aggregatePortfolioPending } from "@/features/loans/lib/portfolioPending";
 
 interface ComputeClientRankingParams {
   clients: Client[];
@@ -134,10 +135,41 @@ export function computeClientRanking({
     // Total emprestado no período
     const totalBorrowed = clientLoans.reduce((sum, l) => sum + (l.amount || 0), 0);
 
-    // Saldo em aberto (ativo)
-    const openAmount = clientLoansAll
-      .filter((l) => l.status !== "paid" && l.status !== "cancelled")
-      .reduce((sum, l) => sum + (l.remainingAmount != null ? l.remainingAmount : (l.amount || 0)), 0);
+    // Saldo total em aberto (considerando principal restante + juros pendentes + multas e juros de atraso)
+    const clientPending = aggregatePortfolioPending({
+      loans: clientLoansAll,
+      payments: clientPaymentsAll,
+      installmentSchedules,
+    });
+    const openAmount = clientPending.capitalOnStreet + clientPending.interestPending;
+
+    // Empréstimos com histórico de atraso (pagos com atraso + em aberto com atraso ativo)
+    let delayedLoansCount = 0;
+    clientLoansAll.forEach((loan) => {
+      const isCurrentlyOverdue =
+        loan.status !== "paid" &&
+        loan.status !== "cancelled" &&
+        getDaysOverdue(loan, installmentSchedules, today) > 0;
+
+      const loanPayments = payments.filter((p) => p.loanId === loan.id && p.installmentNumber !== -1);
+      const hasLatePayment = loanPayments.some((p) => {
+        let dueDateStr: string | null = null;
+        if (p.installmentNumber === 0) {
+          dueDateStr = p.previousDueDate ?? loan.dueDate;
+        } else if (p.installmentNumber > 0) {
+          dueDateStr = getInstallmentDueDate(loan, p.installmentNumber, installmentSchedules);
+        }
+        if (!dueDateStr) return false;
+        const dueDate = new Date(dueDateStr + "T00:00:00");
+        const toleranceDate = new Date(dueDate.getTime() + 3 * 24 * 60 * 60 * 1000);
+        const pDate = new Date(p.date.split("T")[0] + "T00:00:00");
+        return pDate > toleranceDate;
+      });
+
+      if (isCurrentlyOverdue || hasLatePayment) {
+        delayedLoansCount++;
+      }
+    });
 
     // Pagamentos do cliente no período
     let totalReceived = 0;
@@ -247,6 +279,7 @@ export function computeClientRanking({
       late_payments: latePayments,
       on_time_percentage: onTimePercentage,
       max_delay_days: maxDelayDays,
+      overdue_loans: delayedLoansCount,
     });
   });
 
@@ -282,7 +315,12 @@ export function computeClientRanking({
       case "risk":
         return a.score - b.score || b.max_delay_days - a.max_delay_days || b.open_amount - a.open_amount;
       case "late":
-        return b.max_delay_days - a.max_delay_days || b.late_payments - a.late_payments || b.open_amount - a.open_amount;
+        return (
+          b.max_delay_days - a.max_delay_days ||
+          b.overdue_loans - a.overdue_loans ||
+          b.late_payments - a.late_payments ||
+          b.open_amount - a.open_amount
+        );
       default:
         return b.score - a.score;
     }

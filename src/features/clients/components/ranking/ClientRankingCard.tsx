@@ -98,7 +98,7 @@ export function ClientRankingCard({
         return {
           label: "Maior Atraso",
           value: `${item.max_delay_days} dias`,
-          subValue: `${item.late_payments} pagamento(s) com atraso`,
+          subValue: `${item.overdue_loans} empréstimo(s) com atraso`,
           icon: Flame,
           color: "text-destructive",
         };
