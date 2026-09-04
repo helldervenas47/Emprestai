@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { ClientCardView } from "@/features/clients/components/ClientCardView";
 import { getVisibleClients, type ClientStatusFilter, type ClientSortOption } from "@/features/clients/utils/clientListLogic";
 import { getClientRiskScoreInfo } from "@/features/clients/lib/clientRiskScore";
+import { getClientLoans, buildRiskProfile } from "@/features/loans/lib/clientRisk";
 
 // P1 perf: dialogs pesados carregam sob demanda — reduz bundle inicial da aba.
 const ClientDetailDialog = lazy(() => import("@/features/clients/components/ClientDetailDialog").then(m => ({ default: m.ClientDetailDialog })));
@@ -110,73 +111,47 @@ interface CreditScore {
   totalPayments: number;
 }
 
-function calculateCreditScore(clientId: string, loans: Loan[], payments: Payment[]): CreditScore {
-  const clientLoans = loans.filter((l) => l.borrowerId === clientId);
-  const totalLoans = clientLoans.length;
-  const paidLoans = clientLoans.filter((l) => l.status === "paid").length;
-  const activeLoans = clientLoans.filter((l) => l.status === "active").length;
-  const overdueLoans = clientLoans.filter((l) => l.status === "overdue").length;
-
-  // Check overdue by dueDate for active loans
-  const todayStr = todayInAppTz();
-  const actualOverdue = clientLoans.filter((l) => l.status !== "paid" && l.dueDate < todayStr).length;
-  const totalOverdue = Math.max(overdueLoans, actualOverdue);
-
-  // Analyze payments timing
-  let onTimePayments = 0;
-  let latePayments = 0;
-
-  clientLoans.forEach((loan) => {
-    const loanPayments = payments.filter((p) => p.loanId === loan.id && p.installmentNumber > 0);
-    loanPayments.forEach((p) => {
-      // Calculate expected due date for this installment
-      const start = new Date(loan.startDate + "T00:00:00");
-      const expectedDue = new Date(start.getFullYear(), start.getMonth() + p.installmentNumber, start.getDate());
-      const paymentDate = new Date(p.date + "T00:00:00");
-
-      if (paymentDate <= expectedDue) {
-        onTimePayments++;
-      } else {
-        latePayments++;
-      }
-    });
-  });
-
-  const totalPayments = onTimePayments + latePayments;
-
-  // Calculate score (0-150, starts at 100)
-  if (totalLoans === 0) {
-    return { score: 100, label: "Sem Histórico", color: "text-muted-foreground", bgColor: "bg-muted", totalLoans, paidLoans, activeLoans, overdueLoans: totalOverdue, onTimePayments, latePayments, totalPayments };
+function calculateCreditScore(
+  client: Client,
+  loans: Loan[],
+  payments: Payment[],
+  installmentSchedules: import("@/types/loan").InstallmentSchedule[] = [],
+  referenceDate = new Date(),
+): CreditScore {
+  const clientLoansAll = getClientLoans(client, loans);
+  if (clientLoansAll.length === 0) {
+    return {
+      score: 100,
+      label: "Sem Histórico",
+      color: "text-muted-foreground",
+      bgColor: "bg-muted",
+      totalLoans: 0,
+      paidLoans: 0,
+      activeLoans: 0,
+      overdueLoans: 0,
+      onTimePayments: 0,
+      latePayments: 0,
+      totalPayments: 0,
+    };
   }
 
-  let score = 100; // Base
+  const riskProfile = buildRiskProfile(client, clientLoansAll, payments, installmentSchedules, referenceDate);
+  const numScore = riskProfile.historicalScore;
+  const info = getClientRiskScoreInfo(numScore);
 
-  // Each on-time payment adds points
-  score += onTimePayments * 3;
-
-  // Each late payment subtracts points
-  score -= latePayments * 5;
-
-  // Each paid (completed) loan adds points
-  score += paidLoans * 5;
-
-  // Each currently overdue loan subtracts points
-  score -= totalOverdue * 10;
-
-  // Clamp 0-150
-  score = Math.max(0, Math.min(150, score));
-
-  let label: string;
-  let color: string;
-  let bgColor: string;
-
-  if (score >= 130) { label = "Excelente"; color = "text-success"; bgColor = "bg-success"; }
-  else if (score >= 110) { label = "Bom"; color = "text-primary"; bgColor = "bg-primary"; }
-  else if (score >= 90) { label = "Regular"; color = "text-warning"; bgColor = "bg-warning"; }
-  else if (score >= 60) { label = "Ruim"; color = "text-orange-500"; bgColor = "bg-orange-500"; }
-  else { label = "Crítico"; color = "text-destructive"; bgColor = "bg-destructive"; }
-
-  return { score, label, color, bgColor, totalLoans, paidLoans, activeLoans, overdueLoans: totalOverdue, onTimePayments, latePayments, totalPayments };
+  return {
+    score: info.score,
+    label: info.label,
+    color: info.color,
+    bgColor: info.bgColor,
+    totalLoans: riskProfile.metrics.activeLoans + riskProfile.metrics.paidLoans,
+    paidLoans: riskProfile.metrics.paidLoans,
+    activeLoans: riskProfile.metrics.activeLoans,
+    overdueLoans: riskProfile.metrics.overdueLoans,
+    onTimePayments: riskProfile.metrics.onTimePayments,
+    latePayments: riskProfile.metrics.latePayments,
+    totalPayments: riskProfile.metrics.totalTimedPayments,
+  };
 }
 
 export function ClientList({ clients, loans, payments, installmentSchedules, onDelete, onUpdate, readOnly = false }: Props & { readOnly?: boolean }) {
@@ -198,31 +173,16 @@ export function ClientList({ clients, loans, payments, installmentSchedules, onD
   // P0 perf: 1 query única de contagens de documentos, ao invés de N por card.
   const { counts: docCounts } = useAllClientDocumentCounts();
 
+  const todayStr = todayInAppTz();
+  const today = useMemo(() => new Date(todayStr + "T00:00:00"), [todayStr]);
+
   const creditScores = useMemo(() => {
     const map: Record<string, CreditScore> = {};
     clients.forEach((c) => {
-      const effectiveScore = c.scoreTempoReal ?? c.scoreRisco;
-      if (effectiveScore != null) {
-        const info = getClientRiskScoreInfo(effectiveScore);
-        map[c.id] = {
-          score: info.score,
-          label: info.label,
-          color: info.color,
-          bgColor: info.bgColor,
-          totalLoans: c.qtdPagamentosTotal ?? 0,
-          paidLoans: c.qtdEmprestimosQuitados ?? 0,
-          activeLoans: 0,
-          overdueLoans: 0,
-          onTimePayments: Math.max(0, (c.qtdPagamentosTotal ?? 0) - (c.qtdPagamentosAtrasados ?? 0)),
-          latePayments: c.qtdPagamentosAtrasados ?? 0,
-          totalPayments: c.qtdPagamentosTotal ?? 0,
-        };
-      } else {
-        map[c.id] = calculateCreditScore(c.id, loans, payments);
-      }
+      map[c.id] = calculateCreditScore(c, loans, payments, installmentSchedules, today);
     });
     return map;
-  }, [clients, loans, payments]);
+  }, [clients, loans, payments, installmentSchedules, today]);
 
   // P0 perf: cacheia `computeUsedLimit` — antes rodava 2× por card + N vezes
   // no cálculo de overLimit. Agora é O(N·M) uma vez por render.
