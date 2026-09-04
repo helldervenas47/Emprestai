@@ -86,7 +86,7 @@ function getNextDate(base: Date, frequency: string, periods: number) {
   return d;
 }
 
-function getFirstPendingDate(loan: Loan, schedules: InstallmentSchedule[]) {
+export function getFirstPendingDate(loan: Loan, schedules: InstallmentSchedule[]) {
   const loanSchedules = schedules
     .filter((s) => s.loanId === loan.id)
     .sort((a, b) => a.installmentNumber - b.installmentNumber);

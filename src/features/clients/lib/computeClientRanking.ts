@@ -10,6 +10,7 @@ import {
   getClientLoans,
   getInstallmentDueDate,
   getDaysOverdue,
+  getFirstPendingDate,
   buildRiskProfile,
 } from "@/features/loans/lib/clientRisk";
 import { allocateInterestByPayment } from "@/features/financial/lib/interestAllocation";
@@ -43,27 +44,27 @@ export function computeClientRanking({
 }: ComputeClientRankingParams): ClientRankingResponse {
   const todayStr = todayInAppTz();
   const today = new Date(todayStr + "T00:00:00");
+  const [y, m] = todayStr.split("-").map(Number);
 
   // Define os limites de data do filtro de período
   let pStart: Date = new Date("2000-01-01T00:00:00");
   let pEnd: Date = new Date("2099-12-31T23:59:59");
 
-  const now = new Date();
   if (period === "this_month") {
-    pStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    pEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    pStart = new Date(y, m - 1, 1, 0, 0, 0);
+    pEnd = new Date(y, m, 0, 23, 59, 59, 999);
   } else if (period === "last_month") {
-    pStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    pEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+    pStart = new Date(y, m - 2, 1, 0, 0, 0);
+    pEnd = new Date(y, m - 1, 0, 23, 59, 59, 999);
   } else if (period === "last_3_months") {
-    pStart = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-    pEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    pStart = new Date(y, m - 3, 1, 0, 0, 0);
+    pEnd = new Date(y, m, 0, 23, 59, 59, 999);
   } else if (period === "last_6_months") {
-    pStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-    pEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    pStart = new Date(y, m - 6, 1, 0, 0, 0);
+    pEnd = new Date(y, m, 0, 23, 59, 59, 999);
   } else if (period === "this_year") {
-    pStart = new Date(now.getFullYear(), 0, 1);
-    pEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+    pStart = new Date(y, 0, 1, 0, 0, 0);
+    pEnd = new Date(y, 11, 31, 23, 59, 59, 999);
   } else if (period === "custom" && startDate && endDate) {
     pStart = new Date(startDate + "T00:00:00");
     pEnd = new Date(endDate + "T23:59:59");
@@ -118,7 +119,7 @@ export function computeClientRanking({
       .filter((l) => l.status !== "paid" && l.status !== "cancelled")
       .reduce((sum, l) => sum + (l.remainingAmount != null ? l.remainingAmount : (l.amount || 0)), 0);
 
-    // Pagamentos do cliente
+    // Pagamentos do cliente no período
     let totalReceived = 0;
     let profitGenerated = 0;
     let onTimePayments = 0;
@@ -133,15 +134,15 @@ export function computeClientRanking({
         const pDate = new Date(pDateStr + "T00:00:00");
         const inPeriod = period === "all" || (pDate >= pStart && pDate <= pEnd);
         
-        if (inPeriod) {
-          totalReceived += p.amount || 0;
-          
-          // Alocação exata e canônica de juros reconhecidos no pagamento
-          const paymentInterest = interestAllocMap.get(p.id) ?? 0;
-          profitGenerated += paymentInterest;
-        }
+        if (!inPeriod) return;
 
-        // Amortização parcial avulsa (-1): não conta como parcela atrasada
+        totalReceived += p.amount || 0;
+        
+        // Alocação exata e canônica de juros reconhecidos no pagamento
+        const paymentInterest = interestAllocMap.get(p.id) ?? 0;
+        profitGenerated += paymentInterest;
+
+        // Amortização parcial avulsa (-1): não conta como parcela no cálculo de pontualidade
         if (p.installmentNumber === -1) {
           return;
         }
@@ -174,8 +175,13 @@ export function computeClientRanking({
       // Checa se há atraso ativo na próxima parcela pendente deste contrato ativo
       if (loan.status !== "paid" && loan.status !== "cancelled") {
         const currentDaysOverdue = getDaysOverdue(loan, installmentSchedules, today);
-        if (currentDaysOverdue > 0 && currentDaysOverdue > maxDelayDays) {
-          maxDelayDays = currentDaysOverdue;
+        if (currentDaysOverdue > 0) {
+          const nextDue = getFirstPendingDate(loan, installmentSchedules);
+          if (period === "all" || nextDue <= pEnd) {
+            if (currentDaysOverdue > maxDelayDays) {
+              maxDelayDays = currentDaysOverdue;
+            }
+          }
         }
       }
     });
@@ -185,7 +191,10 @@ export function computeClientRanking({
     clientLoansAll.forEach((loan) => {
       if (loan.status !== "paid" && loan.status !== "cancelled") {
         if (getDaysOverdue(loan, installmentSchedules, today) > 0) {
-          activePendingDelays++;
+          const nextDue = getFirstPendingDate(loan, installmentSchedules);
+          if (period === "all" || nextDue <= pEnd) {
+            activePendingDelays++;
+          }
         }
       }
     });
@@ -194,7 +203,7 @@ export function computeClientRanking({
     const totalEvaluatedObligations = onTimePayments + latePayments + activePendingDelays;
     const onTimePercentage = totalEvaluatedObligations > 0
       ? (onTimePayments / totalEvaluatedObligations) * 100
-      : (overdueLoans > 0 ? 0 : 100);
+      : (period === "all" ? (overdueLoans > 0 ? 0 : 100) : 0);
 
     // Score canônico do motor de risco (escala 0 a 150)
     const riskProfile = buildRiskProfile(client, clientLoansAll, payments, installmentSchedules, today);
@@ -213,7 +222,7 @@ export function computeClientRanking({
       open_amount: openAmount,
       total_payments: totalPaymentsCount,
       total_received: totalReceived,
-      profit_generated: profitGenerated,
+      profit_generated: Math.round(profitGenerated * 100) / 100,
       on_time_payments: onTimePayments,
       late_payments: latePayments,
       on_time_percentage: onTimePercentage,
@@ -235,14 +244,14 @@ export function computeClientRanking({
         return (
           // 1. Maior taxa de pontualidade
           b.on_time_percentage - a.on_time_percentage ||
-          // 2. Clientes com zero atraso primeiro
+          // 2. Mais pagamentos em dia no período selecionado
+          b.on_time_payments - a.on_time_payments ||
+          // 3. Clientes com zero atraso primeiro
           (a.max_delay_days === 0 ? 0 : 1) - (b.max_delay_days === 0 ? 0 : 1) ||
-          // 3. Maior score de saúde e histórico
+          // 4. Maior score de saúde e histórico
           b.score - a.score ||
-          // 4. Menor atraso em dias
-          a.max_delay_days - b.max_delay_days ||
-          // 5. Maior volume de pagamentos em dia
-          b.on_time_payments - a.on_time_payments
+          // 5. Menor atraso em dias
+          a.max_delay_days - b.max_delay_days
         );
       case "revenue":
         return b.profit_generated - a.profit_generated || b.total_received - a.total_received;
