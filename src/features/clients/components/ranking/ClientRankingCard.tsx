@@ -65,7 +65,7 @@ export function ClientRankingCard({
       case "revenue":
         return {
           label: "Faturamento Gerado",
-          value: formatBRL(item.profit_generated || item.total_received * 0.2),
+          value: formatBRL(item.profit_generated),
           subValue: `Recebido: ${formatBRL(item.total_received)}`,
           icon: DollarSign,
           color: "text-primary",

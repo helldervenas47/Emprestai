@@ -12,6 +12,7 @@ import {
   getDaysOverdue,
   buildRiskProfile,
 } from "@/features/loans/lib/clientRisk";
+import { allocateInterestByPayment } from "@/features/financial/lib/interestAllocation";
 
 interface ComputeClientRankingParams {
   clients: Client[];
@@ -79,6 +80,9 @@ export function computeClientRanking({
     );
   });
 
+  // Mapeia a alocação oficial de juros/lucro por pagamento (regime canônico do app)
+  const interestAllocMap = allocateInterestByPayment(loans as any, payments as any);
+
   // Agregação dos indicadores por cliente (apenas clientes com pelo menos 1 empréstimo em todo o app)
   const items: ClientRankingItem[] = [];
 
@@ -132,11 +136,9 @@ export function computeClientRanking({
         if (inPeriod) {
           totalReceived += p.amount || 0;
           
-          // Estima o lucro/juros gerado pelo pagamento
-          if (loan.amount > 0 && loan.interestRate > 0) {
-            const interestFraction = loan.interestRate / (100 + loan.interestRate);
-            profitGenerated += (p.amount || 0) * interestFraction;
-          }
+          // Alocação exata e canônica de juros reconhecidos no pagamento
+          const paymentInterest = interestAllocMap.get(p.id) ?? 0;
+          profitGenerated += paymentInterest;
         }
 
         // Amortização parcial avulsa (-1): não conta como parcela atrasada
