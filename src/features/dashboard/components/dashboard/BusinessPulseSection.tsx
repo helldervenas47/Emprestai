@@ -93,37 +93,35 @@ export function BusinessPulseSection({
         />
 
         <CardContent className="p-5 sm:p-6 space-y-5">
-          {/* Cabeçalho */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/50">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 shadow-inner">
-                <span className="text-xl select-none" role="img" aria-label="Cérebro">🧠</span>
+          {/* Cabeçalho Responsivo Otimizado */}
+          <div className="flex items-start sm:items-center justify-between gap-2.5 sm:gap-3 pb-3 border-b border-border/50">
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+              <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 shadow-inner">
+                <span className="text-lg sm:text-xl select-none" role="img" aria-label="Cérebro">🧠</span>
               </div>
-              <div className="min-w-0">
-                <h3 className="text-foreground font-bold text-base sm:text-lg tracking-tight truncate flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-foreground font-bold text-sm sm:text-base md:text-lg tracking-tight leading-snug">
                   O que está acontecendo com seu negócio?
                 </h3>
-                <p className="text-muted-foreground text-[11px] tracking-wide">
+                <p className="text-muted-foreground text-[10px] sm:text-[11px] tracking-wide mt-0.5">
                   Análise baseada nos dados registrados até {analysis.generatedAt}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 self-end sm:self-center">
-              {onRefresh && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleRefreshClick}
-                  disabled={refreshing}
-                  className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1.5"
-                  title="Atualizar análise"
-                >
-                  <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin text-primary" : ""}`} />
-                  <span className="hidden sm:inline">Atualizar</span>
-                </Button>
-              )}
-            </div>
+            {onRefresh && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefreshClick}
+                disabled={refreshing}
+                className="h-8 px-2 sm:px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1.5 shrink-0 bg-background/50 border-border/60 shadow-sm"
+                title="Atualizar análise"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin text-primary" : ""}`} />
+                <span className="hidden sm:inline font-medium">Atualizar</span>
+              </Button>
+            )}
           </div>
 
           {/* Diagnóstico Principal */}

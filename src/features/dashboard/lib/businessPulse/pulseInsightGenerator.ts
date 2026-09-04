@@ -123,70 +123,76 @@ export function generateBusinessPulseAnalysis(
     tone = "attention";
   }
 
-  // Lista de Acontecimentos Relevantes (máximo 4)
+  // Lista de Acontecimentos Relevantes (sempre 4 cards estruturados)
   const events: PulseEventItem[] = [];
 
   // 1. Faturamento
-  if (Math.abs(diff.revenuePct) >= PULSE_CONFIG.MIN_RELEVANT_PCT_CHANGE || diff.revenueAbsolute !== 0) {
+  {
     const isUp = diff.revenueAbsolute >= 0;
+    const isZero = diff.revenueAbsolute === 0 && metrics.current.revenue === 0;
     events.push({
       id: "ev_revenue",
       type: isUp ? "positive" : "attention",
-      title: isUp ? "Faturamento aumentou" : "Faturamento diminuiu",
-      metric: formatPct(diff.revenuePct),
-      description: isUp
-        ? `Você faturou ${formatBRL(diff.revenueAbsolute)} a mais que no período anterior.`
-        : `Faturamento ${formatBRL(Math.abs(diff.revenueAbsolute))} abaixo do período anterior.`,
-      badgeText: isUp ? "Crescimento" : "Queda",
+      title: isZero ? "Faturamento estável" : isUp ? "Faturamento aumentou" : "Faturamento diminuiu",
+      metric: isZero ? formatBRL(0) : formatPct(diff.revenuePct),
+      description: isZero
+        ? "Nenhum novo contrato emitido no período."
+        : isUp
+          ? `Você faturou ${formatBRL(diff.revenueAbsolute)} a mais que no período anterior.`
+          : `Faturamento ${formatBRL(Math.abs(diff.revenueAbsolute))} abaixo do período anterior.`,
+      badgeText: isZero ? "Estável" : isUp ? "Crescimento" : "Queda",
       badgeVariant: isUp ? "secondary" : "outline",
     });
   }
 
   // 2. Recebimentos
-  if (Math.abs(diff.receivedPct) >= PULSE_CONFIG.MIN_RELEVANT_PCT_CHANGE || diff.receivedAbsolute !== 0) {
+  {
     const isUp = diff.receivedAbsolute >= 0;
+    const isZero = diff.receivedAbsolute === 0 && metrics.current.received === 0;
     events.push({
       id: "ev_received",
       type: isUp ? "positive" : "attention",
-      title: isUp ? "Recebimentos aumentaram" : "Recebimentos caíram",
-      metric: formatPct(diff.receivedPct),
-      description: isUp
-        ? "Seu fluxo de entrada está em evolução positiva."
-        : "Entradas reduzidas em relação ao período anterior.",
-      badgeText: isUp ? "Entradas +" : "Atenção",
+      title: isZero ? "Recebimentos estáveis" : isUp ? "Recebimentos aumentaram" : "Recebimentos caíram",
+      metric: isZero ? formatBRL(0) : formatPct(diff.receivedPct),
+      description: isZero
+        ? "Nenhum recebimento registrado no período."
+        : isUp
+          ? "Seu fluxo de entrada está em evolução positiva."
+          : "Entradas reduzidas em relação ao período anterior.",
+      badgeText: isZero ? "Estável" : isUp ? "Entradas +" : "Atenção",
       badgeVariant: isUp ? "secondary" : "outline",
     });
   }
 
   // 3. Inadimplência
-  if (Math.abs(diff.defaultRatePp) >= PULSE_CONFIG.MIN_RELEVANT_PP_DEFAULT_CHANGE || conc.overdueClientsCount > 0) {
+  {
     const isUp = diff.defaultRatePp > 0;
+    const isZero = diff.defaultRatePp === 0 && conc.overdueClientsCount === 0;
     events.push({
       id: "ev_default",
-      type: isUp ? "attention" : "positive",
-      title: isUp ? "Inadimplência aumentou" : "Inadimplência caiu",
-      metric: formatPp(diff.defaultRatePp),
+      type: isZero ? "positive" : isUp ? "attention" : "positive",
+      title: isZero ? "Inadimplência sob controle" : isUp ? "Inadimplência aumentou" : "Inadimplência caiu",
+      metric: isZero ? "0,0 p.p." : formatPp(diff.defaultRatePp),
       description: conc.overdueClientsCount > 0
         ? `O volume em atraso envolve ${conc.overdueClientsCount} cliente(s) no momento.`
-        : "Nenhum atraso expressivo no período.",
-      badgeText: isUp ? "Inadimplência" : "Melhoria",
-      badgeVariant: isUp ? "destructive" : "secondary",
+        : "Nenhum atraso expressivo na carteira.",
+      badgeText: isZero ? "Controlada" : isUp ? "Inadimplência" : "Melhoria",
+      badgeVariant: isZero || !isUp ? "secondary" : "destructive",
     });
   }
 
-  // 4. Concentração de Atrasos
-  if (conc.hasRelevantConcentration && conc.topClientsCount > 0) {
+  // 4. Concentração de Dívida / Maiores Atrasos / Despesas / Resultado (Garante o 4º Card)
+  if (conc.topClientsCount > 0 && conc.topClientsOverdueTotal > 0) {
     events.push({
       id: "ev_concentration",
-      type: "critical",
-      title: "Concentração de dívida",
+      type: conc.hasRelevantConcentration ? "critical" : "attention",
+      title: conc.hasRelevantConcentration ? "Concentração de dívida" : "Maiores atrasos",
       metric: `${conc.topClientsSharePct}% dos atrasos`,
-      description: `${conc.topClientsCount} clientes representam ${conc.topClientsSharePct}% do valor atrasado (${formatBRL(conc.topClientsOverdueTotal)}).`,
-      badgeText: "Concentração",
-      badgeVariant: "destructive",
+      description: `${conc.topClientsCount} clientes concentram ${conc.topClientsSharePct}% do valor atrasado (${formatBRL(conc.topClientsOverdueTotal)}).`,
+      badgeText: conc.hasRelevantConcentration ? "Concentração" : "Maiores dívidas",
+      badgeVariant: conc.hasRelevantConcentration ? "destructive" : "outline",
     });
-  } else if (diff.expensesAbsolute > 0 && Math.abs(diff.expensesPct) >= PULSE_CONFIG.MIN_RELEVANT_PCT_CHANGE) {
-    // Caso não haja concentração crítica, mostra despesas se relevante
+  } else if (metrics.current.expenses > 0 || metrics.previous.expenses > 0) {
     const isUp = diff.expensesAbsolute > 0;
     events.push({
       id: "ev_expenses",
@@ -194,21 +200,32 @@ export function generateBusinessPulseAnalysis(
       title: isUp ? "Despesas aumentaram" : "Despesas reduziram",
       metric: formatPct(diff.expensesPct),
       description: isUp
-        ? `Aumento de ${formatBRL(diff.expensesAbsolute)} nos custos pagos.`
-        : `Economia de ${formatBRL(Math.abs(diff.expensesAbsolute))} em despesas.`,
+        ? `Aumento de ${formatBRL(diff.expensesAbsolute)} nos custos operacionais.`
+        : `Economia de ${formatBRL(Math.abs(diff.expensesAbsolute))} em despesas pagas.`,
       badgeText: "Despesas",
       badgeVariant: "outline",
     });
+  } else {
+    // Fallback: Capital ativo na rua
+    events.push({
+      id: "ev_capital",
+      type: "positive",
+      title: "Capital na rua",
+      metric: formatBRL(metrics.current.activeCapital),
+      description: `${metrics.current.activeLoansCount} contratos ativos sob gestão.`,
+      badgeText: "Carteira",
+      badgeVariant: "secondary",
+    });
   }
 
-  // Limita aos 4 acontecimentos prioritários
+  // Limita a exatamente 4 acontecimentos prioritários
   const limitedEvents = events.slice(0, 4);
 
   // Geração da Recomendação Prática
   let recommendation: PulseRecommendation;
 
   if (conc.topClients.length > 0 && conc.topClientsOverdueTotal > 0) {
-    const topNames = conc.topClients.map((c) => c.clientName);
+    const topNames = conc.topClients.map((c) => (c.clientName || "").trim()).filter(Boolean);
     const namesFormatted = topNames.length === 1
       ? topNames[0]
       : topNames.slice(0, -1).join(", ") + " e " + topNames[topNames.length - 1];
