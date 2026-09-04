@@ -536,4 +536,51 @@ describe("Fechamento Mensal Automático + Integração com Metas", () => {
     expect(closing.executiveAnalysis.narrative).not.toContain("encerrou");
     expect(closing.executiveAnalysis.narrative).toContain("em andamento");
   });
+
+  it("Cenário 15 — Contrato com vencimento prorrogado/alterado para o futuro NÃO aparece como inadimplente", () => {
+    const currentMonthKey = "2026-09";
+
+    const loans: Loan[] = [
+      {
+        id: "l_postponed",
+        borrowerId: "c1",
+        borrowerName: "Jeanderson Souza",
+        amount: 600,
+        interestRate: 20,
+        installments: 1,
+        startDate: "2026-08-01",
+        dueDate: "2026-08-30", // Data original
+        status: "active",
+        paidInstallments: 0,
+        totalAmount: 720,
+        remainingAmount: 720,
+        tags: ["Sergio"],
+        createdAt: "2026-08-01",
+      },
+    ];
+
+    // Vencimento alterado/prorrogado via cronograma para 20/09/2026 (futuro)
+    const schedules: InstallmentSchedule[] = [
+      {
+        loanId: "l_postponed",
+        installmentNumber: 1,
+        dueDate: "2026-09-20",
+        amount: 720,
+      },
+    ];
+
+    const closing = computeMonthlyClosingData({
+      monthKey: currentMonthKey,
+      loans,
+      payments: [],
+      expenses: [],
+      clients: mockClients,
+      installmentSchedules: schedules,
+      goals: [],
+    });
+
+    expect(closing.financial.overdueLoansCount).toBe(0);
+    expect(closing.financial.overdueAmount).toBe(0);
+    expect(closing.financial.overdueLoansList?.length).toBe(0);
+  });
 });

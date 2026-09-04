@@ -178,6 +178,16 @@ export function calculateFinancialSummaryForMonth(
       .filter((s) => s.loanId === loan.id)
       .sort((a, b) => a.installmentNumber - b.installmentNumber);
 
+    // Identifica o vencimento da parcela pendente (considera cronograma salvo ou contrato)
+    const currentSchedule = loanSchedules.find((s) => s.installmentNumber === currentInstallmentNumber);
+    const activeDueDate = (currentSchedule?.dueDate || loan.dueDate || loan.due_date || "").slice(0, 10);
+    const daysOverdue = getDaysOverdue(loan, installmentSchedules);
+
+    // Se estamos no mês vigente e o contrato está em dia ou com vencimento futuro/prorrogado
+    if (!isClosed && (daysOverdue <= 0 || activeDueDate >= today)) {
+      return;
+    }
+
     let hasOverdueInMonth = false;
     let contractOverdueAmount = 0;
     const overdueInstallmentNumbers: number[] = [];
@@ -185,12 +195,12 @@ export function calculateFinancialSummaryForMonth(
 
     if (installments <= 1) {
       // Contrato de parcela única
-      const dueDate = (loan.dueDate || loan.due_date || "").slice(0, 10);
-      if (inMonth(dueDate, monthKey) && dueDate < cutoffDate && baseRemaining > 0.05) {
+      const singleDueDate = activeDueDate;
+      if (inMonth(singleDueDate, monthKey) && singleDueDate < cutoffDate && baseRemaining > 0.05) {
         hasOverdueInMonth = true;
         contractOverdueAmount = baseRemaining;
         overdueInstallmentNumbers.push(1);
-        firstOverdueDate = dueDate;
+        firstOverdueDate = singleDueDate;
       }
     } else if (loanSchedules.length > 0) {
       // Contrato parcelado com cronograma
@@ -198,6 +208,7 @@ export function calculateFinancialSummaryForMonth(
       pendingSchedules.forEach((s) => {
         if (!inMonth(s.dueDate, monthKey)) return;
         if (s.dueDate >= cutoffDate) return;
+        if (!isClosed && s.dueDate >= today) return;
 
         hasOverdueInMonth = true;
         overdueInstallmentNumbers.push(s.installmentNumber);
@@ -226,6 +237,7 @@ export function calculateFinancialSummaryForMonth(
         if (d.installmentNumber <= paidInstallments) return;
         if (!inMonth(d.dueDate, monthKey)) return;
         if (d.dueDate >= cutoffDate) return;
+        if (!isClosed && d.dueDate >= today) return;
 
         hasOverdueInMonth = true;
         overdueInstallmentNumbers.push(d.installmentNumber);
@@ -238,6 +250,16 @@ export function calculateFinancialSummaryForMonth(
     }
 
     if (hasOverdueInMonth && contractOverdueAmount > 0.05) {
+      let daysLate = Math.max(0, daysOverdue);
+      if (!isClosed && daysLate <= 0) {
+        return;
+      }
+      if (isClosed && !daysLate && firstOverdueDate) {
+        const dueMs = new Date(`${firstOverdueDate.slice(0, 10)}T00:00:00`).getTime();
+        const refMs = new Date(`${cutoffDate}T00:00:00`).getTime();
+        daysLate = Math.max(0, Math.floor((refMs - dueMs) / (1000 * 60 * 60 * 24)));
+      }
+
       const lateFeesResult = getLoanLateFees(loan, payments, installmentSchedules);
       const lateInterestTotal = lateFeesResult.lateInterestTotal || 0;
       const penaltyTotal = (lateFeesResult.penaltyTotal || 0) + (installments < 2 ? Number(loan.renegotiationPenaltyTotal || 0) : 0);
@@ -255,13 +277,6 @@ export function calculateFinancialSummaryForMonth(
       const clientName = client?.name || loan.clientName || loan.client_name || "Cliente";
       const clientPhone = client?.phone || loan.clientPhone || "";
       const clientPhotoUrl = client?.photo_url || (client as any)?.photoUrl || "";
-
-      let daysLate = Math.max(0, getDaysOverdue(loan, installmentSchedules));
-      if (!daysLate && firstOverdueDate) {
-        const dueMs = new Date(`${firstOverdueDate.slice(0, 10)}T00:00:00`).getTime();
-        const refMs = new Date(`${today}T00:00:00`).getTime();
-        daysLate = Math.max(0, Math.floor((refMs - dueMs) / (1000 * 60 * 60 * 24)));
-      }
 
       const tags = Array.isArray(loan.tags) ? loan.tags : (loan as any).custom_tags || [];
 
@@ -282,7 +297,7 @@ export function calculateFinancialSummaryForMonth(
         totalInstallments: installments,
         paidInstallments,
         currentInstallmentNumber,
-        firstOverdueDate: firstOverdueDate || loan.dueDate,
+        firstOverdueDate: firstOverdueDate || activeDueDate || loan.dueDate,
         daysLate,
         overdueInstallmentNumbers,
         tags,
