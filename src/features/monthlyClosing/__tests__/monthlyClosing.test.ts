@@ -320,4 +320,64 @@ describe("Fechamento Mensal Automático + Integração com Metas", () => {
     expect(goalItem?.actualValue).toBe(2); // 2 contratos renegociados
     expect(goalItem?.status).toBe("reached"); // <= 3 contratos -> dentro do limite
   });
+
+  it("Cenário 11 — Listagem detalhada de clientes inadimplentes considerados no fechamento", () => {
+    const monthKey = "2026-08";
+
+    const loans: Loan[] = [
+      {
+        id: "l_overdue_1",
+        borrowerId: "c1",
+        borrowerName: "João Silva",
+        amount: 5000,
+        interestRate: 20,
+        installments: 2,
+        startDate: "2026-07-10",
+        dueDate: "2026-08-10",
+        status: "active",
+        paidInstallments: 0,
+        totalAmount: 6000,
+        remainingAmount: 6000,
+        createdAt: "2026-07-10",
+      },
+      {
+        id: "l_overdue_2",
+        borrowerId: "c2",
+        borrowerName: "Carlos Souza",
+        amount: 2000,
+        interestRate: 10,
+        installments: 1,
+        startDate: "2026-08-01",
+        dueDate: "2026-08-15",
+        status: "active",
+        paidInstallments: 0,
+        totalAmount: 2200,
+        remainingAmount: 2200,
+        createdAt: "2026-08-01",
+      },
+    ];
+
+    const closing = computeMonthlyClosingData({
+      monthKey,
+      loans,
+      payments: [],
+      expenses: [],
+      clients: mockClients,
+      goals: [],
+    });
+
+    expect(closing.financial.overdueLoansCount).toBe(2);
+    expect(closing.financial.overdueAmount).toBe(3000 + 2200); // 3000 (parcela 1 de 2) + 2200 (parcela única)
+    expect(closing.financial.overdueLoansList).toBeDefined();
+    expect(closing.financial.overdueLoansList?.length).toBe(2);
+
+    const first = closing.financial.overdueLoansList?.[0];
+    expect(first?.clientName).toBe("João Silva");
+    expect(first?.overdueAmount).toBe(3000);
+    expect(first?.overdueInstallmentsCount).toBe(1);
+
+    const second = closing.financial.overdueLoansList?.[1];
+    expect(second?.clientName).toBe("Carlos Souza");
+    expect(second?.overdueAmount).toBe(2200);
+  });
 });

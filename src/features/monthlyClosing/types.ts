@@ -2,6 +2,23 @@ import type { GoalType } from "@/features/piggyBanks/hooks/useMonthlyGoals";
 
 export type GoalStatus = "reached" | "close" | "missed";
 
+export interface MonthlyClosingOverdueItem {
+  loanId: string;
+  loanNumber?: number | string;
+  clientId: string;
+  clientName: string;
+  clientPhone?: string;
+  clientPhotoUrl?: string;
+  principalAmount: number;
+  totalWithInterest: number;
+  overdueAmount: number;
+  overdueInstallmentsCount: number;
+  totalInstallments: number;
+  firstOverdueDate: string;
+  daysLate: number;
+  overdueInstallmentNumbers: number[];
+}
+
 export interface MonthlyClosingFinancialSummary {
   revenue: number; // Volume de novos empréstimos com juros
   received: number; // Total de pagamentos recebidos no mês
@@ -15,6 +32,7 @@ export interface MonthlyClosingFinancialSummary {
   overdueLoansCount: number; // Quantidade de contratos em atraso
   newClientsCount: number; // Quantidade de novos clientes
   activeClientsCount: number; // Clientes com contratos ativos
+  overdueLoansList?: MonthlyClosingOverdueItem[];
 }
 
 export interface MetricComparisonItem {

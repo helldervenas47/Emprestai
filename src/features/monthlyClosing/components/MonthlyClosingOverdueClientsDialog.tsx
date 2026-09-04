@@ -1,0 +1,263 @@
+import { useState, useMemo } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { formatBRL } from "@/features/creditCards/lib/creditLimit";
+import {
+  AlertCircle,
+  Clock,
+  Search,
+  MessageCircle,
+  Calendar,
+  Receipt,
+  ArrowUpRight,
+  ShieldAlert,
+} from "lucide-react";
+import type { MonthlyClosingOverdueItem } from "../types";
+
+interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  monthLabel: string;
+  overdueItems: MonthlyClosingOverdueItem[];
+  totalOverdueAmount: number;
+  onNavigateToTab?: (tab: string) => void;
+}
+
+export function MonthlyClosingOverdueClientsDialog({
+  open,
+  onOpenChange,
+  monthLabel,
+  overdueItems = [],
+  totalOverdueAmount = 0,
+  onNavigateToTab,
+}: Props) {
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredItems = useMemo(() => {
+    if (!searchTerm.trim()) return overdueItems;
+    const term = searchTerm.toLowerCase();
+    return overdueItems.filter((item) => {
+      const matchName = item.clientName.toLowerCase().includes(term);
+      const matchPhone = (item.clientPhone || "").toLowerCase().includes(term);
+      const matchLoan = String(item.loanNumber || item.loanId).toLowerCase().includes(term);
+      return matchName || matchPhone || matchLoan;
+    });
+  }, [overdueItems, searchTerm]);
+
+  // Contagem de clientes únicos afetados
+  const uniqueClientsCount = useMemo(() => {
+    const ids = new Set(overdueItems.map((i) => i.clientId || i.clientName));
+    return ids.size;
+  }, [overdueItems]);
+
+  const handleOpenWhatsApp = (phone: string, clientName: string, amount: number) => {
+    const cleanPhone = phone.replace(/\D/g, "");
+    if (!cleanPhone) return;
+    const phoneWithDDI = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
+    const text = encodeURIComponent(
+      `Olá ${clientName}, identificamos uma pendência no valor de ${formatBRL(amount)} referente ao fechamento de ${monthLabel}. Poderia entrar em contato para regularizarmos a sua parcela? Obrigado!`
+    );
+    window.open(`https://wa.me/${phoneWithDDI}?text=${text}`, "_blank", "noopener,noreferrer");
+  };
+
+  const getInitials = (name: string) => {
+    const parts = name.trim().split(" ");
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-4 sm:p-6 gap-4">
+        <DialogHeader className="space-y-1.5 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-xl bg-rose-500/15 border border-rose-500/25 flex items-center justify-center shrink-0">
+              <ShieldAlert className="h-5 w-5 text-rose-600 dark:text-rose-400" />
+            </div>
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-bold text-foreground">
+                Clientes Inadimplentes — {monthLabel}
+              </DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm text-muted-foreground">
+                Contratos com parcelas em atraso consideradas no fechamento deste período.
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        {/* CARDS DE RESUMO EXECUTIVO */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 shrink-0">
+          <div className="rounded-xl border border-rose-500/20 bg-rose-500/[0.04] p-3 space-y-1">
+            <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider block">
+              Total em Atraso
+            </span>
+            <span className="text-sm sm:text-base md:text-lg font-bold text-rose-600 dark:text-rose-400">
+              {formatBRL(totalOverdueAmount)}
+            </span>
+          </div>
+
+          <div className="rounded-xl border border-border/70 bg-card p-3 space-y-1">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              Contratos
+            </span>
+            <span className="text-sm sm:text-base md:text-lg font-bold text-foreground">
+              {overdueItems.length} {overdueItems.length === 1 ? "contrato" : "contratos"}
+            </span>
+          </div>
+
+          <div className="rounded-xl border border-border/70 bg-card p-3 space-y-1">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              Clientes
+            </span>
+            <span className="text-sm sm:text-base md:text-lg font-bold text-foreground">
+              {uniqueClientsCount} {uniqueClientsCount === 1 ? "cliente" : "clientes"}
+            </span>
+          </div>
+        </div>
+
+        {/* CAMPO DE BUSCA */}
+        <div className="relative shrink-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por cliente, telefone ou contrato..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9 h-10 rounded-xl bg-muted/40 border-border/70 text-xs sm:text-sm"
+          />
+        </div>
+
+        {/* LISTA ROLÁVEL DE INADIMPLENTES */}
+        <div className="flex-1 overflow-y-auto pr-1 space-y-3 min-h-[220px]">
+          {filteredItems.length === 0 ? (
+            <div className="text-center py-12 space-y-2 border border-dashed rounded-2xl bg-muted/20">
+              <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto opacity-50" />
+              <p className="text-sm font-semibold text-foreground">
+                {searchTerm ? "Nenhum resultado para a busca" : "Nenhum cliente inadimplente identificado"}
+              </p>
+              <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                {searchTerm
+                  ? "Tente buscar com outro termo ou limpe o campo de busca."
+                  : `Não foram encontradas parcelas em atraso no período de ${monthLabel}.`}
+              </p>
+            </div>
+          ) : (
+            filteredItems.map((item, idx) => {
+              const installmentLabel =
+                item.overdueInstallmentNumbers && item.overdueInstallmentNumbers.length > 0
+                  ? `Parcela ${item.overdueInstallmentNumbers.join(", ")}/${item.totalInstallments}`
+                  : `Parcela(s) em atraso (${item.overdueInstallmentsCount}/${item.totalInstallments})`;
+
+              const dueDateFormatted = item.firstOverdueDate
+                ? new Date(`${item.firstOverdueDate.slice(0, 10)}T00:00:00`).toLocaleDateString("pt-BR")
+                : "-";
+
+              return (
+                <div
+                  key={`${item.loanId}_${idx}`}
+                  className="rounded-2xl border border-border/80 bg-card p-3.5 sm:p-4 space-y-3 shadow-xs hover:border-rose-500/30 transition-all"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Avatar className="h-10 w-10 rounded-xl border border-border shrink-0">
+                        {item.clientPhotoUrl ? (
+                          <AvatarImage src={item.clientPhotoUrl} alt={item.clientName} />
+                        ) : null}
+                        <AvatarFallback className="rounded-xl bg-primary/10 text-primary font-bold text-xs">
+                          {getInitials(item.clientName)}
+                        </AvatarFallback>
+                      </Avatar>
+
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-xs sm:text-sm text-foreground truncate">
+                            {item.clientName}
+                          </h4>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] font-semibold px-2 py-0 bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 shrink-0"
+                          >
+                            {installmentLabel}
+                          </Badge>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                          <span>Contrato #{item.loanNumber || item.loanId.slice(0, 8)}</span>
+                          {item.clientPhone && (
+                            <>
+                              <span>•</span>
+                              <span>{item.clientPhone}</span>
+                            </>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <span className="text-[11px] text-muted-foreground block">Vencido no mês</span>
+                      <span className="font-bold text-xs sm:text-sm text-rose-600 dark:text-rose-400">
+                        {formatBRL(item.overdueAmount)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Detalhes do Atraso e Ações */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2.5 border-t border-border/50 text-xs">
+                    <div className="flex items-center gap-3 text-muted-foreground text-[11px] flex-wrap">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                        Vencimento: <strong className="text-foreground">{dueDateFormatted}</strong>
+                      </span>
+                      {item.daysLate > 0 && (
+                        <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400 font-semibold">
+                          <Clock className="h-3.5 w-3.5" />
+                          {item.daysLate} dia(s) de atraso
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
+                        Total Contrato: <strong className="text-foreground">{formatBRL(item.totalWithInterest)}</strong>
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                      {item.clientPhone && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-2.5 text-xs font-semibold gap-1.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 border-emerald-500/30"
+                          onClick={() => handleOpenWhatsApp(item.clientPhone!, item.clientName, item.overdueAmount)}
+                        >
+                          <MessageCircle className="h-3.5 w-3.5" />
+                          <span>Cobrar no WhatsApp</span>
+                        </Button>
+                      )}
+
+                      {onNavigateToTab && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2.5 text-xs font-medium gap-1 text-muted-foreground hover:text-foreground"
+                          onClick={() => {
+                            onOpenChange(false);
+                            onNavigateToTab("clientes");
+                          }}
+                        >
+                          <span>Ver Cliente</span>
+                          <ArrowUpRight className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

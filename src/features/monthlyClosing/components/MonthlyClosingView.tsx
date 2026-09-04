@@ -32,6 +32,7 @@ import {
 import { formatBRL } from "@/features/creditCards/lib/creditLimit";
 import { emitAppUIEvent } from "@/lib/appUIEvents";
 import { useMonthlyClosing } from "../useMonthlyClosing";
+import { MonthlyClosingOverdueClientsDialog } from "./MonthlyClosingOverdueClientsDialog";
 import type { Loan, Payment, Expense, Client, InstallmentSchedule, LoanRenegotiation } from "@/types/loan";
 import type { MonthlyClosingGoalItem } from "../types";
 
@@ -76,6 +77,7 @@ export function MonthlyClosingView({
   });
 
   const [isRecalculating, setIsRecalculating] = useState(false);
+  const [isOverdueDialogOpen, setIsOverdueDialogOpen] = useState(false);
 
   const handleRecalculate = async () => {
     setIsRecalculating(true);
@@ -83,7 +85,15 @@ export function MonthlyClosingView({
     setTimeout(() => setIsRecalculating(false), 500);
   };
 
-  const handleDirectAction = (targetTab: string) => {
+  const handleDirectAction = (targetTab: string, label?: string) => {
+    if (label === "Ver clientes inadimplentes" || targetTab === "clientes_inadimplentes") {
+      setIsOverdueDialogOpen(true);
+      return;
+    }
+    if (targetTab === "clientes" && label?.toLowerCase().includes("inadimplente")) {
+      setIsOverdueDialogOpen(true);
+      return;
+    }
     if (targetTab === "metas" && onNavigateToConfig) {
       onNavigateToConfig();
       return;
@@ -267,7 +277,8 @@ export function MonthlyClosingView({
             previousLabel={closingData.previousMonthLabel}
             inverse
             isRate
-            extraInfo={(fin.overdueAmount ?? 0) > 0 ? `${formatBRL(fin.overdueAmount)} vencidos` : undefined}
+            extraInfo={(fin.overdueAmount ?? 0) > 0 ? `${formatBRL(fin.overdueAmount)} vencidos (ver lista)` : undefined}
+            onClick={(fin.overdueAmount ?? 0) > 0 || (fin.overdueLoansCount ?? 0) > 0 ? () => setIsOverdueDialogOpen(true) : undefined}
             tooltip="Percentual do valor vencido em atraso em relação ao total a receber da carteira no mês."
           />
         </div>
@@ -476,10 +487,11 @@ export function MonthlyClosingView({
               size="sm"
               onClick={() =>
                 handleDirectAction(
-                  closingData.executiveAnalysis.recommendation.action!.targetTab
+                  closingData.executiveAnalysis.recommendation.action!.targetTab,
+                  closingData.executiveAnalysis.recommendation.action!.label
                 )
               }
-              className="rounded-xl font-semibold gap-2 w-full sm:w-auto shrink-0 shadow-xs"
+              className="rounded-xl font-semibold gap-2 w-full sm:w-auto shrink-0 shadow-xs cursor-pointer"
             >
               <span>{closingData.executiveAnalysis.recommendation.action.label}</span>
               <ArrowRight className="h-4 w-4" />
@@ -487,6 +499,16 @@ export function MonthlyClosingView({
           )}
         </div>
       </Card>
+
+      {/* 7. DIÁLOGO DETALHADO DE CLIENTES INADIMPLENTES DO MÊS */}
+      <MonthlyClosingOverdueClientsDialog
+        open={isOverdueDialogOpen}
+        onOpenChange={setIsOverdueDialogOpen}
+        monthLabel={closingData.monthLabel}
+        overdueItems={fin.overdueLoansList || []}
+        totalOverdueAmount={fin.overdueAmount || 0}
+        onNavigateToTab={onNavigateToTab}
+      />
     </div>
   );
 }
@@ -505,6 +527,7 @@ interface MetricCardProps {
   isRate?: boolean;
   extraInfo?: string;
   tooltip?: string;
+  onClick?: () => void;
 }
 
 function MetricCard({
@@ -519,6 +542,7 @@ function MetricCard({
   isRate = false,
   extraInfo,
   tooltip,
+  onClick,
 }: MetricCardProps) {
   const hasDiff = isRate
     ? ppDiff !== undefined && isFinite(ppDiff) && Math.abs(ppDiff) >= 0.01
@@ -528,7 +552,14 @@ function MetricCard({
   const displayPctDiff = typeof pctDiff === "number" && isFinite(pctDiff) ? pctDiff : 0;
 
   return (
-    <Card className="rounded-2xl border-border/70 bg-card p-4 sm:p-5 shadow-xs hover:border-primary/30 transition-all flex flex-col justify-between">
+    <Card
+      onClick={onClick}
+      className={`rounded-2xl border-border/70 bg-card p-4 sm:p-5 shadow-xs transition-all flex flex-col justify-between ${
+        onClick
+          ? "cursor-pointer hover:border-primary/50 hover:shadow-md active:scale-[0.99]"
+          : "hover:border-primary/30"
+      }`}
+    >
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">

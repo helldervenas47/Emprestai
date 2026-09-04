@@ -125,6 +125,7 @@ export function calculateFinancialSummaryForMonth(
 
   let overdueAmount = 0;
   let overdueLoansCount = 0;
+  const overdueLoansList: import("./types").MonthlyClosingOverdueItem[] = [];
 
   loans.forEach((loan: any) => {
     const installments = Math.max(1, Number(loan.installments) || 1);
@@ -159,21 +160,66 @@ export function calculateFinancialSummaryForMonth(
           });
 
     let hasOverdueInMonth = false;
+    let contractOverdueAmount = 0;
+    const overdueInstallmentNumbers: number[] = [];
+    let firstOverdueDate = "";
+
     dueEntries.forEach((entry) => {
       if (!inMonth(entry.dueDate, monthKey)) return;
       const isPaidAtCutoff = entry.installmentNumber <= calculatedPaidInstallments;
       if (isPaidAtCutoff || entry.dueDate >= cutoffDate) return;
 
       hasOverdueInMonth = true;
+      overdueInstallmentNumbers.push(entry.installmentNumber);
+      if (!firstOverdueDate || entry.dueDate < firstOverdueDate) {
+        firstOverdueDate = entry.dueDate;
+      }
+
       if (installments === 1) {
-        overdueAmount += Math.max(0, totalWithInterest - paidAmount);
+        contractOverdueAmount += Math.max(0, totalWithInterest - paidAmount);
       } else {
-        overdueAmount += entry.amount;
+        contractOverdueAmount += entry.amount;
       }
     });
 
-    if (hasOverdueInMonth) overdueLoansCount += 1;
+    if (hasOverdueInMonth) {
+      overdueLoansCount += 1;
+      overdueAmount += contractOverdueAmount;
+
+      const rawClientId = loan.clientId || loan.client_id || loan.borrowerId || loan.borrower_id || "";
+      const client = clients.find((c: any) => c.id === rawClientId);
+      const clientName = client?.name || loan.clientName || loan.client_name || "Cliente";
+      const clientPhone = client?.phone || loan.clientPhone || "";
+      const clientPhotoUrl = client?.photo_url || (client as any)?.photoUrl || "";
+
+      let daysLate = 0;
+      if (firstOverdueDate) {
+        const dueMs = new Date(`${firstOverdueDate.slice(0, 10)}T00:00:00`).getTime();
+        const refMs = new Date(`${today}T00:00:00`).getTime();
+        daysLate = Math.max(0, Math.floor((refMs - dueMs) / (1000 * 60 * 60 * 24)));
+      }
+
+      overdueLoansList.push({
+        loanId: loan.id,
+        loanNumber: loan.loanNumber || loan.loan_number || loan.id.slice(0, 8),
+        clientId: rawClientId,
+        clientName,
+        clientPhone,
+        clientPhotoUrl,
+        principalAmount: principal,
+        totalWithInterest,
+        overdueAmount: contractOverdueAmount,
+        overdueInstallmentsCount: overdueInstallmentNumbers.length,
+        totalInstallments: installments,
+        firstOverdueDate,
+        daysLate,
+        overdueInstallmentNumbers,
+      });
+    }
   });
+
+  // Ordena por maior valor em atraso primeiro
+  overdueLoansList.sort((a, b) => b.overdueAmount - a.overdueAmount);
 
   // 7. Contratos quitados no mês
   const completedLoansCount = loans.filter((l: any) => {
@@ -215,6 +261,7 @@ export function calculateFinancialSummaryForMonth(
     overdueLoansCount,
     newClientsCount,
     activeClientsCount: activeClientIds.size,
+    overdueLoansList,
   };
 }
 
