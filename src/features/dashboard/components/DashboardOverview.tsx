@@ -187,12 +187,6 @@ export function DashboardOverview({ loans, sales, payments, expenses, installmen
         onChangePeriod={handleChangePeriod}
       />
 
-      {/* 🧠 O que está acontecendo com seu negócio? */}
-      <BusinessPulseSection
-        analysis={businessPulseAnalysis}
-        onRefresh={refreshBusinessPulse}
-      />
-
       <div className="space-y-2.5 sm:space-y-3">
       <DashboardMainCards
 
@@ -229,6 +223,12 @@ export function DashboardOverview({ loans, sales, payments, expenses, installmen
         onOpenInterestPending={() => { setInterestExpectedFilter("pending"); setShowInterestExpectedDetail(true); }}
       />
       </div>
+
+      {/* 🧠 O que está acontecendo com seu negócio? */}
+      <BusinessPulseSection
+        analysis={businessPulseAnalysis}
+        onRefresh={refreshBusinessPulse}
+      />
 
 
 

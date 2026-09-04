@@ -43,11 +43,12 @@ export function analyzeOverdueConcentration({
     let maxDays = 0;
     let overdueInstallments = 0;
 
+    const refDateStr = referenceDate.toISOString().split("T")[0];
     clientLoans.forEach((loan) => {
       const days = getDaysOverdue(loan, safeSchedules, referenceDate);
       if (days > 0) {
         if (days > maxDays) maxDays = days;
-        const amount = getOverdueAmount(loan, safePayments, safeSchedules, referenceDate);
+        const amount = getOverdueAmount(loan, safeSchedules, refDateStr, safePayments);
         totalOverdue += amount;
         overdueInstallments += Math.max(1, Math.floor(days / 30));
       }
@@ -78,7 +79,7 @@ export function analyzeOverdueConcentration({
       cLoans.forEach((loan) => {
         const days = getDaysOverdue(loan, safeSchedules, prevReferenceDate);
         if (days > 0) {
-          const amt = getOverdueAmount(loan, prevPayments, safeSchedules, prevReferenceDate);
+          const amt = getOverdueAmount(loan, safeSchedules, prevRefStr, prevPayments);
           clientPrevOverdue += amt;
         }
       });
