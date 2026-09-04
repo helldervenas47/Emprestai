@@ -500,13 +500,15 @@ export function MonthlyClosingView({
         </div>
       </Card>
 
-      {/* 7. DIÁLOGO DETALHADO DE CLIENTES INADIMPLENTES DO MÊS */}
+      {/* 7. DIÁLOGO DETALHADO DE CLIENTES INADIMPLENTES DO MÊS E GERAIS */}
       <MonthlyClosingOverdueClientsDialog
         open={isOverdueDialogOpen}
         onOpenChange={setIsOverdueDialogOpen}
         monthLabel={closingData.monthLabel}
         overdueItems={fin.overdueLoansList || []}
         totalOverdueAmount={fin.overdueAmount || 0}
+        allOverdueItems={fin.allOverdueLoansList || []}
+        allOverdueTotalAmount={fin.allOverdueTotalAmount || 0}
         onNavigateToTab={onNavigateToTab}
       />
     </div>

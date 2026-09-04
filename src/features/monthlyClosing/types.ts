@@ -12,6 +12,7 @@ export interface MonthlyClosingOverdueItem {
   principalAmount: number;
   totalWithInterest: number;
   totalAmount: number;
+  interestAmount?: number;
   remainingAmount: number;
   installmentAmount: number;
   overdueAmount: number;
@@ -42,6 +43,8 @@ export interface MonthlyClosingFinancialSummary {
   newClientsCount: number; // Quantidade de novos clientes
   activeClientsCount: number; // Clientes com contratos ativos
   overdueLoansList?: MonthlyClosingOverdueItem[];
+  allOverdueLoansList?: MonthlyClosingOverdueItem[];
+  allOverdueTotalAmount?: number;
 }
 
 export interface MetricComparisonItem {

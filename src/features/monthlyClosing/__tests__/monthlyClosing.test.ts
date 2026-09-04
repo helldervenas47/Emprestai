@@ -583,4 +583,61 @@ describe("Fechamento Mensal Automático + Integração com Metas", () => {
     expect(closing.financial.overdueAmount).toBe(0);
     expect(closing.financial.overdueLoansList?.length).toBe(0);
   });
+
+  it("Cenário 16 — Inadimplentes trazem interestAmount e lista geral allOverdueLoansList", () => {
+    const monthKey = "2026-08";
+
+    const loans: Loan[] = [
+      {
+        id: "l_overdue_august",
+        borrowerId: "c1",
+        borrowerName: "João Silva",
+        amount: 1000,
+        interestRate: 20,
+        installments: 1,
+        startDate: "2026-08-01",
+        dueDate: "2026-08-15",
+        status: "active",
+        paidInstallments: 0,
+        totalAmount: 1200,
+        remainingAmount: 1200,
+        tags: ["VIP"],
+        createdAt: "2026-08-01",
+      },
+      {
+        id: "l_overdue_july",
+        borrowerId: "c2",
+        borrowerName: "Carlos Souza",
+        amount: 500,
+        interestRate: 10,
+        installments: 1,
+        startDate: "2026-07-01",
+        dueDate: "2026-07-15",
+        status: "active",
+        paidInstallments: 0,
+        totalAmount: 550,
+        remainingAmount: 550,
+        createdAt: "2026-07-01",
+      },
+    ];
+
+    const closing = computeMonthlyClosingData({
+      monthKey,
+      loans,
+      payments: [],
+      expenses: [],
+      clients: mockClients,
+      goals: [],
+    });
+
+    // No mês de agosto (fechado), apenas l_overdue_august está no mês
+    expect(closing.financial.overdueLoansList?.length).toBe(1);
+    expect(closing.financial.overdueLoansList?.[0].interestAmount).toBe(200);
+
+    // Na lista geral de inadimplentes (allOverdueLoansList), ambos os contratos estão em atraso
+    expect(closing.financial.allOverdueLoansList?.length).toBe(2);
+    expect(closing.financial.allOverdueLoansList?.find((i) => i.loanId === "l_overdue_august")?.interestAmount).toBe(200);
+    expect(closing.financial.allOverdueLoansList?.find((i) => i.loanId === "l_overdue_july")?.interestAmount).toBe(50);
+  });
 });
+
