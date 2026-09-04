@@ -566,6 +566,8 @@ export function computeMonthlyClosingData(inputs: MonthlyClosingCalculatorInputs
     hasSufficientData,
     loans,
     clients,
+    isClosedMonth,
+    isCurrentMonth,
   });
 
   const updatedTime =

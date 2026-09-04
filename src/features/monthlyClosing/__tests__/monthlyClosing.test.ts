@@ -498,4 +498,42 @@ describe("Fechamento Mensal Automático + Integração com Metas", () => {
     expect(item?.penaltyTotal).toBe(50);
     expect(item?.overdueAmount).toBeGreaterThan(1200); // 1200 + multa + mora
   });
+
+  it("Cenário 14 — Mês vigente em andamento usa narrativa no presente sem afirmar que encerrou", () => {
+    const currentMonthKey = "2026-09";
+
+    const loans: Loan[] = [
+      {
+        id: "l_sep",
+        borrowerId: "c1",
+        borrowerName: "João Silva",
+        amount: 5000,
+        interestRate: 20,
+        installments: 1,
+        startDate: "2026-09-01",
+        dueDate: "2026-09-20",
+        status: "active",
+        paidInstallments: 0,
+        totalAmount: 6000,
+        remainingAmount: 6000,
+        createdAt: "2026-09-01",
+      },
+    ];
+
+    const closing = computeMonthlyClosingData({
+      monthKey: currentMonthKey,
+      loans,
+      payments: [],
+      expenses: [],
+      clients: mockClients,
+      goals: [],
+    });
+
+    expect(closing.isCurrentMonth).toBe(true);
+    expect(closing.isClosedMonth).toBe(false);
+    expect(closing.executiveAnalysis.headline).not.toContain("encerrou");
+    expect(closing.executiveAnalysis.headline).toContain("em andamento");
+    expect(closing.executiveAnalysis.narrative).not.toContain("encerrou");
+    expect(closing.executiveAnalysis.narrative).toContain("em andamento");
+  });
 });

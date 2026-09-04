@@ -470,7 +470,7 @@ export function MonthlyClosingView({
             </div>
             <div className="space-y-1">
               <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
-                💡 Recomendação para o próximo mês
+                💡 {closingData.isClosedMonth ? "Recomendação para o próximo mês" : "Recomendação para o mês vigente"}
               </span>
               <h4 className="text-sm sm:text-base font-bold text-foreground">
                 {closingData.executiveAnalysis?.recommendation?.title || "Acompanhamento de Metas"}

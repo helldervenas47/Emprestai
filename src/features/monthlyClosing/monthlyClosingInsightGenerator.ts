@@ -19,6 +19,8 @@ interface InsightGeneratorInputs {
   hasSufficientData: boolean;
   loans: Loan[];
   clients: Client[];
+  isClosedMonth?: boolean;
+  isCurrentMonth?: boolean;
 }
 
 function formatPp(pp: number): string {
@@ -42,12 +44,18 @@ export function generateMonthlyClosingInsights(inputs: InsightGeneratorInputs): 
     goals,
     goalsSummary,
     hasSufficientData,
+    isClosedMonth = false,
+    isCurrentMonth = false,
   } = inputs;
 
   // 1. Cenário: Sem dados suficientes
   if (!hasSufficientData) {
+    const noDataHeadline = isCurrentMonth
+      ? `${monthLabel} em andamento sem movimentações registradas até o momento.`
+      : `Ainda não há dados suficientes para consolidar o fechamento de ${monthLabel}.`;
+
     return {
-      headline: "Ainda não há dados suficientes para consolidar o fechamento.",
+      headline: noDataHeadline,
       narrative: `Neste período de ${monthLabel}, não foram identificadas movimentações financeiras ou contratos registrados no sistema.`,
       positiveHighlights: [],
       attentionPoints: [
@@ -87,7 +95,7 @@ export function generateMonthlyClosingInsights(inputs: InsightGeneratorInputs): 
         id: `goal_reached_${g.goalType}`,
         type: "positive",
         title: `${g.label} dentro da meta`,
-        description: `Resultado de ${g.formattedActual} ficou dentro do limite estabelecido de ${g.formattedTarget}.`,
+        description: `Resultado de ${g.formattedActual} está dentro do limite estabelecido de ${g.formattedTarget}.`,
         badgeText: "Meta atingida",
       });
     } else {
@@ -113,7 +121,9 @@ export function generateMonthlyClosingInsights(inputs: InsightGeneratorInputs): 
         id: `goal_missed_${g.goalType}`,
         type: "attention",
         title: `${g.label} acima do limite`,
-        description: `Terminou em ${g.formattedActual}, ficando ${ppAbove} p.p. acima do limite de ${g.formattedTarget}.`,
+        description: isCurrentMonth
+          ? `Posição atual em ${g.formattedActual}, ficando ${ppAbove} p.p. acima do limite de ${g.formattedTarget}.`
+          : `Terminou em ${g.formattedActual}, ficando ${ppAbove} p.p. acima do limite de ${g.formattedTarget}.`,
         badgeText: "Meta não atingida",
       });
     } else {
@@ -121,7 +131,9 @@ export function generateMonthlyClosingInsights(inputs: InsightGeneratorInputs): 
         id: `goal_missed_${g.goalType}`,
         type: "attention",
         title: `${g.label} abaixo da meta`,
-        description: `Realizado de ${g.formattedActual} ficou abaixo do planejado (${g.formattedTarget}). Faltaram ${g.formattedDiff.replace("-", "")}.`,
+        description: isCurrentMonth
+          ? `Acumulado de ${g.formattedActual} vs. meta de ${g.formattedTarget}. Faltam ${g.formattedDiff.replace("-", "")} para atingir o objetivo no mês.`
+          : `Realizado de ${g.formattedActual} ficou abaixo do planejado (${g.formattedTarget}). Faltaram ${g.formattedDiff.replace("-", "")}.`,
         badgeText: `${achievement.toFixed(0)}% da meta`,
       });
     }
@@ -135,11 +147,13 @@ export function generateMonthlyClosingInsights(inputs: InsightGeneratorInputs): 
     positiveHighlights.push({
       id: "revenue_growth",
       type: "positive",
-      title: "Crescimento de Empréstimos",
-      description: `Volume emprestado cresceu ${formatPct(comparison.revenue.pctDiff)} em relação a ${previousMonthLabel} (${formatBRL(financial.revenue ?? 0)} vs. ${formatBRL(comparison.revenue.previous ?? 0)}).`,
+      title: isCurrentMonth ? "Empréstimos em Ritmo de Alta" : "Crescimento de Empréstimos",
+      description: isCurrentMonth
+        ? `Volume emprestado já soma ${formatBRL(financial.revenue ?? 0)}, ritmo ${formatPct(comparison.revenue.pctDiff)} acima de ${previousMonthLabel}.`
+        : `Volume emprestado cresceu ${formatPct(comparison.revenue.pctDiff)} em relação a ${previousMonthLabel} (${formatBRL(financial.revenue ?? 0)} vs. ${formatBRL(comparison.revenue.previous ?? 0)}).`,
       badgeText: formatPct(comparison.revenue.pctDiff),
     });
-  } else if ((comparison.revenue?.pctDiff ?? 0) <= -10 && (comparison.revenue?.previous ?? 0) > 0) {
+  } else if (!isCurrentMonth && (comparison.revenue?.pctDiff ?? 0) <= -10 && (comparison.revenue?.previous ?? 0) > 0) {
     attentionPoints.push({
       id: "revenue_drop",
       type: "attention",
@@ -155,10 +169,12 @@ export function generateMonthlyClosingInsights(inputs: InsightGeneratorInputs): 
       id: "received_growth",
       type: "positive",
       title: "Recebimentos em Alta",
-      description: `Total arrecadado aumentou ${formatPct(comparison.received.pctDiff)} frente ao mês anterior (${formatBRL(financial.received ?? 0)} vs. ${formatBRL(comparison.received.previous ?? 0)}).`,
+      description: isCurrentMonth
+        ? `Total arrecadado já soma ${formatBRL(financial.received ?? 0)} no mês em andamento (${formatPct(comparison.received.pctDiff)} vs. ${previousMonthLabel}).`
+        : `Total arrecadado aumentou ${formatPct(comparison.received.pctDiff)} frente ao mês anterior (${formatBRL(financial.received ?? 0)} vs. ${formatBRL(comparison.received.previous ?? 0)}).`,
       badgeText: formatPct(comparison.received.pctDiff),
     });
-  } else if ((comparison.received?.pctDiff ?? 0) <= -10 && (comparison.received?.previous ?? 0) > 0) {
+  } else if (!isCurrentMonth && (comparison.received?.pctDiff ?? 0) <= -10 && (comparison.received?.previous ?? 0) > 0) {
     attentionPoints.push({
       id: "received_drop",
       type: "attention",
@@ -205,8 +221,10 @@ export function generateMonthlyClosingInsights(inputs: InsightGeneratorInputs): 
       attentionPoints.push({
         id: "default_rate_increase",
         type: "attention",
-        title: "Inadimplência em Elevação",
-        description: `Índice de atraso subiu ${formatPp(defaultRatePp)}, fechando o mês em ${currentDefaultRate.toFixed(1).replace(".", ",")}% (${formatBRL(financial.overdueAmount ?? 0)} em aberto).`,
+        title: isCurrentMonth ? "Inadimplência em Atenção" : "Inadimplência em Elevação",
+        description: isCurrentMonth
+          ? `Índice de atraso atual está em ${currentDefaultRate.toFixed(1).replace(".", ",")}% com ${formatBRL(financial.overdueAmount ?? 0)} pendentes.`
+          : `Índice de atraso subiu ${formatPp(defaultRatePp)}, fechando o mês em ${currentDefaultRate.toFixed(1).replace(".", ",")}% (${formatBRL(financial.overdueAmount ?? 0)} em aberto).`,
         badgeText: formatPp(defaultRatePp),
       });
     }
@@ -218,7 +236,9 @@ export function generateMonthlyClosingInsights(inputs: InsightGeneratorInputs): 
       id: "new_clients_highlight",
       type: "positive",
       title: "Expansão da Carteira",
-      description: `${financial.newClientsCount} novos clientes foram cadastrados ao longo do mês.`,
+      description: isCurrentMonth
+        ? `${financial.newClientsCount} novos clientes já foram cadastrados neste mês.`
+        : `${financial.newClientsCount} novos clientes foram cadastrados ao longo do mês.`,
       badgeText: `+${financial.newClientsCount} clientes`,
     });
   }
@@ -235,25 +255,42 @@ export function generateMonthlyClosingInsights(inputs: InsightGeneratorInputs): 
   const overallGoalsPct = typeof goalsSummary.overallAchievementPct === "number" && isFinite(goalsSummary.overallAchievementPct) ? goalsSummary.overallAchievementPct : 0;
   const hasGoodGoals = goalsSummary.hasGoals && overallGoalsPct >= 70;
 
-  if (hasGoodGoals && !isDefaultHigh) {
-    headline = `${monthLabel} apresentou excelente desempenho operacional e metas superadas.`;
-    narrative = `O período encerrou com faturamento de ${formatBRL(financial.revenue ?? 0)} e arrecadação total de ${formatBRL(financial.received ?? 0)}. O cumprimento de ${overallGoalsPct.toFixed(0)}% das metas planejadas e a inadimplência controlada em ${currentDefaultRate.toFixed(1).replace(".", ",")}% reforçam a solidez da operação.`;
-  } else if (isDefaultHigh) {
-    headline = `Crescimento financeiro registrado em ${monthLabel}, com alerta na inadimplência.`;
-    narrative = `Apesar do volume de ${formatBRL(financial.revenue ?? 0)} movimentado, a taxa de inadimplência encerrou o mês em ${currentDefaultRate.toFixed(1).replace(".", ",")}% com ${formatBRL(financial.overdueAmount ?? 0)} em atraso. A prioridade imediata deve ser a cobrança ativa dos contratos vencidos.`;
-  } else if (!isReceivedUp && !isRevenueUp && (comparison.revenue?.previous ?? 0) > 0) {
-    headline = `${monthLabel} encerrou com desaceleração nas operações e recebimentos.`;
-    narrative = `Houve redução no volume de empréstimos concedidos e nos recebimentos totais em comparação a ${previousMonthLabel}. Recomenda-se prospecção de novos tomadores e revisão das metas comerciais.`;
+  if (isCurrentMonth) {
+    // Narrativas para o MÊS VIGENTE (em andamento)
+    if (hasGoodGoals && !isDefaultHigh) {
+      headline = `${monthLabel} segue em andamento com excelente ritmo operacional e metas bem encaminhadas.`;
+      narrative = `O mês em andamento acumula ${formatBRL(financial.revenue ?? 0)} em novos empréstimos e arrecadação total de ${formatBRL(financial.received ?? 0)}. O cumprimento de ${overallGoalsPct.toFixed(0)}% das metas planejadas e a inadimplência sob controle em ${currentDefaultRate.toFixed(1).replace(".", ",")}% mantêm a operação sólida.`;
+    } else if (isDefaultHigh) {
+      headline = `${monthLabel} em andamento com alerta para o índice de inadimplência.`;
+      narrative = `Com ${formatBRL(financial.revenue ?? 0)} movimentados até o momento, a taxa de inadimplência registra ${currentDefaultRate.toFixed(1).replace(".", ",")}% (${formatBRL(financial.overdueAmount ?? 0)} em atraso). A prioridade deve ser a cobrança ativa e prevenção de novos atrasos.`;
+    } else {
+      headline = `${monthLabel} segue em andamento com capital ativo em ${formatBRL(financial.activeCapital ?? 0)}.`;
+      narrative = `No acumulado do mês em andamento até o momento, as entradas somam ${formatBRL(financial.received ?? 0)} em recebimentos e resultado operacional de ${formatBRL(financial.result ?? 0)}. O acompanhamento contínuo dos vencimentos e metas manterá o ritmo saudável da carteira.`;
+    }
   } else {
-    headline = `Balanço equilibrado em ${monthLabel} com capital ativo em ${formatBRL(financial.activeCapital ?? 0)}.`;
-    narrative = `O mês consolidou ${formatBRL(financial.received ?? 0)} em recebimentos e resultado operacional de ${formatBRL(financial.result ?? 0)}. O acompanhamento contínuo dos vencimentos manterá a rentabilidade da carteira.`;
+    // Narrativas para MÊS FECHADO (encerrado)
+    if (hasGoodGoals && !isDefaultHigh) {
+      headline = `${monthLabel} apresentou excelente desempenho operacional e metas superadas.`;
+      narrative = `O período encerrou com faturamento de ${formatBRL(financial.revenue ?? 0)} e arrecadação total de ${formatBRL(financial.received ?? 0)}. O cumprimento de ${overallGoalsPct.toFixed(0)}% das metas planejadas e a inadimplência controlada em ${currentDefaultRate.toFixed(1).replace(".", ",")}% reforçam a solidez da operação.`;
+    } else if (isDefaultHigh) {
+      headline = `Crescimento financeiro registrado em ${monthLabel}, com alerta na inadimplência.`;
+      narrative = `Apesar do volume de ${formatBRL(financial.revenue ?? 0)} movimentado, a taxa de inadimplência encerrou o mês em ${currentDefaultRate.toFixed(1).replace(".", ",")}% com ${formatBRL(financial.overdueAmount ?? 0)} em atraso. A prioridade imediata deve ser a cobrança ativa dos contratos vencidos.`;
+    } else if (!isReceivedUp && !isRevenueUp && (comparison.revenue?.previous ?? 0) > 0) {
+      headline = `${monthLabel} encerrou com desaceleração nas operações e recebimentos.`;
+      narrative = `Houve redução no volume de empréstimos concedidos e nos recebimentos totais em comparação a ${previousMonthLabel}. Recomenda-se prospecção de novos tomadores e revisão das metas comerciais.`;
+    } else {
+      headline = `Balanço equilibrado em ${monthLabel} com capital ativo em ${formatBRL(financial.activeCapital ?? 0)}.`;
+      narrative = `O mês consolidou ${formatBRL(financial.received ?? 0)} em recebimentos e resultado operacional de ${formatBRL(financial.result ?? 0)}. O acompanhamento contínuo dos vencimentos manterá a rentabilidade da carteira.`;
+    }
   }
 
   // ==========================================
-  // D. RECOMENDAÇÃO ACIONÁVEL PARA O PRÓXIMO MÊS
+  // D. RECOMENDAÇÃO ACIONÁVEL
   // ==========================================
-  let recommendationTitle = "Mantenha o acompanhamento das metas";
-  let recommendationText = "Defina as metas do próximo mês com base no histórico recente e monitore a evolução diária dos recebimentos.";
+  let recommendationTitle = isCurrentMonth ? "Mantenha o acompanhamento das metas em aberto" : "Mantenha o acompanhamento das metas";
+  let recommendationText = isCurrentMonth
+    ? `Monitore a evolução diária dos recebimentos e a pontualidade dos vencimentos para garantir o atingimento de todas as metas em ${monthLabel}.`
+    : "Defina as metas do próximo mês com base no histórico recente e monitore a evolução diária dos recebimentos.";
   let directAction: MonthlyClosingExecutiveAnalysis["recommendation"]["action"] = {
     label: "Acompanhar metas",
     targetTab: "metas",
@@ -261,8 +298,12 @@ export function generateMonthlyClosingInsights(inputs: InsightGeneratorInputs): 
   };
 
   if (financial.overdueAmount > 0 && (isDefaultHigh || financial.overdueLoansCount >= 2)) {
-    recommendationTitle = "Priorize a recuperação dos contratos em atraso";
-    recommendationText = `O mês terminou com ${formatBRL(financial.overdueAmount)} pendentes em ${financial.overdueLoansCount} contrato(s). Uma ação de cobrança direcionada e renegociação preventiva aumentará o caixa imediatamente.`;
+    recommendationTitle = isCurrentMonth
+      ? "Acelere a recuperação dos contratos em atraso"
+      : "Priorize a recuperação dos contratos em atraso";
+    recommendationText = isCurrentMonth
+      ? `O mês em andamento registra ${formatBRL(financial.overdueAmount)} pendentes em ${financial.overdueLoansCount} contrato(s). Ações de cobrança e renegociação imediata ajudam a recompor o caixa antes do fechamento.`
+      : `O mês terminou com ${formatBRL(financial.overdueAmount)} pendentes em ${financial.overdueLoansCount} contrato(s). Uma ação de cobrança direcionada e renegociação preventiva aumentará o caixa imediatamente.`;
     directAction = {
       label: "Ver clientes inadimplentes",
       targetTab: "clientes",
@@ -270,7 +311,9 @@ export function generateMonthlyClosingInsights(inputs: InsightGeneratorInputs): 
     };
   } else if (missedGoals.some((g) => g.goalType === "loan_volume" || g.goalType === "profit")) {
     recommendationTitle = "Impulsione novos empréstimos com clientes qualificados";
-    recommendationText = `O faturamento de ${monthLabel} ficou abaixo do planejado. Ofereça novas operações aos clientes com bom histórico de pontualidade e score positivo.`;
+    recommendationText = isCurrentMonth
+      ? `O faturamento de ${monthLabel} está em andamento. Aproveite para oferecer novas operações aos clientes com bom histórico de pontualidade e score positivo.`
+      : `O faturamento de ${monthLabel} ficou abaixo do planejado. Ofereça novas operações aos clientes com bom histórico de pontualidade e score positivo.`;
     directAction = {
       label: "Ver empréstimos",
       targetTab: "emprestimos",
@@ -285,7 +328,9 @@ export function generateMonthlyClosingInsights(inputs: InsightGeneratorInputs): 
       description: "Acessar gestão de despesas",
     };
   } else if (!goalsSummary.hasGoals) {
-    recommendationTitle = "Estabeleça metas claras para o próximo mês";
+    recommendationTitle = isCurrentMonth
+      ? `Estabeleça metas para ${monthLabel}`
+      : "Estabeleça metas claras para o próximo mês";
     recommendationText = "Negócios que operam com metas atingem em média 25% mais resultados. Cadastre seus objetivos de faturamento e recebimentos.";
     directAction = {
       label: "Definir metas",
