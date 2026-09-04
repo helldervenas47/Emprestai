@@ -190,6 +190,7 @@ export function computeClientRanking({
       }
     });
 
+    const totalPaymentsCount = onTimePayments + latePayments;
     const totalEvaluatedObligations = onTimePayments + latePayments + activePendingDelays;
     const onTimePercentage = totalEvaluatedObligations > 0
       ? (onTimePayments / totalEvaluatedObligations) * 100
