@@ -34,7 +34,7 @@ function mapRow(row: any): ActiveCapitalSnapshot {
 const ACTIVE_CAPITAL_COLUMNS =
   "id, month, amount, finalized, snapshot_date, last_calculated_at";
 
-export function useActiveCapitalSnapshots(currentAmount: number) {
+export function useActiveCapitalSnapshots(currentAmount?: number) {
   const { user } = useAuth();
   const ownerId = useDataOwner();
   const [snapshots, setSnapshots] = useState<Record<string, ActiveCapitalSnapshot>>({});
@@ -43,36 +43,51 @@ export function useActiveCapitalSnapshots(currentAmount: number) {
 
   const load = useCallback(async () => {
     if (!ownerId) return;
-    const { data, error } = await (supabase as any)
+
+    const { data, error } = await supabase
       .from("active_capital_snapshots")
       .select(ACTIVE_CAPITAL_COLUMNS)
-      .eq("owner_id", ownerId)
+      .eq("user_id", ownerId)
       .order("month", { ascending: false });
 
-    if (error) return;
+    if (error) {
+      console.error("Erro ao carregar snapshots de capital ativo:", error);
+      return;
+    }
 
-    setSnapshots(
-      Object.fromEntries(((data ?? []) as any[]).map((row) => {
-        const mapped = mapRow(row);
-        return [mapped.month, mapped];
-      }))
-    );
+    const next: Record<string, ActiveCapitalSnapshot> = {};
+    for (const row of data || []) {
+      next[row.month] = mapRow(row);
+    }
+    setSnapshots(next);
   }, [ownerId]);
 
-  const upsertSnapshot = useCallback(async (month: string, amount: number, finalize: boolean) => {
-    if (!ownerId) return null;
-    const { data, error } = await (supabase as any).rpc("upsert_active_capital_snapshot", {
-      _owner_id: ownerId,
-      _month: month,
-      _amount: amount,
-      _finalize: finalize,
-    });
+  const upsertSnapshot = useCallback(
+    async (month: string, amount: number, finalized = false) => {
+      if (!ownerId) return null;
 
-    if (error || !data) return null;
-    const mapped = mapRow(data);
-    setSnapshots((current) => ({ ...current, [mapped.month]: mapped }));
-    return mapped;
-  }, [ownerId]);
+      const payload = {
+        user_id: ownerId,
+        month,
+        amount,
+        finalized,
+        snapshot_date: todayInAppTz(),
+        last_calculated_at: new Date().toISOString(),
+      };
+
+      const { data, error } = await supabase
+        .from("active_capital_snapshots")
+        .upsert(payload, { onConflict: "user_id,month" })
+        .select(ACTIVE_CAPITAL_COLUMNS)
+        .single();
+
+      if (error || !data) return null;
+      const mapped = mapRow(data);
+      setSnapshots((current) => ({ ...current, [mapped.month]: mapped }));
+      return mapped;
+    },
+    [ownerId]
+  );
 
   useEffect(() => {
     if (user && ownerId) {
@@ -84,10 +99,10 @@ export function useActiveCapitalSnapshots(currentAmount: number) {
   }, [user, ownerId, load]);
 
   useEffect(() => {
-    if (!ownerId || syncingRef.current) return;
+    if (!ownerId || syncingRef.current || currentAmount === undefined || typeof currentAmount !== "number" || isNaN(currentAmount)) return;
 
     const currentSnapshot = snapshots[currentMonth];
-    const roundedAmount = Number(currentAmount.toFixed(2));
+    const roundedAmount = Number((currentAmount ?? 0).toFixed(2));
     const shouldSyncCurrent = !currentSnapshot || !currentSnapshot.finalized || Math.abs(currentSnapshot.amount - roundedAmount) > 0.009;
     const staleOpenMonths = Object.values(snapshots).filter((snapshot) => snapshot.month < currentMonth && !snapshot.finalized);
 

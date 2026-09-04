@@ -53,7 +53,14 @@ export function useMonthlyClosing({
 
   const { goals, loading: goalsLoading, reload: reloadGoals } = useMonthlyGoals();
   const { getSnapshot: getGoalSnapshot } = useGoalSnapshots();
-  const { getSnapshotAmount: getActiveCapitalSnapshot } = useActiveCapitalSnapshots();
+
+  const currentActiveCapital = useMemo(() => {
+    return (loans || [])
+      .filter((l: any) => l.status !== "completed" && l.status !== "paid")
+      .reduce((s: number, l: any) => s + (l.remainingAmount ?? l.amount ?? 0), 0);
+  }, [loans]);
+
+  const { getSnapshotAmount: getActiveCapitalSnapshot } = useActiveCapitalSnapshots(currentActiveCapital);
 
   const closingData: MonthlyClosingData = useMemo(() => {
     return computeMonthlyClosingData({
