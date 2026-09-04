@@ -18,6 +18,8 @@ import { DashboardBreakdownSection } from "@/features/dashboard/components/dashb
 import { DashboardChartsSection } from "@/features/dashboard/components/dashboard/DashboardChartsSection";
 import { DashboardInsightsSection } from "@/features/dashboard/components/dashboard/DashboardInsightsSection";
 import { CollapsibleSection } from "@/features/dashboard/components/dashboard/CollapsibleSection";
+import { BusinessPulseSection } from "@/features/dashboard/components/dashboard/BusinessPulseSection";
+import { useBusinessPulse } from "@/features/dashboard/hooks/useBusinessPulse";
 import { useDashboardOverviewController } from "@/features/dashboard/components/dashboard/useDashboardOverviewController";
 import { useDashboardMetrics } from "@/features/dashboard/components/dashboard/useDashboardMetrics";
 import { useDashboardAiReports } from "@/features/dashboard/components/dashboard/useDashboardAiReports";
@@ -162,6 +164,17 @@ export function DashboardOverview({ loans, sales, payments, expenses, installmen
     range,
   });
 
+  const { analysis: businessPulseAnalysis, refresh: refreshBusinessPulse } = useBusinessPulse({
+    loans,
+    sales,
+    payments,
+    expenses,
+    clients,
+    installmentSchedules,
+    range,
+    period,
+  });
+
   return (
     <div className="@container/dash dash-premium dash-page space-y-6">
       <DashboardPeriodFilter
@@ -172,6 +185,12 @@ export function DashboardOverview({ loans, sales, payments, expenses, installmen
         onNext={() => setOffset(offset + 1)}
         onReset={() => setOffset(0)}
         onChangePeriod={handleChangePeriod}
+      />
+
+      {/* 🧠 O que está acontecendo com seu negócio? */}
+      <BusinessPulseSection
+        analysis={businessPulseAnalysis}
+        onRefresh={refreshBusinessPulse}
       />
 
       <div className="space-y-2.5 sm:space-y-3">
