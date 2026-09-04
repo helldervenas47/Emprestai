@@ -102,15 +102,15 @@ export function MonthlyClosingView({
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-300">
       {/* 1. BARRA SUPERIOR EXECUTIVA & NAVEGAÇÃO */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-card/60 backdrop-blur-sm p-4 sm:p-5 rounded-2xl border border-border/60 shadow-sm">
+      <div className="bg-card/60 backdrop-blur-sm p-4 sm:p-5 rounded-2xl border border-border/60 shadow-sm space-y-3.5 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
         <div className="space-y-1">
-          <div className="flex items-center gap-2.5">
-            <span className="text-xl sm:text-2xl font-bold tracking-tight">
-              📊 Fechamento Mensal
+          <div className="flex items-center justify-between sm:justify-start gap-2.5">
+            <span className="text-lg sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+              <span className="text-xl sm:text-2xl">📊</span> Fechamento Mensal
             </span>
             <Badge
               variant={closingData.isClosedMonth ? "default" : "secondary"}
-              className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
+              className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full shrink-0 ${
                 closingData.isClosedMonth
                   ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
                   : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
@@ -124,13 +124,13 @@ export function MonthlyClosingView({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
           {/* Seletor de Mês (Padrão do App) */}
-          <div className="flex items-center justify-center gap-1 sm:gap-2">
+          <div className="flex items-center justify-between sm:justify-center gap-1 sm:gap-2 bg-muted/40 sm:bg-transparent rounded-xl sm:rounded-none p-1 sm:p-0 border sm:border-0 border-border/40">
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-foreground hover:bg-muted"
+              className="h-8 w-8 text-foreground hover:bg-muted shrink-0"
               onClick={goToPrevMonth}
               title="Mês anterior"
             >
@@ -140,14 +140,14 @@ export function MonthlyClosingView({
               type="button"
               onClick={resetToCurrentMonth}
               title="Voltar para o mês vigente"
-              className="text-base sm:text-lg font-medium text-foreground min-w-[140px] text-center capitalize hover:text-primary transition-colors cursor-pointer"
+              className="text-sm sm:text-base font-semibold text-foreground min-w-[130px] sm:min-w-[140px] text-center capitalize hover:text-primary transition-colors cursor-pointer select-none"
             >
               {closingData.monthLabel}
             </button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-foreground hover:bg-muted"
+              className="h-8 w-8 text-foreground hover:bg-muted shrink-0"
               onClick={goToNextMonth}
               title="Próximo mês"
             >
@@ -155,29 +155,30 @@ export function MonthlyClosingView({
             </Button>
           </div>
 
-          {/* Botão Recalcular */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRecalculate}
-            disabled={isRecalculating}
-            className="rounded-xl text-xs font-semibold gap-1.5 h-9"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isRecalculating ? "animate-spin text-primary" : ""}`} />
-            <span className="hidden sm:inline">Recalcular</span>
-          </Button>
+          {/* Botões de Ação */}
+          <div className="grid grid-cols-2 sm:flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRecalculate}
+              disabled={isRecalculating}
+              className="rounded-xl text-xs font-semibold gap-1.5 h-9 w-full sm:w-auto justify-center border-border/70"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRecalculating ? "animate-spin text-primary" : ""}`} />
+              <span>Atualizar</span>
+            </Button>
 
-          {/* Botão Exportar PDF */}
-          <Button
-            variant="default"
-            size="sm"
-            onClick={exportPdf}
-            disabled={isExportingPdf}
-            className="rounded-xl text-xs font-semibold gap-1.5 h-9 shadow-sm bg-primary hover:bg-primary/90"
-          >
-            <FileDown className="h-3.5 w-3.5" />
-            <span>{isExportingPdf ? "Gerando PDF..." : "Exportar PDF"}</span>
-          </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={exportPdf}
+              disabled={isExportingPdf}
+              className="rounded-xl text-xs font-semibold gap-1.5 h-9 w-full sm:w-auto justify-center shadow-sm bg-primary hover:bg-primary/90"
+            >
+              <FileDown className="h-3.5 w-3.5" />
+              <span>{isExportingPdf ? "Gerando..." : "Exportar PDF"}</span>
+            </Button>
+          </div>
         </div>
       </div>
 
