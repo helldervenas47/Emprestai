@@ -39,15 +39,20 @@ export function MonthlyClosingOverdueClientsDialog({
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredItems = useMemo(() => {
-    if (!searchTerm.trim()) return overdueItems;
-    const term = searchTerm.toLowerCase();
-    return overdueItems.filter((item) => {
-      const matchName = item.clientName.toLowerCase().includes(term);
-      const matchPhone = (item.clientPhone || "").toLowerCase().includes(term);
-      const matchLoan = String(item.loanNumber || item.loanId).toLowerCase().includes(term);
-      const matchTags = (item.tags || []).some((t) => t.toLowerCase().includes(term));
-      return matchName || matchPhone || matchLoan || matchTags;
-    });
+    let items = overdueItems;
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      items = items.filter((item) => {
+        const matchName = item.clientName.toLowerCase().includes(term);
+        const matchPhone = (item.clientPhone || "").toLowerCase().includes(term);
+        const matchLoan = String(item.loanNumber || item.loanId).toLowerCase().includes(term);
+        const matchTags = (item.tags || []).some((t) => t.toLowerCase().includes(term));
+        return matchName || matchPhone || matchLoan || matchTags;
+      });
+    }
+    return [...items].sort((a, b) =>
+      a.clientName.localeCompare(b.clientName, "pt-BR", { sensitivity: "base" })
+    );
   }, [overdueItems, searchTerm]);
 
   // Contagem de clientes únicos afetados

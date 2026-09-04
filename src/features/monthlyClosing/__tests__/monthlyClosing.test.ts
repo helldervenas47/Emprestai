@@ -372,13 +372,13 @@ describe("Fechamento Mensal Automático + Integração com Metas", () => {
     expect(closing.financial.overdueLoansList?.length).toBe(2);
 
     const first = closing.financial.overdueLoansList?.[0];
-    expect(first?.clientName).toBe("João Silva");
-    expect(first?.overdueAmount).toBe(3000);
-    expect(first?.overdueInstallmentsCount).toBe(1);
+    expect(first?.clientName).toBe("Carlos Souza");
+    expect(first?.overdueAmount).toBe(2200);
 
     const second = closing.financial.overdueLoansList?.[1];
-    expect(second?.clientName).toBe("Carlos Souza");
-    expect(second?.overdueAmount).toBe(2200);
+    expect(second?.clientName).toBe("João Silva");
+    expect(second?.overdueAmount).toBe(3000);
+    expect(second?.overdueInstallmentsCount).toBe(1);
   });
 
   it("Cenário 12 — Contratos quitados (status 'paid'/'completed' ou remainingAmount = 0) NUNCA aparecem como inadimplentes", () => {

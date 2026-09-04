@@ -308,8 +308,8 @@ export function calculateFinancialSummaryForMonth(
     }
   });
 
-  // Ordena por maior valor em atraso primeiro
-  overdueLoansList.sort((a, b) => b.overdueAmount - a.overdueAmount);
+  // Ordena por ordem alfabética do nome do cliente
+  overdueLoansList.sort((a, b) => a.clientName.localeCompare(b.clientName, "pt-BR", { sensitivity: "base" }));
 
   // 7. Contratos quitados no mês
   const completedLoansCount = loans.filter((l: any) => {
