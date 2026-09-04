@@ -362,7 +362,8 @@ export function calculateFinancialSummaryForMonth(
     const penaltyTotal = (lateFeesResult.penaltyTotal || 0) + (installments < 2 ? Number(loan.renegotiationPenaltyTotal || 0) : 0);
     const totalFees = Math.round((lateInterestTotal + penaltyTotal) * 100) / 100;
 
-    const finalOverdueAmount = Math.round((nominalOverdue + totalFees) * 100) / 100;
+    const overdueAmountCalculated = getOverdueAmount(loan, installmentSchedules, today, payments);
+    const finalOverdueAmount = overdueAmountCalculated > 0 ? overdueAmountCalculated : Math.round((nominalOverdue + totalFees) * 100) / 100;
     const finalRemainingAmount = baseRemaining;
     const finalInstallmentAmount = Math.round((nextInstallmentAmount + totalFees) * 100) / 100;
     const interestAmount = Math.max(0, Math.round((totalAmount - principal) * 100) / 100);
