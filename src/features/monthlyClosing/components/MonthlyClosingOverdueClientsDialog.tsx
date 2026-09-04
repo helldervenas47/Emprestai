@@ -159,14 +159,18 @@ export function MonthlyClosingOverdueClientsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[92vh] flex flex-col p-3.5 sm:p-6 gap-3 sm:gap-4 overflow-hidden">
-        <DialogHeader className="space-y-1 shrink-0 text-left">
-          <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-rose-500/15 border border-rose-500/25 flex items-center justify-center shrink-0">
-              <ShieldAlert className="h-5 w-5 text-rose-600 dark:text-rose-400" />
+      <DialogContent
+        className="p-0 gap-0 w-screen h-[100dvh] max-w-none sm:max-w-none sm:rounded-none border-0 translate-x-0 translate-y-0 left-0 top-0 flex flex-col overflow-hidden bg-background rounded-none shadow-none"
+        style={{ transform: "none" }}
+      >
+        {/* CABEÇALHO SUPERIOR FIXO */}
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 md:px-8 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3.5 border-b border-border bg-card shrink-0 pr-14 sm:pr-16">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-rose-500/15 border border-rose-500/25 flex items-center justify-center shrink-0">
+              <ShieldAlert className="h-5 w-5 sm:h-5.5 sm:w-5.5 text-rose-600 dark:text-rose-400" />
             </div>
             <div className="min-w-0">
-              <DialogTitle className="text-sm sm:text-lg font-bold text-foreground truncate">
+              <DialogTitle className="text-sm sm:text-lg md:text-xl font-bold text-foreground truncate">
                 {viewMode === "all" ? "Inadimplentes Gerais — Toda a Carteira" : `Clientes Inadimplentes — ${monthLabel}`}
               </DialogTitle>
               <DialogDescription className="text-xs sm:text-sm text-muted-foreground line-clamp-1 sm:line-clamp-none">
@@ -176,7 +180,10 @@ export function MonthlyClosingOverdueClientsDialog({
               </DialogDescription>
             </div>
           </div>
-        </DialogHeader>
+        </div>
+
+        {/* CORPO PRINCIPAL EM TELA CHEIA */}
+        <div className="flex-1 overflow-hidden flex flex-col w-full max-w-7xl mx-auto p-3 sm:p-5 md:p-6 gap-3 sm:gap-4">
 
         {/* FLAG/SELETOR DE ESCOPO: DO MÊS VS GERAL */}
         <div className="flex items-center p-1 bg-muted/60 dark:bg-muted/30 rounded-xl border border-border/70 shrink-0 gap-1 text-xs">
@@ -710,6 +717,7 @@ export function MonthlyClosingOverdueClientsDialog({
               );
             })
           )}
+        </div>
         </div>
       </DialogContent>
     </Dialog>
