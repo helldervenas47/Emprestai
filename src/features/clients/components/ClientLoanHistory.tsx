@@ -377,30 +377,17 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
     return (
       <div className="space-y-4 animate-in fade-in slide-in-from-right-3 duration-200">
         {/* Navigation bar */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-border/40">
+        <div className="flex items-center justify-end pb-1 border-b border-border/40">
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             type="button"
             onClick={closeClient}
-            className="gap-1.5 -ml-2 text-xs font-semibold hover:bg-muted"
+            className="gap-1.5 text-xs text-muted-foreground hover:text-foreground h-8"
           >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Voltar aos Clientes</span>
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>Voltar para Clientes</span>
           </Button>
-
-          {onBackToLoans && (
-            <Button
-              variant="outline"
-              size="sm"
-              type="button"
-              onClick={onBackToLoans}
-              className="gap-1.5 text-xs text-muted-foreground hover:text-foreground h-8"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              <span>Voltar para Empréstimos</span>
-            </Button>
-          )}
         </div>
 
         {/* Client Profile Header Banner */}
@@ -890,16 +877,20 @@ function ClientLoansList({ loans, payments, installmentSchedules = [], paymentsB
 
   // Mapeamento semântico dos status calculados para exibição e filtragem
   const statusCounts = useMemo(() => {
-    const counts = { all: loans.length, em_atraso: 0, em_dia: 0, quitado: 0, renegociado: 0 };
+    const counts = { all: loans.length, pendente: 0, em_atraso: 0, em_dia: 0, quitado: 0, renegociado: 0 };
     loans.forEach((l) => {
       const loanPayments = payments.filter((p) => p.loanId === l.id);
       const loanSchedules = installmentSchedules.filter((s) => s.loanId === l.id);
       const state = getLoanFinancialStateForUI({ loan: l, payments: loanPayments, installmentSchedules: loanSchedules });
       const derived = deriveLoanFinancialStatus(state, l);
-      if (derived.status === "em_atraso") counts.em_atraso++;
-      else if (derived.status === "quitado") counts.quitado++;
-      else if (derived.status === "renegociado") counts.renegociado++;
-      else counts.em_dia++;
+      if (derived.status === "quitado") {
+        counts.quitado++;
+      } else {
+        counts.pendente++;
+        if (derived.status === "em_atraso") counts.em_atraso++;
+        else if (derived.status === "renegociado") counts.renegociado++;
+        else counts.em_dia++;
+      }
     });
     return counts;
   }, [loans, payments, installmentSchedules]);
@@ -911,6 +902,7 @@ function ClientLoansList({ loans, payments, installmentSchedules = [], paymentsB
       const loanSchedules = installmentSchedules.filter((s) => s.loanId === l.id);
       const state = getLoanFinancialStateForUI({ loan: l, payments: loanPayments, installmentSchedules: loanSchedules });
       const derived = deriveLoanFinancialStatus(state, l);
+      if (statusFilter === "pendente") return derived.status !== "quitado";
       if (statusFilter === "em_atraso") return derived.status === "em_atraso";
       if (statusFilter === "em_dia") return derived.status === "em_dia" || derived.status === "parcialmente_pago";
       if (statusFilter === "quitado") return derived.status === "quitado";
@@ -966,6 +958,7 @@ function ClientLoansList({ loans, payments, installmentSchedules = [], paymentsB
 
   const statusFilterConfig: Array<{ id: string; label: string; dotClass?: string; count: number }> = [
     { id: "all", label: "Todos", count: statusCounts.all },
+    { id: "pendente", label: "Pendente (Atraso e em dia)", dotClass: "bg-warning", count: statusCounts.pendente },
     { id: "em_atraso", label: "Em atraso", dotClass: "bg-destructive", count: statusCounts.em_atraso },
     { id: "em_dia", label: "Em dia", dotClass: "bg-primary", count: statusCounts.em_dia },
     { id: "quitado", label: "Quitados", dotClass: "bg-success", count: statusCounts.quitado },
@@ -1011,6 +1004,8 @@ function ClientLoansList({ loans, payments, installmentSchedules = [], paymentsB
                     ? "border-destructive/50 bg-destructive/10 text-destructive hover:bg-destructive/15"
                     : statusFilter === "quitado"
                     ? "border-success/50 bg-success/10 text-success hover:bg-success/15"
+                    : statusFilter === "pendente"
+                    ? "border-warning/50 bg-warning/10 text-warning hover:bg-warning/15"
                     : "border-primary/50 bg-primary/10 text-primary hover:bg-primary/15"
                   : "text-muted-foreground hover:text-foreground bg-card"
               )}
@@ -1024,7 +1019,7 @@ function ClientLoansList({ loans, payments, installmentSchedules = [], paymentsB
               )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuContent align="end" className="w-64">
             <DropdownMenuLabel className="text-xs">Filtrar por Status</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {statusFilterConfig.map((opt) => (
