@@ -896,7 +896,12 @@ const Index = () => {
     remove: removeVehicle,
   } = useVehicleRegistry(needsVehicles);
   const { locador, locadores, save: saveLocador, remove: removeLocador } = useLocadorInfo(needsLocadores);
-  const [clientSubTab, setClientSubTab] = usePersistentOption<ClientSubTab>("clients", ["clientes", "veiculos", "ranking"], "clientes");
+  const [clientSubTab, setClientSubTab] = useState<ClientSubTab>("clientes");
+  useEffect(() => {
+    if (tab === "clients") {
+      setClientSubTab("clientes");
+    }
+  }, [tab]);
   const [loanSubTab, setLoanSubTab] = usePersistentOption<"loans" | "history">("loans", ["loans", "history"], "loans");
   // Histórico do Cliente: lista e histórico têm snapshots independentes.
   // A lista só é restaurada no FECHAMENTO; ao abrir, o histórico sempre começa no topo.

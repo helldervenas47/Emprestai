@@ -25,7 +25,7 @@ interface Props {
 export function MetasTab({
   loans, payments, expenses, clients, installmentSchedules, renegotiations: propRenegotiations, readOnly,
 }: Props) {
-  const [sub, setSub] = useState<SubTab>("fechamento");
+  const [sub, setSub] = useState<SubTab>("evolucao");
   const { renegotiations: loadedRenegotiations } = useLoanRenegotiations();
   const renegotiations = propRenegotiations || loadedRenegotiations || [];
   
