@@ -22,6 +22,8 @@ import {
 export type IncomeStatus = "pending" | "received" | "overdue";
 export type IncomeRecurrence = "once" | "weekly" | "biweekly" | "monthly" | "yearly";
 
+const INCOMES_STALE_MS = 60_000;
+
 export interface Income {
   id: string;
   /** Opcional: presente em payloads legados/mocks. */
