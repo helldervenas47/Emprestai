@@ -211,7 +211,6 @@ import {
   Target,
   Calculator,
   Settings as SettingsIcon,
-  CalendarClock,
   Pin,
   Check,
   Sliders,
@@ -2387,18 +2386,6 @@ const Index = () => {
                                 disabled={themeSwitching}
                                 onClick={toggleTheme}
                               />
-                              {role === "admin" && (
-                                <QuickAction
-                                  icon={pendingNav === "/planejamento-do-dia" ? Loader2 : CalendarClock}
-                                  label="Planejamento"
-                                  spinning={pendingNav === "/planejamento-do-dia"}
-                                  disabled={!!pendingNav}
-                                  onClick={() => {
-                                    handleQuickNav("/planejamento-do-dia");
-                                    setMoreOpen(false);
-                                  }}
-                                />
-                              )}
                               <HideValuesQuickTile />
                             </div>
                           </div>
