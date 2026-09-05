@@ -51,6 +51,7 @@ import { AmortizationResultCard } from "@/features/loans/components/Amortization
 import { captureScroll } from "@/features/loans/lib/preserveScroll";
 import { PaymentHubDialog } from "@/features/loans/components/payment-hub/PaymentHubDialog";
 
+import { LateInterestDialog, PenaltyDialog } from "@/features/loans/components/LateFeeDialogs";
 import { WhatsappBillButton } from "@/features/loans/components/list/WhatsappBillButton";
 import { LoanListSummaryCards } from "@/features/loans/components/list/LoanListSummaryCards";
 import { LoanCategoryChips, LoanSearchBar, LoanQuickDateFilters, LoanAdvancedFilters } from "@/features/loans/components/list/LoanListFilters";
@@ -1033,67 +1034,38 @@ function LoanRowView({
                 )}
               </div>
 
-              {/* Formulários inline acionados pelo menu (Juros / Multa) */}
-              {!readOnly && showLateInterest && (
-                <div className="p-3 rounded-xl bg-muted/60 border border-border/50 space-y-2 mt-1" onClick={(e) => e.stopPropagation()}>
-                  <p className="text-xs font-semibold text-foreground">Juros por Atraso</p>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant={lateInterestType === "percentage" ? "default" : "outline"} className="flex-1 h-8 text-xs" onClick={() => setLateInterestType("percentage")}>% por dia</Button>
-                    <Button size="sm" variant={lateInterestType === "fixed" ? "default" : "outline"} className="flex-1 h-8 text-xs" onClick={() => setLateInterestType("fixed")}>R$ por dia</Button>
-                  </div>
-                  <Input
-                    type="number" step="0.01" min="0"
-                    placeholder={lateInterestType === "percentage" ? "Ex: 0.5 (%)" : "Ex: 5.00 (R$)"}
-                    value={lateInterestValue}
-                    onChange={(e) => setLateInterestValue(e.target.value)}
-                    className="h-8 text-sm"
-                  />
-                  <div className="flex gap-2">
-                    <Button data-mutation size="sm" className="flex-1 h-8 text-xs" onClick={() => {
-                      const val = parseFloat(lateInterestValue) || 0;
-                      onUpdate({ lateInterestType, lateInterestValue: val > 0 ? val : null });
-                      setShowLateInterest(false);
-                    }}>Salvar</Button>
-                    {loan.lateInterestValue != null && (
-                      <Button data-mutation size="sm" variant="ghost" className="h-8 text-xs text-destructive" onClick={() => {
-                        onUpdate({ lateInterestType: null, lateInterestValue: null });
-                        setLateInterestValue("");
-                        setShowLateInterest(false);
-                      }}>Remover</Button>
-                    )}
-                    <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setShowLateInterest(false)}>Cancelar</Button>
-                  </div>
-                </div>
-              )}
-
-              {!readOnly && showPenalty && (
-                <div className="p-3 rounded-xl bg-muted/60 border border-border/50 space-y-2 mt-1" onClick={(e) => e.stopPropagation()}>
-                  <p className="text-xs font-semibold text-foreground">Multa por Parcela (valor fixo único)</p>
-                  <Input
-                    type="number" step="0.01" min="0"
-                    placeholder="Ex: 50.00 (R$)"
-                    value={penaltyValue}
-                    onChange={(e) => setPenaltyValue(e.target.value)}
-                    className="h-8 text-sm"
-                  />
-                  <div className="flex gap-2">
-                    <Button data-mutation size="sm" className="flex-1 h-8 text-xs" onClick={() => {
-                      const val = parseFloat(penaltyValue) || 0;
-                      onUpdate({ penaltyValue: val > 0 ? val : null });
-                      setShowPenalty(false);
-                    }}>Salvar</Button>
-                    {loan.penaltyValue != null && (
-                      <Button data-mutation size="sm" variant="ghost" className="h-8 text-xs text-destructive" onClick={() => {
-                        onUpdate({ penaltyValue: null });
-                        setPenaltyValue("");
-                        setShowPenalty(false);
-                      }}>Remover</Button>
-                    )}
-                    <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setShowPenalty(false)}>Cancelar</Button>
-                  </div>
-                </div>
-              )}
             </div>
+
+            {/* Diálogos de Juros e Multa */}
+            <LateInterestDialog
+              open={showLateInterest}
+              onOpenChange={setShowLateInterest}
+              loan={loan}
+              baseRemaining={baseRemaining}
+              daysOverdue={daysOverdue}
+              onSave={(type, val) => {
+                onUpdate({
+                  lateInterestType: type,
+                  lateInterestValue: val,
+                });
+                toast.success(val ? "Juros por atraso atualizados" : "Juros por atraso removidos");
+              }}
+              formatCurrency={formatCurrency}
+            />
+
+            <PenaltyDialog
+              open={showPenalty}
+              onOpenChange={setShowPenalty}
+              loan={loan}
+              baseRemaining={baseRemaining}
+              onSave={(val) => {
+                onUpdate({
+                  penaltyValue: val,
+                });
+                toast.success(val ? "Multa atualizada" : "Multa removida");
+              }}
+              formatCurrency={formatCurrency}
+            />
             <PartialPaymentDialog
               open={showPartial}
               onOpenChange={(open) => { if (!open) { setShowPartial(false); setPartialAmount(""); setPartialDate(new Date()); } }}
