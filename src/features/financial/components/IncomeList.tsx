@@ -396,19 +396,21 @@ export function IncomeList({ readOnly }: Props) {
                     const alreadyPartial = totalPartialPaid(i.notes);
                     const outstanding = incomeOutstanding(i);
 
+                    const isPartialIncome = alreadyPartial > 0 && i.status !== "received";
+
                     return (
                       <FinancialListMiniCard
                         key={i.id}
                         title={i.description}
-                        amount={fmtBRL(i.amount)}
-                        amountTone="income"
-                        status={alreadyPartial > 0 && i.status !== "received" ? "pending" : incomeMiniCardStatus(i.status, i.receivedDate)}
-                        statusLabel={alreadyPartial > 0 && i.status !== "received" ? `Parcial (${fmtBRL(alreadyPartial)})` : STATUS_LABEL[i.status]}
+                        amount={fmtBRL(isPartialIncome ? outstanding : i.amount)}
+                        amountTone={isPartialIncome ? "neutral" : "income"}
+                        status={isPartialIncome ? "pending" : incomeMiniCardStatus(i.status, i.receivedDate)}
+                        statusLabel={isPartialIncome ? `Parcial (${fmtBRL(alreadyPartial)})` : STATUS_LABEL[i.status]}
                         category={i.category || undefined}
                         dueDate={formatDateBR(i.receivedDate, "dd/MM/yyyy")}
                         paidDate={isReceived && i.actualReceivedDate ? formatDateBR(i.actualReceivedDate, "dd/MM/yyyy") : undefined}
-                        progress={alreadyPartial > 0 && i.status !== "received" ? Math.min(100, Math.round((alreadyPartial / i.amount) * 100)) : undefined}
-                        progressLabel={alreadyPartial > 0 && i.status !== "received" ? `Recebido ${fmtBRL(alreadyPartial)} de ${fmtBRL(i.amount)} (saldo: ${fmtBRL(outstanding)})` : undefined}
+                        progress={isPartialIncome ? Math.min(100, Math.round((alreadyPartial / i.amount) * 100)) : undefined}
+                        progressLabel={isPartialIncome ? `Recebido ${fmtBRL(alreadyPartial)} de ${fmtBRL(i.amount)} (restante: ${fmtBRL(outstanding)})` : undefined}
                         meta={
                           <>
                             {clientName(i) && <span>{clientName(i)}</span>}
@@ -446,6 +448,7 @@ export function IncomeList({ readOnly }: Props) {
                 {filtered.map((i) => {
                   const alreadyPartial = totalPartialPaid(i.notes);
                   const outstanding = incomeOutstanding(i);
+                  const isPartialIncome = alreadyPartial > 0 && i.status !== "received";
 
                   return (
                   <div
@@ -462,7 +465,7 @@ export function IncomeList({ readOnly }: Props) {
                             {i.status === "overdue" && <AlertTriangle className="h-3 w-3 mr-1" />}
                             {STATUS_LABEL[i.status]}
                           </Badge>
-                          {alreadyPartial > 0 && i.status !== "received" && (
+                          {isPartialIncome && (
                             <Badge variant="outline" className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-xs font-semibold">
                               Parcial ({fmtBRL(alreadyPartial)} de {fmtBRL(i.amount)})
                             </Badge>
@@ -497,12 +500,12 @@ export function IncomeList({ readOnly }: Props) {
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-                          {fmtBRL(i.amount)}
+                        <div className={`text-lg font-bold ${isPartialIncome ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                          {fmtBRL(isPartialIncome ? outstanding : i.amount)}
                         </div>
-                        {alreadyPartial > 0 && i.status !== "received" && (
-                          <div className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-                            Saldo pendente: {fmtBRL(outstanding)}
+                        {isPartialIncome && (
+                          <div className="text-xs text-muted-foreground">
+                            Restante de {fmtBRL(i.amount)}
                           </div>
                         )}
                       </div>

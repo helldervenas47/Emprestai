@@ -1626,40 +1626,62 @@ export function PersonalExpenseList({ expenses: expensesInput, onPay, onUnpay, o
                                       }
                                     }
 
+                                    const partialPaid = expense.paid ? 0 : partialPaidForMonth(expense.notes, selectedMonth);
+                                    const isPartial = !expense.paid && partialPaid > 0.005;
+                                    const remaining = Math.max(0, installmentAmount - partialPaid);
+
                                     if (finalInvoiceInfo) {
                                       const isPaid = finalInvoiceInfo.paid;
-                                      const isPartial = !isPaid && finalInvoiceInfo.paidTotal > 0.005;
-                                      const remaining = Math.max(0, Number((finalInvoiceInfo.total - finalInvoiceInfo.paidTotal).toFixed(2)));
-                                      const val = isPaid ? finalInvoiceInfo.paidTotal : isPartial ? remaining : finalInvoiceInfo.total;
+                                      const isCardPartial = !isPaid && finalInvoiceInfo.paidTotal > 0.005;
+                                      const cardRemaining = Math.max(0, Number((finalInvoiceInfo.total - finalInvoiceInfo.paidTotal).toFixed(2)));
+                                      const val = isPaid ? finalInvoiceInfo.paidTotal : isCardPartial ? cardRemaining : finalInvoiceInfo.total;
                                       
                                       return (
                                         <>
-                                          <p className={`text-sm font-bold ${isPaid ? "text-emerald-600 dark:text-emerald-400" : isPartial ? "text-amber-600 dark:text-amber-400" : dueAccent.text}`}>
+                                          <p className={`text-sm font-bold ${isPaid ? "text-emerald-600 dark:text-emerald-400" : isCardPartial ? "text-amber-600 dark:text-amber-400" : dueAccent.text}`}>
                                             {formatCurrency(val)}
                                           </p>
                                           <p className="text-[10px] text-muted-foreground mt-0.5">
-                                            {isPartial ? "Fatura atual (restante)" : "Valor da fatura"}
+                                            {isCardPartial ? "Fatura atual (restante)" : "Valor da fatura"}
                                           </p>
                                         </>
                                       );
                                     }
 
                                     return (
-                                      <p className={`text-sm font-bold ${dueAccent.text}`}>
-                                        {formatCurrency(installmentAmount)}
-                                      </p>
+                                      <>
+                                        <p className={`text-sm font-bold ${isPartial ? "text-amber-600 dark:text-amber-400" : dueAccent.text}`}>
+                                          {formatCurrency(isPartial ? remaining : installmentAmount)}
+                                        </p>
+                                        {isPartial && (
+                                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                                            Restante de {formatCurrency(installmentAmount)}
+                                          </p>
+                                        )}
+                                      </>
                                     );
                                   })() : (
-                                    <>
-                                      <p className={`text-sm font-bold ${dueAccent.text}`}>
-                                        {formatCurrency(installmentAmount)}
-                                      </p>
-                                      {expense.paid && expense.paidDate && (
-                                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                                          Pago em {formatDateBR(expense.paidDate, "dd/MM/yyyy")}
-                                        </p>
-                                      )}
-                                    </>
+                                    (() => {
+                                      const partialPaid = expense.paid ? 0 : partialPaidForMonth(expense.notes, selectedMonth);
+                                      const isPartial = !expense.paid && partialPaid > 0.005;
+                                      const remaining = Math.max(0, installmentAmount - partialPaid);
+                                      return (
+                                        <>
+                                          <p className={`text-sm font-bold ${isPartial ? "text-amber-600 dark:text-amber-400" : dueAccent.text}`}>
+                                            {formatCurrency(isPartial ? remaining : installmentAmount)}
+                                          </p>
+                                          {isPartial ? (
+                                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                                              Restante de {formatCurrency(installmentAmount)}
+                                            </p>
+                                          ) : expense.paid && expense.paidDate ? (
+                                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                                              Pago em {formatDateBR(expense.paidDate, "dd/MM/yyyy")}
+                                            </p>
+                                          ) : null}
+                                        </>
+                                      );
+                                    })()
                                   )}
                                 </div>
                               </div>
