@@ -90,9 +90,9 @@ export const ClientCardView = memo(function ClientCardView({
                 <User className="h-5 w-5 text-primary-foreground" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-semibold text-foreground break-words">{client.name}</h3>
-                  <Badge variant="outline" className={client.active ? "bg-success/10 text-success border-success/20 text-xs" : "bg-muted text-muted-foreground border-border text-xs"}>
+                <div className="flex items-center gap-2 min-w-0">
+                  <h3 className="font-semibold text-foreground truncate" title={client.name}>{client.name}</h3>
+                  <Badge variant="outline" className={`shrink-0 text-xs ${client.active ? "bg-success/10 text-success border-success/20" : "bg-muted text-muted-foreground border-border"}`}>
                     {client.active ? "Ativo" : "Inativo"}
                   </Badge>
                 </div>
