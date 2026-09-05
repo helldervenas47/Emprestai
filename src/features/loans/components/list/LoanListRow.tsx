@@ -953,7 +953,7 @@ function LoanRowView({
                   className="w-full h-11 text-sm font-semibold gap-2 rounded-xl shadow-sm"
                   onClick={(e) => { e.stopPropagation(); setPaymentHubOpen(true); }}
                 >
-                  <DollarSign className="h-4 w-4" /> Registrar Pagamento ({formatCurrency(remaining)})
+                  <DollarSign className="h-4 w-4" /> Registrar Pagamento
                 </Button>
               )}
 
