@@ -791,13 +791,13 @@ function LoanRowView({
             </div>
           ) : (
           <div className="space-y-3.5">
-            {/* 1. Composição Matemática do Saldo (Extrato Resumido) */}
+            {/* 1. Composição Matemática do Saldo (Extrato Resumido com Total a Receber) */}
             <div>
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
                 Composição do Saldo
               </p>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
-                {/* Emprestado */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-2.5">
+                {/* 1. Emprestado */}
                 <div className="bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-left flex flex-col justify-between">
                   <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground uppercase">
                     Emprestado
@@ -810,7 +810,7 @@ function LoanRowView({
                   </span>
                 </div>
 
-                {/* + Encargos / Juros */}
+                {/* 2. + Encargos / Juros */}
                 <div className="bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-left flex flex-col justify-between">
                   <span className="text-[10px] sm:text-[11px] font-medium text-amber-600 dark:text-amber-400 uppercase">
                     + Encargos & Juros
@@ -823,7 +823,20 @@ function LoanRowView({
                   </span>
                 </div>
 
-                {/* - Total Pago */}
+                {/* 3. Total a Receber (Recebido + Restante) */}
+                <div className="bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-left flex flex-col justify-between">
+                  <span className="text-[10px] sm:text-[11px] font-medium text-primary uppercase">
+                    Total a Receber
+                  </span>
+                  <p className="text-sm sm:text-base font-bold text-primary tabular-nums mt-1">
+                    {formatCurrency(Math.round((totalPaid + remaining) * 100) / 100)}
+                  </p>
+                  <span className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                    Recebido + Restante
+                  </span>
+                </div>
+
+                {/* 4. - Total Pago */}
                 <div className="bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-left flex flex-col justify-between">
                   <span className="text-[10px] sm:text-[11px] font-medium text-success uppercase">
                     - Total Pago
@@ -836,8 +849,8 @@ function LoanRowView({
                   </span>
                 </div>
 
-                {/* = Saldo Restante */}
-                <div className={`rounded-xl p-2.5 sm:p-3 border text-left flex flex-col justify-between ${
+                {/* 5. = Saldo Restante */}
+                <div className={`col-span-2 sm:col-span-1 rounded-xl p-2.5 sm:p-3 border text-left flex flex-col justify-between ${
                   category === "overdue"
                     ? "bg-destructive/10 border-destructive/30"
                     : category === "due_today"
@@ -854,43 +867,67 @@ function LoanRowView({
                   }`}>
                     {formatCurrency(remaining)}
                   </p>
-                  <span className="text-[10px] text-muted-foreground mt-0.5">
+                  <span className="text-[10px] text-muted-foreground mt-0.5 truncate">
                     {loan.status === "paid" ? "Quitado" : isParcelado ? `Próx: ${formatCurrency(installmentValue + lateFees)}` : "Saldo a receber"}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* 2. Detalhes Contratuais e Marcos */}
-            <div className="bg-muted/30 dark:bg-white/[0.02] rounded-xl p-3 border border-border/40 space-y-2">
-              <div className="flex items-center justify-between flex-wrap gap-2 text-xs">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-muted-foreground">Início: <strong className="text-foreground">{new Date(loan.startDate + "T00:00:00").toLocaleDateString("pt-BR")}</strong></span>
-                  <span className="text-border">•</span>
-                  <span className="text-muted-foreground">Vencimento: <strong className="text-foreground">{getFirstPendingDate(loan, installmentSchedules).toLocaleDateString("pt-BR")}</strong></span>
-                  <span className="text-border">•</span>
-                  <span className="text-muted-foreground">Taxa: <strong className="text-foreground">{loan.interestRate}% ({loan.interestType})</strong></span>
-                  <span className="text-border">•</span>
-                  <span className="text-muted-foreground">Parcelas: <strong className="text-foreground">{loan.paidInstallments}/{loan.installments}</strong></span>
+            {/* 2. Detalhes Contratuais Alinhados e Responsivos */}
+            <div className="bg-muted/30 dark:bg-white/[0.02] rounded-xl p-3 border border-border/40 space-y-2.5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                <div className="bg-card/70 dark:bg-white/[0.03] p-2 rounded-lg border border-border/30">
+                  <span className="text-[10px] text-muted-foreground uppercase block">Data Saída</span>
+                  <span className="font-semibold text-foreground text-xs sm:text-sm">
+                    {new Date(loan.startDate + "T00:00:00").toLocaleDateString("pt-BR")}
+                  </span>
                 </div>
-
-                {(() => {
-                  const rate = Number(loan.managerCommissionRate ?? 0);
-                  const hasManagerCommission = Boolean(loan.hasManager || loan.managerId);
-                  const commissionValue = hasManagerCommission && rate > 0
-                    ? (Number(loan.amount) * rate) / 100
-                    : 0;
-                  if (commissionValue <= 0) return null;
-                  return (
-                    <Badge variant="outline" className="bg-[#009C3B]/15 text-[#009C3B] dark:bg-emerald-500/25 dark:text-emerald-300 border-[#009C3B]/60 text-[10px] gap-1">
-                      <UserCog className="h-3 w-3" /> Gerente: {formatCurrency(commissionValue)} ({rate}%)
-                    </Badge>
-                  );
-                })()}
+                <div className="bg-card/70 dark:bg-white/[0.03] p-2 rounded-lg border border-border/30">
+                  <span className="text-[10px] text-muted-foreground uppercase block">Vencimento</span>
+                  <span className="font-semibold text-foreground text-xs sm:text-sm">
+                    {getFirstPendingDate(loan, installmentSchedules).toLocaleDateString("pt-BR")}
+                  </span>
+                </div>
+                <div className="bg-card/70 dark:bg-white/[0.03] p-2 rounded-lg border border-border/30">
+                  <span className="text-[10px] text-muted-foreground uppercase block">Taxa de Juros</span>
+                  <span className="font-semibold text-foreground text-xs sm:text-sm">
+                    {loan.interestRate}% ({loan.interestType})
+                  </span>
+                </div>
+                <div className="bg-card/70 dark:bg-white/[0.03] p-2 rounded-lg border border-border/30">
+                  <span className="text-[10px] text-muted-foreground uppercase block">Parcelas</span>
+                  <span className="font-semibold text-foreground text-xs sm:text-sm">
+                    {loan.paidInstallments}/{loan.installments}
+                    {loan.installments > 0 && (
+                      <span className="text-[10px] text-muted-foreground ml-1 font-normal">
+                        ({Math.round(((loan.paidInstallments || 0) / loan.installments) * 100)}%)
+                      </span>
+                    )}
+                  </span>
+                </div>
               </div>
 
+              {/* Comissão de Gerente se existir */}
+              {(() => {
+                const rate = Number(loan.managerCommissionRate ?? 0);
+                const hasManagerCommission = Boolean(loan.hasManager || loan.managerId);
+                const commissionValue = hasManagerCommission && rate > 0
+                  ? (Number(loan.amount) * rate) / 100
+                  : 0;
+                if (commissionValue <= 0) return null;
+                return (
+                  <div className="flex items-center gap-2 pt-1 border-t border-border/30">
+                    <Badge variant="outline" className="bg-[#009C3B]/15 text-[#009C3B] dark:bg-emerald-500/25 dark:text-emerald-300 border-[#009C3B]/60 text-xs gap-1.5 py-1 px-2.5">
+                      <UserCog className="h-3.5 w-3.5" /> Comissão do Gerente: <strong>{formatCurrency(commissionValue)} ({rate}%)</strong>
+                    </Badge>
+                  </div>
+                );
+              })()}
+
+              {/* Alertas de Atraso e Renegociação */}
               {daysOverdue > 0 && loan.status !== "paid" && (
-                <div className="flex items-center gap-1.5 text-destructive text-xs font-medium pt-1 border-t border-destructive/20">
+                <div className="flex items-center gap-1.5 text-destructive text-xs font-medium pt-1.5 border-t border-destructive/20 flex-wrap">
                   <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                   <span>{daysOverdue} dia{daysOverdue > 1 ? "s" : ""} em atraso</span>
                   {lateInterestTotal > 0 && <span>• Juros mora: {formatCurrency(lateInterestTotal)}</span>}
@@ -899,18 +936,9 @@ function LoanRowView({
               )}
 
               {renegPenaltyPending > 0 && loan.status !== "paid" && (
-                <div className="flex items-center gap-1.5 text-warning text-xs font-medium pt-1 border-t border-warning/20">
+                <div className="flex items-center gap-1.5 text-warning text-xs font-medium pt-1.5 border-t border-warning/20">
                   <RefreshCw className="h-3.5 w-3.5 shrink-0" />
                   <span>Multa de renegociação pendente: {formatCurrency(renegPenaltyPending)}</span>
-                </div>
-              )}
-
-              {loan.tags && loan.tags.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1 pt-1">
-                  <span className="text-[10px] text-muted-foreground mr-1">Etiquetas:</span>
-                  {loan.tags.map((tag) => (
-                    <Badge key={tag} className="bg-primary/15 text-primary border-primary/30 text-[10px] px-2 py-0.5">{tag}</Badge>
-                  ))}
                 </div>
               )}
             </div>
