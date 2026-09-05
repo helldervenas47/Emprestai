@@ -824,9 +824,10 @@ function ClientLoansList({ loans, payments, paymentsByLoan, lastPaymentDateByLoa
     const loanPayments = payments.filter((p) => p.loanId === l.id);
     const state = getLoanFinancialStateForUI({ loan: l, payments: loanPayments });
     const isPaid = l.status === "paid";
+    const totalPaid = loanPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
     return {
       remaining: state.payoffAmount,
-      paid: state.principalPaid + state.contractualInterestPaid + state.penaltyPaid + state.lateInterestPaid,
+      paid: totalPaid,
       isPaid,
       state
     };
