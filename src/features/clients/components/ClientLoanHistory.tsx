@@ -107,6 +107,25 @@ const statusLabels: Record<string, string> = {
   defaulted: "Inadimplente",
 };
 
+const SORT_SHORT_LABEL: Record<SortOption, string> = {
+  "name-asc": "A → Z",
+  "name-desc": "Z → A",
+  "borrowed-desc": "Emprest. ↓",
+  "borrowed-asc": "Emprest. ↑",
+  "paid-desc": "Recebido ↓",
+  "paid-asc": "Recebido ↑",
+  "pending-desc": "Pendente ↓",
+  "pending-asc": "Pendente ↑",
+  "total-desc": "Total ↓",
+  "total-asc": "Total ↑",
+  "difference-desc": "Lucro ↓",
+  "difference-asc": "Lucro ↑",
+  "rate-desc": "Taxa ↓",
+  "rate-asc": "Taxa ↑",
+  "interest-desc": "Juros ↓",
+  "interest-asc": "Juros ↑",
+};
+
 export function ClientLoanHistory({ loans, payments, installmentSchedules = [], onBackToLoans }: Props) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
@@ -568,21 +587,26 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="relative flex-1">
+        <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
             placeholder="Buscar cliente..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
+            className="pl-9 h-10 w-full text-xs sm:text-sm"
           />
         </div>
         <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-          <SelectTrigger className="w-[160px] sm:w-[220px] h-10 text-xs shrink-0">
-            <ArrowUpDown className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-            <SelectValue placeholder="Ordenar por..." />
+          <SelectTrigger className="w-[105px] sm:w-[210px] h-10 text-xs shrink-0 px-2 sm:px-3">
+            <div className="flex items-center gap-1.5 truncate">
+              <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="sm:hidden font-medium truncate">{SORT_SHORT_LABEL[sortBy] || "Ordem"}</span>
+              <span className="hidden sm:inline font-medium">
+                <SelectValue placeholder="Ordenar por..." />
+              </span>
+            </div>
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent align="end">
             <SelectItem value="name-asc">Cliente (A → Z)</SelectItem>
             <SelectItem value="name-desc">Cliente (Z → A)</SelectItem>
             <SelectItem value="borrowed-desc">Maior valor emprestado</SelectItem>
