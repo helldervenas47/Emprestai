@@ -279,110 +279,118 @@ export function ClientRankingDetailDialog({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[640px] p-0 overflow-hidden max-h-[92vh] flex flex-col">
+      <DialogContent
+        style={{ padding: 0 }}
+        className="fixed inset-0 left-0 top-0 translate-x-0 translate-y-0 w-screen h-[100dvh] max-w-none max-h-none sm:max-w-none sm:max-h-none rounded-none sm:rounded-none border-none p-0 overflow-hidden flex flex-col z-50 bg-background duration-200"
+      >
         {/* Header com avatar e score */}
         <DialogHeader className="p-4 sm:p-6 bg-muted/30 border-b border-border/60 shrink-0">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-base shrink-0 uppercase">
-                {item.client_name.slice(0, 2)}
+          <div className="max-w-5xl mx-auto w-full">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-base shrink-0 uppercase">
+                  {item.client_name.slice(0, 2)}
+                </div>
+                <div>
+                  <DialogTitle className="text-base sm:text-lg font-bold text-foreground">
+                    {item.client_name}
+                  </DialogTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {item.client_cpf ? `CPF: ${item.client_cpf}` : "Cliente cadastrado"}
+                    {item.client_phone && ` • ${item.client_phone}`}
+                  </p>
+                </div>
               </div>
-              <div>
-                <DialogTitle className="text-base sm:text-lg font-bold text-foreground">
-                  {item.client_name}
-                </DialogTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {item.client_cpf ? `CPF: ${item.client_cpf}` : "Cliente cadastrado"}
-                  {item.client_phone && ` • ${item.client_phone}`}
-                </p>
+
+              <div className="text-right">
+                <span className="text-xs font-semibold text-muted-foreground block">Posição</span>
+                <span className="text-base sm:text-lg font-extrabold text-foreground flex items-center justify-end gap-1">
+                  <Trophy className="h-4 w-4 text-amber-500" />
+                  #{item.position}
+                </span>
               </div>
             </div>
 
-            <div className="text-right">
-              <span className="text-xs font-semibold text-muted-foreground block">Posição</span>
-              <span className="text-base sm:text-lg font-extrabold text-foreground flex items-center justify-end gap-1">
-                <Trophy className="h-4 w-4 text-amber-500" />
-                #{item.position}
-              </span>
+            {/* Badge de Score e Risco */}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge
+                variant="outline"
+                className={`text-xs px-2.5 py-0.5 font-bold ${riskInfo.color} ${riskInfo.bgColor}/10 border-current/30`}
+              >
+                <ShieldCheck className="h-3.5 w-3.5 mr-1" />
+                Score: {riskInfo.score}/100 • {riskInfo.riskLevel}
+              </Badge>
+              <Badge variant="secondary" className="text-xs">
+                Pontualidade: {item.on_time_percentage.toFixed(0)}%
+              </Badge>
             </div>
+            {riskInfo.description ? (
+              <DialogDescription className="mt-2 text-xs text-muted-foreground leading-relaxed">
+                {riskInfo.description}
+              </DialogDescription>
+            ) : (
+              <DialogDescription className="sr-only">
+                Detalhes de pontualidade, score de risco e histórico do cliente {item.client_name}.
+              </DialogDescription>
+            )}
           </div>
-
-          {/* Badge de Score e Risco */}
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Badge
-              variant="outline"
-              className={`text-xs px-2.5 py-0.5 font-bold ${riskInfo.color} ${riskInfo.bgColor}/10 border-current/30`}
-            >
-              <ShieldCheck className="h-3.5 w-3.5 mr-1" />
-              Score: {riskInfo.score}/100 • {riskInfo.riskLevel}
-            </Badge>
-            <Badge variant="secondary" className="text-xs">
-              Pontualidade: {item.on_time_percentage.toFixed(0)}%
-            </Badge>
-          </div>
-          {riskInfo.description ? (
-            <DialogDescription className="mt-2 text-xs text-muted-foreground leading-relaxed">
-              {riskInfo.description}
-            </DialogDescription>
-          ) : (
-            <DialogDescription className="sr-only">
-              Detalhes de pontualidade, score de risco e histórico do cliente {item.client_name}.
-            </DialogDescription>
-          )}
         </DialogHeader>
 
         {/* Barra de Abas do Modal */}
-        <div className="px-4 sm:px-6 pt-3 shrink-0 bg-background">
-          <div className="flex items-center gap-1.5 p-1 bg-muted/60 rounded-xl border border-border/50 text-xs font-semibold overflow-x-auto scrollbar-hide">
-            <button
-              type="button"
-              onClick={() => setActiveTab("overview")}
-              className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg transition-all whitespace-nowrap flex-1 ${
-                activeTab === "overview"
-                  ? "bg-background text-foreground shadow-sm font-bold"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-              }`}
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              Visão Geral
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("delays")}
-              className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg transition-all whitespace-nowrap flex-1 ${
-                activeTab === "delays"
-                  ? "bg-background text-destructive shadow-sm font-bold"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-              }`}
-            >
-              <Flame className="h-3.5 w-3.5 text-destructive" />
-              Maior Atraso
-              <span className="ml-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive font-bold">
-                {item.max_delay_days}d
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("open_balance")}
-              className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg transition-all whitespace-nowrap flex-1 ${
-                activeTab === "open_balance"
-                  ? "bg-background text-primary shadow-sm font-bold"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-              }`}
-            >
-              <Wallet className="h-3.5 w-3.5 text-primary" />
-              Saldo em Aberto
-              <span className="ml-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
-                {formatBRL(item.open_amount)}
-              </span>
-            </button>
+        <div className="px-4 sm:px-6 pt-3 pb-3 shrink-0 bg-background border-b border-border/40">
+          <div className="max-w-5xl mx-auto w-full">
+            <div className="flex items-center gap-1.5 p-1 bg-muted/60 rounded-xl border border-border/50 text-xs font-semibold overflow-x-auto scrollbar-hide">
+              <button
+                type="button"
+                onClick={() => setActiveTab("overview")}
+                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg transition-all whitespace-nowrap flex-1 ${
+                  activeTab === "overview"
+                    ? "bg-background text-foreground shadow-sm font-bold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                }`}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                Visão Geral
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("delays")}
+                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg transition-all whitespace-nowrap flex-1 ${
+                  activeTab === "delays"
+                    ? "bg-background text-destructive shadow-sm font-bold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                }`}
+              >
+                <Flame className="h-3.5 w-3.5 text-destructive" />
+                Maior Atraso
+                <span className="ml-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive font-bold">
+                  {item.max_delay_days}d
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("open_balance")}
+                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg transition-all whitespace-nowrap flex-1 ${
+                  activeTab === "open_balance"
+                    ? "bg-background text-primary shadow-sm font-bold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                }`}
+              >
+                <Wallet className="h-3.5 w-3.5 text-primary" />
+                Saldo em Aberto
+                <span className="ml-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+                  {formatBRL(item.open_amount)}
+                </span>
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Conteúdo da Aba Ativa */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1">
-          {/* ================= ABA 1: VISÃO GERAL ================= */}
-          {activeTab === "overview" && (
+        <div className="p-4 sm:p-6 md:p-8 overflow-y-auto flex-1">
+          <div className="max-w-5xl mx-auto w-full space-y-4">
+            {/* ================= ABA 1: VISÃO GERAL ================= */}
+            {activeTab === "overview" && (
             <div className="space-y-4">
               {/* Resumo Financeiro */}
               <div>
@@ -772,6 +780,7 @@ export function ClientRankingDetailDialog({
               )}
             </div>
           )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
