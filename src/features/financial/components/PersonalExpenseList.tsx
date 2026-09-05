@@ -1853,15 +1853,15 @@ export function PersonalExpenseList({ expenses: expensesInput, onPay, onUnpay, o
                           )}
                         </div>
 
-                        <div className="flex items-baseline justify-between gap-1 mt-0.5">
+                        <div className="flex flex-wrap items-baseline justify-between gap-x-1.5 gap-y-0.5 mt-0.5 min-w-0">
                           <span
-                            className={`text-[15px] font-bold tabular-nums leading-none ${
+                            className={`text-sm sm:text-[15px] font-bold tabular-nums whitespace-nowrap leading-none ${
                               over ? "text-destructive" : "text-foreground"
                             }`}
                           >
                             {formatCurrency(spent)}
                           </span>
-                          <span className="text-[10px] text-muted-foreground tabular-nums leading-none">
+                          <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap leading-none">
                             / {formatCurrency(b.amount)}
                           </span>
                         </div>
@@ -1877,7 +1877,7 @@ export function PersonalExpenseList({ expenses: expensesInput, onPay, onUnpay, o
                             />
                           </div>
                           <span
-                            className={`text-[10px] tabular-nums ${
+                            className={`text-[10px] tabular-nums whitespace-nowrap block ${
                               over ? "text-destructive font-semibold" : "text-muted-foreground"
                             }`}
                           >
@@ -1895,9 +1895,9 @@ export function PersonalExpenseList({ expenses: expensesInput, onPay, onUnpay, o
                   {budgets.length - 4 === 1 ? "" : "s"}.
                 </p>
               )}
-              <div className="flex items-center justify-between text-xs text-muted-foreground pt-3 border-t border-border/60">
-                <span className="font-medium">Total</span>
-                <span className="tabular-nums">
+              <div className="flex items-center justify-between text-xs text-muted-foreground pt-3 border-t border-border/60 flex-wrap gap-1">
+                <span className="font-medium whitespace-nowrap">Total</span>
+                <span className="tabular-nums whitespace-nowrap">
                   {formatCurrency(totalSpentBudgeted)} / {formatCurrency(totalBudget)}
                 </span>
               </div>
