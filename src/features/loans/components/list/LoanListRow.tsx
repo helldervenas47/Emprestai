@@ -789,162 +789,253 @@ function LoanRowView({
               <div><Label className="text-xs">Observações</Label><Textarea value={form.notes} onChange={(e) => updateField("notes", e.target.value)} rows={2} className="text-sm" /></div>
             </div>
           ) : (
-          <div className="space-y-4">
-            {/* Info grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-              <div className="bg-card rounded-lg p-3 border border-border/30 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase">Emprestado</p>
-                <p className="text-sm font-bold text-foreground">{formatCurrency(loan.amount)}</p>
-              </div>
-              <div className="bg-card rounded-lg p-3 border border-border/30 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase">Total a Receber</p>
-                <p className="text-sm font-bold text-foreground">{formatCurrency(getLoanTotalReceivable(loan, allPayments, installmentSchedules))}</p>
-              </div>
-              <div className="bg-card rounded-lg p-3 border border-border/30 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase">Total Pago</p>
-                <p className="text-sm font-bold text-success">{formatCurrency(totalPaid)}</p>
-              </div>
-              <div className="bg-card rounded-lg p-3 border border-border/30 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase">Restante</p>
-                <p className={`text-sm font-bold ${category === "overdue" ? "text-destructive" : remaining > 0 ? "text-foreground" : "text-success"}`}>{formatCurrency(remaining)}</p>
-              </div>
-              <div className="bg-card rounded-lg p-3 border border-border/30 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase">Juros do Contrato</p>
-                <p className="text-sm font-bold text-foreground">{formatCurrency(Math.max(0, (total - loan.amount)) + lateFees)}</p>
-              </div>
-              {(() => {
-                const rate = Number(loan.managerCommissionRate ?? 0);
-                const hasManagerCommission = Boolean(loan.hasManager || loan.managerId);
-                const commissionValue = hasManagerCommission && rate > 0
-                  ? (Number(loan.amount) * rate) / 100
-                  : 0;
-                return (
-                  <div className="bg-card rounded-lg p-3 border border-border/30 text-center">
-                    <p className="text-[10px] text-muted-foreground uppercase">Comissão do Gerente</p>
-                    <p className="text-sm font-bold text-foreground">{formatCurrency(commissionValue)}</p>
-                  </div>
-                );
-              })()}
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase">Juros</p>
-                <p className="text-xs font-medium">{loan.interestRate}% {loan.interestType}</p>
-                {loan.amount > 0 && (
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    Acumulado: {(((totalPaid + remaining) - loan.amount) / loan.amount * 100).toFixed(2)}%
+          <div className="space-y-3.5">
+            {/* 1. Composição Matemática do Saldo (Extrato Resumido) */}
+            <div>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                Composição do Saldo
+              </p>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
+                {/* Emprestado */}
+                <div className="bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-left flex flex-col justify-between">
+                  <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground uppercase">
+                    Emprestado
+                  </span>
+                  <p className="text-sm sm:text-base font-bold text-foreground tabular-nums mt-1">
+                    {formatCurrency(loan.amount)}
                   </p>
-                )}
-              </div>
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase">Parcelas</p>
-                <p className="text-xs font-medium">{loan.paidInstallments}/{loan.installments}</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase">Data Saída</p>
-                <p className="text-xs font-medium">{new Date(loan.startDate + "T00:00:00").toLocaleDateString("pt-BR")}</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase">Vencimento</p>
-                <div className="flex items-center justify-center gap-2">
-                  <p className="text-xs font-medium">
-                    {getFirstPendingDate(loan, installmentSchedules).toLocaleDateString("pt-BR")}
+                  <span className="text-[10px] text-muted-foreground mt-0.5">
+                    Valor original
+                  </span>
+                </div>
+
+                {/* + Encargos / Juros */}
+                <div className="bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-left flex flex-col justify-between">
+                  <span className="text-[10px] sm:text-[11px] font-medium text-amber-600 dark:text-amber-400 uppercase">
+                    + Encargos & Juros
+                  </span>
+                  <p className="text-sm sm:text-base font-bold text-amber-600 dark:text-amber-400 tabular-nums mt-1">
+                    + {formatCurrency(Math.max(0, (total - loan.amount)) + lateFees)}
                   </p>
+                  <span className="text-[10px] text-muted-foreground mt-0.5 truncate" title={`Juros: ${rawFormatCurrency(total - loan.amount)}${lateFees > 0 ? ` • Mora/Multa: ${rawFormatCurrency(lateFees)}` : ""}`}>
+                    Juros {rawFormatCurrency(total - loan.amount)}{lateFees > 0 ? ` • Multa ${rawFormatCurrency(lateFees)}` : ""}
+                  </span>
+                </div>
+
+                {/* - Total Pago */}
+                <div className="bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-left flex flex-col justify-between">
+                  <span className="text-[10px] sm:text-[11px] font-medium text-success uppercase">
+                    - Total Pago
+                  </span>
+                  <p className="text-sm sm:text-base font-bold text-success tabular-nums mt-1">
+                    - {formatCurrency(totalPaid)}
+                  </p>
+                  <span className="text-[10px] text-muted-foreground mt-0.5">
+                    {allPayments.filter(p => p.loanId === loan.id).length} pagamento(s)
+                  </span>
+                </div>
+
+                {/* = Saldo Restante */}
+                <div className={`rounded-xl p-2.5 sm:p-3 border text-left flex flex-col justify-between ${
+                  category === "overdue"
+                    ? "bg-destructive/10 border-destructive/30"
+                    : category === "due_today"
+                    ? "bg-amber-500/10 border-amber-500/30"
+                    : "bg-primary/10 border-primary/30"
+                }`}>
+                  <span className={`text-[10px] sm:text-[11px] font-bold uppercase ${
+                    category === "overdue" ? "text-destructive" : category === "due_today" ? "text-amber-600 dark:text-amber-400" : "text-primary"
+                  }`}>
+                    = Saldo Restante
+                  </span>
+                  <p className={`text-base sm:text-lg font-extrabold tabular-nums mt-1 ${
+                    category === "overdue" ? "text-destructive" : category === "due_today" ? "text-amber-600 dark:text-amber-400" : "text-primary"
+                  }`}>
+                    {formatCurrency(remaining)}
+                  </p>
+                  <span className="text-[10px] text-muted-foreground mt-0.5">
+                    {loan.status === "paid" ? "Quitado" : isParcelado ? `Próx: ${formatCurrency(installmentValue + lateFees)}` : "Saldo a receber"}
+                  </span>
                 </div>
               </div>
             </div>
-            {daysOverdue > 0 && loan.status !== "paid" && (
-              <div className="flex items-center gap-1.5 text-destructive flex-wrap">
-                <span className="h-2 w-2 rounded-full bg-destructive inline-block"></span>
-                <span className="text-xs font-medium">{daysOverdue} dia{daysOverdue > 1 ? "s" : ""} em atraso</span>
-                {lateInterestTotal > 0 && <span className="text-xs">• Juros mora: {formatCurrency(lateInterestTotal)}</span>}
-                {penaltyTotal > 0 && <span className="text-xs">• Multa: {formatCurrency(penaltyTotal)}</span>}
+
+            {/* 2. Detalhes Contratuais e Marcos */}
+            <div className="bg-muted/30 dark:bg-white/[0.02] rounded-xl p-3 border border-border/40 space-y-2">
+              <div className="flex items-center justify-between flex-wrap gap-2 text-xs">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-muted-foreground">Início: <strong className="text-foreground">{new Date(loan.startDate + "T00:00:00").toLocaleDateString("pt-BR")}</strong></span>
+                  <span className="text-border">•</span>
+                  <span className="text-muted-foreground">Vencimento: <strong className="text-foreground">{getFirstPendingDate(loan, installmentSchedules).toLocaleDateString("pt-BR")}</strong></span>
+                  <span className="text-border">•</span>
+                  <span className="text-muted-foreground">Taxa: <strong className="text-foreground">{loan.interestRate}% ({loan.interestType})</strong></span>
+                  <span className="text-border">•</span>
+                  <span className="text-muted-foreground">Parcelas: <strong className="text-foreground">{loan.paidInstallments}/{loan.installments}</strong></span>
+                </div>
+
+                {(() => {
+                  const rate = Number(loan.managerCommissionRate ?? 0);
+                  const hasManagerCommission = Boolean(loan.hasManager || loan.managerId);
+                  const commissionValue = hasManagerCommission && rate > 0
+                    ? (Number(loan.amount) * rate) / 100
+                    : 0;
+                  if (commissionValue <= 0) return null;
+                  return (
+                    <Badge variant="outline" className="bg-[#009C3B]/15 text-[#009C3B] dark:bg-emerald-500/25 dark:text-emerald-300 border-[#009C3B]/60 text-[10px] gap-1">
+                      <UserCog className="h-3 w-3" /> Gerente: {formatCurrency(commissionValue)} ({rate}%)
+                    </Badge>
+                  );
+                })()}
               </div>
-            )}
-            {renegPenaltyPending > 0 && loan.status !== "paid" && (
-              <div className="flex items-center gap-1.5 text-warning flex-wrap">
-                <span className="h-2 w-2 rounded-full bg-warning inline-block"></span>
-                <span className="text-xs font-medium">Multa de renegociação: {formatCurrency(renegPenaltyPending)}</span>
-              </div>
-            )}
-            {loan.notes && (
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase">Observações</p>
-                <p className="text-xs text-foreground mt-0.5">{loan.notes}</p>
-              </div>
-            )}
-            {loan.tags && loan.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {loan.tags.map((tag) => (
-                  <Badge key={tag} className="bg-primary text-primary-foreground text-[10px]">{tag}</Badge>
-                ))}
-              </div>
-            )}
-            {/* Progress */}
-            <div>
-              <Progress value={loan.installments > 0 ? (loan.paidInstallments / loan.installments) * 100 : 0} className="h-2" />
-              <p className="text-[10px] text-muted-foreground mt-1">{Math.round(loan.installments > 0 ? (loan.paidInstallments / loan.installments) * 100 : 0)}% concluído</p>
+
+              {daysOverdue > 0 && loan.status !== "paid" && (
+                <div className="flex items-center gap-1.5 text-destructive text-xs font-medium pt-1 border-t border-destructive/20">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  <span>{daysOverdue} dia{daysOverdue > 1 ? "s" : ""} em atraso</span>
+                  {lateInterestTotal > 0 && <span>• Juros mora: {formatCurrency(lateInterestTotal)}</span>}
+                  {penaltyTotal > 0 && <span>• Multa: {formatCurrency(penaltyTotal)}</span>}
+                </div>
+              )}
+
+              {renegPenaltyPending > 0 && loan.status !== "paid" && (
+                <div className="flex items-center gap-1.5 text-warning text-xs font-medium pt-1 border-t border-warning/20">
+                  <RefreshCw className="h-3.5 w-3.5 shrink-0" />
+                  <span>Multa de renegociação pendente: {formatCurrency(renegPenaltyPending)}</span>
+                </div>
+              )}
+
+              {loan.tags && loan.tags.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1 pt-1">
+                  <span className="text-[10px] text-muted-foreground mr-1">Etiquetas:</span>
+                  {loan.tags.map((tag) => (
+                    <Badge key={tag} className="bg-primary/15 text-primary border-primary/30 text-[10px] px-2 py-0.5">{tag}</Badge>
+                  ))}
+                </div>
+              )}
             </div>
-            {/* Actions */}
-            <div className="flex flex-col gap-2 pt-2 border-t border-border/30 w-full">
+
+            {/* 3. Barra de Ações Integrada */}
+            <div className="flex flex-col gap-2 pt-1">
               {!readOnly && loan.status !== "paid" && (
                 <Button
                   type="button"
                   data-mutation
                   variant="default"
-                  className="w-full h-10 text-sm gap-2"
+                  className="w-full h-11 text-sm font-semibold gap-2 rounded-xl shadow-sm"
                   onClick={(e) => { e.stopPropagation(); setPaymentHubOpen(true); }}
                 >
-                  <DollarSign className="h-4 w-4" /> Pagar
+                  <DollarSign className="h-4 w-4" /> Registrar Pagamento ({formatCurrency(remaining)})
                 </Button>
               )}
-              {!readOnly && loan.status !== "paid" && (
-                <div className="flex gap-2 w-full" onClick={(e) => e.stopPropagation()}>
-                  {onRenegotiate && (
-                    <Button data-mutation
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 h-9 text-xs gap-1.5 border-warning text-warning"
-                      onClick={(e) => { e.stopPropagation(); setShowRenegotiateDialog(true); }}
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" /> Renegociar
-                    </Button>
-                  )}
+
+              {!readOnly && loan.status === "paid" && (
+                <Button variant="outline" className="w-full h-10 text-sm gap-2 rounded-xl" onClick={(e) => { e.stopPropagation(); onUpdate({ status: "active", paidInstallments: 0 }); }}>
+                  <X className="w-4 h-4" /> Marcar como não pago
+                </Button>
+              )}
+
+              {/* Toolbar horizontal de ações rápidas + Menu de opções */}
+              <div className="flex items-center gap-1.5 flex-wrap w-full" onClick={(e) => e.stopPropagation()}>
+                {loan.status !== "paid" && (
+                  <WhatsappBillButton
+                    loan={loan}
+                    clients={clients}
+                    payments={allPayments}
+                    installmentSchedules={installmentSchedules}
+                    variant="compact"
+                  />
+                )}
+
+                {onRenegotiate && loan.status !== "paid" && !readOnly && (
                   <Button
+                    data-mutation
                     variant="outline"
                     size="sm"
-                    className="flex-1 h-9 text-xs gap-1.5 border-primary text-primary"
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      try {
-                        await generateLoanReportPdf({
-                          loan,
-                          payments: allPayments,
-                          installmentSchedules,
-                          renegotiations,
-                        });
-                        toast.success("Relatório gerado");
-                      } catch (err: any) {
-                        toast.error(err?.message || "Falha ao gerar relatório");
-                      }
-                    }}
+                    className="flex-1 min-w-[100px] h-9 text-xs gap-1.5 rounded-xl border-border/60 hover:border-amber-500/50 hover:text-amber-600"
+                    onClick={(e) => { e.stopPropagation(); setShowRenegotiateDialog(true); }}
                   >
-                    <FileDown className="h-3.5 w-3.5" /> Baixar PDF
+                    <RefreshCw className="h-3.5 w-3.5 text-amber-500" /> Renegociar
                   </Button>
-                </div>
-              )}
-              {!readOnly && loan.status !== "paid" && (
-                <div className="flex gap-2 w-full" onClick={(e) => e.stopPropagation()}>
-                  <Button data-mutation variant="outline" size="sm" className="flex-1 h-9 text-xs gap-1.5 border-warning text-warning" onClick={(e) => { e.stopPropagation(); setShowLateInterest((v) => !v); }}>
-                    <Percent className="h-3.5 w-3.5" /> Adicionar Juros
-                  </Button>
-                  <Button data-mutation variant="outline" size="sm" className="flex-1 h-9 text-xs gap-1.5 border-destructive text-destructive" onClick={(e) => { e.stopPropagation(); setShowPenalty((v) => !v); }}>
-                    <DollarSign className="h-3.5 w-3.5" /> Adicionar Multa
-                  </Button>
-                </div>
-              )}
+                )}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 min-w-[90px] h-9 text-xs gap-1.5 rounded-xl border-border/60 hover:border-primary/50"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    try {
+                      await generateLoanReportPdf({
+                        loan,
+                        payments: allPayments,
+                        installmentSchedules,
+                        renegotiations,
+                      });
+                      toast.success("Relatório gerado");
+                    } catch (err: any) {
+                      toast.error(err?.message || "Falha ao gerar relatório");
+                    }
+                  }}
+                >
+                  <FileDown className="h-3.5 w-3.5 text-primary" /> PDF
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 min-w-[90px] h-9 text-xs gap-1.5 rounded-xl border-border/60"
+                  onClick={(e) => { e.stopPropagation(); setShowHistory(true); }}
+                >
+                  <History className="h-3.5 w-3.5 text-muted-foreground" /> Histórico
+                </Button>
+
+                {/* Dropdown Menu de Ações Secundárias */}
+                {!readOnly && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 px-3 text-xs gap-1 rounded-xl border-border/60"
+                        title="Mais opções"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="hidden sm:inline">Opções</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56 p-1.5 space-y-0.5">
+                      {loan.status !== "paid" && (
+                        <>
+                          <DropdownMenuItem onClick={() => setShowLateInterest((v) => !v)} className="text-xs cursor-pointer gap-2 py-2">
+                            <Percent className="h-3.5 w-3.5 text-amber-500" />
+                            Adicionar Juros por Atraso
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setShowPenalty((v) => !v)} className="text-xs cursor-pointer gap-2 py-2">
+                            <DollarSign className="h-3.5 w-3.5 text-destructive" />
+                            Adicionar Multa Fixa
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onUpdate({ autoBillingEnabled: !(loan.autoBillingEnabled ?? true) })} className="text-xs cursor-pointer gap-2 py-2">
+                            {(loan.autoBillingEnabled ?? true) ? <BellOff className="h-3.5 w-3.5 text-muted-foreground" /> : <BellRing className="h-3.5 w-3.5 text-primary" />}
+                            {(loan.autoBillingEnabled ?? true) ? "Desativar cobrança auto" : "Ativar cobrança auto"}
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      <DropdownMenuItem onClick={startEdit} className="text-xs cursor-pointer gap-2 py-2">
+                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                        Editar Contrato
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setConfirmDelete(true)} className="text-xs text-destructive focus:text-destructive cursor-pointer gap-2 py-2">
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Excluir Contrato
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+
+              {/* Formulários inline acionados pelo menu (Juros / Multa) */}
               {!readOnly && showLateInterest && (
-                <div className="p-3 rounded-lg bg-muted border border-border/50 space-y-2" onClick={(e) => e.stopPropagation()}>
+                <div className="p-3 rounded-xl bg-muted/60 border border-border/50 space-y-2 mt-1" onClick={(e) => e.stopPropagation()}>
                   <p className="text-xs font-semibold text-foreground">Juros por Atraso</p>
                   <div className="flex gap-2">
                     <Button size="sm" variant={lateInterestType === "percentage" ? "default" : "outline"} className="flex-1 h-8 text-xs" onClick={() => setLateInterestType("percentage")}>% por dia</Button>
@@ -974,8 +1065,9 @@ function LoanRowView({
                   </div>
                 </div>
               )}
+
               {!readOnly && showPenalty && (
-                <div className="p-3 rounded-lg bg-muted border border-border/50 space-y-2" onClick={(e) => e.stopPropagation()}>
+                <div className="p-3 rounded-xl bg-muted/60 border border-border/50 space-y-2 mt-1" onClick={(e) => e.stopPropagation()}>
                   <p className="text-xs font-semibold text-foreground">Multa por Parcela (valor fixo único)</p>
                   <Input
                     type="number" step="0.01" min="0"
@@ -1001,47 +1093,6 @@ function LoanRowView({
                   </div>
                 </div>
               )}
-              {!readOnly && loan.status === "paid" && (
-                <Button variant="outline" className="w-full h-10 text-sm gap-2" onClick={(e) => { e.stopPropagation(); onUpdate({ status: "active", paidInstallments: 0 }); }}>
-                  <X className="w-[25px] h-[25px]" /> Marcar como não pago
-                </Button>
-              )}
-              <div className="flex gap-2 w-full flex-wrap">
-                {loan.status !== "paid" && (loan.autoBillingEnabled ?? true) && (
-                  <WhatsappBillButton
-                    loan={loan}
-                    clients={clients}
-                    payments={allPayments}
-                    installmentSchedules={installmentSchedules}
-                    variant="compact"
-                  />
-                )}
-                {!readOnly && loan.status !== "paid" && (
-                  <Button
-                    variant="ghost"
-                    className={cn("flex-1 h-9 text-xs gap-1.5", (loan.autoBillingEnabled ?? true) ? "text-primary" : "text-muted-foreground")}
-                    onClick={(e) => { e.stopPropagation(); onUpdate({ autoBillingEnabled: !(loan.autoBillingEnabled ?? true) }); }}
-                    title={(loan.autoBillingEnabled ?? true) ? "Desativar cobrança automática" : "Ativar cobrança automática"}
-                  >
-                    {(loan.autoBillingEnabled ?? true)
-                      ? <><BellRing className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Cobrança ativa</span></>
-                      : <><BellOff className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Cobrança off</span></>}
-                  </Button>
-                )}
-                <Button variant="ghost" className="flex-1 h-9 text-xs gap-1.5" onClick={(e) => { e.stopPropagation(); setShowHistory(true); }}>
-                  <History className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Histórico</span>
-                </Button>
-                {!readOnly && (
-                  <>
-                    <Button data-mutation variant="ghost" className="flex-1 h-9 text-xs gap-1.5" onClick={(e) => { e.stopPropagation(); startEdit(); }}>
-                      <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Editar</span>
-                    </Button>
-                    <Button data-mutation variant="ghost" className="flex-1 h-9 text-xs gap-1.5 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}>
-                      <Trash2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Excluir</span>
-                    </Button>
-                  </>
-                )}
-              </div>
             </div>
             <PartialPaymentDialog
               open={showPartial}

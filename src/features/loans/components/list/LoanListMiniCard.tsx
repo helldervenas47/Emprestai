@@ -205,7 +205,7 @@ export function LoanListMiniCard(props: LoanListMiniCardProps) {
             </div>
           </div>
 
-          {/* Row 2 — total do contrato / próx / observação + progresso */}
+          {/* Row 2 — Métricas financeiras e de prazo */}
           <div className="mt-2.5 grid grid-cols-3 gap-2 items-center">
             <div className="min-w-0">
               <p className="text-[10px] text-muted-foreground leading-none">
@@ -217,78 +217,97 @@ export function LoanListMiniCard(props: LoanListMiniCardProps) {
             </div>
             <div className="min-w-0">
               <p className="text-[10px] text-muted-foreground leading-none">
-                {isParcelado ? `Parcelas (${loan.paidInstallments}/${loan.installments})` : "Vencimento"}
+                {isParcelado ? "Próx. vencimento" : "Vencimento"}
               </p>
               <p className="text-xs sm:text-sm font-medium text-foreground/90 tabular-nums mt-1 truncate">
                 {fmtDateBR(nextDue)}
               </p>
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-1 leading-none">
-                <p className="text-[10px] text-muted-foreground">Observação</p>
-                {!readOnly && !hideQuickNotes && (
-                  <Popover open={noteOpen} onOpenChange={setNoteOpen}>
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setNoteDraft(loan.notes || "");
-                        }}
-                        className="inline-flex items-center justify-center rounded-full p-0.5 text-muted-foreground/70 hover:text-primary hover:bg-primary/10 transition-colors"
-                        aria-label="Editar observação"
-                      >
-                        <Pencil className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent
-                      className="w-64 sm:w-72 p-3"
-                      onClick={(e) => e.stopPropagation()}
-                      align="end"
-                    >
-                      <p className="text-xs font-medium text-foreground mb-1.5">Observação rápida</p>
-                      <Textarea
-                        value={noteDraft}
-                        onChange={(e) => setNoteDraft(e.target.value)}
-                        placeholder="Digite uma observação..."
-                        rows={3}
-                        className="text-xs resize-none"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                            e.preventDefault();
-                            saveNote();
-                          }
-                          if (e.key === "Escape") {
-                            e.preventDefault();
-                            cancelNote();
-                          }
-                        }}
-                      />
-                      <div className="flex items-center justify-end gap-2 mt-2">
-                        <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={cancelNote}>
-                          <X className="h-3 w-3 mr-1" /> Cancelar
-                        </Button>
-                        <Button type="button" size="sm" className="h-7 px-2 text-xs" onClick={saveNote}>
-                          <Check className="h-3 w-3 mr-1" /> Salvar
-                        </Button>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+              <p className="text-[10px] text-muted-foreground leading-none">Parcelas</p>
+              <p className="text-xs sm:text-sm font-medium text-foreground/90 tabular-nums mt-1 truncate">
+                {loan.paidInstallments}/{loan.installments}
+                {loan.installments > 0 && (
+                  <span className="text-[10px] text-muted-foreground ml-1">
+                    ({Math.round(((loan.paidInstallments || 0) / loan.installments) * 100)}%)
+                  </span>
                 )}
-              </div>
+              </p>
+            </div>
+          </div>
+
+          {/* Row 3 — Faixa de Observação sempre visível */}
+          <div
+            className="mt-2.5 pt-2 border-t border-border/40 dark:border-white/5 flex items-center justify-between gap-2 bg-muted/40 dark:bg-white/[0.03] rounded-xl px-2.5 py-1.5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              <span className="text-amber-600 dark:text-amber-400 text-xs shrink-0 font-bold">📝</span>
               {loan.notes ? (
-                <p className="text-[11px] sm:text-xs text-foreground/90 mt-1 line-clamp-1 leading-snug">
+                <p className="text-xs font-medium text-foreground truncate">
                   {loan.notes}
                 </p>
               ) : (
-                <p className="text-[11px] sm:text-xs text-muted-foreground/60 mt-1">—</p>
+                <span className="text-[11px] text-muted-foreground/70 italic">
+                  Sem observação
+                </span>
               )}
             </div>
+            {!readOnly && !hideQuickNotes && (
+              <Popover open={noteOpen} onOpenChange={setNoteOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setNoteDraft(loan.notes || "");
+                    }}
+                    className="inline-flex items-center justify-center h-6 w-6 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
+                    aria-label={loan.notes ? "Editar observação" : "Adicionar observação"}
+                    title={loan.notes ? "Editar observação" : "Adicionar observação"}
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-64 sm:w-72 p-3"
+                  onClick={(e) => e.stopPropagation()}
+                  align="end"
+                >
+                  <p className="text-xs font-semibold text-foreground mb-1.5">Observação rápida</p>
+                  <Textarea
+                    value={noteDraft}
+                    onChange={(e) => setNoteDraft(e.target.value)}
+                    placeholder="Digite uma observação..."
+                    rows={3}
+                    className="text-xs resize-none"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                        e.preventDefault();
+                        saveNote();
+                      }
+                      if (e.key === "Escape") {
+                        e.preventDefault();
+                        cancelNote();
+                      }
+                    }}
+                  />
+                  <div className="flex items-center justify-end gap-2 mt-2">
+                    <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={cancelNote}>
+                      <X className="h-3 w-3 mr-1" /> Cancelar
+                    </Button>
+                    <Button type="button" size="sm" className="h-7 px-2 text-xs" onClick={saveNote}>
+                      <Check className="h-3 w-3 mr-1" /> Salvar
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
 
           {/* Micro repayment progress bar for active loans */}
           {loan.installments > 1 && loan.status !== "paid" && (
-            <div className="mt-2 pt-2 border-t border-border/30 flex items-center gap-2">
+            <div className="mt-2 flex items-center gap-2">
               <div className="flex-1 bg-muted/60 dark:bg-white/10 rounded-full h-1.5 overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-300 ${tone.dot}`}
