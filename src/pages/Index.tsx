@@ -1353,9 +1353,12 @@ const Index = () => {
             if (!current) return null;
             const Icon = current.icon;
             return (
-              <div className="flex items-center gap-2 sm:gap-3 pt-1">
-                <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
-                <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">{current.label}</h1>
+              <div className="flex items-center justify-between gap-2 sm:gap-3 pt-1">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
+                  <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight truncate">{current.label}</h1>
+                </div>
+                <div id="tab-header-actions" className="flex items-center gap-2 shrink-0 ml-auto" />
               </div>
             );
           })()}

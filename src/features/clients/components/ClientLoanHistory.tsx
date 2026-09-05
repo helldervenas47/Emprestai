@@ -1,7 +1,19 @@
 import { cn } from "@/lib/utils";
-import { useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
 import { InstallmentSchedule, Loan, Payment } from "@/types/loan";
 import { aggregatePortfolioPending } from "@/features/loans/lib/portfolioPending";
+
+function HeaderActionPortal({ children }: { children: React.ReactNode }) {
+  const [target, setTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setTarget(document.getElementById("tab-header-actions"));
+  }, []);
+
+  if (!target) return <div className="flex justify-end">{children}</div>;
+  return createPortal(children, target);
+}
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -376,55 +388,54 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
 
     return (
       <div className="space-y-4 animate-in fade-in slide-in-from-right-3 duration-200">
-        {/* Navigation bar */}
-        <div className="flex items-center justify-end pb-1 border-b border-border/40">
+        <HeaderActionPortal>
           <Button
             variant="outline"
             size="sm"
             type="button"
             onClick={closeClient}
-            className="gap-1.5 text-xs text-muted-foreground hover:text-foreground h-8"
+            className="gap-1.5 text-xs text-muted-foreground hover:text-foreground h-8 sm:h-9 px-3"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             <span>Voltar para Clientes</span>
           </Button>
-        </div>
+        </HeaderActionPortal>
 
         {/* Client Profile Header Banner */}
         <Card className="border-border/60 bg-gradient-to-r from-card via-card to-muted/20 shadow-xs overflow-hidden">
-          <CardContent className="p-3.5 sm:p-4.5">
+          <CardContent className="p-3.5 sm:p-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-sm sm:text-base shrink-0 select-none">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-sm shrink-0 select-none">
                   {getInitials(selectedClient)}
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-base sm:text-lg font-bold truncate text-foreground">
+                    <h2 className="text-base sm:text-lg font-bold text-foreground leading-tight truncate">
                       {selectedClient}
                     </h2>
                     <Badge variant="secondary" className="text-[11px] font-semibold h-5 px-2">
                       {clientLoans.length} {clientLoans.length === 1 ? "contrato" : "contratos"}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Histórico financeiro consolidado e detalhamento de contratos
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                    Histórico financeiro consolidado e contratos
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+              <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/40 sm:border-transparent">
                 <Badge
                   variant="outline"
                   className={cn(
-                    "text-xs px-2.5 py-1 font-semibold",
+                    "text-xs px-2.5 py-1 font-semibold w-full sm:w-auto justify-center sm:justify-start",
                     difference >= 0
                       ? "bg-success/10 text-success border-success/30"
                       : "bg-destructive/10 text-destructive border-destructive/30"
                   )}
                 >
                   {difference >= 0 ? "Lucro: " : "Em Recuperação: "}
-                  <span className="tabular-nums ml-1">{mask(formatCurrency(Math.abs(difference)))}</span>
+                  <span className="tabular-nums ml-1 font-bold">{mask(formatCurrency(Math.abs(difference)))}</span>
                 </Badge>
               </div>
             </div>
@@ -528,27 +539,27 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
 
   return (
     <div className="space-y-3.5 animate-in fade-in duration-200">
-      {/* Top Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-1 border-b border-border/40">
-        <div>
-          <h2 className="text-lg font-bold text-foreground tracking-tight">Histórico de Clientes</h2>
-          <p className="text-xs text-muted-foreground">
-            Acompanhamento financeiro, carteira e rentabilidade por cliente
-          </p>
-        </div>
-
-        {onBackToLoans && (
+      {onBackToLoans && (
+        <HeaderActionPortal>
           <Button
             variant="outline"
             size="sm"
             type="button"
             onClick={onBackToLoans}
-            className="gap-1.5 text-xs text-muted-foreground hover:text-foreground h-8"
+            className="gap-1.5 text-xs text-muted-foreground hover:text-foreground h-8 sm:h-9 px-3"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             <span>Voltar para Empréstimos</span>
           </Button>
-        )}
+        </HeaderActionPortal>
+      )}
+
+      {/* Top Header */}
+      <div className="pb-1 border-b border-border/40">
+        <h2 className="text-lg font-bold text-foreground tracking-tight">Histórico de Clientes</h2>
+        <p className="text-xs text-muted-foreground">
+          Acompanhamento financeiro, carteira e rentabilidade por cliente
+        </p>
       </div>
 
       <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
