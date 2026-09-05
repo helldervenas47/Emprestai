@@ -178,13 +178,6 @@ export function ClientRankingCard({
           <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
         </div>
       </div>
-
-      {/* Descrição oficial do nível de risco na visualização de maior risco */}
-      {rankingType === "risk" && riskInfo.description && (
-        <p className="text-[11px] sm:text-xs text-muted-foreground w-full pt-2 border-t border-border/40 leading-relaxed">
-          {riskInfo.description}
-        </p>
-      )}
     </div>
   );
 }
