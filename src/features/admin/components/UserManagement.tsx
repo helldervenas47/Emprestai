@@ -763,9 +763,9 @@ export function UserManagement() {
                     onClick={() => setExpandedUserId(isExpanded ? null : user.id)}
                   >
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-foreground truncate">{user.display_name}</p>
-                        <Badge variant={planBadgeVariant(user.plan_id)} className="text-[10px] px-1.5 py-0 shrink-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-sm font-bold text-foreground truncate max-w-full">{user.display_name}</p>
+                        <Badge variant={planBadgeVariant(user.plan_id)} className="text-[10px] px-2 py-0.5 shrink-0 whitespace-nowrap font-semibold">
                           {planLabel(user.plan_id)}
                         </Badge>
                       </div>

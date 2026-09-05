@@ -295,13 +295,15 @@ export function PlanSubscribers() {
                   className="w-full flex items-center justify-between p-3 text-left"
                   onClick={() => setExpandedId(isExpanded ? null : sub.user_id + sub.environment)}
                 >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate flex items-center gap-2">
-                      {sub.display_name || sub.user_id.slice(0, 8)}
-                      <Badge variant={planBadgeVariant(sub.product_id)} className="text-[10px] px-1.5 py-0">
+                  <div className="text-left min-w-0 flex-1">
+                    <div className="font-medium text-sm text-foreground flex items-center gap-1.5 flex-wrap">
+                      <span className="truncate max-w-full font-bold">
+                        {sub.display_name || sub.user_id.slice(0, 8)}
+                      </span>
+                      <Badge variant={planBadgeVariant(sub.product_id)} className="text-[10px] px-2 py-0.5 shrink-0 whitespace-nowrap font-semibold">
                         {planLabel(sub.product_id)}
                       </Badge>
-                    </p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="flex flex-col items-end gap-0.5">

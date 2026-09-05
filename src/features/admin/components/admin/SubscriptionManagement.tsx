@@ -257,19 +257,21 @@ export function SubscriptionManagement() {
 
               return (
                 <div key={u.user_id} className="rounded-lg border bg-card p-3 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start justify-between gap-2.5">
                     <div className="min-w-0 flex-1">
-                      <div className="font-medium text-sm truncate flex items-center gap-2">
-                        {u.display_name || "—"}
-                        <Badge variant={planBadgeVariant(planId)} className="text-[10px] px-1.5 py-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-sm text-foreground truncate max-w-full">
+                          {u.display_name || "—"}
+                        </span>
+                        <Badge variant={planBadgeVariant(planId)} className="text-[10px] px-2 py-0.5 shrink-0 whitespace-nowrap font-semibold">
                           {planLabel(planId)}
                         </Badge>
                       </div>
-                      <div className="text-xs text-muted-foreground truncate">{u.email}</div>
+                      <div className="text-xs text-muted-foreground truncate mt-0.5">{u.email}</div>
                     </div>
                     <div className="flex flex-col items-end gap-0.5 shrink-0">
-                      <Badge variant={meta.variant as any}>{meta.label}</Badge>
-                      <span className="text-[10px] text-muted-foreground">{daysLeftLabel(end)}</span>
+                      <Badge variant={meta.variant as any} className="font-semibold">{meta.label}</Badge>
+                      <span className="text-[10px] text-muted-foreground whitespace-nowrap">{daysLeftLabel(end)}</span>
                       {u.is_blocked && (
                         <Badge variant="destructive" className="gap-1 mt-1 text-[10px]"><ShieldOff className="h-3 w-3" />Bloqueado</Badge>
                       )}
