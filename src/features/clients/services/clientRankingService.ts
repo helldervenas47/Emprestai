@@ -79,10 +79,6 @@ async function fallbackClientRanking(
     .select("id, name, phone, cpf, cnpj, score_risco, score_tempo_real, qtd_pagamentos_total, qtd_pagamentos_atrasados, valor_em_atraso, qtd_emprestimos_quitados")
     .order("name", { ascending: true });
 
-  if (search.trim()) {
-    query = query.ilike("name", `%${search.trim()}%`);
-  }
-
   const { data: clients, error } = await query;
   if (error || !clients) {
     return { data: [], total_count: 0, page, page_size: pageSize, total_pages: 0 };
@@ -139,20 +135,32 @@ async function fallbackClientRanking(
     }
   });
 
-  // Aplica posições
+  // Aplica posições globais
   items.forEach((it, idx) => {
     it.position = idx + 1;
   });
 
-  const total = items.length;
+  // Filtra por busca preservando posição
+  const term = search.trim().toLowerCase();
+  const filtered = term
+    ? items.filter((it) => {
+        return (
+          (it.client_name && it.client_name.toLowerCase().includes(term)) ||
+          (it.client_cpf && it.client_cpf.includes(term)) ||
+          (it.client_phone && it.client_phone.includes(term))
+        );
+      })
+    : items;
+
+  const total = filtered.length;
   const offset = (page - 1) * pageSize;
-  const paged = items.slice(offset, offset + pageSize);
+  const paged = filtered.slice(offset, offset + pageSize);
 
   return {
     data: paged,
     total_count: total,
     page,
     page_size: pageSize,
-    total_pages: Math.ceil(total / pageSize),
+    total_pages: Math.ceil(total / pageSize) || 1,
   };
 }

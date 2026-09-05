@@ -182,5 +182,24 @@ describe("computeClientRanking", () => {
     expect(client1?.on_time_payments).toBe(3);
     expect(client1?.on_time_percentage).toBe(75);
   });
+
+  it("preserva a posição global do ranking ao filtrar por busca", () => {
+    // No ranking por volume: client-2 é #1 (R$ 5000), client-1 é #2 (R$ 1000)
+    const res = computeClientRanking({
+      clients: mockClients,
+      loans: mockLoans,
+      payments: mockPayments,
+      installmentSchedules: mockSchedules,
+      rankingType: "volume",
+      period: "all",
+      search: "João", // Filtra apenas João (client-1)
+    });
+
+    expect(res.total_count).toBe(1);
+    expect(res.data).toHaveLength(1);
+    expect(res.data[0].client_id).toBe("client-1");
+    // Sua posição deve ser #2 (posição global no ranking de volume), NÃO #1
+    expect(res.data[0].position).toBe(2);
+  });
 });
 

@@ -73,21 +73,10 @@ export function computeClientRanking({
     pEnd = new Date(endDate + "T23:59:59");
   }
 
-  // Filtragem de clientes por busca
-  const term = search.trim().toLowerCase();
-  const filteredClients = clients.filter((c) => {
-    if (!term) return true;
-    return (
-      (c.name && c.name.toLowerCase().includes(term)) ||
-      (c.cpf && c.cpf.includes(term)) ||
-      (c.phone && c.phone.includes(term))
-    );
-  });
-
   // Agregação dos indicadores por cliente (apenas clientes com pelo menos 1 empréstimo em todo o app)
   const items: ClientRankingItem[] = [];
 
-  filteredClients.forEach((client) => {
+  clients.forEach((client) => {
     // Empréstimos pertencentes ao cliente em todo o app
     const clientLoansAll = getClientLoans(client, loans);
     if (clientLoansAll.length === 0) {
@@ -321,14 +310,26 @@ export function computeClientRanking({
     }
   });
 
-  // Atribui as posições
+  // Atribui as posições globais do ranking
   items.forEach((item, index) => {
     item.position = index + 1;
   });
 
-  const totalCount = items.length;
+  // Filtragem de clientes por busca preservando a posição global
+  const term = search.trim().toLowerCase();
+  const searchFilteredItems = term
+    ? items.filter((item) => {
+        return (
+          (item.client_name && item.client_name.toLowerCase().includes(term)) ||
+          (item.client_cpf && item.client_cpf.includes(term)) ||
+          (item.client_phone && item.client_phone.includes(term))
+        );
+      })
+    : items;
+
+  const totalCount = searchFilteredItems.length;
   const offset = (page - 1) * pageSize;
-  const pagedItems = items.slice(offset, offset + pageSize);
+  const pagedItems = searchFilteredItems.slice(offset, offset + pageSize);
 
   return {
     data: pagedItems,

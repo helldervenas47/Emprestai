@@ -5,6 +5,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { ClientRankingItem } from "../../types/clientRanking";
 import { getClientRiskScoreInfo } from "../../lib/clientRiskScore";
@@ -25,6 +26,7 @@ import {
   LayoutGrid,
   Tag,
   AlertTriangle,
+  X,
 } from "lucide-react";
 import { Client, InstallmentSchedule, Loan, Payment } from "@/types/loan";
 import { todayInAppTz } from "@/lib/timezone";
@@ -280,6 +282,7 @@ export function ClientRankingDetailDialog({
       }}
     >
       <DialogContent
+        showCloseButton={false}
         style={{ padding: 0 }}
         className="fixed inset-0 left-0 top-0 translate-x-0 translate-y-0 w-screen h-[100dvh] max-w-none max-h-none sm:max-w-none sm:max-h-none rounded-none sm:rounded-none border-none p-0 overflow-hidden flex flex-col z-50 bg-background duration-200"
       >
@@ -287,27 +290,39 @@ export function ClientRankingDetailDialog({
         <DialogHeader className="p-4 sm:p-6 bg-muted/30 border-b border-border/60 shrink-0">
           <div className="max-w-5xl mx-auto w-full">
             <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-base shrink-0 uppercase">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-base shrink-0 uppercase">
                   {item.client_name.slice(0, 2)}
                 </div>
-                <div>
-                  <DialogTitle className="text-base sm:text-lg font-bold text-foreground">
+                <div className="min-w-0">
+                  <DialogTitle className="text-base sm:text-lg font-bold text-foreground truncate">
                     {item.client_name}
                   </DialogTitle>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
                     {item.client_cpf ? `CPF: ${item.client_cpf}` : "Cliente cadastrado"}
                     {item.client_phone && ` • ${item.client_phone}`}
                   </p>
                 </div>
               </div>
 
-              <div className="text-right">
-                <span className="text-xs font-semibold text-muted-foreground block">Posição</span>
-                <span className="text-base sm:text-lg font-extrabold text-foreground flex items-center justify-end gap-1">
-                  <Trophy className="h-4 w-4 text-amber-500" />
-                  #{item.position}
-                </span>
+              <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+                <div className="text-right">
+                  <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground block">Posição</span>
+                  <span className="text-base sm:text-lg font-extrabold text-foreground flex items-center justify-end gap-1">
+                    <Trophy className="h-4 w-4 text-amber-500" />
+                    #{item.position}
+                  </span>
+                </div>
+                <DialogClose asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/80 ml-1"
+                  >
+                    <X className="h-5 w-5" />
+                    <span className="sr-only">Fechar</span>
+                  </Button>
+                </DialogClose>
               </div>
             </div>
 
