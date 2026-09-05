@@ -810,13 +810,13 @@ function LoanRowView({
                   </span>
                 </div>
 
-                {/* 2. + Encargos / Juros */}
+                {/* 2. Encargos / Juros */}
                 <div className="bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-left flex flex-col justify-between">
                   <span className="text-[10px] sm:text-[11px] font-medium text-amber-600 dark:text-amber-400 uppercase">
-                    + Encargos & Juros
+                    Encargos & Juros
                   </span>
                   <p className="text-sm sm:text-base font-bold text-amber-600 dark:text-amber-400 tabular-nums mt-1">
-                    + {formatCurrency(Math.max(0, (total - loan.amount)) + lateFees)}
+                    {formatCurrency(Math.max(0, (total - loan.amount)) + lateFees)}
                   </p>
                   <span className="text-[10px] text-muted-foreground mt-0.5 truncate" title={`Juros: ${rawFormatCurrency(total - loan.amount)}${lateFees > 0 ? ` • Mora/Multa: ${rawFormatCurrency(lateFees)}` : ""}`}>
                     Juros {rawFormatCurrency(total - loan.amount)}{lateFees > 0 ? ` • Multa ${rawFormatCurrency(lateFees)}` : ""}
@@ -836,20 +836,20 @@ function LoanRowView({
                   </span>
                 </div>
 
-                {/* 4. - Total Pago */}
+                {/* 4. Total Pago */}
                 <div className="bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-left flex flex-col justify-between">
                   <span className="text-[10px] sm:text-[11px] font-medium text-success uppercase">
-                    - Total Pago
+                    Total Pago
                   </span>
                   <p className="text-sm sm:text-base font-bold text-success tabular-nums mt-1">
-                    - {formatCurrency(totalPaid)}
+                    {formatCurrency(totalPaid)}
                   </p>
                   <span className="text-[10px] text-muted-foreground mt-0.5">
                     {allPayments.filter(p => p.loanId === loan.id).length} pagamento(s)
                   </span>
                 </div>
 
-                {/* 5. = Saldo Restante */}
+                {/* 5. Saldo Restante */}
                 <div className={`col-span-2 sm:col-span-1 rounded-xl p-2.5 sm:p-3 border text-left flex flex-col justify-between ${
                   category === "overdue"
                     ? "bg-destructive/10 border-destructive/30"
@@ -860,7 +860,7 @@ function LoanRowView({
                   <span className={`text-[10px] sm:text-[11px] font-bold uppercase ${
                     category === "overdue" ? "text-destructive" : category === "due_today" ? "text-amber-600 dark:text-amber-400" : "text-primary"
                   }`}>
-                    = Saldo Restante
+                    Saldo Restante
                   </span>
                   <p className={`text-base sm:text-lg font-extrabold tabular-nums mt-1 ${
                     category === "overdue" ? "text-destructive" : category === "due_today" ? "text-amber-600 dark:text-amber-400" : "text-primary"
