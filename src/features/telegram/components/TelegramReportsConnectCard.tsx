@@ -107,19 +107,19 @@ export const TelegramReportsConnectCard = forwardRef<HTMLDivElement, Record<stri
         </div>
 
         {linked ? (
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40 flex-wrap">
+          <div className="grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-2 pt-2 border-t border-border/40 w-full">
             <Button
               size="sm"
               variant="outline"
               onClick={handleSyncCommands}
               disabled={syncingCommands}
               title="Atualizar comandos e botão de menu no Telegram"
-              className="text-xs"
+              className="text-xs w-full sm:w-auto"
             >
               <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncingCommands ? "animate-spin" : ""}`} />
               Sincronizar Comandos
             </Button>
-            <Button size="sm" variant="outline" onClick={handleDisconnect} className="text-xs">
+            <Button size="sm" variant="outline" onClick={handleDisconnect} className="text-xs w-full sm:w-auto">
               <Unlink className="h-3.5 w-3.5 mr-1.5" /> Desvincular
             </Button>
           </div>
