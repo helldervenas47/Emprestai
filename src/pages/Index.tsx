@@ -1413,37 +1413,6 @@ const Index = () => {
                 {tab === "dashboard" && (
                   <SubscriptionGate requiredTier={2} featureName="Empréstimos">
                     <div>
-                      <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-lg font-semibold text-foreground">
-                            {loanSubTab === "history" ? "Histórico do Cliente" : ""}
-                          </h2>
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {loanSubTab === "history" && (
-                            <button
-                              type="button"
-                              onClick={closeClientHistory}
-                              className="md:hidden h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-full border border-border/60 bg-muted/30 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                              aria-label="Voltar para Empréstimos"
-                            >
-                              <X className="h-5 w-5" />
-                            </button>
-                          )}
-                          {loanSubTab === "history" ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              type="button"
-                              onClick={closeClientHistory}
-                              className="gap-1.5 hidden md:inline-flex"
-                            >
-                              <FolderOpen className="h-4 w-4" />
-                              Voltar para Empréstimos
-                            </Button>
-                          ) : null}
-                        </div>
-                      </div>
                       <div className={loanSubTab === "history" ? "hidden" : undefined} aria-hidden={loanSubTab === "history"}>
                         <LoanList
                           loans={filteredLoans}
@@ -1477,7 +1446,12 @@ const Index = () => {
                             </div>
                           }
                         >
-                          <ClientLoanHistory loans={filteredLoans} payments={filteredPayments} installmentSchedules={filteredInstallments} />
+                          <ClientLoanHistory
+                            loans={filteredLoans}
+                            payments={filteredPayments}
+                            installmentSchedules={filteredInstallments}
+                            onBackToLoans={closeClientHistory}
+                          />
                         </LazyDialogBoundary>
                       )}
                     </div>

@@ -41,10 +41,18 @@ interface Props {
   loans: Loan[];
   payments: Payment[];
   installmentSchedules?: InstallmentSchedule[];
+  onBackToLoans?: () => void;
 }
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+}
+
+function getInitials(name: string): string {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 interface ClientRow {
@@ -87,7 +95,7 @@ const statusLabels: Record<string, string> = {
   defaulted: "Inadimplente",
 };
 
-export function ClientLoanHistory({ loans, payments, installmentSchedules = [] }: Props) {
+export function ClientLoanHistory({ loans, payments, installmentSchedules = [], onBackToLoans }: Props) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [showSummary, setShowSummary] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches);
@@ -367,93 +375,156 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [] }
     const difference = (paidTotal + interestReceived) - borrowed;
 
     return (
-      <div className="space-y-3 animate-in fade-in slide-in-from-right-4 duration-200">
-        <div className="flex items-center gap-2">
+      <div className="space-y-4 animate-in fade-in slide-in-from-right-3 duration-200">
+        {/* Navigation bar */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-border/40">
           <Button
             variant="ghost"
             size="sm"
             type="button"
             onClick={closeClient}
-            className="gap-1 -ml-2"
+            className="gap-1.5 -ml-2 text-xs font-semibold hover:bg-muted"
           >
             <ArrowLeft className="h-4 w-4" />
-            Voltar
+            <span>Voltar aos Clientes</span>
           </Button>
-          <h2 className="text-base font-semibold truncate">{selectedClient}</h2>
+
+          {onBackToLoans && (
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={onBackToLoans}
+              className="gap-1.5 text-xs text-muted-foreground hover:text-foreground h-8"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>Voltar para Empréstimos</span>
+            </Button>
+          )}
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
-          <Card>
-            <CardContent className="p-3 flex flex-col items-center justify-center text-center h-full">
-              <div className="text-[11px] text-muted-foreground mb-0.5">Emprestado</div>
-              <div className="font-bold tabular-nums text-sm sm:text-base">
+        {/* Client Profile Header Banner */}
+        <Card className="border-border/60 bg-gradient-to-r from-card via-card to-muted/20 shadow-xs overflow-hidden">
+          <CardContent className="p-3.5 sm:p-4.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-sm sm:text-base shrink-0 select-none">
+                  {getInitials(selectedClient)}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-base sm:text-lg font-bold truncate text-foreground">
+                      {selectedClient}
+                    </h2>
+                    <Badge variant="secondary" className="text-[11px] font-semibold h-5 px-2">
+                      {clientLoans.length} {clientLoans.length === 1 ? "contrato" : "contratos"}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Histórico financeiro consolidado e detalhamento de contratos
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-xs px-2.5 py-1 font-semibold",
+                    difference >= 0
+                      ? "bg-success/10 text-success border-success/30"
+                      : "bg-destructive/10 text-destructive border-destructive/30"
+                  )}
+                >
+                  {difference >= 0 ? "Lucro: " : "Em Recuperação: "}
+                  <span className="tabular-nums ml-1">{mask(formatCurrency(Math.abs(difference)))}</span>
+                </Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 8 Resilient, High-Readability Summary Cards in Responsive 4-Col Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+          <Card className="hover:border-border/80 transition-colors shadow-xs">
+            <CardContent className="p-3 sm:p-3.5 flex flex-col items-center justify-center text-center h-full">
+              <span className="text-[11px] font-medium text-muted-foreground mb-1">Total Emprestado</span>
+              <span className="font-bold tabular-nums text-sm sm:text-base text-foreground">
                 {mask(formatCurrency(borrowed))}
-              </div>
+              </span>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-3 flex flex-col items-center justify-center text-center h-full">
-              <div className="text-[11px] text-muted-foreground mb-0.5">Total Pago</div>
-              <div className="font-bold tabular-nums text-success text-sm sm:text-base">
+
+          <Card className="hover:border-border/80 transition-colors shadow-xs">
+            <CardContent className="p-3 sm:p-3.5 flex flex-col items-center justify-center text-center h-full">
+              <span className="text-[11px] font-medium text-muted-foreground mb-1">Total Pago</span>
+              <span className="font-bold tabular-nums text-success text-sm sm:text-base">
                 {mask(formatCurrency(paidTotal + interestReceived))}
-              </div>
+              </span>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-3 flex flex-col items-center justify-center text-center h-full">
-              <div className="text-[11px] text-muted-foreground mb-0.5">Principal Pago</div>
-              <div className="font-bold tabular-nums text-success text-sm sm:text-base">
+
+          <Card className="hover:border-border/80 transition-colors shadow-xs">
+            <CardContent className="p-3 sm:p-3.5 flex flex-col items-center justify-center text-center h-full">
+              <span className="text-[11px] font-medium text-muted-foreground mb-1">Principal Pago</span>
+              <span className="font-bold tabular-nums text-success text-sm sm:text-base">
                 {mask(formatCurrency(paidTotal))}
-              </div>
+              </span>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-3 flex flex-col items-center justify-center text-center h-full">
-              <div className="text-[11px] text-muted-foreground mb-0.5">Juros Recebidos</div>
-              <div className="font-bold tabular-nums text-success text-sm sm:text-base">
+
+          <Card className="hover:border-border/80 transition-colors shadow-xs">
+            <CardContent className="p-3 sm:p-3.5 flex flex-col items-center justify-center text-center h-full">
+              <span className="text-[11px] font-medium text-muted-foreground mb-1">Juros Recebidos</span>
+              <span className="font-bold tabular-nums text-success text-sm sm:text-base">
                 {mask(formatCurrency(interestReceived))}
-              </div>
+              </span>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-3 flex flex-col items-center justify-center text-center h-full">
-              <div className="text-[11px] text-muted-foreground mb-0.5">Juros a Receber</div>
-              <div className="font-bold tabular-nums text-warning text-sm sm:text-base">
-                {mask(formatCurrency(interestPending))}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-3 flex flex-col items-center justify-center text-center h-full">
-              <div className="text-[11px] text-muted-foreground mb-0.5">Pendente</div>
-              <div className="font-bold tabular-nums text-warning text-sm sm:text-base">
+
+          <Card className="hover:border-border/80 transition-colors shadow-xs">
+            <CardContent className="p-3 sm:p-3.5 flex flex-col items-center justify-center text-center h-full">
+              <span className="text-[11px] font-medium text-muted-foreground mb-1">Pendente Total</span>
+              <span className="font-bold tabular-nums text-warning text-sm sm:text-base">
                 {mask(formatCurrency(pendingTotal))}
-              </div>
+              </span>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-3 flex flex-col items-center justify-center text-center h-full">
-              <div className="text-[11px] text-muted-foreground mb-0.5">Diferença</div>
-              <div className={cn(
+
+          <Card className="hover:border-border/80 transition-colors shadow-xs">
+            <CardContent className="p-3 sm:p-3.5 flex flex-col items-center justify-center text-center h-full">
+              <span className="text-[11px] font-medium text-muted-foreground mb-1">Juros a Receber</span>
+              <span className="font-bold tabular-nums text-warning text-sm sm:text-base">
+                {mask(formatCurrency(interestPending))}
+              </span>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:border-border/80 transition-colors shadow-xs">
+            <CardContent className="p-3 sm:p-3.5 flex flex-col items-center justify-center text-center h-full">
+              <span className="text-[11px] font-medium text-muted-foreground mb-1">Diferença Líquida</span>
+              <span className={cn(
                 "font-bold tabular-nums text-sm sm:text-base",
                 difference >= 0 ? "text-success" : "text-destructive"
               )}>
                 {mask(formatCurrency(difference))}
-              </div>
+              </span>
             </CardContent>
           </Card>
-          <Card className="col-span-2 md:col-span-4 lg:col-span-1">
-            <CardContent className="p-3 flex flex-col items-center justify-center text-center h-full">
-              <div className="text-[11px] text-muted-foreground mb-0.5">Total Geral</div>
-              <div className="font-bold tabular-nums text-primary text-sm sm:text-base">
+
+          <Card className="hover:border-border/80 transition-colors shadow-xs">
+            <CardContent className="p-3 sm:p-3.5 flex flex-col items-center justify-center text-center h-full">
+              <span className="text-[11px] font-medium text-muted-foreground mb-1">Total Contratado</span>
+              <span className="font-bold tabular-nums text-primary text-sm sm:text-base">
                 {mask(formatCurrency(grandTotal))}
-              </div>
+              </span>
             </CardContent>
           </Card>
         </div>
 
-        <Card>
-          <CardContent className="p-3 sm:p-4">
+        {/* Contract List */}
+        <Card className="border-border/60 shadow-xs">
+          <CardContent className="p-3.5 sm:p-4.5">
             <ClientLoansList
               loans={clientLoans}
               payments={payments}
@@ -468,7 +539,30 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [] }
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3.5 animate-in fade-in duration-200">
+      {/* Top Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-1 border-b border-border/40">
+        <div>
+          <h2 className="text-lg font-bold text-foreground tracking-tight">Histórico de Clientes</h2>
+          <p className="text-xs text-muted-foreground">
+            Acompanhamento financeiro, carteira e rentabilidade por cliente
+          </p>
+        </div>
+
+        {onBackToLoans && (
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            onClick={onBackToLoans}
+            className="gap-1.5 text-xs text-muted-foreground hover:text-foreground h-8"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>Voltar para Empréstimos</span>
+          </Button>
+        )}
+      </div>
+
       <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -682,65 +776,72 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [] }
       </Card>
 
       {/* Mobile — Cards */}
-      <div className="md:hidden space-y-2">
+      <div className="md:hidden space-y-2.5">
         {rows.map((r) => (
-          <Card key={r.name}>
-            <CardContent className="p-4 space-y-2">
-              <button
-                type="button"
-                onClick={() => openClient(r.name)}
-                className="w-full flex items-center justify-center gap-2 focus-visible:outline-none"
-              >
-                <h3 className="font-semibold text-sm truncate text-center">{r.name}</h3>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </button>
-              <div className="grid grid-cols-2 gap-2 text-xs text-center">
+          <Card
+            key={r.name}
+            className="hover:border-border/80 transition-colors shadow-xs active:scale-[0.99] cursor-pointer"
+            onClick={() => openClient(r.name)}
+          >
+            <CardContent className="p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-xs shrink-0 select-none">
+                    {getInitials(r.name)}
+                  </div>
+                  <h3 className="font-semibold text-sm truncate text-foreground">{r.name}</h3>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "text-[10px] px-1.5 py-0 h-5 font-semibold",
+                      (r.paid + r.interestPaid - r.borrowed) >= 0
+                        ? "bg-success/10 text-success border-success/30"
+                        : "bg-destructive/10 text-destructive border-destructive/30"
+                    )}
+                  >
+                    {(r.paid + r.interestPaid - r.borrowed) >= 0 ? "Lucro" : "Aberto"}
+                  </Badge>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs bg-muted/30 rounded-md p-2.5">
                 <div>
-                  <div className="text-muted-foreground">Emprestado</div>
-                  <div className="tabular-nums font-medium">{mask(formatCurrency(r.borrowed))}</div>
+                  <div className="text-[11px] text-muted-foreground">Emprestado</div>
+                  <div className="tabular-nums font-semibold text-foreground">{mask(formatCurrency(r.borrowed))}</div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground">Total Pago</div>
-                  <div className="tabular-nums font-medium text-success">
+                  <div className="text-[11px] text-muted-foreground">Total Pago</div>
+                  <div className="tabular-nums font-semibold text-success">
                     {mask(formatCurrency(r.paid + r.interestPaid))}
                   </div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground">Principal Pago</div>
+                  <div className="text-[11px] text-muted-foreground">Principal Pago</div>
                   <div className="tabular-nums font-medium text-success">{mask(formatCurrency(r.paid))}</div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground">Juros Recebidos</div>
+                  <div className="text-[11px] text-muted-foreground">Juros Recebidos</div>
                   <div className="tabular-nums font-medium text-success">{mask(formatCurrency(r.interestPaid))}</div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground">Juros a Receber</div>
-                  <div className="tabular-nums font-medium text-warning">{mask(formatCurrency(r.interestPending))}</div>
+                  <div className="text-[11px] text-muted-foreground">Pendente</div>
+                  <div className="tabular-nums font-semibold text-warning">{mask(formatCurrency(r.pending))}</div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground">Pendente</div>
-                  <div className="tabular-nums font-medium text-warning">{mask(formatCurrency(r.pending))}</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground">Diferença</div>
+                  <div className="text-[11px] text-muted-foreground">Diferença</div>
                   <div className={cn(
-                    "tabular-nums font-medium",
+                    "tabular-nums font-semibold",
                     (r.paid + r.interestPaid - r.borrowed) >= 0 ? "text-success" : "text-destructive"
                   )}>
                     {mask(formatCurrency(r.paid + r.interestPaid - r.borrowed))}
                   </div>
                 </div>
-                <div>
-                  <div className="text-muted-foreground">Total Geral</div>
-                  <div className="tabular-nums font-semibold text-primary">{mask(formatCurrency(r.total))}</div>
-                </div>
-                <div className="col-span-2 pt-1 border-t border-border/40">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Taxa de Juros</span>
-                    <span className="tabular-nums font-semibold text-primary">
-                      {hidden ? "•••" : `${r.interestRate.toFixed(2).replace(".", ",")}%`}
-                    </span>
-                  </div>
+                <div className="col-span-2 pt-1.5 border-t border-border/40 flex items-center justify-between">
+                  <span className="text-[11px] text-muted-foreground">Total Contratado</span>
+                  <span className="tabular-nums font-bold text-primary">{mask(formatCurrency(r.total))}</span>
                 </div>
               </div>
             </CardContent>
