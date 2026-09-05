@@ -87,32 +87,39 @@ export const TelegramReportsConnectCard = forwardRef<HTMLDivElement, Record<stri
   return (
     <Card ref={ref} no3d>
       <CardContent className="p-4 space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <Send className="h-4 w-4 text-primary" />
             </div>
-            <div className="min-w-0">
-              <p className="font-semibold text-sm">Bot de Relatórios (Telegram)</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                <p className="font-semibold text-sm whitespace-nowrap">Bot de Relatórios (Telegram)</p>
+                {linked && (
+                  <span className="inline-flex items-center gap-1 text-xs text-success font-medium sm:hidden">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Conectado
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground truncate">
                 Independente do bot de despesas. Recebe os relatórios de cobrança.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-border/40">
             <Button
               size="sm"
               variant="ghost"
               onClick={handleSyncCommands}
               disabled={syncingCommands}
               title="Atualizar comandos e botão de menu no Telegram"
-              className="text-xs text-muted-foreground hover:text-foreground"
+              className="text-xs text-muted-foreground hover:text-foreground h-8 px-2"
             >
               <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncingCommands ? "animate-spin" : ""}`} />
               Sincronizar Comandos
             </Button>
             {linked && (
-              <span className="inline-flex items-center gap-1 text-xs text-success font-medium">
+              <span className="hidden sm:inline-flex items-center gap-1 text-xs text-success font-medium">
                 <CheckCircle2 className="h-3.5 w-3.5" /> Conectado
               </span>
             )}
