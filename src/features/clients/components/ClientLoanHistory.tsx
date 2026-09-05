@@ -628,50 +628,65 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
       </div>
 
       <div className="space-y-2 sm:space-y-2.5 animate-in fade-in-50 duration-200">
-          {/* Health & Capital Recovery Header Banner - Responsive */}
+          {/* Health & Capital Recovery Header Banner - Integrated Mobile Layout */}
           <Card className="border-border/60 bg-gradient-to-br from-card via-card to-muted/20 shadow-xs overflow-hidden">
-            <CardContent className="p-3 sm:p-3.5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-2">
+            <CardContent className="p-3 sm:p-3.5 space-y-2">
+              <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0">
                     <TrendingUp className="h-4 w-4" />
                   </div>
-                  <div>
-                    <h3 className="text-xs sm:text-sm font-bold text-foreground">
+                  <div className="min-w-0">
+                    <h3 className="text-xs sm:text-sm font-bold text-foreground truncate">
                       Recuperação da Carteira Geral
                     </h3>
-                    <p className="text-[11px] text-muted-foreground">
-                      {mask(formatCurrency(totals.totalPaid + totals.totalInterestPaid))} recebidos de {mask(formatCurrency(totals.totalBorrowed))}
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      {mask(formatCurrency(totals.totalPaid + totals.totalInterestPaid))} de {mask(formatCurrency(totals.totalBorrowed))} emprestados
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center shrink-0">
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "text-xs px-2.5 py-0.5 font-semibold",
-                      (totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed) >= 0
-                        ? "bg-success/10 text-success border-success/30"
-                        : "bg-warning/10 text-warning border-warning/30"
-                    )}
-                  >
-                    {(totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed) >= 0 ? "Lucro: " : "Em Recuperação: "}
-                    <span className="tabular-nums ml-1 font-bold">
-                      {mask(formatCurrency(Math.abs(totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed)))}
-                    </span>
-                  </Badge>
-                </div>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "hidden sm:inline-flex text-xs px-2.5 py-0.5 font-semibold shrink-0",
+                    (totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed) >= 0
+                      ? "bg-success/10 text-success border-success/30"
+                      : "bg-warning/10 text-warning border-warning/30"
+                  )}
+                >
+                  {(totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed) >= 0 ? "Lucro: " : "Em Recuperação: "}
+                  <span className="tabular-nums ml-1 font-bold">
+                    {mask(formatCurrency(Math.abs(totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed)))}
+                  </span>
+                </Badge>
               </div>
 
-              {/* Compact Progress Bar */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
-                  <span>Capital Retornado</span>
-                  <span className="font-bold tabular-nums text-foreground">
-                    {hidden ? "•••" : `${(totals.totalBorrowed > 0 ? ((totals.totalPaid + totals.totalInterestPaid) / totals.totalBorrowed) * 100 : 0).toFixed(1).replace(".", ",")}%`}
+              {/* Progress Bar & Integrated Indicators */}
+              <div className="space-y-1.5 pt-0.5">
+                <div className="flex items-center justify-between text-[11px] font-medium gap-2">
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <span>Capital Retornado</span>
+                    <span className="font-bold tabular-nums text-foreground">
+                      {hidden ? "•••" : `${(totals.totalBorrowed > 0 ? ((totals.totalPaid + totals.totalInterestPaid) / totals.totalBorrowed) * 100 : 0).toFixed(1).replace(".", ",")}%`}
+                    </span>
+                  </div>
+
+                  <span
+                    className={cn(
+                      "font-semibold tabular-nums text-[11px] whitespace-nowrap",
+                      (totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed) >= 0
+                        ? "text-success"
+                        : "text-amber-600 dark:text-amber-400"
+                    )}
+                  >
+                    {(totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed) >= 0 ? "Lucro: " : "Falta: "}
+                    <span className="font-bold">
+                      {mask(formatCurrency(Math.abs(totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed)))}
+                    </span>
                   </span>
                 </div>
+
                 <div className="h-1.5 w-full bg-muted/60 rounded-full overflow-hidden border border-border/40">
                   <div
                     className={cn(
