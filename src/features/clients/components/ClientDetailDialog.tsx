@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, CalendarClock, CheckCircle2, Minus, ShieldCheck, Wallet } from "lucide-react";
-import { Client, InstallmentSchedule, Loan, Payment } from "@/types/loan";
+import { Client, InstallmentSchedule, Loan, LoanRenegotiation, Payment } from "@/types/loan";
 import { buildClientRiskHistory, buildConsolidatedRiskProfile, formatRiskCurrency, getClientLoans, getClientRiskMetrics } from "@/features/loans/lib/clientRisk";
+import { useLoanRenegotiations } from "@/features/loans/hooks/useLoanRenegotiations";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,13 +15,17 @@ interface Props {
   loans: Loan[];
   payments: Payment[];
   installmentSchedules: InstallmentSchedule[];
+  renegotiations?: LoanRenegotiation[];
 }
 
-export function ClientDetailDialog({ open, onOpenChange, client, loans, payments, installmentSchedules }: Props) {
+export function ClientDetailDialog({ open, onOpenChange, client, loans, payments, installmentSchedules, renegotiations: propRenegotiations }: Props) {
+  const { renegotiations: fetchedRenegotiations } = useLoanRenegotiations();
+  const renegotiations = propRenegotiations ?? fetchedRenegotiations;
+
   const clientLoans = useMemo(() => (client ? getClientLoans(client, loans) : []), [client, loans]);
-  const riskProfile = useMemo(() => (client ? buildConsolidatedRiskProfile(client, loans, payments, installmentSchedules, null) : null), [client, loans, payments, installmentSchedules]);
+  const riskProfile = useMemo(() => (client ? buildConsolidatedRiskProfile(client, loans, payments, installmentSchedules, null, new Date(), renegotiations) : null), [client, loans, payments, installmentSchedules, renegotiations]);
   const metrics = useMemo(() => (client ? getClientRiskMetrics(client, loans, payments, installmentSchedules) : null), [client, loans, payments, installmentSchedules]);
-  const history = useMemo(() => (client ? buildClientRiskHistory(client, loans, payments, installmentSchedules) : []), [client, loans, payments, installmentSchedules]);
+  const history = useMemo(() => (client ? buildClientRiskHistory(client, loans, payments, installmentSchedules, renegotiations) : []), [client, loans, payments, installmentSchedules, renegotiations]);
 
   if (!client || !riskProfile || !metrics) return null;
 

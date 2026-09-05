@@ -24,6 +24,7 @@ import { Wallet, AlertTriangle as AlertTriangleIcon } from "lucide-react";
 import { buildRiskProfile } from "@/features/loans/lib/clientRisk";
 import { LoanPaymentSplitEditor, buildSplitFromState, type SplitState } from "@/features/loans/components/LoanPaymentSplitEditor";
 import { formatCPF, formatCpfOrCnpj, onlyDigits } from "@/lib/brDocuments";
+import { useLoanRenegotiations } from "@/features/loans/hooks/useLoanRenegotiations";
 
 interface Props {
   onAdd: (loan: Omit<Loan, "id" | "status" | "paidInstallments"> & { paymentMethodId?: string | null; paymentSplit?: import("@/types/loan").PaymentSplit | null }) => Promise<string | null>;
@@ -57,6 +58,7 @@ function getNextDate(base: Date, frequency: string, periods: number): Date {
 }
 
 export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payments, installmentSchedules, existingTags = [], prefill, onAddClient }: Props) {
+  const { renegotiations } = useLoanRenegotiations();
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -146,13 +148,15 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
         selectedClient,
         loans || [],
         (payments || []) as any,
-        (installmentSchedules || []) as any
+        (installmentSchedules || []) as any,
+        new Date(),
+        renegotiations
       );
     } catch (err) {
       console.error("[LoanForm] Erro ao calcular perfil de risco do cliente:", err);
       return null;
     }
-  }, [selectedClient, loans, payments, installmentSchedules]);
+  }, [selectedClient, loans, payments, installmentSchedules, renegotiations]);
 
   const { getLimitForClient } = useCreditLimits();
   const selectedClientLimit = selectedClient ? getLimitForClient(selectedClient.id) : undefined;

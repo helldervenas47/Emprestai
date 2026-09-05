@@ -6,7 +6,7 @@ import {
   ClientRankingPeriod,
   ClientRankingItem,
 } from "../types/clientRanking";
-import { Client, Loan, Payment, InstallmentSchedule } from "@/types/loan";
+import { Client, Loan, LoanRenegotiation, Payment, InstallmentSchedule } from "@/types/loan";
 import { computeClientRanking } from "../lib/computeClientRanking";
 
 interface UseClientRankingOptions {
@@ -14,6 +14,7 @@ interface UseClientRankingOptions {
   loans?: Loan[];
   payments?: Payment[];
   installmentSchedules?: InstallmentSchedule[];
+  renegotiations?: LoanRenegotiation[];
 }
 
 export function useClientRanking(options?: UseClientRankingOptions) {
@@ -36,6 +37,7 @@ export function useClientRanking(options?: UseClientRankingOptions) {
       loans: options.loans || [],
       payments: options.payments || [],
       installmentSchedules: options.installmentSchedules || [],
+      renegotiations: options.renegotiations || [],
       rankingType,
       period,
       startDate,
@@ -50,6 +52,7 @@ export function useClientRanking(options?: UseClientRankingOptions) {
     options?.loans,
     options?.payments,
     options?.installmentSchedules,
+    options?.renegotiations,
     rankingType,
     period,
     startDate,

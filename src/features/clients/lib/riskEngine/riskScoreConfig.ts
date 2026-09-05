@@ -145,4 +145,7 @@ export const RISK_SCORE_CONFIG = {
       monthsDecay: 12,
     },
   },
+
+  // Penalização por ocorrência de renegociação de contrato
+  RENEGOTIATION_PENALTY_PER_OCCURRENCE: 10,
 };

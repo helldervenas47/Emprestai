@@ -1,4 +1,4 @@
-import { Client, InstallmentSchedule, Loan, Payment } from "@/types/loan";
+import { Client, InstallmentSchedule, Loan, LoanRenegotiation, Payment } from "@/types/loan";
 import {
   SCORE_BANDS,
   RISK_SCORE_CONFIG,
@@ -21,6 +21,8 @@ export interface RiskScoreBreakdown {
   finalScore: number;
   appliedCap: number | null;
   capReason: string | null;
+  renegotiationsCount: number;
+  renegotiationPenalty: number;
 }
 
 export interface ClientRiskScoreResult {
@@ -380,7 +382,8 @@ export function calculateClientRiskScore(
   loans: Loan[] = [],
   payments: Payment[] = [],
   installmentSchedules: InstallmentSchedule[] = [],
-  referenceDate = new Date()
+  referenceDate = new Date(),
+  renegotiations: LoanRenegotiation[] = []
 ): ClientRiskScoreResult {
   const safeLoans = Array.isArray(loans) ? loans : [];
   const safePayments = Array.isArray(payments) ? payments : [];
@@ -415,6 +418,8 @@ export function calculateClientRiskScore(
         finalScore: defaultScore,
         appliedCap: null,
         capReason: null,
+        renegotiationsCount: 0,
+        renegotiationPenalty: 0,
       },
       activeOverdueDays: 0,
       activeOverdueCount: 0,
@@ -428,6 +433,45 @@ export function calculateClientRiskScore(
 
   const activeLoans = clientLoansAll.filter((l) => l.status !== "paid" && l.status !== "cancelled");
   const paidLoans = clientLoansAll.filter((l) => l.status === "paid");
+
+  // Identifica e deduplica renegociações válidas do cliente para evitar qualquer dupla contagem
+  const safeRenegotiations = Array.isArray(renegotiations) ? renegotiations : [];
+  const seenRenegotiationIds = new Set<string>();
+  let renegotiationsCount = 0;
+
+  // 1) Renegociações passadas no array de renegociações (pertencentes aos contratos do cliente)
+  safeRenegotiations.forEach((r) => {
+    if (r && clientLoanIds.has(r.loanId)) {
+      const key = r.id || `reneg-${r.loanId}-${r.renegotiatedAt || r.createdAt}`;
+      if (!seenRenegotiationIds.has(key)) {
+        seenRenegotiationIds.add(key);
+        renegotiationsCount++;
+      }
+    }
+  });
+
+  // 2) Renegociações embutidas no próprio objeto loan (se existirem e não estiverem no Set)
+  clientLoansAll.forEach((loan) => {
+    const loanRenegs = (loan as any).renegotiations;
+    if (Array.isArray(loanRenegs) && loanRenegs.length > 0) {
+      loanRenegs.forEach((r: any) => {
+        const key = r.id || `reneg-${loan.id}-${r.renegotiatedAt || r.createdAt}`;
+        if (!seenRenegotiationIds.has(key)) {
+          seenRenegotiationIds.add(key);
+          renegotiationsCount++;
+        }
+      });
+    } else if (seenRenegotiationIds.size === 0) {
+      // Se não temos a lista detalhada mas temos o contador ou histórico explícito
+      const count = Number((loan as any).renegotiation_count ?? (loan as any).renegotiationCount ?? 0);
+      if (count > 0) {
+        renegotiationsCount += count;
+      }
+    }
+  });
+
+  const penaltyPerReneg = RISK_SCORE_CONFIG.RENEGOTIATION_PENALTY_PER_OCCURRENCE ?? 10;
+  const renegotiationPenalty = renegotiationsCount * penaltyPerReneg;
 
   // 1. Situação Atual das Obrigações (35%)
   const currentObligations = calculateCurrentObligationsScore(activeLoans, safeSchedules, referenceDate);
@@ -542,7 +586,7 @@ export function calculateClientRiskScore(
     relationship.score * RISK_SCORE_CONFIG.WEIGHTS.RELATIONSHIP_BONUS;
 
   // Aplicação de Tetos Rígidos e Recuperação Pós-Quitação
-  const { finalScore, appliedCap, capReason } = applySevereDelinquencyCaps(
+  const { finalScore: scoreAfterCaps, appliedCap, capReason } = applySevereDelinquencyCaps(
     rawScore,
     currentObligations.activeOverdueDays,
     currentObligations.activeOverdueCount,
@@ -550,8 +594,11 @@ export function calculateClientRiskScore(
     recentOnTimeCountSinceSettlement
   );
 
-  // Determina a faixa de classificação correspondente
-  const band = SCORE_BANDS.find((b) => finalScore >= b.min && finalScore <= b.max) || SCORE_BANDS[4];
+  // Aplicação da penalidade cumulativa de renegociação (-10 pts por ocorrência) com piso 0 e teto 100
+  const adjustedFinalScore = clamp(Math.round(scoreAfterCaps - renegotiationPenalty), 0, 100);
+
+  // Determina a faixa de classificação correspondente com base no score ajustado
+  const band = SCORE_BANDS.find((b) => adjustedFinalScore >= b.min && adjustedFinalScore <= b.max) || SCORE_BANDS[4];
 
   // Agrega fatores positivos
   const positiveFactors: string[] = [];
@@ -579,6 +626,9 @@ export function calculateClientRiskScore(
   if (currentObligations.activeOverdueCount > 1) {
     negativeFactors.push(`${currentObligations.activeOverdueCount} contratos em atraso no momento.`);
   }
+  if (renegotiationsCount > 0) {
+    negativeFactors.push(`${renegotiationsCount} renegociação(ões) de contrato no histórico (-${renegotiationPenalty} pts).`);
+  }
   recurrence.reasons.forEach((r) => negativeFactors.push(r));
   if (capReason && !negativeFactors.includes(capReason)) {
     negativeFactors.push(capReason);
@@ -586,8 +636,9 @@ export function calculateClientRiskScore(
 
   // Lista consolidada de motivos resumidos
   const reasons: string[] = [
-    `Classificação: ${band.label} (${finalScore}/100)`,
+    `Classificação: ${band.label} (${adjustedFinalScore}/100)`,
     ...currentObligations.reasons,
+    ...(renegotiationsCount > 0 ? [`${renegotiationsCount} renegociação(ões) de contrato (-${renegotiationPenalty} pts)`] : []),
     ...historicalDelays.reasons,
     ...recurrence.reasons,
     ...relationship.reasons,
@@ -595,7 +646,7 @@ export function calculateClientRiskScore(
   if (capReason) reasons.push(capReason);
 
   return {
-    score: finalScore,
+    score: adjustedFinalScore,
     label: band.label,
     riskLevel: band.riskLevel,
     description: band.description,
@@ -614,9 +665,11 @@ export function calculateClientRiskScore(
       recentBehaviorScore: Math.round(recentBehavior.score),
       relationshipScore: Math.round(relationship.score),
       rawScore: Math.round(rawScore),
-      finalScore,
+      finalScore: adjustedFinalScore,
       appliedCap,
       capReason,
+      renegotiationsCount,
+      renegotiationPenalty,
     },
     activeOverdueDays: currentObligations.activeOverdueDays,
     activeOverdueCount: currentObligations.activeOverdueCount,

@@ -5,13 +5,15 @@ import { ClientRankingDetailDialog } from "./ClientRankingDetailDialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Trophy, ChevronLeft, ChevronRight, AlertCircle, Users } from "lucide-react";
-import { Client, Loan, Payment, InstallmentSchedule } from "@/types/loan";
+import { Client, Loan, LoanRenegotiation, Payment, InstallmentSchedule } from "@/types/loan";
+import { useLoanRenegotiations } from "@/features/loans/hooks/useLoanRenegotiations";
 
 interface ClientRankingViewProps {
   clients?: Client[];
   loans?: Loan[];
   payments?: Payment[];
   installmentSchedules?: InstallmentSchedule[];
+  renegotiations?: LoanRenegotiation[];
 }
 
 export function ClientRankingView({
@@ -19,7 +21,11 @@ export function ClientRankingView({
   loans,
   payments,
   installmentSchedules,
+  renegotiations: propRenegotiations,
 }: ClientRankingViewProps) {
+  const { renegotiations: fetchedRenegotiations } = useLoanRenegotiations();
+  const renegotiations = propRenegotiations ?? fetchedRenegotiations;
+
   const {
     rankingType,
     setRankingType,
@@ -42,7 +48,7 @@ export function ClientRankingView({
     isFetching,
     error,
     refetch,
-  } = useClientRanking({ clients, loans, payments, installmentSchedules });
+  } = useClientRanking({ clients, loans, payments, installmentSchedules, renegotiations });
 
   return (
     <div className="space-y-6">

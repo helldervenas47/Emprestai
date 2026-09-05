@@ -97,6 +97,9 @@ const sortLabels: Record<SortOption, string> = {
   "score-asc": "Pior score",
 };
 
+import { useLoanRenegotiations } from "@/features/loans/hooks/useLoanRenegotiations";
+import { LoanRenegotiation } from "@/types/loan";
+
 interface CreditScore {
   score: number;
   label: string;
@@ -117,6 +120,7 @@ function calculateCreditScore(
   payments: Payment[],
   installmentSchedules: import("@/types/loan").InstallmentSchedule[] = [],
   referenceDate = new Date(),
+  renegotiations: LoanRenegotiation[] = [],
 ): CreditScore {
   const clientLoansAll = getClientLoans(client, loans);
   if (clientLoansAll.length === 0) {
@@ -135,7 +139,7 @@ function calculateCreditScore(
     };
   }
 
-  const riskProfile = buildRiskProfile(client, clientLoansAll, payments, installmentSchedules, referenceDate);
+  const riskProfile = buildRiskProfile(client, clientLoansAll, payments, installmentSchedules, referenceDate, renegotiations);
   const metrics = getClientRiskMetrics(client, loans, payments, installmentSchedules, referenceDate);
   const numScore = riskProfile.historicalScore;
   const info = getClientRiskScoreInfo(numScore);
@@ -172,6 +176,7 @@ export function ClientList({ clients, loans, payments, installmentSchedules, onD
   const [recentAdjustOpen, setRecentAdjustOpen] = useState(false);
   const [maxLimitOpen, setMaxLimitOpen] = useState(false);
   const { getLimitForClient, updateLimit, ensureLimit } = useCreditLimits();
+  const { renegotiations } = useLoanRenegotiations();
   // P0 perf: 1 query única de contagens de documentos, ao invés de N por card.
   const { counts: docCounts } = useAllClientDocumentCounts();
 
@@ -181,10 +186,10 @@ export function ClientList({ clients, loans, payments, installmentSchedules, onD
   const creditScores = useMemo(() => {
     const map: Record<string, CreditScore> = {};
     clients.forEach((c) => {
-      map[c.id] = calculateCreditScore(c, loans, payments, installmentSchedules, today);
+      map[c.id] = calculateCreditScore(c, loans, payments, installmentSchedules, today, renegotiations);
     });
     return map;
-  }, [clients, loans, payments, installmentSchedules, today]);
+  }, [clients, loans, payments, installmentSchedules, today, renegotiations]);
 
   // P0 perf: cacheia `computeUsedLimit` — antes rodava 2× por card + N vezes
   // no cálculo de overLimit. Agora é O(N·M) uma vez por render.

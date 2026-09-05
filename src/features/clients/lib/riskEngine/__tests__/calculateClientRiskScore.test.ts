@@ -214,4 +214,123 @@ describe("calculateClientRiskScore - Motor de Risco Comportamental (0 a 100)", (
     // Score não pode ser Excelente (>= 85) ou Bom alto sem novos pagamentos pontuais
     expect(result.score).toBeLessThanOrEqual(65);
   });
+
+  describe("8. Impacto de Renegociações no Score (-10 pts por ocorrência)", () => {
+    const loanBase: Loan = {
+      id: "loan-reneg-base",
+      borrowerId: "client-1",
+      borrowerName: "João Silva",
+      amount: 5000,
+      totalAmount: 6000,
+      interestRate: 20,
+      startDate: "2025-01-01",
+      dueDate: "2025-02-01",
+      status: "paid",
+      installments: 3,
+      paidInstallments: 3,
+      paymentFrequency: "Mensal",
+      createdAt: "2025-01-01T00:00:00Z",
+    };
+
+    const paymentsBase: Payment[] = [
+      { id: "p-r1", loanId: "loan-reneg-base", amount: 2000, date: "2025-02-01", installmentNumber: 1 },
+      { id: "p-r2", loanId: "loan-reneg-base", amount: 2000, date: "2025-03-01", installmentNumber: 2 },
+      { id: "p-r3", loanId: "loan-reneg-base", amount: 2000, date: "2025-04-01", installmentNumber: 3 },
+    ];
+
+    it("8.1. 1 renegociação desconta exatamente 10 pontos", () => {
+      const baseResult = calculateClientRiskScore(mockClient, [loanBase], paymentsBase, [], refDate, []);
+      const renegResult = calculateClientRiskScore(mockClient, [loanBase], paymentsBase, [], refDate, [
+        {
+          id: "reneg-1",
+          loanId: "loan-reneg-base",
+          userId: "user-1",
+          renegotiatedAt: "2025-02-15",
+          type: "with_penalty",
+          previousAmount: 5000,
+          newAmount: 5500,
+          penaltyAmount: 500,
+          createdAt: "2025-02-15T00:00:00Z",
+        },
+      ]);
+
+      expect(renegResult.breakdown.renegotiationsCount).toBe(1);
+      expect(renegResult.breakdown.renegotiationPenalty).toBe(10);
+      expect(renegResult.score).toBe(baseResult.score - 10);
+      expect(renegResult.negativeFactors.some((f) => f.includes("1 renegociação"))).toBe(true);
+    });
+
+    it("8.2. 2 renegociações descontam 20 pontos, 3 descontam 30 e 4 descontam 40", () => {
+      const baseResult = calculateClientRiskScore(mockClient, [loanBase], paymentsBase, [], refDate, []);
+
+      const reneg2 = calculateClientRiskScore(mockClient, [loanBase], paymentsBase, [], refDate, [
+        { id: "r1", loanId: "loan-reneg-base", userId: "u1", renegotiatedAt: "2025-02-15", type: "with_penalty", previousAmount: 5000, newAmount: 5500, penaltyAmount: 500, createdAt: "2025-02-15" },
+        { id: "r2", loanId: "loan-reneg-base", userId: "u1", renegotiatedAt: "2025-03-15", type: "with_penalty", previousAmount: 5500, newAmount: 6000, penaltyAmount: 500, createdAt: "2025-03-15" },
+      ]);
+      expect(reneg2.breakdown.renegotiationsCount).toBe(2);
+      expect(reneg2.breakdown.renegotiationPenalty).toBe(20);
+      expect(reneg2.score).toBe(baseResult.score - 20);
+
+      const reneg3 = calculateClientRiskScore(mockClient, [loanBase], paymentsBase, [], refDate, [
+        { id: "r1", loanId: "loan-reneg-base", userId: "u1", renegotiatedAt: "2025-02-15", type: "with_penalty", previousAmount: 5000, newAmount: 5500, penaltyAmount: 500, createdAt: "2025-02-15" },
+        { id: "r2", loanId: "loan-reneg-base", userId: "u1", renegotiatedAt: "2025-03-15", type: "with_penalty", previousAmount: 5500, newAmount: 6000, penaltyAmount: 500, createdAt: "2025-03-15" },
+        { id: "r3", loanId: "loan-reneg-base", userId: "u1", renegotiatedAt: "2025-04-15", type: "with_penalty", previousAmount: 6000, newAmount: 6500, penaltyAmount: 500, createdAt: "2025-04-15" },
+      ]);
+      expect(reneg3.breakdown.renegotiationsCount).toBe(3);
+      expect(reneg3.breakdown.renegotiationPenalty).toBe(30);
+      expect(reneg3.score).toBe(baseResult.score - 30);
+
+      const reneg4 = calculateClientRiskScore(mockClient, [loanBase], paymentsBase, [], refDate, [
+        { id: "r1", loanId: "loan-reneg-base", userId: "u1", renegotiatedAt: "2025-02-15", type: "with_penalty", previousAmount: 5000, newAmount: 5500, penaltyAmount: 500, createdAt: "2025-02-15" },
+        { id: "r2", loanId: "loan-reneg-base", userId: "u1", renegotiatedAt: "2025-03-15", type: "with_penalty", previousAmount: 5500, newAmount: 6000, penaltyAmount: 500, createdAt: "2025-03-15" },
+        { id: "r3", loanId: "loan-reneg-base", userId: "u1", renegotiatedAt: "2025-04-15", type: "with_penalty", previousAmount: 6000, newAmount: 6500, penaltyAmount: 500, createdAt: "2025-04-15" },
+        { id: "r4", loanId: "loan-reneg-base", userId: "u1", renegotiatedAt: "2025-05-15", type: "with_penalty", previousAmount: 6500, newAmount: 7000, penaltyAmount: 500, createdAt: "2025-05-15" },
+      ]);
+      expect(reneg4.breakdown.renegotiationsCount).toBe(4);
+      expect(reneg4.breakdown.renegotiationPenalty).toBe(40);
+      expect(reneg4.score).toBe(baseResult.score - 40);
+    });
+
+    it("8.3. Score nunca fica abaixo de 0 (piso mínimo)", () => {
+      // Cliente com atraso severo ativo (teto 34) + 4 renegociações (-40 pts) -> 34 - 40 = 0 (nunca negativo)
+      const overdueLoan: Loan = {
+        id: "loan-overdue-zero",
+        borrowerId: "client-1",
+        borrowerName: "João Silva",
+        amount: 4000,
+        totalAmount: 4800,
+        interestRate: 20,
+        startDate: "2026-01-01",
+        dueDate: "2026-03-01",
+        status: "active",
+        installments: 1,
+        paidInstallments: 0,
+        paymentFrequency: "Mensal",
+        createdAt: "2026-01-01T00:00:00Z",
+      };
+
+      const result = calculateClientRiskScore(mockClient, [overdueLoan], [], [], refDate, [
+        { id: "r1", loanId: "loan-overdue-zero", userId: "u1", renegotiatedAt: "2026-02-01", type: "with_penalty", previousAmount: 4000, newAmount: 4500, penaltyAmount: 500, createdAt: "2026-02-01" },
+        { id: "r2", loanId: "loan-overdue-zero", userId: "u1", renegotiatedAt: "2026-03-01", type: "with_penalty", previousAmount: 4500, newAmount: 5000, penaltyAmount: 500, createdAt: "2026-03-01" },
+        { id: "r3", loanId: "loan-overdue-zero", userId: "u1", renegotiatedAt: "2026-04-01", type: "with_penalty", previousAmount: 5000, newAmount: 5500, penaltyAmount: 500, createdAt: "2026-04-01" },
+        { id: "r4", loanId: "loan-overdue-zero", userId: "u1", renegotiatedAt: "2026-05-01", type: "with_penalty", previousAmount: 5500, newAmount: 6000, penaltyAmount: 500, createdAt: "2026-05-01" },
+      ]);
+
+      expect(result.score).toBe(0);
+      expect(result.score).toBeGreaterThanOrEqual(0);
+      expect(result.label).toBe("Alto risco");
+    });
+
+    it("8.4. Prevenção de dupla penalização para o mesmo registro de renegociação", () => {
+      // Passando o mesmo registro de renegociação duplicado no array
+      const duplicateRenegs = [
+        { id: "dup-1", loanId: "loan-reneg-base", userId: "u1", renegotiatedAt: "2025-02-15", type: "with_penalty" as const, previousAmount: 5000, newAmount: 5500, penaltyAmount: 500, createdAt: "2025-02-15" },
+        { id: "dup-1", loanId: "loan-reneg-base", userId: "u1", renegotiatedAt: "2025-02-15", type: "with_penalty" as const, previousAmount: 5000, newAmount: 5500, penaltyAmount: 500, createdAt: "2025-02-15" },
+      ];
+
+      const result = calculateClientRiskScore(mockClient, [loanBase], paymentsBase, [], refDate, duplicateRenegs);
+      expect(result.breakdown.renegotiationsCount).toBe(1);
+      expect(result.breakdown.renegotiationPenalty).toBe(10);
+    });
+  });
 });

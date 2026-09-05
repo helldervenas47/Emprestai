@@ -1,4 +1,4 @@
-import { Client, ClientFinancialProfile, InstallmentSchedule, Loan, Payment } from "@/types/loan";
+import { Client, ClientFinancialProfile, InstallmentSchedule, Loan, LoanRenegotiation, Payment } from "@/types/loan";
 import { calculateClientRiskScore, ClientRiskScoreResult } from "@/features/clients/lib/riskEngine/calculateClientRiskScore";
 import {
   ClientRiskMetrics,
@@ -68,14 +68,16 @@ function buildScoreSnapshot(
   loans: Loan[] = [],
   payments: Payment[] = [],
   installmentSchedules: InstallmentSchedule[] = [],
-  referenceDate = new Date()
+  referenceDate = new Date(),
+  renegotiations: LoanRenegotiation[] = []
 ): ScoreSnapshot & { result: ClientRiskScoreResult } {
   const safeLoans = Array.isArray(loans) ? loans : [];
   const safePayments = Array.isArray(payments) ? payments : [];
   const safeSchedules = Array.isArray(installmentSchedules) ? installmentSchedules : [];
+  const safeRenegotiations = Array.isArray(renegotiations) ? renegotiations : [];
 
   const metrics = getClientRiskMetrics(client, safeLoans, safePayments, safeSchedules, referenceDate);
-  const result = calculateClientRiskScore(client, safeLoans, safePayments, safeSchedules, referenceDate);
+  const result = calculateClientRiskScore(client, safeLoans, safePayments, safeSchedules, referenceDate, safeRenegotiations);
 
   return {
     currentScore: result.score,
@@ -105,9 +107,10 @@ export function buildRiskProfile(
   loans: Loan[] = [],
   payments: Payment[] = [],
   installmentSchedules: InstallmentSchedule[] = [],
-  referenceDate = new Date()
+  referenceDate = new Date(),
+  renegotiations: LoanRenegotiation[] = []
 ): RiskProfile {
-  return buildConsolidatedRiskProfile(client, loans, payments, installmentSchedules, null, referenceDate);
+  return buildConsolidatedRiskProfile(client, loans, payments, installmentSchedules, null, referenceDate, renegotiations);
 }
 
 export function buildConsolidatedRiskProfile(
@@ -117,15 +120,17 @@ export function buildConsolidatedRiskProfile(
   installmentSchedules: InstallmentSchedule[] = [],
   financialProfile?: ClientFinancialProfile | null,
   referenceDate = new Date(),
+  renegotiations: LoanRenegotiation[] = []
 ): RiskProfile {
   const safeLoans = Array.isArray(loans) ? loans : [];
   const safePayments = Array.isArray(payments) ? payments : [];
   const safeSchedules = Array.isArray(installmentSchedules) ? installmentSchedules : [];
+  const safeRenegotiations = Array.isArray(renegotiations) ? renegotiations : [];
 
-  const snapshot = buildScoreSnapshot(client, safeLoans, safePayments, safeSchedules, referenceDate);
+  const snapshot = buildScoreSnapshot(client, safeLoans, safePayments, safeSchedules, referenceDate, safeRenegotiations);
   const previousReference = new Date(referenceDate);
   previousReference.setMonth(previousReference.getMonth() - 1);
-  const previousSnapshot = buildScoreSnapshot(client, safeLoans, safePayments, safeSchedules, previousReference);
+  const previousSnapshot = buildScoreSnapshot(client, safeLoans, safePayments, safeSchedules, previousReference, safeRenegotiations);
 
   const trendDelta = snapshot.currentScore - previousSnapshot.currentScore;
   const trend: RiskProfile["trend"] = trendDelta >= 3 ? "improving" : trendDelta <= -3 ? "worsening" : "stable";
@@ -159,11 +164,13 @@ export function buildClientRiskHistory(
   client: Client,
   loans: Loan[] = [],
   payments: Payment[] = [],
-  installmentSchedules: InstallmentSchedule[] = []
+  installmentSchedules: InstallmentSchedule[] = [],
+  renegotiations: LoanRenegotiation[] = []
 ): ClientRiskHistoryPoint[] {
   const safeLoans = Array.isArray(loans) ? loans : [];
   const safePayments = Array.isArray(payments) ? payments : [];
   const safeSchedules = Array.isArray(installmentSchedules) ? installmentSchedules : [];
+  const safeRenegotiations = Array.isArray(renegotiations) ? renegotiations : [];
 
   const clientLoans = getClientLoans(client, safeLoans).sort((a, b) => (a.startDate || "").localeCompare(b.startDate || ""));
   if (clientLoans.length === 0) return [];
@@ -179,7 +186,14 @@ export function buildClientRiskHistory(
 
   while (cursor <= current) {
     const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0, 23, 59, 59);
-    const snapshot = buildScoreSnapshot(client, safeLoans, safePayments, safeSchedules, monthEnd);
+    const monthEndIso = monthEnd.toISOString();
+    // Filtra renegociações válidas ocorridas até o fechamento deste mês no histórico
+    const pastRenegotiations = safeRenegotiations.filter((r) => {
+      const dateStr = r.renegotiatedAt || r.createdAt || "";
+      return !dateStr || dateStr <= monthEndIso;
+    });
+
+    const snapshot = buildScoreSnapshot(client, safeLoans, safePayments, safeSchedules, monthEnd, pastRenegotiations);
     const month = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
     points.push({
       month,

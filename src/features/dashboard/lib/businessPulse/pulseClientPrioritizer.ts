@@ -1,4 +1,4 @@
-import type { Client, Loan, Payment, InstallmentSchedule } from "@/types/loan";
+import type { Client, Loan, LoanRenegotiation, Payment, InstallmentSchedule } from "@/types/loan";
 import { getDaysOverdue, getClientLoans } from "@/features/loans/lib/clientRiskUtils";
 import { buildRiskProfile } from "@/features/loans/lib/clientRisk";
 import { getOverdueAmount } from "@/features/loans/lib/loanInstallmentAmount";
@@ -10,6 +10,7 @@ interface PrioritizeClientsParams {
   loans: Loan[];
   payments: Payment[];
   installmentSchedules?: InstallmentSchedule[];
+  renegotiations?: LoanRenegotiation[];
   referenceDate?: Date;
   prevReferenceDate?: Date;
 }
@@ -19,6 +20,7 @@ export function analyzeOverdueConcentration({
   loans,
   payments,
   installmentSchedules = [],
+  renegotiations = [],
   referenceDate = new Date(),
   prevReferenceDate,
 }: PrioritizeClientsParams): PulseConcentrationAnalysis {
@@ -26,6 +28,7 @@ export function analyzeOverdueConcentration({
   const safeLoans = Array.isArray(loans) ? loans : [];
   const safePayments = Array.isArray(payments) ? payments : [];
   const safeSchedules = Array.isArray(installmentSchedules) ? installmentSchedules : [];
+  const safeRenegotiations = Array.isArray(renegotiations) ? renegotiations : [];
 
   // Mapeia clientes ativos e identifica inadimplência atual
   const clientOverdueMap = new Map<string, {
@@ -103,7 +106,7 @@ export function analyzeOverdueConcentration({
   const topClients: PulsePrioritaryClient[] = topOverdueEntries.map((entry) => {
     let riskProfile;
     try {
-      riskProfile = buildRiskProfile(entry.client, safeLoans, safePayments, safeSchedules, referenceDate);
+      riskProfile = buildRiskProfile(entry.client, safeLoans, safePayments, safeSchedules, referenceDate, safeRenegotiations);
     } catch {
       riskProfile = {
         score: 50,

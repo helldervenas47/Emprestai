@@ -1,4 +1,4 @@
-import { Client, Loan, Payment, InstallmentSchedule } from "@/types/loan";
+import { Client, Loan, LoanRenegotiation, Payment, InstallmentSchedule } from "@/types/loan";
 import {
   ClientRankingType,
   ClientRankingPeriod,
@@ -21,6 +21,7 @@ interface ComputeClientRankingParams {
   loans: Loan[];
   payments: Payment[];
   installmentSchedules?: InstallmentSchedule[];
+  renegotiations?: LoanRenegotiation[];
   rankingType: ClientRankingType;
   period: ClientRankingPeriod;
   startDate?: string;
@@ -35,6 +36,7 @@ export function computeClientRanking({
   loans,
   payments,
   installmentSchedules = [],
+  renegotiations = [],
   rankingType,
   period,
   startDate,
@@ -221,8 +223,8 @@ export function computeClientRanking({
       ? (onTimePayments / totalEvaluatedObligations) * 100
       : (period === "all" ? (overdueLoans > 0 ? 0 : 100) : 0);
 
-    // Score canônico do motor de risco (escala 0 a 150)
-    const riskProfile = buildRiskProfile(client, clientLoansAll, payments, installmentSchedules, today);
+    // Score canônico do motor de risco (escala 0 a 100)
+    const riskProfile = buildRiskProfile(client, clientLoansAll, payments, installmentSchedules, today, renegotiations);
     const score = riskProfile.historicalScore;
 
     items.push({
