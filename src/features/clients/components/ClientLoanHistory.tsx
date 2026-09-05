@@ -110,7 +110,6 @@ const statusLabels: Record<string, string> = {
 export function ClientLoanHistory({ loans, payments, installmentSchedules = [], onBackToLoans }: Props) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [showSummary, setShowSummary] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches);
   const [sortBy, setSortBy] = useState<SortOption>("name-asc");
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const { hidden } = useHideValues();
@@ -568,7 +567,7 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
         </p>
       </div>
 
-      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
+      <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
@@ -578,46 +577,33 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
             className="pl-10"
           />
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-            <SelectTrigger className="w-full md:w-[240px] h-10 text-xs">
-              <ArrowUpDown className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-              <SelectValue placeholder="Ordenar por..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="name-asc">Cliente (A → Z)</SelectItem>
-              <SelectItem value="name-desc">Cliente (Z → A)</SelectItem>
-              <SelectItem value="borrowed-desc">Maior valor emprestado</SelectItem>
-              <SelectItem value="borrowed-asc">Menor valor emprestado</SelectItem>
-              <SelectItem value="paid-desc">Maior principal recebido</SelectItem>
-              <SelectItem value="paid-asc">Menor principal recebido</SelectItem>
-              <SelectItem value="pending-desc">Maior valor pendente</SelectItem>
-              <SelectItem value="pending-asc">Menor valor pendente</SelectItem>
-              <SelectItem value="total-desc">Maior valor total</SelectItem>
-              <SelectItem value="total-asc">Menor valor total</SelectItem>
-              <SelectItem value="difference-desc">Maior lucro</SelectItem>
-              <SelectItem value="difference-asc">Menor lucro</SelectItem>
-              <SelectItem value="rate-desc">Maior taxa de variação</SelectItem>
-              <SelectItem value="rate-asc">Menor taxa de variação</SelectItem>
-              <SelectItem value="interest-desc">Maior juros pago</SelectItem>
-              <SelectItem value="interest-asc">Menor juros pago</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            variant="outline"
-            size="sm"
-            type="button"
-            onClick={() => setShowSummary((s) => !s)}
-            className="shrink-0 gap-1"
-          >
-            <BarChart3 className="h-4 w-4" />
-            Resumo
-          </Button>
-        </div>
+        <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+          <SelectTrigger className="w-[160px] sm:w-[220px] h-10 text-xs shrink-0">
+            <ArrowUpDown className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+            <SelectValue placeholder="Ordenar por..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="name-asc">Cliente (A → Z)</SelectItem>
+            <SelectItem value="name-desc">Cliente (Z → A)</SelectItem>
+            <SelectItem value="borrowed-desc">Maior valor emprestado</SelectItem>
+            <SelectItem value="borrowed-asc">Menor valor emprestado</SelectItem>
+            <SelectItem value="paid-desc">Maior principal recebido</SelectItem>
+            <SelectItem value="paid-asc">Menor principal recebido</SelectItem>
+            <SelectItem value="pending-desc">Maior valor pendente</SelectItem>
+            <SelectItem value="pending-asc">Menor valor pendente</SelectItem>
+            <SelectItem value="total-desc">Maior valor total</SelectItem>
+            <SelectItem value="total-asc">Menor valor total</SelectItem>
+            <SelectItem value="difference-desc">Maior lucro</SelectItem>
+            <SelectItem value="difference-asc">Menor lucro</SelectItem>
+            <SelectItem value="rate-desc">Maior taxa de variação</SelectItem>
+            <SelectItem value="rate-asc">Menor taxa de variação</SelectItem>
+            <SelectItem value="interest-desc">Maior juros pago</SelectItem>
+            <SelectItem value="interest-asc">Menor juros pago</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      {showSummary && (
-        <div className="space-y-2 sm:space-y-2.5 animate-in fade-in-50 duration-200">
+      <div className="space-y-2 sm:space-y-2.5 animate-in fade-in-50 duration-200">
           {/* Health & Capital Recovery Header Banner - Responsive */}
           <Card className="border-border/60 bg-gradient-to-br from-card via-card to-muted/20 shadow-xs overflow-hidden">
             <CardContent className="p-3 sm:p-3.5">
@@ -801,7 +787,6 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
             </Card>
           </div>
         </div>
-      )}
 
       {/* Loans details renderer (cached lookup, no recompute on toggle) */}
       {/* Inline helper kept here for clarity */}
