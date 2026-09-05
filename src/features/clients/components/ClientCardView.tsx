@@ -95,7 +95,6 @@ export const ClientCardView = memo(function ClientCardView({
                   <Badge variant="outline" className={client.active ? "bg-success/10 text-success border-success/20 text-xs" : "bg-muted text-muted-foreground border-border text-xs"}>
                     {client.active ? "Ativo" : "Inativo"}
                   </Badge>
-                  <DocsQuickButton count={docCount} onOpen={onOpenDocs} />
                 </div>
                 {client.cpf && <p className="text-xs text-muted-foreground break-words">CPF: {formatCpfOrCnpj(client.cpf)}</p>}
                 {client.phone && (
@@ -134,26 +133,29 @@ export const ClientCardView = memo(function ClientCardView({
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            {!readOnly && (
-              <div className="flex gap-0.5 sm:gap-1 items-center">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8 active:scale-95"
-                  onClick={onToggleActive}
-                  title={client.active ? "Desativar" : "Ativar"}
-                >
-                  {client.active ? <ToggleRight className="h-4 w-4 text-success" /> : <ToggleLeft className="h-4 w-4 text-muted-foreground" />}
-                </Button>
-                <RowActions
-                  size="md"
-                  actions={[
-                    { label: "Editar", icon: <Pencil className="h-4 w-4" />, onClick: onEdit },
-                    { label: "Excluir", icon: <Trash2 className="h-4 w-4" />, destructive: true, onClick: onDelete },
-                  ]}
-                />
-              </div>
-            )}
+            <div className="flex gap-0.5 sm:gap-1 items-center">
+              <DocsQuickButton count={docCount} onOpen={onOpenDocs} />
+              {!readOnly && (
+                <>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 active:scale-95"
+                    onClick={onToggleActive}
+                    title={client.active ? "Desativar" : "Ativar"}
+                  >
+                    {client.active ? <ToggleRight className="h-4 w-4 text-success" /> : <ToggleLeft className="h-4 w-4 text-muted-foreground" />}
+                  </Button>
+                  <RowActions
+                    size="md"
+                    actions={[
+                      { label: "Editar", icon: <Pencil className="h-4 w-4" />, onClick: onEdit },
+                      { label: "Excluir", icon: <Trash2 className="h-4 w-4" />, destructive: true, onClick: onDelete },
+                    ]}
+                  />
+                </>
+              )}
+            </div>
           </div>
         </div>
 
