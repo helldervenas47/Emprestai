@@ -818,9 +818,14 @@ function LoanRowView({
                   <p className="text-sm sm:text-base font-bold text-amber-600 dark:text-amber-400 tabular-nums mt-1 text-center">
                     {formatCurrency(Math.max(0, (total - loan.amount)) + lateFees)}
                   </p>
-                  <span className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-full text-center" title={`Juros: ${rawFormatCurrency(total - loan.amount)}${lateFees > 0 ? ` • Mora/Multa: ${rawFormatCurrency(lateFees)}` : ""}`}>
-                    Juros {rawFormatCurrency(total - loan.amount)}{lateFees > 0 ? ` • Multa ${rawFormatCurrency(lateFees)}` : ""}
-                  </span>
+                  <div className="text-[10px] text-muted-foreground mt-0.5 text-center leading-tight flex flex-col sm:flex-row items-center justify-center gap-x-1" title={`Juros: ${rawFormatCurrency(total - loan.amount)}${lateFees > 0 ? ` • Mora/Multa: ${rawFormatCurrency(lateFees)}` : ""}`}>
+                    <span className="whitespace-nowrap">Juros {rawFormatCurrency(total - loan.amount)}</span>
+                    {lateFees > 0 && (
+                      <span className="whitespace-nowrap">
+                        <span className="hidden sm:inline">• </span>Multa {rawFormatCurrency(lateFees)}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* 3. Total a Receber (Recebido + Restante) */}
