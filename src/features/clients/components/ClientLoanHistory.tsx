@@ -514,7 +514,7 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
 
           <Card className="hover:border-border/80 transition-colors shadow-xs">
             <CardContent className="p-3 sm:p-3.5 flex flex-col items-center justify-center text-center h-full">
-              <span className="text-[11px] font-medium text-muted-foreground mb-1">Total Contratado</span>
+              <span className="text-[11px] font-medium text-muted-foreground mb-1">Total Geral</span>
               <span className="font-bold tabular-nums text-primary text-sm sm:text-base">
                 {mask(formatCurrency(grandTotal))}
               </span>
@@ -745,7 +745,7 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-1 text-[10px] sm:text-[11px]">
-                    <span className="text-muted-foreground">Contratado</span>
+                    <span className="text-muted-foreground">Total Geral</span>
                     <span className="font-bold tabular-nums text-foreground whitespace-nowrap">
                       {mask(formatCurrency(totals.grandTotal))}
                     </span>
@@ -948,7 +948,7 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
                   </div>
                 </div>
                 <div className="col-span-2 pt-1.5 border-t border-border/40 flex items-center justify-between">
-                  <span className="text-[11px] text-muted-foreground">Total Contratado</span>
+                  <span className="text-[11px] text-muted-foreground">Total Geral</span>
                   <span className="tabular-nums font-bold text-primary">{mask(formatCurrency(r.total))}</span>
                 </div>
               </div>
