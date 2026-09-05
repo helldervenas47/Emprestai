@@ -1735,6 +1735,13 @@ html[data-theme="monochrome"].dark {
     scroll-margin-top: 24px;
     scroll-margin-bottom: 32px;
   }
+
+  [data-keyboard-open="true"] .modal-form-scrollable,
+  [data-keyboard-open="true"] [role="dialog"],
+  [data-keyboard-open="true"] .scroll-container-mobile {
+    padding-bottom: calc(var(--keyboard-height, 300px) + 2rem) !important;
+  }
 }
+
 
 

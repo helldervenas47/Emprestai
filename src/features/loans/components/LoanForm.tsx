@@ -350,7 +350,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
   return (
     <div className="fixed inset-0 bg-foreground/40 backdrop-blur-sm z-50 flex items-stretch justify-center p-0 md:items-center md:p-4">
       <SuccessAnimation show={showSuccess} onComplete={onClose} message="Empréstimo registrado!" />
-      <Card className="!bg-card !backdrop-blur-none supports-[backdrop-filter]:!bg-card dark:!bg-card w-full h-[100dvh] max-h-[100dvh] rounded-none border-0 overflow-y-auto pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:h-auto md:max-h-[92svh] md:w-full md:max-w-[880px] md:rounded-2xl md:border md:pt-0 md:pb-0">
+      <Card className="modal-form-scrollable !bg-card !backdrop-blur-none supports-[backdrop-filter]:!bg-card dark:!bg-card w-full h-[100dvh] max-h-[100dvh] rounded-none border-0 overflow-y-auto pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:h-auto md:max-h-[92svh] md:w-full md:max-w-[880px] md:rounded-2xl md:border md:pt-0 md:pb-0">
         <CardHeader className="flex flex-row items-center justify-between pb-2 md:pb-6">
           <CardTitle className="text-xl">Novo Empréstimo</CardTitle>
           <Button variant="ghost" size="icon" onClick={onClose}>

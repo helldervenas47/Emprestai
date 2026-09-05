@@ -3,11 +3,12 @@ import { useEffect } from "react";
 /**
  * MobileKeyboardScrollSync
  * 
- * Ensures that on mobile devices (iOS Safari, Android Chrome, PWA),
- * whenever any input/textarea/select/combobox is focused:
- * 1. The virtual keyboard never covers the active input field.
- * 2. Only scrolls the internal modal/form container if the field is actually obstructed by the keyboard.
- * 3. Never moves or over-scrolls the background window, preventing huge blank spaces.
+ * Ensures that on mobile devices (iOS Safari, Android Chrome, PWA):
+ * 1. Tracks visualViewport height and detects when virtual keyboard opens/closes.
+ * 2. Sets `--keyboard-height` and `data-keyboard-open="true|false"` on documentElement.
+ * 3. When any input/textarea/select is focused or viewport resizes, dynamically adjusts
+ *    the inner scroll container so the field is smoothly scrolled into clear view above the keyboard.
+ * 4. Ensures the background window document stays anchored at top, preventing background leaks.
  */
 export function MobileKeyboardScrollSync() {
   useEffect(() => {
@@ -16,6 +17,23 @@ export function MobileKeyboardScrollSync() {
     let resizeTimer: number | null = null;
     let focusTimer1: number | null = null;
     let focusTimer2: number | null = null;
+
+    const updateMetrics = () => {
+      const vv = window.visualViewport;
+      if (!vv) return;
+
+      const windowHeight = window.innerHeight;
+      const vvHeight = vv.height;
+      const offsetTop = vv.offsetTop;
+      const keyboardHeight = Math.max(0, windowHeight - vvHeight - offsetTop);
+      const isKeyboardOpen = keyboardHeight > 60 || vvHeight < windowHeight * 0.82;
+
+      document.documentElement.style.setProperty(
+        "--keyboard-height",
+        `${isKeyboardOpen ? keyboardHeight : 0}px`
+      );
+      document.documentElement.dataset.keyboardOpen = isKeyboardOpen ? "true" : "false";
+    };
 
     const isTextInputElement = (el: Element | null): el is HTMLElement => {
       if (!el || !(el instanceof HTMLElement)) return false;
@@ -58,10 +76,11 @@ export function MobileKeyboardScrollSync() {
     const adjustScrollForInput = (target: HTMLElement, smooth = true) => {
       if (!target || !document.contains(target)) return;
 
+      updateMetrics();
+
       const vv = window.visualViewport;
       if (!vv) return;
 
-      // On iOS Safari, keep the background document anchored at top if inside a modal
       if (isInsideFixedOverlay(target) && window.scrollY !== 0) {
         window.scrollTo(0, 0);
       }
@@ -73,10 +92,9 @@ export function MobileKeyboardScrollSync() {
       const scrollContainer = findScrollParent(target);
       if (!scrollContainer) return;
 
-      const safeBottomMargin = 20; // px above keyboard
-      const safeTopMargin = 20; // px below top bar
+      const safeBottomMargin = 28; // px above keyboard
+      const safeTopMargin = 24; // px below header
 
-      // If the field is covered by keyboard at the bottom
       if (rect.bottom > visibleBottom - safeBottomMargin) {
         const diff = rect.bottom - (visibleBottom - safeBottomMargin);
         scrollContainer.scrollBy({
@@ -84,7 +102,6 @@ export function MobileKeyboardScrollSync() {
           behavior: smooth ? "smooth" : "auto",
         });
       } else if (rect.top < visibleTop + safeTopMargin) {
-        // If the field is pushed above visible top
         const diff = rect.top - (visibleTop + safeTopMargin);
         scrollContainer.scrollBy({
           top: diff,
@@ -102,33 +119,39 @@ export function MobileKeyboardScrollSync() {
 
       focusTimer1 = window.setTimeout(() => {
         if (document.activeElement === target) adjustScrollForInput(target, false);
-      }, 80);
+      }, 60);
 
       focusTimer2 = window.setTimeout(() => {
         if (document.activeElement === target) adjustScrollForInput(target, true);
-      }, 280);
+      }, 240);
     };
 
     const handleViewportChange = () => {
+      updateMetrics();
+
       if (resizeTimer) clearTimeout(resizeTimer);
       resizeTimer = window.setTimeout(() => {
         const active = document.activeElement;
         if (isTextInputElement(active)) {
           adjustScrollForInput(active as HTMLElement, true);
         }
-      }, 80);
+      }, 60);
     };
+
+    updateMetrics();
 
     document.addEventListener("focusin", handleFocusIn, { capture: true, passive: true });
 
     if (window.visualViewport) {
       window.visualViewport.addEventListener("resize", handleViewportChange, { passive: true });
+      window.visualViewport.addEventListener("scroll", handleViewportChange, { passive: true });
     }
 
     return () => {
       document.removeEventListener("focusin", handleFocusIn, { capture: true } as EventListenerOptions);
       if (window.visualViewport) {
         window.visualViewport.removeEventListener("resize", handleViewportChange);
+        window.visualViewport.removeEventListener("scroll", handleViewportChange);
       }
       if (resizeTimer) clearTimeout(resizeTimer);
       if (focusTimer1) clearTimeout(focusTimer1);
