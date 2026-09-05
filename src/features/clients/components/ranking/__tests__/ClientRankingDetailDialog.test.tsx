@@ -39,6 +39,18 @@ describe("ClientRankingDetailDialog", () => {
       rg: "",
       score: "63",
     },
+    {
+      id: "client-2",
+      name: "Thiago Rodrigues",
+      phone: "75981309939",
+      cpf: "98765432100",
+      active: true,
+      address: "",
+      city: "",
+      state: "",
+      rg: "",
+      score: "85",
+    },
   ];
 
   const mockLoans: Loan[] = [
@@ -58,6 +70,7 @@ describe("ClientRankingDetailDialog", () => {
       interestType: "simple",
       paymentFrequency: "monthly",
       notes: "Contrato Principal",
+      tags: ["VIP", "Sergio"],
     },
     {
       id: "loan-2",
@@ -72,6 +85,24 @@ describe("ClientRankingDetailDialog", () => {
       startDate: "2025-10-01",
       dueDate: "2025-11-01",
       remainingAmount: 0,
+      interestType: "simple",
+      paymentFrequency: "monthly",
+      tags: ["Garantia Veicular"],
+    },
+    // Empréstimo com borrowerId antigo mas cujo nome foi alterado para outro cliente
+    {
+      id: "loan-3",
+      borrowerId: "client-1",
+      borrowerName: "Outro Cliente",
+      amount: 500,
+      totalAmount: 500,
+      interestRate: 0,
+      installments: 1,
+      paidInstallments: 0,
+      status: "active",
+      startDate: "2026-01-01",
+      dueDate: "2026-02-01",
+      remainingAmount: 500,
       interestType: "simple",
       paymentFrequency: "monthly",
     },
@@ -102,10 +133,10 @@ describe("ClientRankingDetailDialog", () => {
     expect(screen.getByText("Lucas Souza")).toBeInTheDocument();
     expect(screen.getByText(/#1/)).toBeInTheDocument();
     expect(screen.getByText(/Score: 63\/100/)).toBeInTheDocument();
-    expect(screen.getByText("27 dias")).toBeInTheDocument();
+    expect(screen.getAllByText(/27 dias/i).length).toBeGreaterThan(0);
   });
 
-  it("opens delay records breakdown when clicking on Maior Atraso card", () => {
+  it("navigates to Maior Atraso tab when clicking the tab or card", () => {
     render(
       <ClientRankingDetailDialog
         item={mockItem}
@@ -116,23 +147,24 @@ describe("ClientRankingDetailDialog", () => {
       />
     );
 
-    // Initial state: details not visible
-    expect(screen.queryByText("Registros Considerados no Maior Atraso")).not.toBeInTheDocument();
+    // Click Maior Atraso tab button
+    const delayButtons = screen.getAllByRole("button", { name: /Maior Atraso/i });
+    fireEvent.click(delayButtons[0]);
 
-    // Click Maior Atraso card
-    const delayButton = screen.getByRole("button", { name: /Maior Atraso/i });
-    fireEvent.click(delayButton);
-
-    // Details visible
+    // Details visible in the dedicated tab
     expect(screen.getByText("Registros Considerados no Maior Atraso")).toBeInTheDocument();
     expect(screen.getByText(/27 dias de atraso/i)).toBeInTheDocument();
+    expect(screen.getByText("Garantia Veicular")).toBeInTheDocument();
 
-    // Toggle off
-    fireEvent.click(delayButton);
-    expect(screen.queryByText("Registros Considerados no Maior Atraso")).not.toBeInTheDocument();
+    // Click Voltar button
+    const backBtn = screen.getByRole("button", { name: /Voltar/i });
+    fireEvent.click(backBtn);
+
+    // Back to overview
+    expect(screen.getByText("Resumo Financeiro")).toBeInTheDocument();
   });
 
-  it("opens open balance breakdown when clicking on Saldo em Aberto card", () => {
+  it("navigates to Saldo em Aberto tab and displays tags correctly", () => {
     render(
       <ClientRankingDetailDialog
         item={mockItem}
@@ -143,15 +175,17 @@ describe("ClientRankingDetailDialog", () => {
       />
     );
 
-    // Initial state: details not visible
-    expect(screen.queryByText("Contratos Considerados no Saldo em Aberto")).not.toBeInTheDocument();
+    // Click Saldo em Aberto tab button
+    const openAmountButtons = screen.getAllByRole("button", { name: /Saldo em Aberto/i });
+    fireEvent.click(openAmountButtons[0]);
 
-    // Click Saldo em Aberto card
-    const openAmountButton = screen.getByRole("button", { name: /Saldo em Aberto/i });
-    fireEvent.click(openAmountButton);
-
-    // Details visible
+    // Details visible in the dedicated tab
     expect(screen.getByText("Contratos Considerados no Saldo em Aberto")).toBeInTheDocument();
     expect(screen.getByText(/Contrato Principal/i)).toBeInTheDocument();
+    expect(screen.getByText("VIP")).toBeInTheDocument();
+    expect(screen.getByText("Sergio")).toBeInTheDocument();
+
+    // Does NOT include loan-3 whose name was altered to "Outro Cliente"
+    expect(screen.queryByText(/Outro Cliente/i)).not.toBeInTheDocument();
   });
 });

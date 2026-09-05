@@ -297,8 +297,12 @@ function LoanRowView({
       );
       if (!ok) return;
     }
+    const matchedClient = clients.find(
+      (c) => normalizeClientKey(c.name) === normalizeClientKey(form.borrowerName)
+    );
     onUpdate({
       borrowerName: form.borrowerName,
+      borrowerId: matchedClient ? matchedClient.id : undefined,
       amount: parseFloat(form.amount) || loan.amount,
       interestRate: form.interestRate.trim() === "" || isNaN(parseFloat(form.interestRate)) ? loan.interestRate : Math.max(0, parseFloat(form.interestRate)),
       installments: parseInt(form.installments) || loan.installments,

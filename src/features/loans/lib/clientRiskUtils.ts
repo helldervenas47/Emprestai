@@ -88,8 +88,22 @@ export function getInstallmentDueDate(loan: Loan, installmentNumber: number, sch
 
 export function getClientLoans(client: Client, loans: Loan[] = []): Loan[] {
   if (!client || !Array.isArray(loans)) return [];
-  const fallbackKey = normalizeClientKey(client.name);
-  return loans.filter((loan) => loan && (loan.borrowerId === client.id || (!loan.borrowerId && normalizeClientKey(loan.borrowerName) === fallbackKey)));
+  const clientKey = normalizeClientKey(client.name);
+  return loans.filter((loan) => {
+    if (!loan) return false;
+    const loanNameKey = normalizeClientKey(loan.borrowerName);
+    // 1. Se o nome do devedor no empréstimo foi preenchido e confere com o cliente:
+    if (loanNameKey && clientKey && loanNameKey === clientKey) {
+      return true;
+    }
+    // 2. Se tem borrowerId correspondente, só aceita se o borrowerName não pertencer a outro devedor diferente
+    if (loan.borrowerId && loan.borrowerId === client.id) {
+      if (!loanNameKey || loanNameKey === clientKey) {
+        return true;
+      }
+    }
+    return false;
+  });
 }
 
 export function getLoanCategory(loan: Loan, payments: Payment[] = [], schedules: InstallmentSchedule[] = [], referenceDate = new Date()) {
