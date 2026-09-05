@@ -245,12 +245,7 @@ export function LoanPaymentHistoryDialog({
       payments: loanPayments,
     });
 
-    const remaining =
-      loan.status === "paid"
-        ? 0
-        : loan.remainingAmount != null && loan.remainingAmount > 0
-          ? loan.remainingAmount
-          : financialState.payoffAmount;
+    const remaining = loan.status === "paid" ? 0 : financialState.payoffAmount;
 
     const isPaid = loan.status === "paid" || remaining <= 0.01;
     const paidInstallments = loan.paidInstallments ?? 0;

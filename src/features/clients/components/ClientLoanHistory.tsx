@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { calculateTotalWithInterest } from "@/features/loans/hooks/useLoans";
 import { getLoanFinancialStateForUI, deriveLoanFinancialStatus } from "@/features/loans/lib/loanFinancialAdapter";
 import { allocateInterestByPayment } from "@/features/financial/lib/interestAllocation";
-import { Search, Users, BarChart3, ArrowUpDown, ChevronRight, ArrowLeft, Filter } from "lucide-react";
+import { Search, Users, BarChart3, ArrowUpDown, ChevronRight, ArrowLeft, Filter, X } from "lucide-react";
 import { useHideValues } from "@/contexts/HideValuesContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -781,21 +782,37 @@ interface ClientLoansListProps {
 
 function ClientLoansList({ loans, payments, paymentsByLoan, lastPaymentDateByLoan, hidden }: ClientLoansListProps) {
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const mask = (v: string) => (hidden ? "•••" : v);
 
-  const availableStatuses = useMemo(() => {
-    const s = new Set<string>();
+  // Mapeamento semântico dos status calculados para exibição e filtragem
+  const statusCounts = useMemo(() => {
+    const counts = { all: loans.length, em_atraso: 0, em_dia: 0, quitado: 0, renegociado: 0 };
     loans.forEach((l) => {
-      if (l.status) s.add(l.status);
+      const loanPayments = payments.filter((p) => p.loanId === l.id);
+      const state = getLoanFinancialStateForUI({ loan: l, payments: loanPayments });
+      const derived = deriveLoanFinancialStatus(state, l);
+      if (derived.status === "em_atraso") counts.em_atraso++;
+      else if (derived.status === "quitado") counts.quitado++;
+      else if (derived.status === "renegociado") counts.renegociado++;
+      else counts.em_dia++;
     });
-    return Array.from(s).sort();
-  }, [loans]);
+    return counts;
+  }, [loans, payments]);
 
   const filteredLoans = useMemo(() => {
-    if (statusFilter.length === 0) return loans;
-    return loans.filter((l) => statusFilter.includes(l.status));
-  }, [loans, statusFilter]);
+    if (statusFilter === "all") return loans;
+    return loans.filter((l) => {
+      const loanPayments = payments.filter((p) => p.loanId === l.id);
+      const state = getLoanFinancialStateForUI({ loan: l, payments: loanPayments });
+      const derived = deriveLoanFinancialStatus(state, l);
+      if (statusFilter === "em_atraso") return derived.status === "em_atraso";
+      if (statusFilter === "em_dia") return derived.status === "em_dia" || derived.status === "parcialmente_pago";
+      if (statusFilter === "quitado") return derived.status === "quitado";
+      if (statusFilter === "renegociado") return derived.status === "renegociado";
+      return true;
+    });
+  }, [loans, statusFilter, payments]);
 
   if (loans.length === 0) {
     return (
@@ -841,39 +858,86 @@ function ClientLoansList({ loans, payments, paymentsByLoan, lastPaymentDateByLoa
     };
   };
 
+  const statusFilterConfig: Array<{ id: string; label: string; dotClass?: string; count: number }> = [
+    { id: "all", label: "Todos", count: statusCounts.all },
+    { id: "em_atraso", label: "Em atraso", dotClass: "bg-destructive", count: statusCounts.em_atraso },
+    { id: "em_dia", label: "Em dia", dotClass: "bg-primary", count: statusCounts.em_dia },
+    { id: "quitado", label: "Quitados", dotClass: "bg-success", count: statusCounts.quitado },
+    ...(statusCounts.renegociado > 0
+      ? [{ id: "renegociado", label: "Renegociados", dotClass: "bg-primary", count: statusCounts.renegociado }]
+      : []),
+  ];
+
+  const currentOption = statusFilterConfig.find((o) => o.id === statusFilter) || statusFilterConfig[0];
+
   return (
     <>
-      <div className="flex justify-end mb-3">
+      <div className="flex items-center justify-between gap-2.5 mb-3.5 pb-2.5 border-b border-border/40">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+            Contratos
+          </span>
+          <Badge variant="secondary" className="text-[11px] h-5 px-1.5 font-bold tabular-nums">
+            {filteredLoans.length}
+          </Badge>
+          {statusFilter !== "all" && (
+            <button
+              type="button"
+              onClick={() => setStatusFilter("all")}
+              className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors ml-1"
+            >
+              <X className="h-3 w-3" />
+              <span className="hidden sm:inline">Limpar filtro</span>
+            </button>
+          )}
+        </div>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" type="button" className="shrink-0 gap-1 h-9">
-              <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-              Status {statusFilter.length > 0 && `(${statusFilter.length})`}
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              className={cn(
+                "h-8.5 px-3 text-xs gap-1.5 font-medium shrink-0 transition-colors border-border/70",
+                statusFilter !== "all"
+                  ? statusFilter === "em_atraso"
+                    ? "border-destructive/50 bg-destructive/10 text-destructive hover:bg-destructive/15"
+                    : statusFilter === "quitado"
+                    ? "border-success/50 bg-success/10 text-success hover:bg-success/15"
+                    : "border-primary/50 bg-primary/10 text-primary hover:bg-primary/15"
+                  : "text-muted-foreground hover:text-foreground bg-card"
+              )}
+            >
+              <Filter className="h-3.5 w-3.5" />
+              <span>Status: {currentOption.label}</span>
+              {statusFilter !== "all" && (
+                <span className="text-[10px] font-bold tabular-nums">
+                  ({filteredLoans.length})
+                </span>
+              )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuLabel>Filtrar por Status</DropdownMenuLabel>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuLabel className="text-xs">Filtrar por Status</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuCheckboxItem
-              checked={statusFilter.length === 0}
-              onCheckedChange={() => setStatusFilter([])}
-            >
-              Todos
-            </DropdownMenuCheckboxItem>
-            {availableStatuses.map((st) => (
-              <DropdownMenuCheckboxItem
-                key={st}
-                checked={statusFilter.includes(st)}
-                onCheckedChange={(checked) => {
-                  if (checked) {
-                    setStatusFilter([st]);
-                  } else {
-                    setStatusFilter([]);
-                  }
-                }}
+            {statusFilterConfig.map((opt) => (
+              <DropdownMenuItem
+                key={opt.id}
+                onClick={() => setStatusFilter(opt.id)}
+                className={cn(
+                  "flex items-center justify-between text-xs cursor-pointer py-1.5",
+                  statusFilter === opt.id && "font-semibold bg-accent text-accent-foreground"
+                )}
               >
-                {statusLabels[st] || st}
-              </DropdownMenuCheckboxItem>
+                <div className="flex items-center gap-2">
+                  {opt.dotClass && <span className={cn("w-2 h-2 rounded-full", opt.dotClass)} />}
+                  <span>{opt.label}</span>
+                </div>
+                <span className="text-[10px] text-muted-foreground tabular-nums font-semibold">
+                  {opt.count}
+                </span>
+              </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
