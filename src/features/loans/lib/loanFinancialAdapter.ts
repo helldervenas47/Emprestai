@@ -186,11 +186,7 @@ export function deriveLoanFinancialStatus(
     return STATUS_LABEL.quitado;
   }
 
-  const isOverdue =
-    state.daysOverdue > 0 ||
-    loan.status === "late" ||
-    loan.status === "overdue" ||
-    loan.status === "defaulted";
+  const isOverdue = state.daysOverdue > 0;
 
   // Estado persistido de renegociação continua prevalecendo (regra atual do app).
   if ((loan as any).status === "renegotiated" || Number((loan as any).renegotiationCount ?? 0) > 0) {

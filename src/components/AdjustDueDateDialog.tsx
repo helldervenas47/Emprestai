@@ -159,6 +159,9 @@ export function AdjustDueDateDialog({
       if (!isMultiInstallment || nextNum === 1 || scope === "future") {
         updates.originalDueDate = newDate;
       }
+      if (newDate >= todayStr && (loan.status === "overdue" || loan.status === "late" || loan.status === "defaulted")) {
+        updates.status = "active";
+      }
       onUpdate(updates);
     } catch (err) {
       console.error("[AdjustDueDate] Failed to update loan", err);

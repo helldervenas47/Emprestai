@@ -528,6 +528,7 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
             <ClientLoansList
               loans={clientLoans}
               payments={payments}
+              installmentSchedules={installmentSchedules}
               paymentsByLoan={paymentsByLoan}
               lastPaymentDateByLoan={lastPaymentDateByLoan}
               hidden={hidden}
@@ -876,12 +877,13 @@ function formatDate(d?: string): string {
 interface ClientLoansListProps {
   loans: Loan[];
   payments: Payment[];
+  installmentSchedules?: InstallmentSchedule[];
   paymentsByLoan: Record<string, number>;
   lastPaymentDateByLoan: Record<string, string | undefined>;
   hidden: boolean;
 }
 
-function ClientLoansList({ loans, payments, paymentsByLoan, lastPaymentDateByLoan, hidden }: ClientLoansListProps) {
+function ClientLoansList({ loans, payments, installmentSchedules = [], paymentsByLoan, lastPaymentDateByLoan, hidden }: ClientLoansListProps) {
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const mask = (v: string) => (hidden ? "•••" : v);
@@ -891,7 +893,8 @@ function ClientLoansList({ loans, payments, paymentsByLoan, lastPaymentDateByLoa
     const counts = { all: loans.length, em_atraso: 0, em_dia: 0, quitado: 0, renegociado: 0 };
     loans.forEach((l) => {
       const loanPayments = payments.filter((p) => p.loanId === l.id);
-      const state = getLoanFinancialStateForUI({ loan: l, payments: loanPayments });
+      const loanSchedules = installmentSchedules.filter((s) => s.loanId === l.id);
+      const state = getLoanFinancialStateForUI({ loan: l, payments: loanPayments, installmentSchedules: loanSchedules });
       const derived = deriveLoanFinancialStatus(state, l);
       if (derived.status === "em_atraso") counts.em_atraso++;
       else if (derived.status === "quitado") counts.quitado++;
@@ -899,13 +902,14 @@ function ClientLoansList({ loans, payments, paymentsByLoan, lastPaymentDateByLoa
       else counts.em_dia++;
     });
     return counts;
-  }, [loans, payments]);
+  }, [loans, payments, installmentSchedules]);
 
   const filteredLoans = useMemo(() => {
     if (statusFilter === "all") return loans;
     return loans.filter((l) => {
       const loanPayments = payments.filter((p) => p.loanId === l.id);
-      const state = getLoanFinancialStateForUI({ loan: l, payments: loanPayments });
+      const loanSchedules = installmentSchedules.filter((s) => s.loanId === l.id);
+      const state = getLoanFinancialStateForUI({ loan: l, payments: loanPayments, installmentSchedules: loanSchedules });
       const derived = deriveLoanFinancialStatus(state, l);
       if (statusFilter === "em_atraso") return derived.status === "em_atraso";
       if (statusFilter === "em_dia") return derived.status === "em_dia" || derived.status === "parcialmente_pago";
@@ -913,7 +917,7 @@ function ClientLoansList({ loans, payments, paymentsByLoan, lastPaymentDateByLoa
       if (statusFilter === "renegociado") return derived.status === "renegociado";
       return true;
     });
-  }, [loans, statusFilter, payments]);
+  }, [loans, statusFilter, payments, installmentSchedules]);
 
   if (loans.length === 0) {
     return (
@@ -940,7 +944,8 @@ function ClientLoansList({ loans, payments, paymentsByLoan, lastPaymentDateByLoa
 
   const computeValueCell = (l: Loan) => {
     const loanPayments = payments.filter((p) => p.loanId === l.id);
-    const state = getLoanFinancialStateForUI({ loan: l, payments: loanPayments });
+    const loanSchedules = installmentSchedules.filter((s) => s.loanId === l.id);
+    const state = getLoanFinancialStateForUI({ loan: l, payments: loanPayments, installmentSchedules: loanSchedules });
     const isPaid = l.status === "paid";
     const totalPaid = loanPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
     return {
