@@ -297,30 +297,31 @@ export function LoanListSummaryCards({
             ].join(" ")}
             style={{ animationDelay: `${idx * 50}ms` }}
           >
-            {/* Top Row: Icon + Count Badge */}
+            {/* Top Row: Icon + Title & Sublabel (badge on right for sm+) */}
             <div>
               <div className="flex items-center justify-between gap-1.5 sm:gap-2">
-                <span
-                  className={`h-7 w-7 sm:h-9 sm:w-9 rounded-xl ${t.iconBg} flex items-center justify-center shrink-0 shadow-xs`}
-                >
-                  <Icon className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5" aria-hidden />
-                </span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className={`h-7 w-7 sm:h-9 sm:w-9 rounded-xl ${t.iconBg} flex items-center justify-center shrink-0 shadow-xs`}
+                  >
+                    <Icon className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5" aria-hidden />
+                  </span>
+                  <div className="min-w-0">
+                    <span className="text-xs sm:text-sm font-bold text-foreground block leading-tight truncate">
+                      {c.label}
+                    </span>
+                    <span className="text-[10px] sm:text-[11px] text-muted-foreground block leading-tight mt-0.5 truncate">
+                      {c.sublabel}
+                    </span>
+                  </div>
+                </div>
 
+                {/* Badge visível no desktop/tablet */}
                 <span
-                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold border shrink-0 ${t.badgeBg}`}
+                  className={`hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold border shrink-0 ${t.badgeBg}`}
                 >
                   <span className={`h-1.5 w-1.5 rounded-full ${t.dot}`} aria-hidden />
                   {c.count} {c.count === 1 ? "contrato" : "contratos"}
-                </span>
-              </div>
-
-              {/* Title & Sublabel */}
-              <div className="mt-2 sm:mt-2.5 min-w-0">
-                <span className="text-xs sm:text-sm font-bold text-foreground block leading-tight">
-                  {c.label}
-                </span>
-                <span className="text-[10px] sm:text-[11px] text-muted-foreground block leading-tight mt-0.5">
-                  {c.sublabel}
                 </span>
               </div>
 
@@ -331,6 +332,16 @@ export function LoanListSummaryCards({
                 >
                   {formatCurrency(c.value)}
                 </p>
+
+                {/* Quantidade de contratos abaixo do valor na versão mobile */}
+                <div className="sm:hidden mt-1.5">
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${t.badgeBg}`}
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${t.dot}`} aria-hidden />
+                    {c.count} {c.count === 1 ? "contrato" : "contratos"}
+                  </span>
+                </div>
               </div>
             </div>
 
