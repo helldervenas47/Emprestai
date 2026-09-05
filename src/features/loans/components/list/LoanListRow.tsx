@@ -796,9 +796,9 @@ function LoanRowView({
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
                 Composição do Saldo
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-2.5">
+              <div className="grid grid-cols-2 sm:grid-cols-6 lg:grid-cols-5 gap-2 sm:gap-2.5">
                 {/* 1. Emprestado */}
-                <div className="bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-center flex flex-col items-center justify-between">
+                <div className="col-span-1 sm:col-span-2 lg:col-span-1 bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-center flex flex-col items-center justify-between">
                   <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground uppercase text-center">
                     Emprestado
                   </span>
@@ -811,7 +811,7 @@ function LoanRowView({
                 </div>
 
                 {/* 2. Encargos / Juros */}
-                <div className="bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-center flex flex-col items-center justify-between">
+                <div className="col-span-1 sm:col-span-2 lg:col-span-1 bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-center flex flex-col items-center justify-between">
                   <span className="text-[10px] sm:text-[11px] font-medium text-amber-600 dark:text-amber-400 uppercase text-center">
                     Encargos & Juros
                   </span>
@@ -824,7 +824,7 @@ function LoanRowView({
                 </div>
 
                 {/* 3. Total a Receber (Recebido + Restante) */}
-                <div className="bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-center flex flex-col items-center justify-between">
+                <div className="col-span-1 sm:col-span-2 lg:col-span-1 bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-center flex flex-col items-center justify-between">
                   <span className="text-[10px] sm:text-[11px] font-medium text-primary uppercase text-center">
                     Total a Receber
                   </span>
@@ -837,7 +837,7 @@ function LoanRowView({
                 </div>
 
                 {/* 4. Total Pago */}
-                <div className="bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-center flex flex-col items-center justify-between">
+                <div className="col-span-1 sm:col-span-3 lg:col-span-1 bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-center flex flex-col items-center justify-between">
                   <span className="text-[10px] sm:text-[11px] font-medium text-success uppercase text-center">
                     Total Pago
                   </span>
@@ -850,7 +850,7 @@ function LoanRowView({
                 </div>
 
                 {/* 5. Saldo Restante */}
-                <div className={`col-span-2 sm:col-span-1 rounded-xl p-2.5 sm:p-3 border text-center flex flex-col items-center justify-between ${
+                <div className={`col-span-2 sm:col-span-3 lg:col-span-1 rounded-xl p-2.5 sm:p-3 border text-center flex flex-col items-center justify-between ${
                   category === "overdue"
                     ? "bg-destructive/10 border-destructive/30"
                     : category === "due_today"
