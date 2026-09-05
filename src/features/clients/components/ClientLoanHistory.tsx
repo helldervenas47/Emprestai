@@ -21,7 +21,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { calculateTotalWithInterest } from "@/features/loans/hooks/useLoans";
 import { getLoanFinancialStateForUI, deriveLoanFinancialStatus } from "@/features/loans/lib/loanFinancialAdapter";
 import { allocateInterestByPayment } from "@/features/financial/lib/interestAllocation";
-import { Search, Users, BarChart3, ArrowUpDown, ChevronRight, ArrowLeft, Filter, X } from "lucide-react";
+import { Search, Users, BarChart3, ArrowUpDown, ChevronRight, ArrowLeft, Filter, X, Clock, CheckCircle2, Wallet, TrendingUp } from "lucide-react";
 import { useHideValues } from "@/contexts/HideValuesContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -617,71 +617,189 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
       </div>
 
       {showSummary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Card className="h-full">
-            <CardContent className="p-4 flex flex-col items-center justify-center text-center h-full">
-              <div className="text-sm text-muted-foreground mb-1">Principal Pendente</div>
-              <div className="font-bold tabular-nums text-warning text-xl">
-                {mask(formatCurrency(totals.totalPrincipalPending))}
+        <div className="space-y-3 animate-in fade-in-50 duration-200">
+          {/* Health & Capital Recovery Header Banner */}
+          <Card className="border-border/60 bg-gradient-to-br from-card via-card to-muted/20 shadow-xs overflow-hidden">
+            <CardContent className="p-3.5 sm:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0">
+                    <TrendingUp className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5">
+                      Recuperação da Carteira Geral
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {mask(formatCurrency(totals.totalPaid + totals.totalInterestPaid))} recebidos de {mask(formatCurrency(totals.totalBorrowed))} emprestados
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "text-xs px-2.5 py-1 font-semibold",
+                      (totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed) >= 0
+                        ? "bg-success/10 text-success border-success/30"
+                        : "bg-warning/10 text-warning border-warning/30"
+                    )}
+                  >
+                    {(totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed) >= 0 ? "Lucro Realizado: " : "Em Recuperação: "}
+                    <span className="tabular-nums ml-1 font-bold">
+                      {mask(formatCurrency(Math.abs(totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed)))}
+                    </span>
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Progress Bar & Indicators */}
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+                  <span>Capital Retornado</span>
+                  <span className="font-bold tabular-nums text-foreground">
+                    {hidden ? "•••" : `${(totals.totalBorrowed > 0 ? ((totals.totalPaid + totals.totalInterestPaid) / totals.totalBorrowed) * 100 : 0).toFixed(1).replace(".", ",")}%`}
+                  </span>
+                </div>
+                <div className="h-2 w-full bg-muted/60 rounded-full overflow-hidden p-0.5 border border-border/40">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-500",
+                      (totals.totalPaid + totals.totalInterestPaid) >= totals.totalBorrowed
+                        ? "bg-gradient-to-r from-emerald-500 to-teal-500"
+                        : "bg-gradient-to-r from-amber-500 to-emerald-500"
+                    )}
+                    style={{
+                      width: `${Math.min(100, Math.max(0, totals.totalBorrowed > 0 ? ((totals.totalPaid + totals.totalInterestPaid) / totals.totalBorrowed) * 100 : 0))}%`,
+                    }}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
-          <Card className="h-full">
-            <CardContent className="p-4 flex flex-col items-center justify-center text-center h-full">
-              <div className="text-sm text-muted-foreground mb-1">Juros Pendente</div>
-              <div className="font-bold tabular-nums text-warning text-xl">
-                {mask(formatCurrency(totals.totalInterestPending))}
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="h-full">
-            <CardContent className="p-4 flex flex-col items-center justify-center text-center h-full">
-              <div className="text-sm text-muted-foreground mb-1">Principal Recebido</div>
-              <div className="font-bold tabular-nums text-success text-xl">
-                {mask(formatCurrency(totals.totalPaid))}
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="h-full">
-            <CardContent className="p-4 flex flex-col items-center justify-center text-center h-full">
-              <div className="text-sm text-muted-foreground mb-1">Juros Pago</div>
-              <div className="font-bold tabular-nums text-primary text-xl">
-                {mask(formatCurrency(totals.totalInterestPaid))}
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="h-full">
-            <CardContent className="p-4 flex flex-col items-center justify-center text-center h-full">
-              <div className="text-sm text-muted-foreground mb-1">Emprestado</div>
-              <div className="font-bold tabular-nums text-xl">
-                {mask(formatCurrency(totals.totalBorrowed))}
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="h-full">
-            <CardContent className="p-4 flex flex-col items-center justify-center text-center h-full">
-              <div className="text-sm text-muted-foreground mb-1">Total</div>
-              <div className="font-bold tabular-nums text-xl">
-                {mask(formatCurrency(totals.grandTotal))}
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="h-full">
-            <CardContent className="p-4 flex flex-col items-center justify-center text-center h-full">
-              <div className="text-sm text-muted-foreground mb-1">Qtd. Clientes</div>
-              <div className="font-bold tabular-nums text-primary text-xl">
-                {totals.clientCount}
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="h-full">
-            <CardContent className="p-4 flex flex-col items-center justify-center text-center h-full">
-              <div className="text-sm text-muted-foreground mb-1">Taxa de Variação</div>
-              <div className="font-bold tabular-nums text-primary text-xl">
-                {hidden ? "•••" : `${totals.avgInterestRate.toFixed(2).replace(".", ",")}%`}
-              </div>
-            </CardContent>
-          </Card>
+
+          {/* 4 Structured Executive Pillar Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+            {/* Bloco 1: A Receber (Pendente) */}
+            <Card className="border-border/60 hover:border-amber-500/30 bg-card/60 hover:bg-card transition-all shadow-xs">
+              <CardContent className="p-3.5 flex flex-col justify-between h-full space-y-3">
+                <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <Clock className="h-3.5 w-3.5 text-warning" />
+                    <span>A Receber (Pendente)</span>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-bold px-1.5 py-0 bg-warning/10 text-warning border-warning/30">
+                    {mask(formatCurrency(totals.totalPrincipalPending + totals.totalInterestPending))}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-center pt-0.5">
+                  <div className="bg-muted/30 rounded-lg p-2 border border-border/30">
+                    <div className="text-[10px] text-muted-foreground font-medium mb-0.5">Principal</div>
+                    <div className="font-bold tabular-nums text-warning text-xs sm:text-sm truncate">
+                      {mask(formatCurrency(totals.totalPrincipalPending))}
+                    </div>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-2 border border-border/30">
+                    <div className="text-[10px] text-muted-foreground font-medium mb-0.5">Juros</div>
+                    <div className="font-bold tabular-nums text-warning text-xs sm:text-sm truncate">
+                      {mask(formatCurrency(totals.totalInterestPending))}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Bloco 2: Já Recebido no Caixa */}
+            <Card className="border-border/60 hover:border-emerald-500/30 bg-card/60 hover:bg-card transition-all shadow-xs">
+              <CardContent className="p-3.5 flex flex-col justify-between h-full space-y-3">
+                <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                    <span>Já Recebido no Caixa</span>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-bold px-1.5 py-0 bg-success/10 text-success border-success/30">
+                    {mask(formatCurrency(totals.totalPaid + totals.totalInterestPaid))}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-center pt-0.5">
+                  <div className="bg-muted/30 rounded-lg p-2 border border-border/30">
+                    <div className="text-[10px] text-muted-foreground font-medium mb-0.5">Principal</div>
+                    <div className="font-bold tabular-nums text-success text-xs sm:text-sm truncate">
+                      {mask(formatCurrency(totals.totalPaid))}
+                    </div>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-2 border border-border/30">
+                    <div className="text-[10px] text-muted-foreground font-medium mb-0.5">Juros</div>
+                    <div className="font-bold tabular-nums text-success text-xs sm:text-sm truncate">
+                      {mask(formatCurrency(totals.totalInterestPaid))}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Bloco 3: Volume da Carteira */}
+            <Card className="border-border/60 hover:border-primary/30 bg-card/60 hover:bg-card transition-all shadow-xs">
+              <CardContent className="p-3.5 flex flex-col justify-between h-full space-y-3">
+                <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <Wallet className="h-3.5 w-3.5 text-primary" />
+                    <span>Volume da Carteira</span>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-bold px-1.5 py-0 bg-primary/10 text-primary border-primary/30">
+                    {totals.clientCount} {totals.clientCount === 1 ? "cliente" : "clientes"}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-center pt-0.5">
+                  <div className="bg-muted/30 rounded-lg p-2 border border-border/30">
+                    <div className="text-[10px] text-muted-foreground font-medium mb-0.5">Emprestado</div>
+                    <div className="font-bold tabular-nums text-foreground text-xs sm:text-sm truncate">
+                      {mask(formatCurrency(totals.totalBorrowed))}
+                    </div>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-2 border border-border/30">
+                    <div className="text-[10px] text-muted-foreground font-medium mb-0.5">Contratado</div>
+                    <div className="font-bold tabular-nums text-foreground text-xs sm:text-sm truncate">
+                      {mask(formatCurrency(totals.grandTotal))}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Bloco 4: Rentabilidade & Retorno */}
+            <Card className="border-border/60 hover:border-violet-500/30 bg-card/60 hover:bg-card transition-all shadow-xs">
+              <CardContent className="p-3.5 flex flex-col justify-between h-full space-y-3">
+                <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <TrendingUp className="h-3.5 w-3.5 text-primary" />
+                    <span>Rentabilidade</span>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-bold px-1.5 py-0 bg-primary/10 text-primary border-primary/30">
+                    {hidden ? "•••" : `${totals.avgInterestRate.toFixed(1).replace(".", ",")}% taxa`}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-center pt-0.5">
+                  <div className="bg-muted/30 rounded-lg p-2 border border-border/30">
+                    <div className="text-[10px] text-muted-foreground font-medium mb-0.5">Lucro Projetado</div>
+                    <div className="font-bold tabular-nums text-primary text-xs sm:text-sm truncate">
+                      {mask(formatCurrency(Math.max(0, totals.grandTotal - totals.totalBorrowed)))}
+                    </div>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-2 border border-border/30">
+                    <div className="text-[10px] text-muted-foreground font-medium mb-0.5">Resultado Atual</div>
+                    <div className={cn(
+                      "font-bold tabular-nums text-xs sm:text-sm truncate",
+                      (totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed) >= 0 ? "text-success" : "text-amber-500"
+                    )}>
+                      {mask(formatCurrency(totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed))}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )}
 
