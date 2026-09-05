@@ -29,6 +29,7 @@ import { usePaymentMethods } from "@/hooks/usePaymentMethods";
 import { useHideValues } from "@/contexts/HideValuesContext";
 import { paymentsRepository } from "@/repositories/paymentsRepository";
 import { allocateInterestByPayment } from "@/features/financial/lib/interestAllocation";
+import { getLoanFinancialStateForUI } from "@/features/loans/lib/loanFinancialAdapter";
 import { focusWithoutScrollOnNextFrame } from "@/lib/focusWithoutScroll";
 
 interface Props {
@@ -239,10 +240,17 @@ export function LoanPaymentHistoryDialog({
       };
     });
 
+    const financialState = getLoanFinancialStateForUI({
+      loan,
+      payments: loanPayments,
+    });
+
     const remaining =
-      loan.remainingAmount != null && loan.remainingAmount >= 0
-        ? loan.remainingAmount
-        : Math.max(0, expected - totalPaid);
+      loan.status === "paid"
+        ? 0
+        : loan.remainingAmount != null && loan.remainingAmount > 0
+          ? loan.remainingAmount
+          : financialState.payoffAmount;
 
     const isPaid = loan.status === "paid" || remaining <= 0.01;
     const paidInstallments = loan.paidInstallments ?? 0;

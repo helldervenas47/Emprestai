@@ -182,13 +182,22 @@ export function deriveLoanFinancialStatus(
   loan: Loan,
   _calculationDate?: string,
 ): LoanFinancialStatusResult {
-  if (state.totalReceivable <= EPS || loan.status === "paid") return STATUS_LABEL.quitado;
+  if (state.totalReceivable <= EPS || loan.status === "paid" || state.payoffAmount <= EPS) {
+    return STATUS_LABEL.quitado;
+  }
+
+  const isOverdue =
+    state.daysOverdue > 0 ||
+    loan.status === "late" ||
+    loan.status === "overdue" ||
+    loan.status === "defaulted";
+
   // Estado persistido de renegociação continua prevalecendo (regra atual do app).
   if ((loan as any).status === "renegotiated" || Number((loan as any).renegotiationCount ?? 0) > 0) {
-    if (state.daysOverdue > 0 && state.overdueAmount > EPS) return STATUS_LABEL.em_atraso;
+    if (isOverdue) return STATUS_LABEL.em_atraso;
     return STATUS_LABEL.renegociado;
   }
-  if (state.daysOverdue > 0 && state.overdueAmount > EPS) return STATUS_LABEL.em_atraso;
+  if (isOverdue) return STATUS_LABEL.em_atraso;
   if (state.currentInstallmentPaid > EPS && state.currentInstallmentRemaining > EPS) {
     return STATUS_LABEL.parcialmente_pago;
   }

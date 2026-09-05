@@ -111,4 +111,41 @@ describe("LoanPaymentHistoryDialog", () => {
     // p1 e p2 são parcelas normais → badge "Pago".
     expect(screen.getAllByText(/^pago$/i).length).toBeGreaterThan(0);
   });
+
+  it("exibe saldo devedor correto com o restante do contrato mesmo quando o total pago supera o valor esperado inicial", () => {
+    const loanWithRenewals: Loan = {
+      id: "loan-renewal",
+      borrowerName: "Thiago Ferraz",
+      amount: 400,
+      interestRate: 20,
+      paymentType: "single",
+      startDate: "2026-06-10",
+      dueDate: "2026-06-20",
+      installments: 1,
+      paidInstallments: 0,
+      status: "late",
+      remainingAmount: 500,
+      createdAt: "2026-06-10T00:00:00Z",
+    };
+
+    const paymentsWithRenewals: Payment[] = [
+      { id: "pr1", loanId: "loan-renewal", amount: 800, date: "2026-07-17", installmentNumber: -1 },
+      { id: "pr2", loanId: "loan-renewal", amount: 140, date: "2026-07-21", installmentNumber: -1 },
+    ];
+
+    render(
+      <LoanPaymentHistoryDialog
+        loan={loanWithRenewals}
+        payments={paymentsWithRenewals}
+        open
+        onOpenChange={() => {}}
+      />,
+    );
+
+    // Saldo Devedor deve exibir R$ 500,00 e não R$ 0,00
+    expect(screen.getByText(/saldo devedor/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/R\$\s?500,00/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/R\$\s?940,00/).length).toBeGreaterThan(0);
+  });
 });
+
