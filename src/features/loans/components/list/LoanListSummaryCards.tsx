@@ -42,7 +42,7 @@ interface Props {
   schedules?: InstallmentSchedule[];
 }
 
-type Tone = "destructive" | "warning" | "primary" | "purple";
+type Tone = "destructive" | "warning" | "sky" | "indigo";
 
 interface CardConfig {
   id: "overdue" | "due_today" | "on_track" | "all";
@@ -77,23 +77,23 @@ const TONE = {
     activeRing: "ring-2 ring-amber-500/40 border-amber-500/50",
     border: "border-amber-500/20 hover:border-amber-500/40",
   },
-  primary: {
-    text: "text-emerald-600 dark:text-emerald-400",
-    bgGradient: "bg-gradient-to-br from-emerald-500/10 via-emerald-500/[0.04] to-transparent",
-    iconBg: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-    badgeBg: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
-    dot: "bg-emerald-500",
-    activeRing: "ring-2 ring-emerald-500/40 border-emerald-500/50",
-    border: "border-emerald-500/20 hover:border-emerald-500/40",
+  sky: {
+    text: "text-sky-600 dark:text-sky-400",
+    bgGradient: "bg-gradient-to-br from-sky-500/10 via-sky-500/[0.04] to-transparent",
+    iconBg: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
+    badgeBg: "bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30",
+    dot: "bg-sky-500",
+    activeRing: "ring-2 ring-sky-500/40 border-sky-500/50",
+    border: "border-sky-500/20 hover:border-sky-500/40",
   },
-  purple: {
-    text: "text-primary",
-    bgGradient: "bg-gradient-to-br from-primary/15 via-primary/[0.05] to-transparent",
-    iconBg: "bg-primary/15 text-primary",
-    badgeBg: "bg-primary/15 text-primary border-primary/30",
-    dot: "bg-primary",
-    activeRing: "ring-2 ring-primary/40 border-primary/50",
-    border: "border-primary/30 hover:border-primary/50",
+  indigo: {
+    text: "text-indigo-600 dark:text-indigo-400",
+    bgGradient: "bg-gradient-to-br from-indigo-500/15 via-indigo-500/[0.05] to-transparent",
+    iconBg: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400",
+    badgeBg: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30",
+    dot: "bg-indigo-500",
+    activeRing: "ring-2 ring-indigo-500/40 border-indigo-500/50",
+    border: "border-indigo-500/30 hover:border-indigo-500/50",
   },
 } as const;
 
@@ -255,7 +255,7 @@ export function LoanListSummaryCards({
       count: statusSummary.onTrackCount,
       icon: CheckCircle,
       secondaryIcon: RefreshCw,
-      tone: "primary",
+      tone: "sky",
       footerLabel: "Parcela média",
       footerValue: footer.parcelaMedia > 0 ? formatCurrency(footer.parcelaMedia) : "—",
     },
@@ -267,7 +267,7 @@ export function LoanListSummaryCards({
       count: statusSummary.totalCount,
       icon: DollarSign,
       secondaryIcon: Info,
-      tone: "purple",
+      tone: "indigo",
       footerLabel: "Ticket médio",
       footerValue: footer.ticketMedio > 0 ? formatCurrency(footer.ticketMedio) : "—",
       emphasized: true,
