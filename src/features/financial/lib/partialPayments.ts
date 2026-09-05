@@ -135,3 +135,17 @@ export function paymentStatusFor(expense: Expense, month: string): ExpensePaymen
   if (paidSoFar <= 0) return "pending";
   return paidSoFar + 0.005 >= occurrenceAmount(expense) ? "paid" : "partial";
 }
+
+/** Total acumulado de todos os pagamentos parciais registrados nas observações. */
+export function totalPartialPaid(notes?: string | null): number {
+  return round2(
+    readPartialPayments(notes).reduce((s, p) => s + p.amount, 0),
+  );
+}
+
+/** Saldo pendente de uma receita considerando pagamentos parciais. */
+export function incomeOutstanding(income: { amount: number; status: string; notes?: string | null }): number {
+  if (income.status === "received") return 0;
+  return Math.max(0, round2(income.amount - totalPartialPaid(income.notes)));
+}
+

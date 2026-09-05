@@ -43,6 +43,7 @@ import { toast } from "sonner";
 import { EditScopeDialog } from "@/components/EditScopeDialog";
 import { applyIncomeScopedUpdate, isIncomeInSeries } from "@/features/financial/lib/seriesEdit";
 import { useFinanceComponentDebug } from "@/lib/financeDebug";
+import { totalPartialPaid, incomeOutstanding } from "@/features/financial/lib/partialPayments";
 
 function fmtBRL(n: number) {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -84,7 +85,7 @@ interface Props {
 
 export function IncomeList({ readOnly }: Props) {
   useFinanceComponentDebug("IncomeList");
-  const { incomes, loading: incomesLoading, addIncome, updateIncome, deleteIncome, duplicateIncome, markReceived } = useIncomes();
+  const { incomes, loading: incomesLoading, addIncome, updateIncome, deleteIncome, duplicateIncome, markReceived, payIncomePartial } = useIncomes();
   const { expenses: rawExpenses, payExpense } = useExpenses();
   const { sales: rawSales } = useProducts();
   const { clients } = useClients();
@@ -115,6 +116,8 @@ export function IncomeList({ readOnly }: Props) {
   const [payTarget, setPayTarget] = useState<Income | null>(null);
   const [payDate, setPayDate] = useState<string>("");
   const [payAmount, setPayAmount] = useState<string>("");
+  const [partialMode, setPartialMode] = useState(false);
+  const [partialAmount, setPartialAmount] = useState<string>("");
   const [paySaving, setPaySaving] = useState(false);
   const [viewDateTarget, setViewDateTarget] = useState<Income | null>(null);
   const [editingPayDate, setEditingPayDate] = useState(false);
@@ -390,6 +393,8 @@ export function IncomeList({ readOnly }: Props) {
                     const isReceived = i.status === "received";
                     const actual = i.actualReceivedDate || i.receivedDate;
                     const dateToShow = isReceived && actual ? actual : i.receivedDate;
+                    const alreadyPartial = totalPartialPaid(i.notes);
+                    const outstanding = incomeOutstanding(i);
 
                     return (
                       <FinancialListMiniCard
@@ -397,11 +402,13 @@ export function IncomeList({ readOnly }: Props) {
                         title={i.description}
                         amount={fmtBRL(i.amount)}
                         amountTone="income"
-                        status={incomeMiniCardStatus(i.status, i.receivedDate)}
-                        statusLabel={STATUS_LABEL[i.status]}
+                        status={alreadyPartial > 0 && i.status !== "received" ? "pending" : incomeMiniCardStatus(i.status, i.receivedDate)}
+                        statusLabel={alreadyPartial > 0 && i.status !== "received" ? `Parcial (${fmtBRL(alreadyPartial)})` : STATUS_LABEL[i.status]}
                         category={i.category || undefined}
                         dueDate={formatDateBR(i.receivedDate, "dd/MM/yyyy")}
                         paidDate={isReceived && i.actualReceivedDate ? formatDateBR(i.actualReceivedDate, "dd/MM/yyyy") : undefined}
+                        progress={alreadyPartial > 0 && i.status !== "received" ? Math.min(100, Math.round((alreadyPartial / i.amount) * 100)) : undefined}
+                        progressLabel={alreadyPartial > 0 && i.status !== "received" ? `Recebido ${fmtBRL(alreadyPartial)} de ${fmtBRL(i.amount)} (saldo: ${fmtBRL(outstanding)})` : undefined}
                         meta={
                           <>
                             {clientName(i) && <span>{clientName(i)}</span>}
@@ -417,7 +424,7 @@ export function IncomeList({ readOnly }: Props) {
                               <Button type="button" variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setViewDateTarget(i); }} className="h-8 w-full px-0" title="Data" aria-label="Data">
                                 <CalendarCheck className="h-4 w-4" />
                               </Button>
-                              <Button type="button" data-mutation variant="outline" size="sm" disabled={i.status === "received"} onClick={(e) => { e.stopPropagation(); setPayTarget(i); setPayDate(todayInAppTz()); setPayAmount(""); }} className="h-8 w-full px-0 disabled:opacity-40" title="Pagar" aria-label="Pagar">
+                              <Button type="button" data-mutation variant="outline" size="sm" disabled={i.status === "received"} onClick={(e) => { e.stopPropagation(); setPayTarget(i); setPayDate(todayInAppTz()); setPayAmount(""); setPartialMode(false); setPartialAmount(""); }} className="h-8 w-full px-0 disabled:opacity-40" title="Pagar" aria-label="Pagar">
                                 <CheckCircle2 className="h-4 w-4" />
                               </Button>
                               <Button type="button" variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setEditing(i); setFormOpen(true); }} className="h-8 w-full px-0 text-muted-foreground hover:text-foreground" title="Editar" aria-label="Editar">
@@ -436,7 +443,11 @@ export function IncomeList({ readOnly }: Props) {
 
                 {/* Desktop/Tablet: layout denso original */}
                 <div className="hidden md:block space-y-2">
-                {filtered.map((i) => (
+                {filtered.map((i) => {
+                  const alreadyPartial = totalPartialPaid(i.notes);
+                  const outstanding = incomeOutstanding(i);
+
+                  return (
                   <div
                     key={i.id}
                     className="rounded-xl border border-border/40 bg-card/60 p-3 sm:p-4 hover:border-border/80 transition-all"
@@ -451,6 +462,11 @@ export function IncomeList({ readOnly }: Props) {
                             {i.status === "overdue" && <AlertTriangle className="h-3 w-3 mr-1" />}
                             {STATUS_LABEL[i.status]}
                           </Badge>
+                          {alreadyPartial > 0 && i.status !== "received" && (
+                            <Badge variant="outline" className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-xs font-semibold">
+                              Parcial ({fmtBRL(alreadyPartial)} de {fmtBRL(i.amount)})
+                            </Badge>
+                          )}
                           {i.category && <Badge variant="secondary" className="text-xs">{i.category}</Badge>}
                         </div>
                         <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
@@ -484,6 +500,11 @@ export function IncomeList({ readOnly }: Props) {
                         <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
                           {fmtBRL(i.amount)}
                         </div>
+                        {alreadyPartial > 0 && i.status !== "received" && (
+                          <div className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                            Saldo pendente: {fmtBRL(outstanding)}
+                          </div>
+                        )}
                       </div>
                     </div>
                     {!readOnly && (
@@ -505,6 +526,8 @@ export function IncomeList({ readOnly }: Props) {
                                 setPayTarget(i);
                                 setPayDate(todayInAppTz());
                                 setPayAmount("");
+                                setPartialMode(false);
+                                setPartialAmount("");
                               }}
                               className="h-9 w-9 md:w-auto md:px-3 flex-1 min-h-0"
                               title="Pagar"
@@ -529,7 +552,8 @@ export function IncomeList({ readOnly }: Props) {
                        </div>
                     )}
                   </div>
-                ))}
+                );
+                })}
                 </div>
               </div>
             )}
@@ -567,11 +591,6 @@ export function IncomeList({ readOnly }: Props) {
         monthKey={monthKey}
       />
 
-
-
-
-
-
       <IncomeForm
         open={formOpen}
         onClose={() => { setFormOpen(false); setEditing(null); }}
@@ -589,72 +608,160 @@ export function IncomeList({ readOnly }: Props) {
         }}
       />
 
-      <Dialog open={!!payTarget} onOpenChange={(o) => { if (!o) setPayTarget(null); }}>
+      <Dialog
+        open={!!payTarget}
+        onOpenChange={(o) => {
+          if (!o) {
+            setPayTarget(null);
+            setPartialMode(false);
+            setPartialAmount("");
+          }
+        }}
+      >
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Pagar receita</DialogTitle>
             <DialogDescription>
-              Informe a data do recebimento e, opcionalmente, o valor recebido.
-              Se deixar o valor em branco, será considerado o valor cadastrado.
+              {partialMode
+                ? "Informe o valor do pagamento parcial. O restante continuará pendente."
+                : "Confirme a data e o valor recebido."}
             </DialogDescription>
           </DialogHeader>
-          {payTarget && (
-            <div className="space-y-3">
-              <div className="rounded-lg bg-muted/50 p-3 text-sm">
-                <div className="font-medium truncate">{payTarget.description}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">
-                  Valor cadastrado: {fmtBRL(payTarget.amount)}
+          {payTarget && (() => {
+            const totalAmount = payTarget.amount;
+            const alreadyPartial = totalPartialPaid(payTarget.notes);
+            const outstanding = incomeOutstanding(payTarget);
+
+            return (
+              <div className="space-y-3">
+                <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1">
+                  <div className="font-medium truncate">{payTarget.description}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Valor cadastrado: {fmtBRL(totalAmount)}
+                  </div>
+                  {alreadyPartial > 0 && (
+                    <div className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                      Já recebido: {fmtBRL(alreadyPartial)} • Saldo pendente: {fmtBRL(outstanding)}
+                    </div>
+                  )}
                 </div>
+
+                <div>
+                  <Label className="text-xs">Data do recebimento</Label>
+                  <DatePickerField value={payDate} onChange={setPayDate} />
+                </div>
+
+                {partialMode ? (
+                  <div>
+                    <Label htmlFor="income-partial-amount" className="text-xs">Valor do pagamento parcial</Label>
+                    <Input
+                      id="income-partial-amount"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      max={outstanding}
+                      value={partialAmount}
+                      onChange={(e) => setPartialAmount(e.target.value)}
+                      placeholder={outstanding.toFixed(2)}
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Máximo: {fmtBRL(outstanding)}. O restante continuará pendente.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <Label htmlFor="income-pay-amount" className="text-xs">Valor recebido (opcional)</Label>
+                    <Input
+                      id="income-pay-amount"
+                      type="number"
+                      step="0.01"
+                      value={payAmount}
+                      onChange={(e) => setPayAmount(e.target.value)}
+                      placeholder={outstanding.toFixed(2)}
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Em branco usa o valor pendente ({fmtBRL(outstanding)}).
+                    </p>
+                  </div>
+                )}
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-0 text-xs text-primary"
+                  onClick={() => {
+                    setPartialMode((v) => !v);
+                    setPartialAmount("");
+                  }}
+                >
+                  {partialMode ? "Receber valor total" : "Registrar pagamento parcial"}
+                </Button>
               </div>
-              <div>
-                <Label>Data do recebimento</Label>
-                <DatePickerField value={payDate} onChange={setPayDate} />
-              </div>
-              <div>
-                <Label>Valor recebido (opcional)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={payAmount}
-                  onChange={(e) => setPayAmount(e.target.value)}
-                  placeholder={payTarget.amount.toFixed(2)}
-                />
-              </div>
-            </div>
-          )}
+            );
+          })()}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPayTarget(null)}>Cancelar</Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPayTarget(null);
+                setPartialMode(false);
+                setPartialAmount("");
+              }}
+            >
+              Cancelar
+            </Button>
             <Button
               disabled={paySaving || !payDate}
               onClick={async () => {
                 if (!payTarget) return;
-                // Valida duplicidade: data efetiva do pagamento não pode colidir com
-                // outra ocorrência da mesma série (recorrente ou parcelada).
                 const check = validateIncomeDate(payTarget, incomes, payDate);
                 if (!check.ok) {
                   toast.error(check.reason || "Data já utilizada por outra ocorrência.");
                   return;
                 }
                 setPaySaving(true);
-                const finalAmount = payAmount.trim() && Number(payAmount) > 0
-                  ? Number(payAmount)
-                  : payTarget.amount;
-                const isRecurringOccurrence =
-                  !!payTarget.parentId || payTarget.recurrence !== "once";
-                const patch: any = {
-                  status: "received",
-                  amount: finalAmount,
-                  actualReceivedDate: payDate,
-                };
-                if (!isRecurringOccurrence) {
-                  patch.receivedDate = payDate;
+                const outstanding = incomeOutstanding(payTarget);
+
+                if (partialMode) {
+                  const parsed = parseFloat(partialAmount);
+                  if (!parsed || isNaN(parsed) || parsed <= 0) {
+                    toast.error("Informe um valor válido para o pagamento parcial");
+                    setPaySaving(false);
+                    return;
+                  }
+                  const ok = await payIncomePartial(payTarget.id, Math.min(parsed, outstanding), payDate);
+                  if (ok) {
+                    if (parsed >= outstanding - 0.005) {
+                      toast.success("Receita quitada com sucesso!");
+                    } else {
+                      toast.success(`Pagamento parcial de ${fmtBRL(parsed)} registrado! Saldo: ${fmtBRL(outstanding - parsed)}`);
+                    }
+                  }
+                } else {
+                  const finalAmount = payAmount.trim() && Number(payAmount) > 0
+                    ? Number(payAmount)
+                    : outstanding || payTarget.amount;
+                  const isRecurringOccurrence =
+                    !!payTarget.parentId || payTarget.recurrence !== "once";
+                  const patch: any = {
+                    status: "received",
+                    amount: finalAmount,
+                    actualReceivedDate: payDate,
+                  };
+                  if (!isRecurringOccurrence) {
+                    patch.receivedDate = payDate;
+                  }
+                  await updateIncome(payTarget.id, patch);
+                  toast.success("Receita confirmada como recebida!");
                 }
-                await updateIncome(payTarget.id, patch);
                 setPaySaving(false);
                 setPayTarget(null);
+                setPartialMode(false);
+                setPartialAmount("");
               }}
             >
-              {paySaving ? "Salvando..." : "Confirmar"}
+              {paySaving ? "Salvando..." : (partialMode ? "Registrar pagamento parcial" : "Confirmar")}
             </Button>
           </DialogFooter>
         </DialogContent>

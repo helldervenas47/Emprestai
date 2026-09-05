@@ -11,7 +11,13 @@ import {
   invalidateSharedResource, subscribeSharedResource,
 } from "@/lib/sharedResource";
 
-const INCOMES_STALE_MS = 60_000;
+import { toast } from "sonner";
+import {
+  withPartialPayment,
+  withoutPartialPayments,
+  totalPartialPaid,
+  round2,
+} from "@/features/financial/lib/partialPayments";
 
 export type IncomeStatus = "pending" | "received" | "overdue";
 export type IncomeRecurrence = "once" | "weekly" | "biweekly" | "monthly" | "yearly";
@@ -401,6 +407,59 @@ export function useIncomes(enabled = true) {
     await updateIncome(id, patch);
   }, [incomes, updateIncome]);
 
+  const payIncomePartial = useCallback(async (
+    id: string,
+    amount: number,
+    payDate?: string,
+  ): Promise<boolean> => {
+    assertWritable();
+    if (!dataOwnerId) return false;
+    const income = incomes.find((i) => i.id === id);
+    if (!income || income.status === "received") return false;
+
+    const value = round2(amount);
+    if (!(value > 0)) {
+      toast.error("Informe um valor de pagamento maior que zero");
+      return false;
+    }
+
+    const totalAmount = income.amount;
+    const month = (income.receivedDate || todayInAppTz()).slice(0, 7);
+    const already = totalPartialPaid(income.notes);
+    const outstanding = round2(totalAmount - already);
+
+    if (value > outstanding + 0.005) {
+      toast.error("Valor acima do saldo pendente", {
+        description: `Saldo pendente: R$ ${outstanding.toFixed(2)}`,
+      });
+      return false;
+    }
+
+    const today = payDate || todayInAppTz();
+    const closesBalance = value >= outstanding - 0.005;
+
+    if (closesBalance) {
+      const isRecurring = !!income.parentId || income.recurrence !== "once";
+      const patch: any = {
+        status: "received",
+        actualReceivedDate: today,
+        amount: totalAmount,
+      };
+      if (!isRecurring) {
+        patch.receivedDate = today;
+      }
+      const cleaned = withoutPartialPayments(income.notes);
+      patch.notes = cleaned;
+      await updateIncome(id, patch);
+      return true;
+    }
+
+    const notes = withPartialPayment(income.notes, { month, date: today, amount: value });
+    await updateIncome(id, { notes });
+    return true;
+  }, [incomes, dataOwnerId, updateIncome]);
+
+
 
   // Backfill: para receitas recorrentes antigas que ainda não foram expandidas,
   // gera as ocorrências restantes (semanal/quinzenal no mês; mensal/anual no horizonte futuro).
@@ -495,5 +554,5 @@ export function useIncomes(enabled = true) {
     return () => { cancelled = true; };
   }, [incomes, enabled, dataOwnerId, insertSingle, fetch]);
 
-  return { incomes, loading, addIncome, updateIncome, deleteIncome, duplicateIncome, markReceived, refetch: fetch };
+  return { incomes, loading, addIncome, updateIncome, deleteIncome, duplicateIncome, markReceived, payIncomePartial, refetch: fetch };
 }
