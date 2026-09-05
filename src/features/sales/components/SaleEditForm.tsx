@@ -179,7 +179,7 @@ export function SaleEditForm({ sale, onSave, onClose, clients = [], registeredVe
           <CardTitle className="text-xl">Editar Venda</CardTitle>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="h-5 w-5" /></Button>
         </CardHeader>
-        <CardContent className="pb-36 sm:pb-6">
+        <CardContent className="pb-8 sm:pb-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label>Tipo de Negócio</Label>

@@ -1725,8 +1725,6 @@ html[data-theme="monochrome"].dark {
 
 /* =========================================================
    Mobile Virtual Keyboard Scroll & Viewport Handling
-   Garante que o teclado virtual no mobile nunca fique em cima
-   do campo focado e que os modais/formulários tenham espaço de rolagem.
    ========================================================= */
 @media (max-width: 768px) {
   input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="button"]):not([type="submit"]),
@@ -1734,15 +1732,8 @@ html[data-theme="monochrome"].dark {
   select,
   [role="combobox"],
   [data-radix-select-trigger] {
-    scroll-margin-top: 80px;
-    scroll-margin-bottom: clamp(140px, 35vh, 320px);
-  }
-
-  [role="dialog"],
-  .modal-scroll-container,
-  [data-radix-portal] [role="dialog"] {
-    scroll-padding-bottom: clamp(160px, 40vh, 360px);
-    scroll-padding-top: 80px;
+    scroll-margin-top: 24px;
+    scroll-margin-bottom: 32px;
   }
 }
 

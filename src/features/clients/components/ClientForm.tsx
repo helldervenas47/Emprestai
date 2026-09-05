@@ -97,7 +97,7 @@ export function ClientForm({ onAdd, onClose }: Props) {
             <X className="h-5 w-5" />
           </Button>
         </CardHeader>
-        <CardContent className="p-4 sm:p-6 pt-0 pb-36 sm:pb-6">
+        <CardContent className="p-4 sm:p-6 pt-0 pb-8 sm:pb-6">
           <form onSubmit={handleSubmit} className="space-y-3.5 sm:space-y-4">
             <div className={fieldCls}>
               <Label htmlFor="name" className={labelCls}>Nome completo</Label>

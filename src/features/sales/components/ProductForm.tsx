@@ -75,7 +75,7 @@ export function ProductForm({ onAdd, onUpdate, onClose, product }: Props) {
           <CardTitle className="text-xl">{isEdit ? "Editar Produto" : "Novo Produto"}</CardTitle>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="h-5 w-5" /></Button>
         </CardHeader>
-        <CardContent className="pb-36 sm:pb-6">
+        <CardContent className="pb-8 sm:pb-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label>Nome do Produto</Label>

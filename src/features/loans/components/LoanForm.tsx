@@ -357,7 +357,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
             <X className="h-5 w-5" />
           </Button>
         </CardHeader>
-        <CardContent className="pb-36 md:pb-6">
+        <CardContent className="pb-8 md:pb-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               {/* Cliente — full width */}

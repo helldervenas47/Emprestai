@@ -166,10 +166,10 @@ export function IncomeForm({ open, onClose, onSubmit, initial }: Props) {
         style={{
           paddingTop: "calc(clamp(1rem, 4vw, 1.5rem) + env(safe-area-inset-top))",
           paddingRight: "calc(clamp(1rem, 4vw, 1.5rem) + env(safe-area-inset-right))",
-          paddingBottom: "calc(clamp(2.5rem, 8vw, 4rem) + env(safe-area-inset-bottom))",
+          paddingBottom: "calc(clamp(1rem, 4vw, 1.5rem) + env(safe-area-inset-bottom))",
           paddingLeft: "calc(clamp(1rem, 4vw, 1.5rem) + env(safe-area-inset-left))",
         }}
-        className="top-0 left-0 translate-x-0 translate-y-0 box-border w-[100dvw] h-[100dvh] max-w-[100dvw] max-h-[100dvh] rounded-none border-0 overflow-y-auto overflow-x-hidden pb-36 sm:pb-6 sm:top-[50%] sm:left-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:w-full sm:h-auto sm:max-w-lg sm:max-h-[90vh] sm:rounded-2xl sm:border"
+        className="top-0 left-0 translate-x-0 translate-y-0 box-border w-[100dvw] h-[100dvh] max-w-[100dvw] max-h-[100dvh] rounded-none border-0 overflow-y-auto overflow-x-hidden pb-8 sm:pb-6 sm:top-[50%] sm:left-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:w-full sm:h-auto sm:max-w-lg sm:max-h-[90vh] sm:rounded-2xl sm:border"
       >
         <DialogHeader>
           <DialogTitle>{initial ? "Editar receita" : "Nova receita"}</DialogTitle>
