@@ -209,7 +209,7 @@ export function ExpenseForm({ onAdd, onClose, scope = "business", defaults }: Pr
             <X className="h-5 w-5" />
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pb-36 sm:pb-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label htmlFor="description">Descrição</Label>

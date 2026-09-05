@@ -59,42 +59,6 @@ function getNextDate(base: Date, frequency: string, periods: number): Date {
 
 export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payments, installmentSchedules, existingTags = [], prefill, onAddClient }: Props) {
   const { renegotiations } = useLoanRenegotiations();
-  const overlayRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!window.visualViewport) return;
-
-    const correctOffset = () => {
-      const vv = window.visualViewport!;
-      if (overlayRef.current) {
-        overlayRef.current.style.transform = vv.offsetTop > 0
-          ? `translateY(${vv.offsetTop}px)`
-          : "";
-      }
-    };
-
-    const handleViewportChange = () => correctOffset();
-
-    const handleFocusIn = (e: FocusEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") {
-        setTimeout(correctOffset, 50);
-        setTimeout(correctOffset, 150);
-        setTimeout(correctOffset, 300);
-      }
-    };
-
-    const overlayEl = overlayRef.current;
-    window.visualViewport.addEventListener("resize", handleViewportChange);
-    window.visualViewport.addEventListener("scroll", handleViewportChange);
-    overlayEl?.addEventListener("focusin", handleFocusIn);
-
-    return () => {
-      window.visualViewport?.removeEventListener("resize", handleViewportChange);
-      window.visualViewport?.removeEventListener("scroll", handleViewportChange);
-      overlayEl?.removeEventListener("focusin", handleFocusIn);
-    };
-  }, []);
 
   const [showSuccess, setShowSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -384,7 +348,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
     setForm((prev) => ({ ...prev, [field]: value }));
 
   return (
-    <div ref={overlayRef} className="fixed inset-0 bg-foreground/40 backdrop-blur-sm z-50 flex items-stretch justify-center p-0 md:items-center md:p-4">
+    <div className="fixed inset-0 bg-foreground/40 backdrop-blur-sm z-50 flex items-stretch justify-center p-0 md:items-center md:p-4">
       <SuccessAnimation show={showSuccess} onComplete={onClose} message="Empréstimo registrado!" />
       <Card className="!bg-card !backdrop-blur-none supports-[backdrop-filter]:!bg-card dark:!bg-card w-full h-[100dvh] max-h-[100dvh] rounded-none border-0 overflow-y-auto pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:h-auto md:max-h-[92svh] md:w-full md:max-w-[880px] md:rounded-2xl md:border md:pt-0 md:pb-0">
         <CardHeader className="flex flex-row items-center justify-between pb-2 md:pb-6">
@@ -393,7 +357,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
             <X className="h-5 w-5" />
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pb-36 md:pb-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               {/* Cliente — full width */}

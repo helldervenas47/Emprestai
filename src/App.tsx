@@ -14,6 +14,7 @@ import { BrandFaviconSync } from "./components/BrandFaviconSync";
 import { OfflineBadge } from "./components/OfflineBadge";
 import { AppTimezoneSync } from "./components/AppTimezoneSync";
 import { StatusBarScrollSync } from "./components/StatusBarScrollSync";
+import { MobileKeyboardScrollSync } from "./components/MobileKeyboardScrollSync";
 import { ViewAsBanner } from "./features/admin/components/ViewAsBanner";
 import { AppFontSync } from "./hooks/useAppFont";
 import { wireAutoSync } from "./lib/offline/sync";
@@ -136,6 +137,7 @@ const App = () => (
               <BrandFaviconSync />
               <AppTimezoneSync />
               <StatusBarScrollSync />
+              <MobileKeyboardScrollSync />
               <AppFontSync />
               <ViewAsBanner />
               <Suspense fallback={<PageLoader />}>

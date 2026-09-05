@@ -441,7 +441,7 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
           <CardTitle className="text-xl">{formTitle}</CardTitle>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="h-5 w-5" /></Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pb-36 sm:pb-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label>Tipo de Negócio</Label>
