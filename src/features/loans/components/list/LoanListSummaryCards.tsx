@@ -47,6 +47,7 @@ type Tone = "destructive" | "warning" | "primary" | "purple";
 interface CardConfig {
   id: "overdue" | "due_today" | "on_track" | "all";
   label: string;
+  sublabel: string;
   value: number;
   count: number;
   icon: typeof AlertTriangle;
@@ -60,70 +61,41 @@ interface CardConfig {
 const TONE = {
   destructive: {
     text: "text-destructive",
-    iconBg: "bg-destructive/10",
-    badgeBg: "bg-destructive/10",
-    badgeText: "text-destructive",
-    stroke: "hsl(var(--destructive))",
-    ring: "ring-destructive/40",
-    activeBorder: "border-destructive/40",
+    bgGradient: "bg-gradient-to-br from-destructive/10 via-destructive/[0.04] to-transparent",
+    iconBg: "bg-destructive/15 text-destructive",
+    badgeBg: "bg-destructive/15 text-destructive border-destructive/30",
+    dot: "bg-destructive",
+    activeRing: "ring-2 ring-destructive/40 border-destructive/50",
+    border: "border-destructive/20 hover:border-destructive/40",
   },
   warning: {
-    text: "text-warning",
-    iconBg: "bg-warning/10",
-    badgeBg: "bg-warning/10",
-    badgeText: "text-warning",
-    stroke: "hsl(var(--warning))",
-    ring: "ring-warning/40",
-    activeBorder: "border-warning/40",
+    text: "text-amber-600 dark:text-amber-400",
+    bgGradient: "bg-gradient-to-br from-amber-500/10 via-amber-500/[0.04] to-transparent",
+    iconBg: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+    badgeBg: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+    dot: "bg-amber-500",
+    activeRing: "ring-2 ring-amber-500/40 border-amber-500/50",
+    border: "border-amber-500/20 hover:border-amber-500/40",
   },
   primary: {
-    text: "text-primary",
-    iconBg: "bg-primary/10",
-    badgeBg: "bg-primary/10",
-    badgeText: "text-primary",
-    stroke: "hsl(var(--primary))",
-    ring: "ring-primary/40",
-    activeBorder: "border-primary/40",
+    text: "text-emerald-600 dark:text-emerald-400",
+    bgGradient: "bg-gradient-to-br from-emerald-500/10 via-emerald-500/[0.04] to-transparent",
+    iconBg: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+    badgeBg: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+    dot: "bg-emerald-500",
+    activeRing: "ring-2 ring-emerald-500/40 border-emerald-500/50",
+    border: "border-emerald-500/20 hover:border-emerald-500/40",
   },
   purple: {
     text: "text-primary",
-    iconBg: "bg-primary/10",
-    badgeBg: "bg-primary/10",
-    badgeText: "text-primary",
-    stroke: "hsl(var(--primary))",
-    ring: "ring-primary/50",
-    activeBorder: "border-primary/60",
+    bgGradient: "bg-gradient-to-br from-primary/15 via-primary/[0.05] to-transparent",
+    iconBg: "bg-primary/15 text-primary",
+    badgeBg: "bg-primary/15 text-primary border-primary/30",
+    dot: "bg-primary",
+    activeRing: "ring-2 ring-primary/40 border-primary/50",
+    border: "border-primary/30 hover:border-primary/50",
   },
 } as const;
-
-/** Neutral flat sparkline (no invented data). */
-function Sparkline({ stroke, flat = true }: { stroke: string; flat?: boolean }) {
-  // 8 points, flat line by default. When we don't have real history we
-  // deliberately render a neutral straight line.
-  const points = flat
-    ? "0,10 10,10 20,10 30,10 40,10 50,10 60,10 70,10"
-    : "0,14 10,12 20,13 30,9 40,10 50,6 60,8 70,4";
-  return (
-    <svg
-      width="70"
-      height="22"
-      viewBox="0 0 70 22"
-      fill="none"
-      className="opacity-70 group-hover:opacity-100 transition-opacity"
-      aria-hidden
-    >
-      <polyline
-        points={points}
-        stroke={stroke}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-        strokeDasharray={flat ? "3 3" : undefined}
-      />
-    </svg>
-  );
-}
 
 export function LoanListSummaryCards({
   statusSummary,
@@ -152,11 +124,7 @@ export function LoanListSummaryCards({
       if (d > biggestOverdueDays) biggestOverdueDays = d;
     }
 
-
-    // Próximo vencimento: soma de TODAS as parcelas em aberto (de qualquer
-    // contrato ativo) cuja data de vencimento é a próxima data futura (após
-    // hoje). Considera múltiplas parcelas pendentes por contrato quando
-    // existir cronograma.
+    // Próximo vencimento: soma de TODAS as parcelas em aberto cuja data é a próxima data futura
     const today = new Date();
     const todayNorm = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
     const pendingByDate = new Map<number, number>();
@@ -176,9 +144,6 @@ export function LoanListSummaryCards({
           pendingByDate.set(d, (pendingByDate.get(d) || 0) + Number(amt || 0));
         }
       } else {
-        // Sem cronograma: considera parcela única ou próximo vencimento simples.
-        // Para contratos de parcela única (installments < 2), usa o saldo
-        // restante (base) como valor a receber na data de vencimento.
         const due = getFirstPendingDate(l, schedules).getTime();
         if (due <= todayNorm) continue;
         let amt = getNextPendingInstallmentAmount(l, payments, schedules);
@@ -190,7 +155,6 @@ export function LoanListSummaryCards({
         if (amt == null || amt <= 0) continue;
         pendingByDate.set(due, (pendingByDate.get(due) || 0) + amt);
       }
-
     }
     let nextDueDate: Date | null = null;
     let nextDueValue: number | null = null;
@@ -200,7 +164,7 @@ export function LoanListSummaryCards({
       nextDueValue = Math.round((pendingByDate.get(minTs) || 0) * 100) / 100;
     }
 
-    // Vence Hoje: soma das parcelas que vencem hoje (dos contratos due_today).
+    // Vence Hoje: soma das parcelas que vencem hoje
     let dueTodayValue = 0;
     for (const l of dueTodayLoans) {
       const paid = l.paidInstallments || 0;
@@ -229,14 +193,14 @@ export function LoanListSummaryCards({
     }
     dueTodayValue = Math.round(dueTodayValue * 100) / 100;
 
-    // Parcela média (média das próximas parcelas dos on_track)
+    // Parcela média
     const parcelas = onTrackLoans
       .map((l) => getNextPendingInstallmentAmount(l, payments, schedules))
       .filter((v): v is number => v != null && v > 0);
     const parcelaMedia =
       parcelas.length > 0 ? parcelas.reduce((s, v) => s + v, 0) / parcelas.length : 0;
 
-    // Ticket médio: total a receber / total de contratos ativos
+    // Ticket médio
     const totalActive = activeLoans.length;
     const ticketMedio = totalActive > 0 ? statusSummary.total / totalActive : 0;
 
@@ -252,38 +216,41 @@ export function LoanListSummaryCards({
     };
   }, [loans, payments, schedules, statusSummary.total]);
 
-
   const cards: CardConfig[] = [
     {
       id: "overdue",
       label: "Atrasados",
+      sublabel: "Em atraso",
       value: statusSummary.overdue,
       count: statusSummary.overdueCount,
-      icon: Clock,
-      secondaryIcon: AlertTriangle,
+      icon: AlertTriangle,
+      secondaryIcon: Clock,
       tone: "destructive",
       footerLabel: "Maior atraso",
-      footerValue: footer.biggestOverdue > 0 ? formatCurrency(footer.biggestOverdue) : "—",
+      footerValue:
+        footer.biggestOverdue > 0
+          ? `${formatCurrency(footer.biggestOverdue)}${footer.biggestOverdueDays > 0 ? ` (${footer.biggestOverdueDays}d)` : ""}`
+          : "—",
     },
     {
       id: "due_today",
       label: "Vence Hoje",
+      sublabel: "Para receber hoje",
       value: statusSummary.dueToday,
       count: statusSummary.dueTodayCount,
       icon: Calendar,
       secondaryIcon: Clock,
       tone: "warning",
-      footerLabel: "Próximo vencimento",
+      footerLabel: "Próx. vencimento",
       footerValue:
         footer.nextDueValue != null && footer.nextDueValue > 0
           ? formatCurrency(footer.nextDueValue)
           : "—",
-
-
     },
     {
       id: "on_track",
       label: "Em Dia",
+      sublabel: "Contratos regulares",
       value: statusSummary.onTrack,
       count: statusSummary.onTrackCount,
       icon: CheckCircle,
@@ -295,6 +262,7 @@ export function LoanListSummaryCards({
     {
       id: "all",
       label: "Total a Receber",
+      sublabel: "Carteira ativa",
       value: statusSummary.total,
       count: statusSummary.totalCount,
       icon: DollarSign,
@@ -307,10 +275,9 @@ export function LoanListSummaryCards({
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 lg:gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
       {cards.map((c, idx) => {
         const Icon = c.icon;
-        const Secondary = c.secondaryIcon;
         const t = TONE[c.tone];
         const isActive =
           selectedCategories.length === 1 && (selectedCategories[0] as string) === c.id;
@@ -321,66 +288,58 @@ export function LoanListSummaryCards({
             aria-label={`${c.label}: ${formatCurrency(c.value)} — ${c.count} contratos`}
             onClick={() => applyCardFilter(c.id)}
             className={[
-              "group relative text-left rounded-[12px] sm:rounded-[13px] lg:rounded-[14px] p-2.5 sm:p-3 lg:p-4",
-              "bg-card border border-border/60 dark:border-white/5",
-              "shadow-[0_1px_2px_hsl(220_40%_2%/0.04)] dark:shadow-none",
-              "transition-all duration-200 hover:-translate-y-[2px]",
-              "hover:shadow-[0_8px_24px_-10px_hsl(220_40%_2%/0.16)]",
+              "group relative text-left rounded-2xl p-3 sm:p-4",
+              "bg-card border transition-all duration-200",
+              t.bgGradient,
+              isActive ? t.activeRing : `${t.border} shadow-xs hover:shadow-md hover:-translate-y-0.5`,
               "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60",
-              "animate-fade-in flex flex-col",
-              c.emphasized ? `${t.activeBorder}` : "",
-              isActive ? `ring-2 ${t.ring} border-transparent` : "",
+              "flex flex-col justify-between overflow-hidden",
             ].join(" ")}
-            style={{ animationDelay: `${idx * 60}ms`, animationFillMode: "backwards" }}
+            style={{ animationDelay: `${idx * 50}ms` }}
           >
-            {/* Linha superior */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            {/* Top Row: Icon + Label + Count Badge */}
+            <div>
+              <div className="flex items-center justify-between gap-1.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className={`h-8 w-8 sm:h-9 sm:w-9 rounded-xl ${t.iconBg} flex items-center justify-center shrink-0 shadow-xs`}
+                  >
+                    <Icon className="h-4 w-4 sm:h-4.5 sm:w-4.5" aria-hidden />
+                  </span>
+                  <div className="min-w-0">
+                    <span className="text-xs sm:text-sm font-semibold text-foreground truncate block leading-tight">
+                      {c.label}
+                    </span>
+                    <span className="text-[10px] sm:text-[11px] text-muted-foreground truncate block leading-tight mt-0.5">
+                      {c.sublabel}
+                    </span>
+                  </div>
+                </div>
+
                 <span
-                  className={`h-7 w-7 lg:h-8 lg:w-8 rounded-lg ${t.iconBg} flex items-center justify-center shrink-0`}
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold border shrink-0 ${t.badgeBg}`}
                 >
-                  <Icon className={`h-3.5 w-3.5 lg:h-4 lg:w-4 ${t.text}`} aria-hidden />
-                </span>
-                <span className="text-[13px] lg:text-sm font-medium text-foreground truncate">
-                  {c.label}
+                  <span className={`h-1.5 w-1.5 rounded-full ${t.dot}`} aria-hidden />
+                  {c.count} {c.count === 1 ? "contrato" : "contratos"}
                 </span>
               </div>
-              <Secondary className={`h-3 w-3 lg:h-3.5 lg:w-3.5 shrink-0 ${t.text} opacity-70`} aria-hidden />
+
+              {/* Main Financial Value */}
+              <div className="mt-3 sm:mt-4">
+                <p
+                  className={`text-lg sm:text-2xl lg:text-[26px] font-bold tabular-nums tracking-tight leading-none whitespace-nowrap ${t.text}`}
+                >
+                  {formatCurrency(c.value)}
+                </p>
+              </div>
             </div>
 
-            {/* Valor principal */}
-            <p
-              className={`mt-2 lg:mt-3 text-[17px] sm:text-[20px] lg:text-[26px] font-bold tabular-nums leading-none whitespace-nowrap ${t.text}`}
-            >
-              {formatCurrency(c.value)}
-            </p>
-
-
-            {/* Contratos */}
-            <p className="mt-1 lg:mt-1.5 text-[11px] lg:text-[12px] text-muted-foreground">
-              {c.count} {c.count === 1 ? "contrato" : "contratos"}
-            </p>
-
-            {/* Badge + sparkline */}
-            <div className="mt-2 lg:mt-3 flex items-end justify-between gap-2">
-              <span
-                className={`inline-flex items-center gap-1 rounded-full px-1.5 lg:px-2 py-0.5 text-[10px] lg:text-[11px] font-medium ${t.badgeBg} ${t.badgeText}`}
-              >
-                <span className="opacity-70">—</span>
-                sem histórico
+            {/* Footer metric */}
+            <div className="mt-3 pt-2.5 border-t border-border/40 dark:border-white/5 flex items-center justify-between gap-1 text-[11px] sm:text-xs">
+              <span className="text-muted-foreground truncate">{c.footerLabel}</span>
+              <span className={`font-semibold tabular-nums whitespace-nowrap ${t.text}`}>
+                {c.footerValue}
               </span>
-              <Sparkline stroke={t.stroke} flat />
-            </div>
-
-            {/* Rodapé */}
-            <div className="mt-2 lg:mt-3 pt-2 lg:pt-2.5 border-t border-border/50">
-              <div className="flex items-center justify-between gap-2 min-w-0">
-                <span className="text-[11px] lg:text-[12px] text-muted-foreground truncate">{c.footerLabel}</span>
-                <span className={`text-[11px] lg:text-[12px] font-semibold tabular-nums whitespace-nowrap ${t.text}`}>
-                  {c.footerValue}
-                </span>
-              </div>
-
             </div>
           </button>
         );

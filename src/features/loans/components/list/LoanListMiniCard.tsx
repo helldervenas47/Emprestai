@@ -205,18 +205,20 @@ export function LoanListMiniCard(props: LoanListMiniCardProps) {
             </div>
           </div>
 
-          {/* Row 2 — total do contrato / próx / progresso ou multa */}
+          {/* Row 2 — total do contrato / próx / observação + progresso */}
           <div className="mt-2.5 grid grid-cols-3 gap-2 items-center">
             <div className="min-w-0">
               <p className="text-[10px] text-muted-foreground leading-none">
                 {loan.status === "paid" ? "Total pago" : "Total emprestado"}
               </p>
-              <p className={`text-xs sm:text-sm font-semibold tabular-nums mt-1 ${tone.text} truncate`}>
+              <p className="text-xs sm:text-sm font-semibold tabular-nums mt-1 text-foreground truncate">
                 {mask(rawFormatCurrency(loan.status === "paid" ? totalPaid : loan.amount))}
               </p>
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] text-muted-foreground leading-none">Próx. parcela</p>
+              <p className="text-[10px] text-muted-foreground leading-none">
+                {isParcelado ? `Parcelas (${loan.paidInstallments}/${loan.installments})` : "Vencimento"}
+              </p>
               <p className="text-xs sm:text-sm font-medium text-foreground/90 tabular-nums mt-1 truncate">
                 {fmtDateBR(nextDue)}
               </p>
@@ -275,7 +277,7 @@ export function LoanListMiniCard(props: LoanListMiniCardProps) {
                 )}
               </div>
               {loan.notes ? (
-                <p className="text-[11px] sm:text-xs text-foreground/90 mt-1 line-clamp-2 leading-snug">
+                <p className="text-[11px] sm:text-xs text-foreground/90 mt-1 line-clamp-1 leading-snug">
                   {loan.notes}
                 </p>
               ) : (
@@ -283,6 +285,23 @@ export function LoanListMiniCard(props: LoanListMiniCardProps) {
               )}
             </div>
           </div>
+
+          {/* Micro repayment progress bar for active loans */}
+          {loan.installments > 1 && loan.status !== "paid" && (
+            <div className="mt-2 pt-2 border-t border-border/30 flex items-center gap-2">
+              <div className="flex-1 bg-muted/60 dark:bg-white/10 rounded-full h-1.5 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${tone.dot}`}
+                  style={{
+                    width: `${Math.min(100, Math.max(0, Math.round(((loan.paidInstallments || 0) / loan.installments) * 100)))}%`,
+                  }}
+                />
+              </div>
+              <span className="text-[10px] tabular-nums font-medium text-muted-foreground whitespace-nowrap">
+                {Math.round(((loan.paidInstallments || 0) / loan.installments) * 100)}% pago
+              </span>
+            </div>
+          )}
         </button>
 
         {/* Inline expansion — full LoanCardView (all dialogs/actions preserved) */}

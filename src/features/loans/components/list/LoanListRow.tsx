@@ -631,11 +631,11 @@ function LoanRowView({
           <span className="text-[11px] sm:text-xs lg:text-sm font-medium text-success whitespace-nowrap">{formatCurrency(totalPaid)}</span>
         ) : isParcelado ? (
           <div className="flex flex-col">
-            <span className="text-[11px] sm:text-xs lg:text-sm font-medium text-destructive whitespace-nowrap">{formatCurrency(installmentValue + lateFees)}</span>
+            <span className={`text-[11px] sm:text-xs lg:text-sm font-semibold whitespace-nowrap ${category === "overdue" ? "text-destructive" : category === "due_today" ? "text-warning" : "text-foreground"}`}>{formatCurrency(installmentValue + lateFees)}</span>
           </div>
         ) : (
           <div className="flex flex-col">
-            <span className="text-[11px] sm:text-xs lg:text-sm font-medium text-destructive whitespace-nowrap">{formatCurrency(remaining)}</span>
+            <span className={`text-[11px] sm:text-xs lg:text-sm font-semibold whitespace-nowrap ${category === "overdue" ? "text-destructive" : category === "due_today" ? "text-warning" : "text-foreground"}`}>{formatCurrency(remaining)}</span>
           </div>
         )}
       </td>
@@ -806,7 +806,7 @@ function LoanRowView({
               </div>
               <div className="bg-card rounded-lg p-3 border border-border/30 text-center">
                 <p className="text-[10px] text-muted-foreground uppercase">Restante</p>
-                <p className="text-sm font-bold text-destructive">{formatCurrency(remaining)}</p>
+                <p className={`text-sm font-bold ${category === "overdue" ? "text-destructive" : remaining > 0 ? "text-foreground" : "text-success"}`}>{formatCurrency(remaining)}</p>
               </div>
               <div className="bg-card rounded-lg p-3 border border-border/30 text-center">
                 <p className="text-[10px] text-muted-foreground uppercase">Juros do Contrato</p>
