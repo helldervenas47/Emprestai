@@ -188,4 +188,66 @@ describe("ClientRankingDetailDialog", () => {
     // Does NOT include loan-3 whose name was altered to "Outro Cliente"
     expect(screen.queryByText(/Outro Cliente/i)).not.toBeInTheDocument();
   });
+
+  it("sorts open balance contracts by due date in ascending order", () => {
+    const multiLoanItem: ClientRankingItem = {
+      ...mockItem,
+      client_id: "client-multi",
+    };
+
+    const multiLoans: Loan[] = [
+      {
+        id: "loan-later",
+        borrowerId: "client-multi",
+        borrowerName: "Multi Client",
+        amount: 150,
+        totalAmount: 500,
+        interestRate: 0,
+        installments: 1,
+        paidInstallments: 0,
+        status: "overdue",
+        startDate: "2026-07-26",
+        dueDate: "2026-07-27",
+        remainingAmount: 500,
+        interestType: "simple",
+        paymentFrequency: "monthly",
+        notes: "Contrato Mais Recente",
+      },
+      {
+        id: "loan-earlier",
+        borrowerId: "client-multi",
+        borrowerName: "Multi Client",
+        amount: 400,
+        totalAmount: 500,
+        interestRate: 0,
+        installments: 1,
+        paidInstallments: 0,
+        status: "overdue",
+        startDate: "2026-05-15",
+        dueDate: "2026-05-17",
+        remainingAmount: 500,
+        interestType: "simple",
+        paymentFrequency: "monthly",
+        notes: "Contrato Mais Antigo",
+      },
+    ];
+
+    render(
+      <ClientRankingDetailDialog
+        item={multiLoanItem}
+        onClose={vi.fn()}
+        clients={[{ id: "client-multi", name: "Multi Client", phone: "", cpf: "", active: true, address: "", city: "", state: "", rg: "", score: "50" }]}
+        loans={multiLoans}
+        payments={[]}
+      />
+    );
+
+    const openAmountButtons = screen.getAllByRole("button", { name: /Saldo em Aberto/i });
+    fireEvent.click(openAmountButtons[0]);
+
+    const renderedNotes = screen.getAllByText(/Contrato Mais/i).map((el) => el.textContent);
+    // Earlier due date (2026-05-17) must come first before later due date (2026-07-27)
+    expect(renderedNotes[0]).toContain("Contrato Mais Antigo");
+    expect(renderedNotes[1]).toContain("Contrato Mais Recente");
+  });
 });

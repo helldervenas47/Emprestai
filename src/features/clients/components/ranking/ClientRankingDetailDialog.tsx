@@ -255,8 +255,14 @@ export function ClientRankingDetailDialog({
     });
 
     return contracts.sort((a, b) => {
-      if (a.status === "overdue" && b.status !== "overdue") return -1;
-      if (a.status !== "overdue" && b.status === "overdue") return 1;
+      const timeA = a.dueDate ? (a.dueDate instanceof Date ? a.dueDate.getTime() : new Date(a.dueDate).getTime()) : Number.MAX_SAFE_INTEGER;
+      const timeB = b.dueDate ? (b.dueDate instanceof Date ? b.dueDate.getTime() : new Date(b.dueDate).getTime()) : Number.MAX_SAFE_INTEGER;
+      const validTimeA = isNaN(timeA) ? Number.MAX_SAFE_INTEGER : timeA;
+      const validTimeB = isNaN(timeB) ? Number.MAX_SAFE_INTEGER : timeB;
+
+      if (validTimeA !== validTimeB) {
+        return validTimeA - validTimeB;
+      }
       return b.totalPending - a.totalPending;
     });
   }, [item, clientLoansAll, clientPaymentsAll, installmentSchedules, payments, today, todayStr]);
