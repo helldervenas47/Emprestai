@@ -184,6 +184,10 @@ export function ClientRankingView({
       <ClientRankingDetailDialog
         item={selectedClient}
         onClose={() => setSelectedClient(null)}
+        clients={clients}
+        loans={loans}
+        payments={payments}
+        installmentSchedules={installmentSchedules}
       />
     </div>
   );
