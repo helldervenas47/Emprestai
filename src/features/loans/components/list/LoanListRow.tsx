@@ -798,76 +798,76 @@ function LoanRowView({
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-2.5">
                 {/* 1. Emprestado */}
-                <div className="bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-left flex flex-col justify-between">
-                  <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground uppercase">
+                <div className="bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-center flex flex-col items-center justify-between">
+                  <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground uppercase text-center">
                     Emprestado
                   </span>
-                  <p className="text-sm sm:text-base font-bold text-foreground tabular-nums mt-1">
+                  <p className="text-sm sm:text-base font-bold text-foreground tabular-nums mt-1 text-center">
                     {formatCurrency(loan.amount)}
                   </p>
-                  <span className="text-[10px] text-muted-foreground mt-0.5">
+                  <span className="text-[10px] text-muted-foreground mt-0.5 text-center">
                     Valor original
                   </span>
                 </div>
 
                 {/* 2. Encargos / Juros */}
-                <div className="bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-left flex flex-col justify-between">
-                  <span className="text-[10px] sm:text-[11px] font-medium text-amber-600 dark:text-amber-400 uppercase">
+                <div className="bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-center flex flex-col items-center justify-between">
+                  <span className="text-[10px] sm:text-[11px] font-medium text-amber-600 dark:text-amber-400 uppercase text-center">
                     Encargos & Juros
                   </span>
-                  <p className="text-sm sm:text-base font-bold text-amber-600 dark:text-amber-400 tabular-nums mt-1">
+                  <p className="text-sm sm:text-base font-bold text-amber-600 dark:text-amber-400 tabular-nums mt-1 text-center">
                     {formatCurrency(Math.max(0, (total - loan.amount)) + lateFees)}
                   </p>
-                  <span className="text-[10px] text-muted-foreground mt-0.5 truncate" title={`Juros: ${rawFormatCurrency(total - loan.amount)}${lateFees > 0 ? ` • Mora/Multa: ${rawFormatCurrency(lateFees)}` : ""}`}>
+                  <span className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-full text-center" title={`Juros: ${rawFormatCurrency(total - loan.amount)}${lateFees > 0 ? ` • Mora/Multa: ${rawFormatCurrency(lateFees)}` : ""}`}>
                     Juros {rawFormatCurrency(total - loan.amount)}{lateFees > 0 ? ` • Multa ${rawFormatCurrency(lateFees)}` : ""}
                   </span>
                 </div>
 
                 {/* 3. Total a Receber (Recebido + Restante) */}
-                <div className="bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-left flex flex-col justify-between">
-                  <span className="text-[10px] sm:text-[11px] font-medium text-primary uppercase">
+                <div className="bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-center flex flex-col items-center justify-between">
+                  <span className="text-[10px] sm:text-[11px] font-medium text-primary uppercase text-center">
                     Total a Receber
                   </span>
-                  <p className="text-sm sm:text-base font-bold text-primary tabular-nums mt-1">
+                  <p className="text-sm sm:text-base font-bold text-primary tabular-nums mt-1 text-center">
                     {formatCurrency(Math.round((totalPaid + remaining) * 100) / 100)}
                   </p>
-                  <span className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                  <span className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-full text-center">
                     Recebido + Restante
                   </span>
                 </div>
 
                 {/* 4. Total Pago */}
-                <div className="bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-left flex flex-col justify-between">
-                  <span className="text-[10px] sm:text-[11px] font-medium text-success uppercase">
+                <div className="bg-card/90 dark:bg-white/[0.03] rounded-xl p-2.5 sm:p-3 border border-border/50 text-center flex flex-col items-center justify-between">
+                  <span className="text-[10px] sm:text-[11px] font-medium text-success uppercase text-center">
                     Total Pago
                   </span>
-                  <p className="text-sm sm:text-base font-bold text-success tabular-nums mt-1">
+                  <p className="text-sm sm:text-base font-bold text-success tabular-nums mt-1 text-center">
                     {formatCurrency(totalPaid)}
                   </p>
-                  <span className="text-[10px] text-muted-foreground mt-0.5">
+                  <span className="text-[10px] text-muted-foreground mt-0.5 text-center">
                     {allPayments.filter(p => p.loanId === loan.id).length} pagamento(s)
                   </span>
                 </div>
 
                 {/* 5. Saldo Restante */}
-                <div className={`col-span-2 sm:col-span-1 rounded-xl p-2.5 sm:p-3 border text-left flex flex-col justify-between ${
+                <div className={`col-span-2 sm:col-span-1 rounded-xl p-2.5 sm:p-3 border text-center flex flex-col items-center justify-between ${
                   category === "overdue"
                     ? "bg-destructive/10 border-destructive/30"
                     : category === "due_today"
                     ? "bg-amber-500/10 border-amber-500/30"
                     : "bg-primary/10 border-primary/30"
                 }`}>
-                  <span className={`text-[10px] sm:text-[11px] font-bold uppercase ${
+                  <span className={`text-[10px] sm:text-[11px] font-bold uppercase text-center ${
                     category === "overdue" ? "text-destructive" : category === "due_today" ? "text-amber-600 dark:text-amber-400" : "text-primary"
                   }`}>
                     Saldo Restante
                   </span>
-                  <p className={`text-base sm:text-lg font-extrabold tabular-nums mt-1 ${
+                  <p className={`text-base sm:text-lg font-extrabold tabular-nums mt-1 text-center ${
                     category === "overdue" ? "text-destructive" : category === "due_today" ? "text-amber-600 dark:text-amber-400" : "text-primary"
                   }`}>
                     {formatCurrency(remaining)}
                   </p>
-                  <span className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                  <span className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-full text-center">
                     {loan.status === "paid" ? "Quitado" : isParcelado ? `Próx: ${formatCurrency(installmentValue + lateFees)}` : "Saldo a receber"}
                   </span>
                 </div>
@@ -877,27 +877,27 @@ function LoanRowView({
             {/* 2. Detalhes Contratuais Alinhados e Responsivos */}
             <div className="bg-muted/30 dark:bg-white/[0.02] rounded-xl p-3 border border-border/40 space-y-2.5">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                <div className="bg-card/70 dark:bg-white/[0.03] p-2 rounded-lg border border-border/30">
-                  <span className="text-[10px] text-muted-foreground uppercase block">Data Saída</span>
-                  <span className="font-semibold text-foreground text-xs sm:text-sm">
+                <div className="bg-card/70 dark:bg-white/[0.03] p-2 rounded-lg border border-border/30 text-center flex flex-col items-center justify-center">
+                  <span className="text-[10px] text-muted-foreground uppercase block text-center">Data Saída</span>
+                  <span className="font-semibold text-foreground text-xs sm:text-sm text-center">
                     {new Date(loan.startDate + "T00:00:00").toLocaleDateString("pt-BR")}
                   </span>
                 </div>
-                <div className="bg-card/70 dark:bg-white/[0.03] p-2 rounded-lg border border-border/30">
-                  <span className="text-[10px] text-muted-foreground uppercase block">Vencimento</span>
-                  <span className="font-semibold text-foreground text-xs sm:text-sm">
+                <div className="bg-card/70 dark:bg-white/[0.03] p-2 rounded-lg border border-border/30 text-center flex flex-col items-center justify-center">
+                  <span className="text-[10px] text-muted-foreground uppercase block text-center">Vencimento</span>
+                  <span className="font-semibold text-foreground text-xs sm:text-sm text-center">
                     {getFirstPendingDate(loan, installmentSchedules).toLocaleDateString("pt-BR")}
                   </span>
                 </div>
-                <div className="bg-card/70 dark:bg-white/[0.03] p-2 rounded-lg border border-border/30">
-                  <span className="text-[10px] text-muted-foreground uppercase block">Taxa de Juros</span>
-                  <span className="font-semibold text-foreground text-xs sm:text-sm">
+                <div className="bg-card/70 dark:bg-white/[0.03] p-2 rounded-lg border border-border/30 text-center flex flex-col items-center justify-center">
+                  <span className="text-[10px] text-muted-foreground uppercase block text-center">Taxa de Juros</span>
+                  <span className="font-semibold text-foreground text-xs sm:text-sm text-center">
                     {loan.interestRate}% ({loan.interestType})
                   </span>
                 </div>
-                <div className="bg-card/70 dark:bg-white/[0.03] p-2 rounded-lg border border-border/30">
-                  <span className="text-[10px] text-muted-foreground uppercase block">Parcelas</span>
-                  <span className="font-semibold text-foreground text-xs sm:text-sm">
+                <div className="bg-card/70 dark:bg-white/[0.03] p-2 rounded-lg border border-border/30 text-center flex flex-col items-center justify-center">
+                  <span className="text-[10px] text-muted-foreground uppercase block text-center">Parcelas</span>
+                  <span className="font-semibold text-foreground text-xs sm:text-sm text-center">
                     {loan.paidInstallments}/{loan.installments}
                     {loan.installments > 0 && (
                       <span className="text-[10px] text-muted-foreground ml-1 font-normal">
