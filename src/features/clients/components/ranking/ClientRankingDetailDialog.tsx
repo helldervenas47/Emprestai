@@ -21,7 +21,6 @@ import {
   Wallet,
   CheckCircle2,
   Calendar,
-  ArrowLeft,
   ArrowRight,
   LayoutGrid,
   Tag,
@@ -515,31 +514,21 @@ export function ClientRankingDetailDialog({
           {/* ================= ABA 2: MAIOR ATRASO ================= */}
           {activeTab === "delays" && (
             <div className="space-y-3 animate-in fade-in-50 duration-200">
-              <div className="flex items-center justify-between border-b border-border/60 pb-3">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-destructive/10 text-destructive">
-                    <Flame className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h5 className="text-sm font-bold text-foreground flex items-center gap-2">
-                      Registros Considerados no Maior Atraso
-                      <Badge variant="destructive" className="text-xs px-2 py-0">
-                        {item.max_delay_days} dias
-                      </Badge>
-                    </h5>
-                    <p className="text-xs text-muted-foreground">
-                      Considera atrasos ativos em aberto e pagamentos históricos após tolerância (&gt;3 dias).
-                    </p>
-                  </div>
+              <div className="flex items-center gap-2 border-b border-border/60 pb-3">
+                <div className="p-2 rounded-lg bg-destructive/10 text-destructive">
+                  <Flame className="h-5 w-5" />
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setActiveTab("overview")}
-                  className="h-8 text-xs gap-1.5"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar
-                </Button>
+                <div>
+                  <h5 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    Registros Considerados no Maior Atraso
+                    <Badge variant="destructive" className="text-xs px-2 py-0">
+                      {item.max_delay_days} dias
+                    </Badge>
+                  </h5>
+                  <p className="text-xs text-muted-foreground">
+                    Considera atrasos ativos em aberto e pagamentos históricos após tolerância (&gt;3 dias).
+                  </p>
+                </div>
               </div>
 
               {delayRecords.length === 0 ? (
@@ -659,31 +648,21 @@ export function ClientRankingDetailDialog({
           {/* ================= ABA 3: SALDO EM ABERTO ================= */}
           {activeTab === "open_balance" && (
             <div className="space-y-3 animate-in fade-in-50 duration-200">
-              <div className="flex items-center justify-between border-b border-border/60 pb-3">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                    <Wallet className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h5 className="text-sm font-bold text-foreground flex items-center gap-2">
-                      Contratos Considerados no Saldo em Aberto
-                      <Badge variant="outline" className="text-xs px-2 py-0 border-primary/40 text-primary">
-                        Total: {formatBRL(item.open_amount)}
-                      </Badge>
-                    </h5>
-                    <p className="text-xs text-muted-foreground">
-                      Detalhamento do capital principal restante, juros e multas de cada contrato ativo.
-                    </p>
-                  </div>
+              <div className="flex items-center gap-2 border-b border-border/60 pb-3">
+                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                  <Wallet className="h-5 w-5" />
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setActiveTab("overview")}
-                  className="h-8 text-xs gap-1.5"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" /> Voltar
-                </Button>
+                <div>
+                  <h5 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    Contratos Considerados no Saldo em Aberto
+                    <Badge variant="outline" className="text-xs px-2 py-0 border-primary/40 text-primary">
+                      Total: {formatBRL(item.open_amount)}
+                    </Badge>
+                  </h5>
+                  <p className="text-xs text-muted-foreground">
+                    Detalhamento do capital principal restante, juros e multas de cada contrato ativo.
+                  </p>
+                </div>
               </div>
 
               {openBalanceContracts.length === 0 ? (

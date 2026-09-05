@@ -156,9 +156,9 @@ describe("ClientRankingDetailDialog", () => {
     expect(screen.getByText(/27 dias de atraso/i)).toBeInTheDocument();
     expect(screen.getByText("Garantia Veicular")).toBeInTheDocument();
 
-    // Click Voltar button
-    const backBtn = screen.getByRole("button", { name: /Voltar/i });
-    fireEvent.click(backBtn);
+    // Click Visão Geral tab button
+    const overviewBtn = screen.getByRole("button", { name: /Visão Geral/i });
+    fireEvent.click(overviewBtn);
 
     // Back to overview
     expect(screen.getByText("Resumo Financeiro")).toBeInTheDocument();
