@@ -394,10 +394,13 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
             size="sm"
             type="button"
             onClick={closeClient}
-            className="gap-1.5 text-xs text-muted-foreground hover:text-foreground h-8 sm:h-9 px-3"
+            aria-label="Voltar para Clientes"
+            title="Voltar para Clientes"
+            className="text-xs text-muted-foreground hover:text-foreground h-8 w-8 sm:h-9 sm:w-auto p-0 sm:px-3 sm:gap-1.5 rounded-lg sm:rounded-xl border-border/60 hover:bg-muted/60"
           >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Voltar para Clientes</span>
+            <X className="h-4 w-4 sm:hidden" />
+            <ArrowLeft className="h-3.5 w-3.5 hidden sm:inline-block" />
+            <span className="hidden sm:inline">Voltar para Clientes</span>
           </Button>
         </HeaderActionPortal>
 
@@ -546,10 +549,13 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
             size="sm"
             type="button"
             onClick={onBackToLoans}
-            className="gap-1.5 text-xs text-muted-foreground hover:text-foreground h-8 sm:h-9 px-3"
+            aria-label="Voltar para Empréstimos"
+            title="Voltar para Empréstimos"
+            className="text-xs text-muted-foreground hover:text-foreground h-8 w-8 sm:h-9 sm:w-auto p-0 sm:px-3 sm:gap-1.5 rounded-lg sm:rounded-xl border-border/60 hover:bg-muted/60"
           >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Voltar para Empréstimos</span>
+            <X className="h-4 w-4 sm:hidden" />
+            <ArrowLeft className="h-3.5 w-3.5 hidden sm:inline-block" />
+            <span className="hidden sm:inline">Voltar para Empréstimos</span>
           </Button>
         </HeaderActionPortal>
       )}
