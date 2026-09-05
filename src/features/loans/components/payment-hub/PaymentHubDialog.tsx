@@ -50,12 +50,12 @@ interface Props {
   initialModule?: HubModuleId;
 }
 
-const MODULES: { id: HubModuleId; title: string; description: string; Icon: any; accent: string }[] = [
+const MODULES: { id: HubModuleId; title: string; shortTitle?: string; description: string; Icon: any; accent: string }[] = [
   { id: "interest",    title: "Juros",           description: "Pagar somente os juros.",              Icon: Percent,      accent: "purple" },
   { id: "installment", title: "Parcela",         description: "Pagar a próxima parcela.",             Icon: Receipt,      accent: "primary" },
   { id: "partial",     title: "Parcial",         description: "Pagamento parcial do contrato.",       Icon: HandCoins,    accent: "warning" },
   { id: "full",        title: "Total",           description: "Pagar o valor total em aberto.",       Icon: Wallet,       accent: "success" },
-  { id: "payoff",      title: "Quitar Contrato", description: "Encerrar totalmente o contrato.",      Icon: CheckCircle2, accent: "primary" },
+  { id: "payoff",      title: "Quitar Contrato", shortTitle: "Quitar", description: "Encerrar totalmente o contrato.",      Icon: CheckCircle2, accent: "primary" },
   { id: "amortize",    title: "Amortizar",       description: "Reduzir saldo devedor antecipadamente.", Icon: TrendingDown, accent: "primary" },
 ];
 
@@ -488,7 +488,8 @@ export function PaymentHubDialog({
                           "text-[10.5px] leading-tight sm:text-sm font-semibold truncate",
                           selected ? "text-primary" : "text-foreground",
                         )}>
-                          {m.title}
+                          <span className="sm:hidden">{m.shortTitle ?? m.title}</span>
+                          <span className="hidden sm:inline">{m.title}</span>
                         </p>
                         <p className="hidden sm:block text-[11px] text-muted-foreground truncate">{m.description}</p>
                       </div>
