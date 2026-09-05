@@ -297,24 +297,14 @@ export function LoanListSummaryCards({
             ].join(" ")}
             style={{ animationDelay: `${idx * 50}ms` }}
           >
-            {/* Top Row: Icon + Label + Count Badge */}
+            {/* Top Row: Icon + Count Badge */}
             <div>
-              <div className="flex items-center justify-between gap-1.5">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span
-                    className={`h-8 w-8 sm:h-9 sm:w-9 rounded-xl ${t.iconBg} flex items-center justify-center shrink-0 shadow-xs`}
-                  >
-                    <Icon className="h-4 w-4 sm:h-4.5 sm:w-4.5" aria-hidden />
-                  </span>
-                  <div className="min-w-0">
-                    <span className="text-xs sm:text-sm font-semibold text-foreground truncate block leading-tight">
-                      {c.label}
-                    </span>
-                    <span className="text-[10px] sm:text-[11px] text-muted-foreground truncate block leading-tight mt-0.5">
-                      {c.sublabel}
-                    </span>
-                  </div>
-                </div>
+              <div className="flex items-center justify-between gap-1.5 sm:gap-2">
+                <span
+                  className={`h-7 w-7 sm:h-9 sm:w-9 rounded-xl ${t.iconBg} flex items-center justify-center shrink-0 shadow-xs`}
+                >
+                  <Icon className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5" aria-hidden />
+                </span>
 
                 <span
                   className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold border shrink-0 ${t.badgeBg}`}
@@ -324,10 +314,20 @@ export function LoanListSummaryCards({
                 </span>
               </div>
 
+              {/* Title & Sublabel */}
+              <div className="mt-2 sm:mt-2.5 min-w-0">
+                <span className="text-xs sm:text-sm font-bold text-foreground block leading-tight">
+                  {c.label}
+                </span>
+                <span className="text-[10px] sm:text-[11px] text-muted-foreground block leading-tight mt-0.5">
+                  {c.sublabel}
+                </span>
+              </div>
+
               {/* Main Financial Value */}
-              <div className="mt-3 sm:mt-4">
+              <div className="mt-2.5 sm:mt-3">
                 <p
-                  className={`text-lg sm:text-2xl lg:text-[26px] font-bold tabular-nums tracking-tight leading-none whitespace-nowrap ${t.text}`}
+                  className={`text-base sm:text-2xl lg:text-[26px] font-bold tabular-nums tracking-tight leading-tight ${t.text}`}
                 >
                   {formatCurrency(c.value)}
                 </p>
@@ -335,9 +335,9 @@ export function LoanListSummaryCards({
             </div>
 
             {/* Footer metric */}
-            <div className="mt-3 pt-2.5 border-t border-border/40 dark:border-white/5 flex items-center justify-between gap-1 text-[11px] sm:text-xs">
-              <span className="text-muted-foreground truncate">{c.footerLabel}</span>
-              <span className={`font-semibold tabular-nums whitespace-nowrap ${t.text}`}>
+            <div className="mt-2.5 sm:mt-3 pt-2 sm:pt-2.5 border-t border-border/40 dark:border-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-1 text-[10px] sm:text-xs">
+              <span className="text-muted-foreground leading-tight text-[10px] sm:text-xs">{c.footerLabel}</span>
+              <span className={`font-semibold tabular-nums leading-tight text-[10px] sm:text-xs ${t.text}`}>
                 {c.footerValue}
               </span>
             </div>

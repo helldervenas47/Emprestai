@@ -145,7 +145,12 @@ export function LoanList({ loans, payments, installmentSchedules, onPayment, onP
     notesSearch, setNotesSearch,
     sortBy, setSortBy,
     cycleColumnSort, sortIndicator,
-    allTags, categorized, counts, summaryData, statusSummary,
+    allTags,
+    baseFilteredLoans,
+    categorized,
+    counts,
+    summaryData,
+    statusSummary,
     grouped,
     applyCardFilter,
     currentFilterState,
@@ -246,7 +251,7 @@ export function LoanList({ loans, payments, installmentSchedules, onPayment, onP
         selectedCategories={selectedCategories}
         applyCardFilter={applyCardFilter}
         formatCurrency={formatCurrency}
-        loans={loans}
+        loans={baseFilteredLoans}
         payments={payments}
         schedules={installmentSchedules}
       />

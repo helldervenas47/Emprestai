@@ -141,38 +141,11 @@ export function useLoanListController({
     return Array.from(tags).sort();
   }, [loans]);
 
-  const categorized = useMemo(() => {
-    let filtered = loans.filter((l) =>
-      l.borrowerName.toLowerCase().includes(search.toLowerCase()),
-    );
-
-    if (isMultiSelect) {
-      filtered = filtered.filter((l) => {
-        const cat = getLoanCategory(l, payments, installmentSchedules);
-        return selectedCategories.some((sel) => {
-          if (sel === "all") return cat !== "paid";
-          if (sel === "parcelado") return l.installments >= 2 && l.status !== "paid";
-          if (sel === "venda") return !!l.isSale;
-          if (sel === "on_track") return cat === "on_track" || cat === "paid_interest";
-          return cat === sel;
-        });
-      });
-    } else if (category === "all") {
-      filtered = filtered.filter(
-        (l) => getLoanCategory(l, payments, installmentSchedules) !== "paid",
-      );
-    } else if (category === "parcelado") {
-      filtered = filtered.filter((l) => l.installments >= 2 && l.status !== "paid");
-    } else if (category === "venda") {
-      filtered = filtered.filter((l) => !!l.isSale);
-    } else if (category === "on_track") {
-      filtered = filtered.filter((l) => {
-        const cat = getLoanCategory(l, payments, installmentSchedules);
-        return cat === "on_track" || cat === "paid_interest";
-      });
-    } else {
-      filtered = filtered.filter(
-        (l) => getLoanCategory(l, payments, installmentSchedules) === category,
+  const baseFilteredLoans = useMemo(() => {
+    let filtered = loans;
+    if (search.trim()) {
+      filtered = filtered.filter((l) =>
+        l.borrowerName.toLowerCase().includes(search.toLowerCase()),
       );
     }
 
@@ -226,6 +199,57 @@ export function useLoanListController({
       else if (dueDateQuick === "tomorrow") target.setDate(target.getDate() + 1);
       const targetStr = target.toISOString().split("T")[0];
       filtered = filtered.filter((l) => l.dueDate === targetStr);
+    }
+
+    return filtered;
+  }, [
+    loans,
+    search,
+    dateFrom,
+    dateTo,
+    dueDateFrom,
+    dueDateTo,
+    amountMin,
+    amountMax,
+    tagFilter,
+    notesFilter,
+    notesSearchDebounced,
+    dueDateQuick,
+    view,
+    installmentSchedules,
+  ]);
+
+  const categorized = useMemo(() => {
+    let filtered = baseFilteredLoans;
+
+    if (isMultiSelect) {
+      filtered = filtered.filter((l) => {
+        const cat = getLoanCategory(l, payments, installmentSchedules);
+        return selectedCategories.some((sel) => {
+          if (sel === "all") return cat !== "paid";
+          if (sel === "parcelado") return l.installments >= 2 && l.status !== "paid";
+          if (sel === "venda") return !!l.isSale;
+          if (sel === "on_track") return cat === "on_track" || cat === "paid_interest";
+          return cat === sel;
+        });
+      });
+    } else if (category === "all") {
+      filtered = filtered.filter(
+        (l) => getLoanCategory(l, payments, installmentSchedules) !== "paid",
+      );
+    } else if (category === "parcelado") {
+      filtered = filtered.filter((l) => l.installments >= 2 && l.status !== "paid");
+    } else if (category === "venda") {
+      filtered = filtered.filter((l) => !!l.isSale);
+    } else if (category === "on_track") {
+      filtered = filtered.filter((l) => {
+        const cat = getLoanCategory(l, payments, installmentSchedules);
+        return cat === "on_track" || cat === "paid_interest";
+      });
+    } else {
+      filtered = filtered.filter(
+        (l) => getLoanCategory(l, payments, installmentSchedules) === category,
+      );
     }
 
     const defaultSorted = [...filtered].sort((a, b) => {
@@ -373,25 +397,13 @@ export function useLoanListController({
       return String(va.v).localeCompare(String(vb.v)) * mul;
     });
   }, [
-    loans,
+    baseFilteredLoans,
     payments,
     installmentSchedules,
-    search,
     category,
     selectedCategories,
     isMultiSelect,
-    dateFrom,
-    dateTo,
-    dueDateFrom,
-    dueDateTo,
-    amountMin,
-    amountMax,
-    tagFilter,
-    notesFilter,
-    notesSearchDebounced,
     sortBy,
-    dueDateQuick,
-    view,
     columnSort,
   ]);
 
@@ -404,19 +416,19 @@ export function useLoanListController({
   }, [loans]);
 
   const counts = useMemo(() => {
-    const cats = loans.map((l) => getLoanCategory(l, payments, installmentSchedules));
+    const cats = baseFilteredLoans.map((l) => getLoanCategory(l, payments, installmentSchedules));
     return {
       all: cats.filter((c) => c !== "paid").length,
-      parcelado: loans.filter((l) => l.installments >= 2 && l.status !== "paid").length,
+      parcelado: baseFilteredLoans.filter((l) => l.installments >= 2 && l.status !== "paid").length,
       overdue: cats.filter((c) => c === "overdue").length,
       paid_interest: cats.filter((c) => c === "paid_interest").length,
       paid: cats.filter((c) => c === "paid").length,
       due_today: cats.filter((c) => c === "due_today").length,
       on_track: cats.filter((c) => c === "on_track" || c === "paid_interest").length,
-      venda: loans.filter((l) => !!l.isSale && l.status !== "paid").length,
+      venda: baseFilteredLoans.filter((l) => !!l.isSale && l.status !== "paid").length,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loans, payments, folderCount]);
+  }, [baseFilteredLoans, payments, folderCount]);
 
   const summaryData = useMemo(() => {
     const source = categorized;
@@ -441,11 +453,6 @@ export function useLoanListController({
       };
     }
 
-    // Unificando a base de cálculo:
-    // Se o usuário aplicar um filtro de data (ex: Mês de Julho) ou selecionar
-    // uma categoria de fluxo de caixa (Atrasados, Vencendo Hoje, Em Dia),
-    // o "Total a Receber" deve somar as parcelas exatas/atrasos daquele período.
-    // Caso contrário (Visão Global de Todos os Empréstimos), soma o saldo devedor total do contrato.
     const isDateFiltered = Boolean(dueDateFrom || dueDateTo || dueDateQuick);
     const shouldShowCashFlow = isDateFiltered || category === "overdue" || category === "due_today" || category === "on_track";
     const today = todayInAppTz();
@@ -478,7 +485,7 @@ export function useLoanListController({
       (l) => getDaysOverdue(l) > 0 && l.status !== "paid",
     ).length;
     return { totalLent, totalToReceive, totalInterest, activeCount, overdueCount };
-  }, [categorized, payments, dueDateQuick, view, installmentSchedules, category]);
+  }, [categorized, payments, dueDateQuick, installmentSchedules, category, dueDateFrom, dueDateTo]);
 
   const statusSummary = useMemo(() => {
     const today = todayInAppTz();
@@ -491,16 +498,13 @@ export function useLoanListController({
     let dueTodayCount = 0;
     let onTrackCount = 0;
     let totalReceivableCount = 0;
-    for (const l of loans) {
+    for (const l of baseFilteredLoans) {
       if (l.status === "paid") continue;
       const cat = getLoanCategory(l, payments, installmentSchedules);
       const receivable = getLoanReceivable(l, payments, installmentSchedules);
       totalReceivable += receivable;
       totalReceivableCount += 1;
       if (cat === "overdue") {
-        // Soma o valor de TODAS as parcelas em atraso + multas/juros de atraso
-        // (mesma base do "Restante" exibido em cada linha, para que card,
-        // topo e soma visual dos registros coincidam).
         overdue += getOverdueAmount(l, installmentSchedules, today, payments);
         overdueCount += 1;
         continue;
@@ -533,7 +537,7 @@ export function useLoanListController({
       onTrackCount,
       totalCount: totalReceivableCount,
     };
-  }, [loans, payments, installmentSchedules]);
+  }, [baseFilteredLoans, payments, installmentSchedules]);
 
   const applyCardFilter = useCallback(
     (cardId: "overdue" | "due_today" | "on_track" | "all") => {
@@ -691,6 +695,7 @@ export function useLoanListController({
     sortIndicator,
     // derived
     allTags,
+    baseFilteredLoans,
     categorized,
     counts,
     summaryData,
