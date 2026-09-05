@@ -132,4 +132,55 @@ describe("computeClientRanking", () => {
     expect(res.data[1].client_id).toBe("client-1");
     expect(res.data[1].total_borrowed).toBe(1000);
   });
+
+  it("calcula maior atraso histórico registrado mesmo para contratos já quitados", () => {
+    const latePaidPayments: Payment[] = [
+      {
+        id: "pay-1",
+        loanId: "loan-1",
+        amount: 300,
+        date: "2026-02-01",
+        installmentNumber: 1,
+      },
+      {
+        id: "pay-2",
+        loanId: "loan-1",
+        amount: 300,
+        date: "2026-03-25", // Vencia 2026-03-01 -> 24 dias de atraso
+        installmentNumber: 2,
+      },
+      {
+        id: "pay-3",
+        loanId: "loan-1",
+        amount: 300,
+        date: "2026-04-01",
+        installmentNumber: 3,
+      },
+      {
+        id: "pay-4",
+        loanId: "loan-1",
+        amount: 300,
+        date: "2026-05-01",
+        installmentNumber: 4,
+      },
+    ];
+
+    const res = computeClientRanking({
+      clients: mockClients,
+      loans: mockLoans,
+      payments: latePaidPayments,
+      installmentSchedules: mockSchedules,
+      rankingType: "best",
+      period: "all",
+    });
+
+    const client1 = res.data.find((c) => c.client_id === "client-1");
+    expect(client1).toBeDefined();
+    expect(client1?.max_delay_days).toBe(24);
+    expect(client1?.overdue_loans).toBe(1);
+    expect(client1?.late_payments).toBe(1);
+    expect(client1?.on_time_payments).toBe(3);
+    expect(client1?.on_time_percentage).toBe(75);
+  });
 });
+

@@ -145,10 +145,10 @@ export function computeClientRanking({
     });
     const openAmount = clientPending.capitalOnStreet + clientPending.interestPending;
 
-    // Contratos em aberto que possuem atraso ativo na próxima parcela pendente (não considera contratos quitados)
-    let activeDelayedLoansCount = 0;
-    let activeMaxDelayDays = 0;
+    // 1. Contratos em aberto que possuem atraso ativo na próxima parcela pendente
     let activePendingDelays = 0;
+    let maxHistoricalDelayDays = 0;
+    const delayedLoansSet = new Set<string>();
 
     clientLoansAll.forEach((loan) => {
       if (loan.status !== "paid" && loan.status !== "cancelled") {
@@ -156,17 +156,46 @@ export function computeClientRanking({
         if (currentDaysOverdue > 0) {
           const nextDue = getFirstPendingDate(loan, installmentSchedules);
           if (period === "all" || nextDue <= pEnd) {
-            activeDelayedLoansCount++;
             activePendingDelays++;
-            if (currentDaysOverdue > activeMaxDelayDays) {
-              activeMaxDelayDays = currentDaysOverdue;
+          }
+          if (currentDaysOverdue > maxHistoricalDelayDays) {
+            maxHistoricalDelayDays = currentDaysOverdue;
+          }
+          delayedLoansSet.add(loan.id);
+        }
+      }
+    });
+
+    // 2. Mapeamento do maior atraso histórico registrado em todos os pagamentos do cliente
+    clientPaymentsAll.forEach((p) => {
+      if (p.installmentNumber === -1) return;
+      const loan = clientLoansAll.find((l) => l.id === p.loanId);
+      if (!loan) return;
+
+      let dueDateStr: string | null = null;
+      if (p.installmentNumber === 0) {
+        dueDateStr = p.previousDueDate ?? loan.dueDate;
+      } else if (p.installmentNumber > 0) {
+        dueDateStr = getInstallmentDueDate(loan, p.installmentNumber, installmentSchedules);
+      }
+
+      if (dueDateStr && p.date) {
+        const dueDate = new Date(dueDateStr + "T00:00:00");
+        const pDate = new Date(p.date.split("T")[0] + "T00:00:00");
+        if (!isNaN(dueDate.getTime()) && !isNaN(pDate.getTime())) {
+          const toleranceDate = new Date(dueDate.getTime() + 3 * 24 * 60 * 60 * 1000);
+          if (pDate > toleranceDate) {
+            const delayDays = Math.max(1, Math.floor((pDate.getTime() - dueDate.getTime()) / (24 * 60 * 60 * 1000)));
+            if (delayDays > maxHistoricalDelayDays) {
+              maxHistoricalDelayDays = delayDays;
             }
+            delayedLoansSet.add(loan.id);
           }
         }
       }
     });
 
-    // Pagamentos do cliente no período
+    // 3. Pagamentos do cliente no período
     let totalReceived = 0;
     let profitGenerated = 0;
     let onTimePayments = 0;
@@ -244,8 +273,8 @@ export function computeClientRanking({
       on_time_payments: onTimePayments,
       late_payments: latePayments,
       on_time_percentage: onTimePercentage,
-      max_delay_days: activeMaxDelayDays,
-      overdue_loans: activeDelayedLoansCount,
+      max_delay_days: maxHistoricalDelayDays,
+      overdue_loans: delayedLoansSet.size,
     });
   });
 
