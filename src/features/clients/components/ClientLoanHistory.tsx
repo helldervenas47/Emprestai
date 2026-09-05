@@ -617,52 +617,50 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
       </div>
 
       {showSummary && (
-        <div className="space-y-3 animate-in fade-in-50 duration-200">
-          {/* Health & Capital Recovery Header Banner */}
+        <div className="space-y-2 sm:space-y-2.5 animate-in fade-in-50 duration-200">
+          {/* Health & Capital Recovery Header Banner - Compact */}
           <Card className="border-border/60 bg-gradient-to-br from-card via-card to-muted/20 shadow-xs overflow-hidden">
-            <CardContent className="p-3.5 sm:p-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2.5">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0">
-                    <TrendingUp className="h-4 w-4" />
+            <CardContent className="p-2.5 sm:p-3.5">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0">
+                    <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </div>
-                  <div>
-                    <h3 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5">
-                      Recuperação da Carteira Geral
+                  <div className="min-w-0">
+                    <h3 className="text-xs sm:text-sm font-bold text-foreground truncate">
+                      Recuperação da Carteira
                     </h3>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      {mask(formatCurrency(totals.totalPaid + totals.totalInterestPaid))} recebidos de {mask(formatCurrency(totals.totalBorrowed))} emprestados
+                    <p className="text-[10px] sm:text-[11px] text-muted-foreground truncate">
+                      {mask(formatCurrency(totals.totalPaid + totals.totalInterestPaid))} recebidos de {mask(formatCurrency(totals.totalBorrowed))}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "text-xs px-2.5 py-1 font-semibold",
-                      (totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed) >= 0
-                        ? "bg-success/10 text-success border-success/30"
-                        : "bg-warning/10 text-warning border-warning/30"
-                    )}
-                  >
-                    {(totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed) >= 0 ? "Lucro Realizado: " : "Em Recuperação: "}
-                    <span className="tabular-nums ml-1 font-bold">
-                      {mask(formatCurrency(Math.abs(totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed)))}
-                    </span>
-                  </Badge>
-                </div>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-[10px] sm:text-xs px-2 py-0.5 font-semibold shrink-0",
+                    (totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed) >= 0
+                      ? "bg-success/10 text-success border-success/30"
+                      : "bg-warning/10 text-warning border-warning/30"
+                  )}
+                >
+                  {(totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed) >= 0 ? "Lucro: " : "Em Recuperação: "}
+                  <span className="tabular-nums ml-1 font-bold">
+                    {mask(formatCurrency(Math.abs(totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed)))}
+                  </span>
+                </Badge>
               </div>
 
-              {/* Progress Bar & Indicators */}
-              <div className="space-y-1.5 pt-1">
-                <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+              {/* Compact Progress Bar */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-medium text-muted-foreground">
                   <span>Capital Retornado</span>
                   <span className="font-bold tabular-nums text-foreground">
                     {hidden ? "•••" : `${(totals.totalBorrowed > 0 ? ((totals.totalPaid + totals.totalInterestPaid) / totals.totalBorrowed) * 100 : 0).toFixed(1).replace(".", ",")}%`}
                   </span>
                 </div>
-                <div className="h-2 w-full bg-muted/60 rounded-full overflow-hidden p-0.5 border border-border/40">
+                <div className="h-1.5 w-full bg-muted/60 rounded-full overflow-hidden border border-border/40">
                   <div
                     className={cn(
                       "h-full rounded-full transition-all duration-500",
@@ -679,30 +677,30 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
             </CardContent>
           </Card>
 
-          {/* 4 Structured Executive Pillar Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+          {/* 4 Structured Executive Pillar Cards - Compact 2x2 on Mobile, 4-col on Desktop */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
             {/* Bloco 1: A Receber (Pendente) */}
             <Card className="border-border/60 hover:border-amber-500/30 bg-card/60 hover:bg-card transition-all shadow-xs">
-              <CardContent className="p-3.5 flex flex-col justify-between h-full space-y-3">
-                <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                    <Clock className="h-3.5 w-3.5 text-warning" />
-                    <span>A Receber (Pendente)</span>
+              <CardContent className="p-2.5 sm:p-3 flex flex-col justify-between h-full space-y-2">
+                <div className="flex items-center justify-between gap-1 border-b border-border/40 pb-1.5">
+                  <div className="flex items-center gap-1 text-[11px] sm:text-xs font-semibold text-foreground truncate">
+                    <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-warning shrink-0" />
+                    <span className="truncate">A Receber</span>
                   </div>
-                  <Badge variant="outline" className="text-[10px] font-bold px-1.5 py-0 bg-warning/10 text-warning border-warning/30">
+                  <Badge variant="outline" className="text-[9px] sm:text-[10px] font-bold px-1 py-0 bg-warning/10 text-warning border-warning/30 shrink-0">
                     {mask(formatCurrency(totals.totalPrincipalPending + totals.totalInterestPending))}
                   </Badge>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-center pt-0.5">
-                  <div className="bg-muted/30 rounded-lg p-2 border border-border/30">
-                    <div className="text-[10px] text-muted-foreground font-medium mb-0.5">Principal</div>
-                    <div className="font-bold tabular-nums text-warning text-xs sm:text-sm truncate">
+                <div className="grid grid-cols-2 gap-1.5 text-center">
+                  <div>
+                    <div className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">Principal</div>
+                    <div className="font-bold tabular-nums text-warning text-[11px] sm:text-xs truncate">
                       {mask(formatCurrency(totals.totalPrincipalPending))}
                     </div>
                   </div>
-                  <div className="bg-muted/30 rounded-lg p-2 border border-border/30">
-                    <div className="text-[10px] text-muted-foreground font-medium mb-0.5">Juros</div>
-                    <div className="font-bold tabular-nums text-warning text-xs sm:text-sm truncate">
+                  <div>
+                    <div className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">Juros</div>
+                    <div className="font-bold tabular-nums text-warning text-[11px] sm:text-xs truncate">
                       {mask(formatCurrency(totals.totalInterestPending))}
                     </div>
                   </div>
@@ -712,26 +710,26 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
 
             {/* Bloco 2: Já Recebido no Caixa */}
             <Card className="border-border/60 hover:border-emerald-500/30 bg-card/60 hover:bg-card transition-all shadow-xs">
-              <CardContent className="p-3.5 flex flex-col justify-between h-full space-y-3">
-                <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                    <span>Já Recebido no Caixa</span>
+              <CardContent className="p-2.5 sm:p-3 flex flex-col justify-between h-full space-y-2">
+                <div className="flex items-center justify-between gap-1 border-b border-border/40 pb-1.5">
+                  <div className="flex items-center gap-1 text-[11px] sm:text-xs font-semibold text-foreground truncate">
+                    <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-success shrink-0" />
+                    <span className="truncate">Recebido</span>
                   </div>
-                  <Badge variant="outline" className="text-[10px] font-bold px-1.5 py-0 bg-success/10 text-success border-success/30">
+                  <Badge variant="outline" className="text-[9px] sm:text-[10px] font-bold px-1 py-0 bg-success/10 text-success border-success/30 shrink-0">
                     {mask(formatCurrency(totals.totalPaid + totals.totalInterestPaid))}
                   </Badge>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-center pt-0.5">
-                  <div className="bg-muted/30 rounded-lg p-2 border border-border/30">
-                    <div className="text-[10px] text-muted-foreground font-medium mb-0.5">Principal</div>
-                    <div className="font-bold tabular-nums text-success text-xs sm:text-sm truncate">
+                <div className="grid grid-cols-2 gap-1.5 text-center">
+                  <div>
+                    <div className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">Principal</div>
+                    <div className="font-bold tabular-nums text-success text-[11px] sm:text-xs truncate">
                       {mask(formatCurrency(totals.totalPaid))}
                     </div>
                   </div>
-                  <div className="bg-muted/30 rounded-lg p-2 border border-border/30">
-                    <div className="text-[10px] text-muted-foreground font-medium mb-0.5">Juros</div>
-                    <div className="font-bold tabular-nums text-success text-xs sm:text-sm truncate">
+                  <div>
+                    <div className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">Juros</div>
+                    <div className="font-bold tabular-nums text-success text-[11px] sm:text-xs truncate">
                       {mask(formatCurrency(totals.totalInterestPaid))}
                     </div>
                   </div>
@@ -741,26 +739,26 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
 
             {/* Bloco 3: Volume da Carteira */}
             <Card className="border-border/60 hover:border-primary/30 bg-card/60 hover:bg-card transition-all shadow-xs">
-              <CardContent className="p-3.5 flex flex-col justify-between h-full space-y-3">
-                <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                    <Wallet className="h-3.5 w-3.5 text-primary" />
-                    <span>Volume da Carteira</span>
+              <CardContent className="p-2.5 sm:p-3 flex flex-col justify-between h-full space-y-2">
+                <div className="flex items-center justify-between gap-1 border-b border-border/40 pb-1.5">
+                  <div className="flex items-center gap-1 text-[11px] sm:text-xs font-semibold text-foreground truncate">
+                    <Wallet className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary shrink-0" />
+                    <span className="truncate">Carteira</span>
                   </div>
-                  <Badge variant="outline" className="text-[10px] font-bold px-1.5 py-0 bg-primary/10 text-primary border-primary/30">
-                    {totals.clientCount} {totals.clientCount === 1 ? "cliente" : "clientes"}
+                  <Badge variant="outline" className="text-[9px] sm:text-[10px] font-bold px-1 py-0 bg-primary/10 text-primary border-primary/30 shrink-0">
+                    {totals.clientCount} clis
                   </Badge>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-center pt-0.5">
-                  <div className="bg-muted/30 rounded-lg p-2 border border-border/30">
-                    <div className="text-[10px] text-muted-foreground font-medium mb-0.5">Emprestado</div>
-                    <div className="font-bold tabular-nums text-foreground text-xs sm:text-sm truncate">
+                <div className="grid grid-cols-2 gap-1.5 text-center">
+                  <div>
+                    <div className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">Emprestado</div>
+                    <div className="font-bold tabular-nums text-foreground text-[11px] sm:text-xs truncate">
                       {mask(formatCurrency(totals.totalBorrowed))}
                     </div>
                   </div>
-                  <div className="bg-muted/30 rounded-lg p-2 border border-border/30">
-                    <div className="text-[10px] text-muted-foreground font-medium mb-0.5">Contratado</div>
-                    <div className="font-bold tabular-nums text-foreground text-xs sm:text-sm truncate">
+                  <div>
+                    <div className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">Contratado</div>
+                    <div className="font-bold tabular-nums text-foreground text-[11px] sm:text-xs truncate">
                       {mask(formatCurrency(totals.grandTotal))}
                     </div>
                   </div>
@@ -770,27 +768,27 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
 
             {/* Bloco 4: Rentabilidade & Retorno */}
             <Card className="border-border/60 hover:border-violet-500/30 bg-card/60 hover:bg-card transition-all shadow-xs">
-              <CardContent className="p-3.5 flex flex-col justify-between h-full space-y-3">
-                <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                    <TrendingUp className="h-3.5 w-3.5 text-primary" />
-                    <span>Rentabilidade</span>
+              <CardContent className="p-2.5 sm:p-3 flex flex-col justify-between h-full space-y-2">
+                <div className="flex items-center justify-between gap-1 border-b border-border/40 pb-1.5">
+                  <div className="flex items-center gap-1 text-[11px] sm:text-xs font-semibold text-foreground truncate">
+                    <TrendingUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary shrink-0" />
+                    <span className="truncate">Rentabilidade</span>
                   </div>
-                  <Badge variant="outline" className="text-[10px] font-bold px-1.5 py-0 bg-primary/10 text-primary border-primary/30">
-                    {hidden ? "•••" : `${totals.avgInterestRate.toFixed(1).replace(".", ",")}% taxa`}
+                  <Badge variant="outline" className="text-[9px] sm:text-[10px] font-bold px-1 py-0 bg-primary/10 text-primary border-primary/30 shrink-0">
+                    {hidden ? "•••" : `${totals.avgInterestRate.toFixed(1).replace(".", ",")}%`}
                   </Badge>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-center pt-0.5">
-                  <div className="bg-muted/30 rounded-lg p-2 border border-border/30">
-                    <div className="text-[10px] text-muted-foreground font-medium mb-0.5">Lucro Projetado</div>
-                    <div className="font-bold tabular-nums text-primary text-xs sm:text-sm truncate">
+                <div className="grid grid-cols-2 gap-1.5 text-center">
+                  <div>
+                    <div className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">Lucro Proj.</div>
+                    <div className="font-bold tabular-nums text-primary text-[11px] sm:text-xs truncate">
                       {mask(formatCurrency(Math.max(0, totals.grandTotal - totals.totalBorrowed)))}
                     </div>
                   </div>
-                  <div className="bg-muted/30 rounded-lg p-2 border border-border/30">
-                    <div className="text-[10px] text-muted-foreground font-medium mb-0.5">Resultado Atual</div>
+                  <div>
+                    <div className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">Resultado</div>
                     <div className={cn(
-                      "font-bold tabular-nums text-xs sm:text-sm truncate",
+                      "font-bold tabular-nums text-[11px] sm:text-xs truncate",
                       (totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed) >= 0 ? "text-success" : "text-amber-500"
                     )}>
                       {mask(formatCurrency(totals.totalPaid + totals.totalInterestPaid - totals.totalBorrowed))}
