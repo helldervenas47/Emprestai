@@ -458,7 +458,7 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
 
           <Card className="hover:border-border/80 transition-colors shadow-xs">
             <CardContent className="p-3 sm:p-3.5 flex flex-col items-center justify-center text-center h-full">
-              <span className="text-[11px] font-medium text-muted-foreground mb-1">Total Pago</span>
+              <span className="text-[11px] font-medium text-muted-foreground mb-1">Total Recebido</span>
               <span className="font-bold tabular-nums text-success text-sm sm:text-base">
                 {mask(formatCurrency(paidTotal + interestReceived))}
               </span>
@@ -467,7 +467,7 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
 
           <Card className="hover:border-border/80 transition-colors shadow-xs">
             <CardContent className="p-3 sm:p-3.5 flex flex-col items-center justify-center text-center h-full">
-              <span className="text-[11px] font-medium text-muted-foreground mb-1">Principal Pago</span>
+              <span className="text-[11px] font-medium text-muted-foreground mb-1">Principal Recebido</span>
               <span className="font-bold tabular-nums text-success text-sm sm:text-base">
                 {mask(formatCurrency(paidTotal))}
               </span>
@@ -503,7 +503,7 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
 
           <Card className="hover:border-border/80 transition-colors shadow-xs">
             <CardContent className="p-3 sm:p-3.5 flex flex-col items-center justify-center text-center h-full">
-              <span className="text-[11px] font-medium text-muted-foreground mb-1">Diferença Líquida</span>
+              <span className="text-[11px] font-medium text-muted-foreground mb-1">Lucro</span>
               <span className={cn(
                 "font-bold tabular-nums text-sm sm:text-base",
                 difference >= 0 ? "text-success" : "text-destructive"
@@ -589,14 +589,14 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
               <SelectItem value="name-desc">Cliente (Z → A)</SelectItem>
               <SelectItem value="borrowed-desc">Maior valor emprestado</SelectItem>
               <SelectItem value="borrowed-asc">Menor valor emprestado</SelectItem>
-              <SelectItem value="paid-desc">Maior principal pago</SelectItem>
-              <SelectItem value="paid-asc">Menor principal pago</SelectItem>
+              <SelectItem value="paid-desc">Maior principal recebido</SelectItem>
+              <SelectItem value="paid-asc">Menor principal recebido</SelectItem>
               <SelectItem value="pending-desc">Maior valor pendente</SelectItem>
               <SelectItem value="pending-asc">Menor valor pendente</SelectItem>
               <SelectItem value="total-desc">Maior valor total</SelectItem>
               <SelectItem value="total-asc">Menor valor total</SelectItem>
-              <SelectItem value="difference-desc">Maior diferença</SelectItem>
-              <SelectItem value="difference-asc">Menor diferença</SelectItem>
+              <SelectItem value="difference-desc">Maior lucro</SelectItem>
+              <SelectItem value="difference-asc">Menor lucro</SelectItem>
               <SelectItem value="rate-desc">Maior taxa de variação</SelectItem>
               <SelectItem value="rate-asc">Menor taxa de variação</SelectItem>
               <SelectItem value="interest-desc">Maior juros pago</SelectItem>
@@ -636,7 +636,7 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
           </Card>
           <Card className="h-full">
             <CardContent className="p-4 flex flex-col items-center justify-center text-center h-full">
-              <div className="text-sm text-muted-foreground mb-1">Principal Pago</div>
+              <div className="text-sm text-muted-foreground mb-1">Principal Recebido</div>
               <div className="font-bold tabular-nums text-success text-xl">
                 {mask(formatCurrency(totals.totalPaid))}
               </div>
@@ -698,10 +698,10 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
                 <TableHead>Cliente</TableHead>
                 <TableHead className="text-right">Emprestado</TableHead>
                 <TableHead className="text-right">Pendente</TableHead>
-                <TableHead className="text-right">Principal Pago</TableHead>
+                <TableHead className="text-right">Principal Recebido</TableHead>
                 <TableHead className="text-right">Juros Pago</TableHead>
-                <TableHead className="text-right">Total Pago</TableHead>
-                <TableHead className="text-right">Diferença</TableHead>
+                <TableHead className="text-right">Total Recebido</TableHead>
+                <TableHead className="text-right">Lucro</TableHead>
                 <TableHead className="text-right">Total Geral</TableHead>
                 <TableHead className="text-right">Taxa de Variação</TableHead>
               </TableRow>
@@ -818,13 +818,13 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
                   <div className="tabular-nums font-semibold text-foreground">{mask(formatCurrency(r.borrowed))}</div>
                 </div>
                 <div>
-                  <div className="text-[11px] text-muted-foreground">Total Pago</div>
+                  <div className="text-[11px] text-muted-foreground">Total Recebido</div>
                   <div className="tabular-nums font-semibold text-success">
                     {mask(formatCurrency(r.paid + r.interestPaid))}
                   </div>
                 </div>
                 <div>
-                  <div className="text-[11px] text-muted-foreground">Principal Pago</div>
+                  <div className="text-[11px] text-muted-foreground">Principal Recebido</div>
                   <div className="tabular-nums font-medium text-success">{mask(formatCurrency(r.paid))}</div>
                 </div>
                 <div>
@@ -836,7 +836,7 @@ export function ClientLoanHistory({ loans, payments, installmentSchedules = [], 
                   <div className="tabular-nums font-semibold text-warning">{mask(formatCurrency(r.pending))}</div>
                 </div>
                 <div>
-                  <div className="text-[11px] text-muted-foreground">Diferença</div>
+                  <div className="text-[11px] text-muted-foreground">Lucro</div>
                   <div className={cn(
                     "tabular-nums font-semibold",
                     (r.paid + r.interestPaid - r.borrowed) >= 0 ? "text-success" : "text-destructive"
