@@ -229,7 +229,7 @@ export function LoanListSummaryCards({
       footerLabel: "Maior atraso",
       footerValue:
         footer.biggestOverdue > 0
-          ? `${formatCurrency(footer.biggestOverdue)}${footer.biggestOverdueDays > 0 ? ` (${footer.biggestOverdueDays}d)` : ""}`
+          ? formatCurrency(footer.biggestOverdue)
           : "—",
     },
     {
