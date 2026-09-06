@@ -1181,7 +1181,9 @@ const Index = () => {
       t.id !== "settings" &&
       t.id !== "help" &&
       !isLegacyPlanTabs &&
-      (planAccessLoading || (Array.isArray(planAllowedTabs) && !planAllowedTabs.includes(t.id)))
+      !planAccessLoading &&
+      Array.isArray(planAllowedTabs) &&
+      !planAllowedTabs.includes(t.id)
     ) {
       return false;
     }
@@ -1210,7 +1212,7 @@ const Index = () => {
   const canAccessTab = (id: Tab) => visibleTabs.some((t) => t.id === id);
   // Tab existe na configuração geral mas o usuário não tem permissão →
   // exibimos página de "acesso negado" em vez de redirecionar silenciosamente.
-  const tabAccessDenied = !loading && tabConfig.some((t) => t.id === tab) && !visibleTabs.some((t) => t.id === tab);
+  const tabAccessDenied = !loading && !planAccessLoading && tabConfig.some((t) => t.id === tab) && !visibleTabs.some((t) => t.id === tab);
 
   // Itens da barra inferior mobile: prioriza pinnedTabs (ordem do usuário),
   // completa com as demais abas visíveis e limita a 4 (o 5º slot é "Mais").
@@ -1224,15 +1226,15 @@ const Index = () => {
   const bottomItemIds = bottomItems.map((i) => i.id);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || planAccessLoading) return;
     if (visibleTabs.length === 0) return;
     const currentExists = visibleTabs.some((v) => v.id === tab);
     if (currentExists) return;
-    const next = visibleTabs[0].id;
+    const next = visibleTabs.some((v) => v.id === "dashboard") ? ("dashboard" as Tab) : visibleTabs[0].id;
     if (next !== tab) syncTabInternally(next);
     // visibleTabsSignature intentionally used instead of visibleTabs for stable identity
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, tab, visibleTabsSignature]);
+  }, [loading, planAccessLoading, tab, visibleTabsSignature]);
 
   // Extrato agora abre como dialog (não é mais aba)
   const [ledgerOpen, setLedgerOpen] = useState(false);
