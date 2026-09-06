@@ -48,6 +48,7 @@ function planBadgeVariant(planId: string | undefined): "default" | "secondary" |
 }
 
 function planLabel(planId: string | undefined): string {
+  if (planId === "teste_gratis_plan" || planId === "teste_gratis" || planId === "teste") return "Teste Grátis";
   if (planId === "empresarial_plan" || planId === "empresarial") return "Empresarial";
   if (planId === "profissional_plan" || planId === "profissional") return "Profissional";
   if (planId === "basico_plan" || planId === "básico" || planId === "basico") return "Básico";

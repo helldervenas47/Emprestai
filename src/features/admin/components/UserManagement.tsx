@@ -218,6 +218,7 @@ export function UserManagement() {
           supabase
             .from("subscriptions")
             .select("user_id, product_id, environment, status, current_period_end, cancel_at_period_end, updated_at")
+            .eq("environment", "live")
             .in("user_id", userIds),
           supabase
             .from("user_owner")
@@ -537,6 +538,7 @@ export function UserManagement() {
 
   const PRODUCT_ID_MAP: Record<string, string> = {
     free_plan: "Free",
+    teste_gratis_plan: "Teste Grátis",
     basico_plan: "Básico",
     profissional_plan: "Profissional",
     empresarial_plan: "Empresarial",
@@ -545,7 +547,7 @@ export function UserManagement() {
   const openPlanSelector = async (user: ManagedUser) => {
     setPlanUser(user);
     // Pre-select the user's current plan. Prefer the value already loaded
-    // (plan_id), then fall back to a fresh query covering both environments.
+    // (plan_id), then fall back to the production subscription.
     if (user.plan_id) {
       setPlanProductId(user.plan_id);
       return;
@@ -553,7 +555,8 @@ export function UserManagement() {
     const { data: subs } = await supabase
       .from("subscriptions")
       .select("product_id, environment")
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .eq("environment", "live");
     const active =
       subs?.find((s: any) => s.product_id && s.product_id !== "free_plan") ||
       subs?.[0];
@@ -622,6 +625,7 @@ export function UserManagement() {
   };
 
   const planLabel = (planId: string | undefined) => {
+    if (planId === "teste_gratis_plan" || planId === "teste_gratis" || planId === "teste") return "Teste Grátis";
     if (planId === "empresarial_plan" || planId === "empresarial") return "Empresarial";
     if (planId === "profissional_plan" || planId === "profissional") return "Profissional";
     if (planId === "basico_plan" || planId === "básico" || planId === "basico") return "Básico";

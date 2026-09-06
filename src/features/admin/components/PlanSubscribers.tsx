@@ -35,6 +35,7 @@ interface PlanOption {
 
 const PRODUCT_ID_MAP: Record<string, string> = {
   Free: "free_plan",
+  "Teste Grátis": "teste_gratis_plan",
   Básico: "basico_plan",
   Profissional: "profissional_plan",
   Empresarial: "empresarial_plan",
@@ -221,7 +222,7 @@ export function PlanSubscribers() {
 
   const envBadge = (env: string) => {
     if (env === "live") return <Badge variant="default" className="text-[10px]">Live</Badge>;
-    return <Badge variant="outline" className="text-[10px]">Teste</Badge>;
+    return <Badge variant="outline" className="text-[10px]">Sandbox</Badge>;
   };
 
   const formatDate = (d: string | null) => {
@@ -237,6 +238,7 @@ export function PlanSubscribers() {
   };
 
   const planLabel = (planId: string | undefined) => {
+    if (planId === "teste_gratis_plan" || planId === "teste_gratis" || planId === "teste") return "Teste Grátis";
     if (planId === "empresarial_plan" || planId === "empresarial") return "Empresarial";
     if (planId === "profissional_plan" || planId === "profissional") return "Profissional";
     if (planId === "basico_plan" || planId === "básico" || planId === "basico") return "Básico";
