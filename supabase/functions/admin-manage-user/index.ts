@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
 
       // P1-02 egress: seleciona apenas as colunas usadas na composição do payload.
       const { data: roles } = await adminClient.from("user_roles").select("user_id, role");
-      const { data: profiles } = await adminClient.from("profiles").select("user_id, display_name, username, trial_plan_name, trial_started_at");
+      const { data: profiles } = await adminClient.from("profiles").select("user_id, display_name, username, trial_plan_name, trial_started_at, trial_days_override");
       const { data: tabPerms } = await adminClient.from("user_tab_permissions").select("user_id, allowed_tabs");
       const { data: clientPerms } = await adminClient.from("user_client_permissions").select("user_id, client_id");
       const { data: owners } = await adminClient.from("user_owner").select("user_id, owner_id");
@@ -215,6 +215,7 @@ Deno.serve(async (req) => {
         username: profile?.username || metadataUsername || placeholderUsername,
         trial_plan_name: profile?.trial_plan_name || null,
         trial_started_at: profile?.trial_started_at || null,
+        trial_days_override: profile?.trial_days_override ?? null,
         role: roles?.find((r) => r.user_id === u.id)?.role || null,
         created_at: u.created_at,
         last_sign_in_at: u.last_sign_in_at,
