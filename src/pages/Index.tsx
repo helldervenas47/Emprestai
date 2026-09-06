@@ -1107,17 +1107,34 @@ const Index = () => {
     // Admin sempre vê todas as abas (ignora plano e demais restrições).
     if (role === "admin") return true;
     if (!user) return false;
-    if (t.id !== "system" && (planAccessLoading || (Array.isArray(planAllowedTabs) && !planAllowedTabs.includes(t.id)))) return false;
+
+    // Se o plano possuir a lista legada (8 abas antigas), não bloqueia as novas abas padrão (metas, boletos, etc.)
+    const isLegacyPlanTabs =
+      Array.isArray(planAllowedTabs) &&
+      planAllowedTabs.length > 0 &&
+      planAllowedTabs.every((id) => LEGACY_CLIENT_PLAN_TAB_IDS.has(id));
+
+    if (
+      t.id !== "system" &&
+      t.id !== "settings" &&
+      t.id !== "help" &&
+      !isLegacyPlanTabs &&
+      (planAccessLoading || (Array.isArray(planAllowedTabs) && !planAllowedTabs.includes(t.id)))
+    ) {
+      return false;
+    }
+
     // Permissão por papel (role_tab_permissions): se a aba não está liberada
     // para o papel do usuário, esconde.
-    if (Array.isArray(roleAllowedTabs) && !roleAllowedTabs.includes(t.id)) return false;
-    // Permissão por usuário (user_tab_permissions): se houver lista, exigir presença.
+    if (Array.isArray(roleAllowedTabs) && roleAllowedTabs.length > 0 && !roleAllowedTabs.includes(t.id)) return false;
+
+    // Permissão por usuário (user_tab_permissions): se houver lista customizada, exigir presença.
     const isLegacyClientPlanTabs =
       role === "cliente" &&
       Array.isArray(allowedTabs) &&
       allowedTabs.length > 0 &&
       allowedTabs.every((id) => LEGACY_CLIENT_PLAN_TAB_IDS.has(id));
-    if (Array.isArray(allowedTabs) && !isLegacyClientPlanTabs) return allowedTabs.includes(t.id);
+    if (Array.isArray(allowedTabs) && allowedTabs.length > 0 && !isLegacyClientPlanTabs) return allowedTabs.includes(t.id);
     return true;
   }), [loading, user, role, roleAllowedTabs, allowedTabs, planAllowedTabs, planAccessLoading]);
 

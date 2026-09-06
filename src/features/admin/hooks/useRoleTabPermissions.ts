@@ -10,8 +10,8 @@ export interface RoleTabRow { role: string; tab_id: string; }
 // configurada para o papel (nenhuma linha jamais criada). Se o admin
 // desmarcar todas as abas explicitamente, respeitamos o bloqueio total.
 const DEFAULT_ROLE_TABS: Record<string, string[]> = {
-  cliente: ["overview", "dashboard", "products", "vehicles", "calendar", "clients", "expenses", "boletos", "salary", "accountant", "overdue", "settings"],
-  gerente: ["overview", "dashboard", "products", "vehicles", "calendar", "clients", "expenses", "boletos", "salary", "accountant", "overdue", "settings"],
+  cliente: ["overview", "dashboard", "products", "vehicles", "calendar", "clients", "expenses", "boletos", "salary", "accountant", "overdue", "metas", "settings"],
+  gerente: ["overview", "dashboard", "products", "vehicles", "calendar", "clients", "expenses", "boletos", "salary", "accountant", "overdue", "metas", "settings"],
   visualizador: ["overview", "dashboard", "clients", "calendar", "overdue"],
 };
 
@@ -74,7 +74,7 @@ export function useMyRoleTabs(role: string | null) {
         .from("role_tab_permissions" as any)
         .select("tab_id")
         .eq("role", role);
-      const loadedTabs = error
+      const loadedTabs = error || !data || (data as any[]).length === 0
         ? (DEFAULT_ROLE_TABS[role] ?? [])
         : ((data as any) || []).map((r: any) => r.tab_id);
       if (!cancelled) setTabs(loadedTabs);

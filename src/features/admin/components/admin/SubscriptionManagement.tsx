@@ -418,13 +418,14 @@ function ActionDialog({ kind, user, plans, fetchAudit, onClose, onSubmit }: {
   onClose: () => void;
   onSubmit: (payload: Record<string, unknown>) => Promise<void>;
 }) {
+  const resolved = useMemo(() => resolveSubscriberState(user), [user]);
   const currentDaysLeft = useMemo(
-    () => daysBetween(user.subscription?.current_period_end),
-    [user.subscription?.current_period_end],
+    () => daysBetween(resolved.end),
+    [resolved.end],
   );
   const [planId, setPlanId] = useState(plans[0]?.id ?? "");
   const [startDate, setStartDate] = useState<string>(() => (kind === "set_dates" && user.subscription?.current_period_start ? user.subscription.current_period_start : new Date().toISOString()).slice(0, 10));
-  const [endDate, setEndDate] = useState<string>(() => (kind === "set_dates" && user.subscription?.current_period_end ? user.subscription.current_period_end : new Date(Math.max(Date.now() + 30 * 86400_000, Date.parse(user.subscription?.current_period_end ?? "") || 0)).toISOString()).slice(0, 10));
+  const [endDate, setEndDate] = useState<string>(() => (kind === "set_dates" && resolved.end ? resolved.end : new Date(Math.max(Date.now() + 30 * 86400_000, Date.parse(resolved.end ?? "") || 0)).toISOString()).slice(0, 10));
   const [trialDays, setTrialDays] = useState<number>(kind === "set_days_remaining" ? currentDaysLeft : 7);
   const [productId, setProductId] = useState<string>("");
   const [note, setNote] = useState<string>("");
@@ -556,7 +557,7 @@ function ActionDialog({ kind, user, plans, fetchAudit, onClose, onSubmit }: {
                 <div className="text-xs text-muted-foreground">Dias restantes atuais</div>
                 <div className="text-2xl font-semibold tabular-nums">{currentDaysLeft} <span className="text-sm font-normal text-muted-foreground">dias</span></div>
                 <div className="text-xs text-muted-foreground">
-                  Expira em: <span className="font-medium">{fmtDate(user.subscription?.current_period_end)}</span>
+                  Expira em: <span className="font-medium">{fmtDate(resolved.end)}</span>
                 </div>
               </div>
               <div>
