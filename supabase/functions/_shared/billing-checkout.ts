@@ -73,7 +73,9 @@ export async function handleCheckout(req: Request, recurring = false) {
         ).replace(/\D/g, "");
 
         if (cleanCpf && profile.data && !profile.data.cpf_cnpj) {
-          await admin.from("profiles").update({ cpf_cnpj: cleanCpf }).eq("user_id", user.id).catch(() => {});
+          try {
+            await admin.from("profiles").update({ cpf_cnpj: cleanCpf }).eq("user_id", user.id);
+          } catch { /* noop */ }
         }
 
         const customerRow = await admin.from("billing_customers").select("customer_id").eq("user_id", user.id).eq("environment", environment).maybeSingle();
@@ -190,11 +192,13 @@ export async function handleCheckout(req: Request, recurring = false) {
     const message = (e as Error).message;
     console.error("[asaas-checkout]", message);
     if (admin && newOrderId) {
-      await admin.from("billing_orders").update({
-        status: "error",
-        review_reason: message,
-        checked_at: new Date().toISOString(),
-      }).eq("id", newOrderId).catch(() => {});
+      try {
+        await admin.from("billing_orders").update({
+          status: "error",
+          review_reason: message,
+          checked_at: new Date().toISOString(),
+        }).eq("id", newOrderId);
+      } catch { /* noop */ }
     }
     return billingJson({ error: message, message }, 400);
   }
