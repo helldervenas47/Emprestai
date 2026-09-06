@@ -28,6 +28,7 @@ import { useAsaasCheckout } from "@/hooks/useAsaasCheckout";
 import { useAuth } from "@/hooks/useAuth";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
 import { PixPaymentView } from "@/components/billing/PixPaymentView";
+import { syncSubscriptionState } from "@/lib/billing/subscriptionSync";
 import logoIcon from "@/assets/logo-icon.png";
 
 interface Plan {
@@ -223,10 +224,7 @@ const Pricing = () => {
       if (error) throw error;
       if (data?.paid) {
         reset();
-        await queryClient.invalidateQueries({ queryKey: ["profile"] });
-        await queryClient.invalidateQueries({ queryKey: ["subscription"] });
-        await queryClient.invalidateQueries({ queryKey: ["system_settings"] });
-        window.dispatchEvent(new Event("subscription:changed"));
+        await syncSubscriptionState(user?.id, { waitForActive: true, queryClient });
         navigate("/?tab=settings");
       } else {
         toast({ title: data?.review ? "Pagamento em conferência" : "Aguardando pagamento",

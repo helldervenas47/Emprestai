@@ -1,13 +1,15 @@
 import { BILLING_ENVIRONMENT, hasSubscriptionAccess } from "@/lib/billing/subscriptionState";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/userClient";
 import { useAuth } from "@/hooks/useAuth";
 import {
   loadSharedResource,
   invalidateSharedResource,
   readSharedResource,
+  writeSharedResource,
   subscribeSharedResource,
 } from "@/lib/sharedResource";
+import { fetchRemoteSubscription, syncSubscriptionState } from "@/lib/billing/subscriptionSync";
 
 export interface Subscription {
   id: string;
@@ -40,18 +42,10 @@ const PLAN_LIMITS: Record<string, { maxLoans: number; maxUsers: number }> = {
   empresarial_plan: { maxLoans: 9999, maxUsers: 5 },
 };
 
-// P1-01: assinatura muda muito raramente; cache global evita refetch a cada
-// troca de rota / focus / remount. Um refetch a cada 5 min é mais que suficiente.
-const STALE_MS = 5 * 60_000;
-
-async function fetchSubscription(userId: string, environment: string): Promise<Subscription | null> {
-  const { data, error } = await supabase
-    .from("subscriptions")
-    .select("id, plan_id, product_id, price_id, status, current_period_start, current_period_end, cancel_at_period_end, manual_override, environment, asaas_subscription_id")
-    .eq("user_id", userId).eq("environment", environment).maybeSingle();
-  if (error) throw error;
-  return data as unknown as Subscription | null;
-}
+// Assinatura ativa tem cache de 5 minutos.
+// Usuário sem assinatura/em trial tem cache ágil de 15s para detectar pagamentos instantaneamente.
+const STALE_PAID_MS = 5 * 60_000;
+const STALE_TRIAL_MS = 15_000;
 
 export function useSubscription() {
   const { user, dataOwnerId, loading: authLoading } = useAuth();
@@ -63,6 +57,42 @@ export function useSubscription() {
     () => readSharedResource<Subscription | null>(cacheKey) ?? null,
   );
   const [loading, setLoading] = useState(true);
+
+  const refetch = useCallback(
+    async (force = true) => {
+      if (!effectiveUserId) return null;
+      invalidateSharedResource(cacheKey);
+      try {
+        const data = await loadSharedResource(
+          cacheKey,
+          () => fetchRemoteSubscription(effectiveUserId, environment),
+          { staleTime: 0, force: true },
+        );
+        setSubscription(data);
+        setLoading(false);
+        return data;
+      } catch (err) {
+        setLoading(false);
+        return null;
+      }
+    },
+    [cacheKey, effectiveUserId, environment]
+  );
+
+  const sync = useCallback(
+    async (waitForActive = true) => {
+      if (!effectiveUserId) return null;
+      const res = await syncSubscriptionState(effectiveUserId, {
+        waitForActive,
+        maxWaitMs: 8000,
+      });
+      if (res) {
+        setSubscription(res);
+      }
+      return res;
+    },
+    [effectiveUserId]
+  );
 
   useEffect(() => {
     if (authLoading) {
@@ -79,10 +109,15 @@ export function useSubscription() {
 
     const run = async (force = false) => {
       try {
+        const cached = readSharedResource<Subscription | null>(cacheKey);
+        const currentStale = cached && cached.status === "active" && cached.product_id !== "free_plan"
+          ? STALE_PAID_MS
+          : STALE_TRIAL_MS;
+
         const data = await loadSharedResource(
           cacheKey,
-          () => fetchSubscription(effectiveUserId, environment),
-          { staleTime: STALE_MS, force },
+          () => fetchRemoteSubscription(effectiveUserId, environment),
+          { staleTime: currentStale, force },
         );
         if (!cancelled) {
           setSubscription(data);
@@ -95,20 +130,24 @@ export function useSubscription() {
 
     run();
 
-    // Realtime removido (P0-02 egress): assinatura muda raramente.
-    // Refetch em foco e via evento local disparado pelo checkout/webhook client-side.
-    // Ambos passam por `loadSharedResource`, então respeitam staleTime e deduplicação.
-    const changed = () => {
+    // Evento de alteração de assinatura com suporte a snapshot direto no CustomEvent
+    const changed = (event?: Event) => {
+      const custom = event as CustomEvent<{ subscription?: Subscription | null }>;
+      if (custom?.detail?.subscription !== undefined) {
+        if (!cancelled) {
+          setSubscription(custom.detail.subscription);
+          setLoading(false);
+        }
+      }
       invalidateSharedResource(cacheKey);
       run(true);
     };
+
     const focused = () => run(false);
     window.addEventListener("subscription:changed", changed);
     window.addEventListener("focus", focused);
 
-    // Realtime dedicado: escuta APENAS a própria linha em `profiles`. Custo mínimo
-    // (uma linha por usuário) e permite o admin sinalizar mudança de assinatura
-    // via `subscription_bump_at` sem precisar assinar a tabela subscriptions inteira.
+    // Realtime dedicado: escuta APENAS a própria linha em `profiles`
     const channel = supabase
       .channel(`profile-bump-${effectiveUserId}-${crypto.randomUUID()}`)
       .on(
@@ -118,7 +157,7 @@ export function useSubscription() {
       )
       .subscribe();
 
-    // Assina o cache para receber updates disparados por outros hooks/instâncias.
+    // Assina o cache compartilhado para sincronização cruzada de instâncias
     const unsub = subscribeSharedResource(cacheKey, () => {
       if (cancelled) return;
       const next = readSharedResource<Subscription | null>(cacheKey);
@@ -139,6 +178,7 @@ export function useSubscription() {
     const timer = setInterval(() => setClock((n) => n + 1), 30_000);
     return () => clearInterval(timer);
   }, []);
+
   const isActive = hasSubscriptionAccess(subscription);
 
   const daysRemaining = subscription?.current_period_end 
@@ -149,5 +189,16 @@ export function useSubscription() {
   const planLimits = subscription ? PLAN_LIMITS[subscription.product_id] : null;
   const hasFeature = (requiredTier: number) => isActive && planTier >= requiredTier;
 
-  return { subscription, loading, isActive, daysRemaining, planTier, planLimits, hasFeature, environment };
+  return {
+    subscription,
+    loading,
+    isActive,
+    daysRemaining,
+    planTier,
+    planLimits,
+    hasFeature,
+    environment,
+    refetch,
+    sync,
+  };
 }

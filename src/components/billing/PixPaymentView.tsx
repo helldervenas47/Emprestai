@@ -20,6 +20,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { AsaasCheckoutData } from "@/hooks/useAsaasCheckout";
+import { syncSubscriptionState } from "@/lib/billing/subscriptionSync";
 
 interface PixPaymentViewProps {
   checkoutData: AsaasCheckoutData;
@@ -72,15 +73,12 @@ export function PixPaymentView({
       if (error) throw error;
 
       if (data?.paid) {
-        setStatusState("CONFIRMED");
         if (pollingRef.current) clearInterval(pollingRef.current);
-        
-        // Invalida caches do React Query e notifica o app
-        await queryClient.invalidateQueries({ queryKey: ["profile"] });
-        await queryClient.invalidateQueries({ queryKey: ["subscription"] });
-        await queryClient.invalidateQueries({ queryKey: ["system_settings"] });
-        window.dispatchEvent(new Event("subscription:changed"));
 
+        // Reconcilia ativamente a assinatura no banco, atualiza cache local e notifica a aplicacao em tempo real
+        await syncSubscriptionState(undefined, { waitForActive: true, queryClient });
+
+        setStatusState("CONFIRMED");
         toast.success("Pagamento confirmado com sucesso! Seu plano está ativo.");
       } else if (data?.status === "OVERDUE" || data?.status === "REFUNDED") {
         setStatusState("EXPIRED");
