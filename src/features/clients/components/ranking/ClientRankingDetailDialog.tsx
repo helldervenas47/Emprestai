@@ -286,8 +286,11 @@ export function ClientRankingDetailDialog({
         style={{ padding: 0 }}
         className="fixed inset-0 left-0 top-0 translate-x-0 translate-y-0 w-screen h-[100dvh] max-w-none max-h-none sm:max-w-none sm:max-h-none rounded-none sm:rounded-none border-none p-0 overflow-hidden flex flex-col z-50 bg-background duration-200"
       >
-        {/* Header com avatar e score */}
-        <DialogHeader className="p-4 sm:p-6 bg-muted/30 border-b border-border/60 shrink-0">
+        {/* Header com avatar e score - Seguro para Notch / Safe Area no PWA Mobile e Desktop */}
+        <DialogHeader
+          className="px-4 pb-3 sm:px-6 sm:pb-4 sm:pt-6 bg-background/95 backdrop-blur border-b border-border/60 shrink-0 sticky top-0 z-30"
+          style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.875rem)" }}
+        >
           <div className="max-w-5xl mx-auto w-full">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -305,8 +308,8 @@ export function ClientRankingDetailDialog({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-                <div className="text-right">
+              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                <div className="text-right hidden xs:block">
                   <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground block">Posição</span>
                   <span className="text-base sm:text-lg font-extrabold text-foreground flex items-center justify-end gap-1">
                     <Trophy className="h-4 w-4 text-amber-500" />
@@ -314,14 +317,15 @@ export function ClientRankingDetailDialog({
                   </span>
                 </div>
                 <DialogClose asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/80 ml-1"
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    aria-label="Fechar detalhes do cliente"
+                    className="h-10 w-10 sm:h-9 sm:w-9 rounded-2xl sm:rounded-full bg-muted/70 hover:bg-muted text-foreground/80 hover:text-foreground border border-border/60 shadow-sm flex items-center justify-center transition-all active:scale-95 shrink-0 ml-1 cursor-pointer"
                   >
                     <X className="h-5 w-5" />
                     <span className="sr-only">Fechar</span>
-                  </Button>
+                  </button>
                 </DialogClose>
               </div>
             </div>
@@ -402,7 +406,10 @@ export function ClientRankingDetailDialog({
         </div>
 
         {/* Conteúdo da Aba Ativa */}
-        <div className="p-4 sm:p-6 md:p-8 overflow-y-auto flex-1">
+        <div
+          className="p-4 sm:p-6 md:p-8 overflow-y-auto flex-1 overscroll-contain"
+          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 3rem)" }}
+        >
           <div className="max-w-5xl mx-auto w-full space-y-4">
             {/* ================= ABA 1: VISÃO GERAL ================= */}
             {activeTab === "overview" && (
