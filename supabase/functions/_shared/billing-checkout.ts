@@ -78,6 +78,13 @@ export async function handleCheckout(req: Request, recurring = false) {
           } catch { /* noop */ }
         }
 
+        if (!cleanCpf) {
+          return billingJson({
+            error: "cpf_required",
+            message: "Para gerar a cobrança PIX, informe seu CPF ou CNPJ em Configurações > Perfil.",
+          }, 400);
+        }
+
         const customerRow = await admin.from("billing_customers").select("customer_id").eq("user_id", user.id).eq("environment", environment).maybeSingle();
         if (customerRow.error) throw new Error("customer_lookup_failed");
         let customerId = customerRow.data?.customer_id;
@@ -135,6 +142,21 @@ export async function handleCheckout(req: Request, recurring = false) {
           if (!customerId) throw new Error("invalid_customer_response");
           const saved = await admin.from("billing_customers").upsert({ user_id: user.id, environment, customer_id: customerId });
           if (saved.error) throw new Error("customer_save_failed");
+        }
+
+        // Garante que o cadastro do cliente no Asaas contenha o CPF/CNPJ preenchido
+        if (customerId && cleanCpf) {
+          try {
+            await asaasFetch(`/customers/${encodeURIComponent(customerId)}`, {
+              method: "POST",
+              body: JSON.stringify({
+                cpfCnpj: cleanCpf,
+                name: profile.data?.display_name || user.email,
+              }),
+            });
+          } catch (updateErr) {
+            console.warn("[asaas-checkout] Aviso ao atualizar dados do cliente no Asaas:", updateErr);
+          }
         }
 
         const linked = await admin.from("billing_orders").update({ customer_id: customerId }).eq("id", order.id);
