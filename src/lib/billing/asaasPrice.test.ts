@@ -18,7 +18,8 @@ describe('gateway input validation',()=>{
   vi.stubGlobal('Deno',{env:{get:(key:string)=>values[key]}});
   expect(()=>billingConfig()).toThrow('billing_environment_url_mismatch');
   values.ASAAS_ENVIRONMENT='sandbox';
-  expect(billingConfig().environment).toBe('sandbox');
+  expect(()=>billingConfig()).toThrow('billing_environment_must_be_live');
+  values.ASAAS_ENVIRONMENT='live';
   values.ASAAS_BASE_URL='https://untrusted.example/v3';
   expect(()=>billingConfig()).toThrow();
  });

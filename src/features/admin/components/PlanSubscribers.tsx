@@ -82,6 +82,7 @@ export function PlanSubscribers() {
     const { data: subs, error } = await supabase
       .from("subscriptions")
       .select("id, user_id, product_id, price_id, status, environment, current_period_start, current_period_end, cancel_at_period_end, created_at, paddle_customer_id")
+      .eq("environment", "live")
       .neq("product_id", "free_plan")
       .order("created_at", { ascending: false });
 
@@ -94,7 +95,7 @@ export function PlanSubscribers() {
     // Filter out admin-created sub-users
     const filteredSubs = subs.filter((s) => !ownedUserIds.has(s.user_id));
 
-    // Deduplicate: keep one entry per user (prefer "live" over "sandbox")
+    // Keep one current live entry per user.
     const userMap = new Map<string, typeof filteredSubs[0]>();
     for (const s of filteredSubs) {
       const existing = userMap.get(s.user_id);
@@ -104,7 +105,7 @@ export function PlanSubscribers() {
     }
     const deduped = Array.from(userMap.values());
 
-    const { data: profiles } = await supabase.from("profiles").select("user_id, display_name, trial_plan_name, trial_started_at");
+    const { data: profiles } = await supabase.from("profiles").select("user_id, display_name, trial_plan_name, trial_started_at, trial_days_override");
     const profileMap = new Map((profiles || []).map((p) => [p.user_id, p]));
 
     const mapped: Subscriber[] = [];
@@ -136,7 +137,8 @@ export function PlanSubscribers() {
     if (profiles) {
       for (const p of profiles) {
         if (p.trial_plan_name && p.trial_started_at && !userMap.has(p.user_id) && !ownedUserIds.has(p.user_id)) {
-          const trialEnd = new Date(new Date(p.trial_started_at).getTime() + 7 * 86400000).toISOString();
+          const trialDays = p.trial_days_override ?? 7;
+          const trialEnd = new Date(new Date(p.trial_started_at).getTime() + trialDays * 86400000).toISOString();
           let status = "trialing";
           if (trialEnd <= new Date().toISOString()) status = "expired";
           

@@ -2,11 +2,11 @@ export type BillingEnvironment = "live" | "sandbox";
 export function billingConfig() {
   const configured = Deno.env.get("ASAAS_ENVIRONMENT") ?? Deno.env.get("APP_ENVIRONMENT") ?? "live";
   const explicit = configured === "production" ? "live" : configured;
-  if (!["live", "sandbox"].includes(explicit)) throw new Error("invalid_billing_environment");
-  const environment = explicit as BillingEnvironment;
-  const baseUrl = (Deno.env.get("ASAAS_BASE_URL") ?? (environment === "sandbox" ? "https://api-sandbox.asaas.com/v3" : "https://api.asaas.com/v3")).replace(/\/$/, "");
+  if (explicit !== "live") throw new Error("billing_environment_must_be_live");
+  const environment: BillingEnvironment = "live";
+  const baseUrl = (Deno.env.get("ASAAS_BASE_URL") ?? "https://api.asaas.com/v3").replace(/\/$/, "");
   const url = new URL(baseUrl);
-  const hosts = environment === "sandbox" ? ["api-sandbox.asaas.com", "sandbox.asaas.com"] : ["api.asaas.com"];
+  const hosts = ["api.asaas.com"];
   if (url.protocol !== "https:" || !hosts.includes(url.hostname)) throw new Error("billing_environment_url_mismatch");
   const apiKey = Deno.env.get("ASAAS_API_KEY");
   if (!apiKey) throw new Error("missing_asaas_api_key");

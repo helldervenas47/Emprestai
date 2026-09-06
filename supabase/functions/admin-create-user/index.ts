@@ -125,6 +125,7 @@ Deno.serve(async (req) => {
     }
 
     const newUserId = userData.user.id;
+    let inheritedProductId = "free_plan";
 
     // Upsert profile with username
     await adminClient.from("profiles").upsert(
@@ -161,14 +162,7 @@ Deno.serve(async (req) => {
         owner_id: caller.id,
       });
 
-      // Sincroniza plano do admin para o membro da equipe
-      const { data: adminSubSandbox } = await adminClient
-        .from("subscriptions")
-        .select("product_id, price_id")
-        .eq("user_id", caller.id)
-        .eq("environment", "sandbox")
-        .maybeSingle();
-
+      // Sincroniza somente o plano live do titular para o membro da equipe.
       const { data: adminSubLive } = await adminClient
         .from("subscriptions")
         .select("product_id, price_id")
@@ -176,14 +170,9 @@ Deno.serve(async (req) => {
         .eq("environment", "live")
         .maybeSingle();
 
-      const adminProductId = adminSubSandbox?.product_id || adminSubLive?.product_id || "free_plan";
-      const adminPriceId = adminSubSandbox?.price_id || adminSubLive?.price_id || "free";
-
-      await adminClient
-        .from("subscriptions")
-        .update({ product_id: adminProductId, price_id: adminPriceId })
-        .eq("user_id", newUserId)
-        .eq("environment", "sandbox");
+      const adminProductId = adminSubLive?.product_id || "free_plan";
+      const adminPriceId = adminSubLive?.price_id || "free";
+      inheritedProductId = adminProductId;
 
       await adminClient
         .from("subscriptions")
@@ -199,7 +188,7 @@ Deno.serve(async (req) => {
       profissional_plan: "Profissional",
       empresarial_plan: "Empresarial",
     };
-    const planName = planNameMap[adminProductId];
+    const planName = planNameMap[inheritedProductId];
     if (planName) {
       const { data: plan } = await adminClient
         .from("plans")
@@ -217,7 +206,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ user: newUser.user }), {
+    return new Response(JSON.stringify({ user: userData.user }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

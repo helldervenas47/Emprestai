@@ -24,6 +24,7 @@ import { assertWritable } from "@/lib/readOnlyState";
 import { computeInstallmentInterest, allocateInterestByPayment, allocatePartialProrata, ALLOCATION_VERSION_REMAINING_PRORATA } from "@/features/financial/lib/interestAllocation";
 import { buildPaymentAllocationMetadata, withAllocation, lateFeeAllocationMetadata, interestCycleAllocationMetadata, amortizationAllocationMetadata } from "@/features/loans/lib/paymentAllocationMetadata";
 import { buildPaymentLedgerRows } from "@/features/loans/lib/paymentLedgerRows";
+import { BILLING_ENVIRONMENT } from "@/lib/billing/subscriptionState";
 
 async function resolveWalletKind(paymentMethodId: string | null): Promise<"account" | "cash"> {
   if (!paymentMethodId) return "account";
@@ -388,13 +389,11 @@ export function useLoans() {
     if (!user || !dataOwnerId) return null;
 
     // Check loan limit based on subscription plan
-    const clientToken = import.meta.env.VITE_PAYMENTS_CLIENT_TOKEN;
-    const subEnv = clientToken?.startsWith("test_") ? "sandbox" : "live";
     const { data: sub } = await supabase
       .from("subscriptions")
       .select("product_id, status")
       .eq("user_id", user.id)
-      .eq("environment", subEnv)
+      .eq("environment", BILLING_ENVIRONMENT)
       .maybeSingle();
 
     const PLAN_MAX_LOANS: Record<string, number> = {

@@ -114,11 +114,10 @@ export function useAdminSubscriptions() {
     try {
       const res = await invoke(payload);
       toast.success("Alteração aplicada");
-      // Invalida cache de assinatura do usuário afetado (ambos ambientes)
+      // Billing production is authoritative in the live environment.
       const uid = payload.target_user_id as string | undefined;
       if (uid) {
         invalidateSharedResource(`subscription:${uid}:live`);
-        invalidateSharedResource(`subscription:${uid}:sandbox`);
       }
       window.dispatchEvent(new Event("subscription:changed"));
       await fetchRows();

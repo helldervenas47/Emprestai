@@ -136,7 +136,7 @@ function ok(data: unknown) {
 }
 
 function envName(): string {
-  return Deno.env.get("ASAAS_ENVIRONMENT") === "sandbox" ? "sandbox" : "live";
+  return "live";
 }
 
 interface Body {

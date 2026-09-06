@@ -1,5 +1,5 @@
 export type BillingEnvironment = "live" | "sandbox";
-export const BILLING_ENVIRONMENT: BillingEnvironment = import.meta.env.VITE_ASAAS_ENVIRONMENT === "sandbox" ? "sandbox" : "live";
+export const BILLING_ENVIRONMENT: BillingEnvironment = "live";
 
 export function productIdFromPlanName(name: string): string {
   const normalized = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
