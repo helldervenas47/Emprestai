@@ -27,6 +27,7 @@ import {
 import { useAsaasCheckout } from "@/hooks/useAsaasCheckout";
 import { useAuth } from "@/hooks/useAuth";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
+import { PixPaymentView } from "@/components/billing/PixPaymentView";
 import logoIcon from "@/assets/logo-icon.png";
 
 interface Plan {
@@ -358,108 +359,21 @@ const Pricing = () => {
       <section id="planos" className="bg-muted/30 border-y border-border/20 scroll-mt-16">
         <div className="max-w-7xl mx-auto px-6 py-20">
           {checkoutData ? (
-            <div className="max-w-md mx-auto">
-              <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-primary/10 text-primary mb-4">
-                  <QrCode className="h-6 w-6" />
-                </div>
-                <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-                  Pagamento via PIX
-                </h2>
-                <p className="text-muted-foreground">
-                  Escaneie o QR Code no app do seu banco ou copie o código abaixo.
-                </p>
-              </div>
-
-              <Card no3d className="overflow-hidden">
-                <CardContent className="p-6 flex flex-col gap-6">
-                  {checkoutData.pix?.encodedImage ? (
-                    <div className="flex justify-center">
-                      <img
-                        src={`data:image/png;base64,${checkoutData.pix.encodedImage}`}
-                        alt="QR Code PIX"
-                        className="w-48 h-48 sm:w-64 sm:h-64 max-w-full max-h-64 object-contain rounded-lg border border-border/40 bg-white shadow-xs"
-                      />
-                    </div>
-                  ) : (
-                    <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
-                      QR Code não disponível. Copie o código abaixo.
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <Label htmlFor="pix-payload">Código PIX Copia e Cola</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="pix-payload"
-                        readOnly
-                        value={checkoutData.pix?.payload || "Código não disponível"}
-                        className="font-mono text-xs truncate"
-                      />
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={handleCopyPayload}
-                        disabled={!checkoutData.pix?.payload}
-                        aria-label="Copiar código PIX"
-                      >
-                        {copied ? (
-                          <CheckCircle2 className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                    {copied && (
-                      <p className="text-xs text-green-500">Código copiado!</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Button
-                      className="w-full"
-                      onClick={handlePaymentDone}
-                      disabled={checkingPayment}
-                    >
-                      {checkingPayment ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          Verificando...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          Já realizei o pagamento
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="w-full"
-                      onClick={handleBackToPlans}
-                    >
-                      <ArrowLeft className="h-4 w-4 mr-2" />
-                      Voltar aos planos
-                    </Button>
-                  </div>
-
-                  {checkoutData.invoiceUrl && (
-                    <p className="text-center text-xs text-muted-foreground">
-                      Também é possível pagar pelo{" "}
-                      <a
-                        href={checkoutData.invoiceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="underline hover:text-foreground"
-                      >
-                        link da cobrança
-                      </a>
-                      .
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            <PixPaymentView
+              checkoutData={checkoutData}
+              planName={checkoutPlan || "Plano Selecionado"}
+              cycleLabel={CYCLE_LABEL[cycle]}
+              onBackToPlans={handleBackToPlans}
+              onGenerateNewPix={() => {
+                const targetPlan = plans.find((p) => p.name === checkoutPlan);
+                if (targetPlan) {
+                  reset();
+                  mutate({ planId: targetPlan.id, cycle });
+                } else {
+                  handleBackToPlans();
+                }
+              }}
+            />
           ) : (
             <>
               <h2 className="text-2xl md:text-4xl font-bold text-foreground text-center mb-4">

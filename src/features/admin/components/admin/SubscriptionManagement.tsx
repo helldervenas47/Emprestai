@@ -187,6 +187,8 @@ function LiberarButton({ actions }: { actions: ReturnType<typeof getActions> }) 
   );
 }
 
+import { BillingHealthCard } from "./BillingHealthCard";
+
 export function SubscriptionManagement() {
   const { page, setPage, total, rows, plans, loading, search, setSearch, statusFilter, setStatusFilter, fetchRows, runAction, fetchAudit } = useAdminSubscriptions();
   const [dialog, setDialog] = useState<{ kind: ActionKind; user: AdminSubRow } | null>(null);
@@ -199,31 +201,33 @@ export function SubscriptionManagement() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <ShieldAlert className="h-4 w-4 text-primary" /> Assinaturas (admin)
-            </CardTitle>
-            <CardDescription>
-              Libere planos, controle testes e gerencie o ciclo de vida das assinaturas manualmente. Todas as ações são auditadas.
-            </CardDescription>
+    <div className="space-y-4">
+      <BillingHealthCard />
+      <Card className="border-border/60">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                <ShieldAlert className="h-5 w-5 text-primary" /> Assinaturas e Acesso (Admin)
+              </CardTitle>
+              <CardDescription>
+                Libere planos, controle testes e gerencie o ciclo de vida das assinaturas manualmente. Todas as ações são auditadas.
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={fetchRows} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              <span className="ml-1.5">Atualizar</span>
+            </Button>
           </div>
-          <Button variant="outline" size="sm" onClick={fetchRows} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            <span className="ml-1.5">Atualizar</span>
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Input
-            placeholder="Buscar por nome ou e-mail"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="sm:max-w-sm"
-          />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              placeholder="Buscar por nome ou e-mail"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="sm:max-w-sm"
+            />
           <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}>
             <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
@@ -406,7 +410,8 @@ export function SubscriptionManagement() {
           </DialogContent>
         </Dialog>
       )}
-    </Card>
+      </Card>
+    </div>
   );
 }
 

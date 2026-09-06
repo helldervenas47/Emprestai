@@ -83,6 +83,7 @@ interface Props {
   installmentSchedules: import("@/types/loan").InstallmentSchedule[];
   onDelete: (id: string) => void;
   onUpdate: (id: string, data: Partial<Omit<Client, "id" | "createdAt">>) => void;
+  onNewClient?: () => void;
 }
 
 type StatusFilter = ClientStatusFilter;
@@ -160,7 +161,7 @@ function calculateCreditScore(
   };
 }
 
-export function ClientList({ clients, loans, payments, installmentSchedules, onDelete, onUpdate, readOnly = false }: Props & { readOnly?: boolean }) {
+export function ClientList({ clients, loans, payments, installmentSchedules, onDelete, onUpdate, onNewClient, readOnly = false }: Props & { readOnly?: boolean }) {
   const [search, setSearch] = useState("");
   // P1 perf: filtragem/ordenação usam o valor "adiado" — teclado permanece 60fps
   // mesmo com centenas de clientes; React agenda o filtro em transição.
@@ -415,10 +416,32 @@ export function ClientList({ clients, loans, payments, installmentSchedules, onD
       </div>
 
       {filtered.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Users className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
-            <p className="text-muted-foreground">{clients.length === 0 ? "Nenhum cliente cadastrado" : "Nenhum resultado encontrado"}</p>
+        <Card className="border-dashed border-border/80 bg-muted/10">
+          <CardContent className="py-12 px-4 text-center space-y-3">
+            <div className="mx-auto w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
+              <Users className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <p className="font-semibold text-foreground text-base">
+                {clients.length === 0 ? "Nenhum cliente cadastrado ainda" : "Nenhum cliente encontrado"}
+              </p>
+              <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto">
+                {clients.length === 0
+                  ? "Cadastre seu primeiro cliente para registrar empréstimos, controlar limites e emitir cobranças."
+                  : "Nenhum tomador corresponde aos filtros ou ao termo pesquisado."}
+              </p>
+            </div>
+            {clients.length === 0 && onNewClient && (
+              <div className="pt-2">
+                <Button
+                  onClick={onNewClient}
+                  className="rounded-xl font-semibold gap-1.5 h-11 px-5 shadow-sm"
+                >
+                  <Users className="h-4 w-4" />
+                  Cadastrar Primeiro Cliente
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : (

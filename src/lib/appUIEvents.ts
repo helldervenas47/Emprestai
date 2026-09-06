@@ -15,7 +15,13 @@ export type AppUIEvent =
   | { type: "PRODUCTS_SUBTAB_CHANGE"; subTab: string }
   | { type: "OPEN_VEHICLE_HISTORY"; vehicleId?: string }
   | { type: "OPEN_STOCK_ADJUST" }
-  | { type: "METAS_RELOAD" };
+  | { type: "METAS_RELOAD" }
+  | { type: "ONBOARDING_STARTED" }
+  | { type: "SETUP_COMPLETED" }
+  | { type: "FIRST_CLIENT_CREATED"; clientId?: string }
+  | { type: "FIRST_LOAN_CREATED"; loanId?: string }
+  | { type: "ONBOARDING_COMPLETED" }
+  | { type: "ONBOARDING_SKIPPED" };
 
 type EventName = AppUIEvent["type"];
 
@@ -28,6 +34,12 @@ export const APP_UI_EVENT_NAMES: Record<EventName, string> = {
   OPEN_VEHICLE_HISTORY: "open-vehicle-history",
   OPEN_STOCK_ADJUST: "open-stock-adjust",
   METAS_RELOAD: "metas:reload",
+  ONBOARDING_STARTED: "app:onboarding-started",
+  SETUP_COMPLETED: "app:setup-completed",
+  FIRST_CLIENT_CREATED: "app:first-client-created",
+  FIRST_LOAN_CREATED: "app:first-loan-created",
+  ONBOARDING_COMPLETED: "app:onboarding-completed",
+  ONBOARDING_SKIPPED: "app:onboarding-skipped",
 };
 
 type Payload<T extends EventName> = Extract<AppUIEvent, { type: T }>;
@@ -43,6 +55,10 @@ function detailFor(event: AppUIEvent): unknown {
       return event.subTab;
     case "OPEN_VEHICLE_HISTORY":
       return event.vehicleId ? { vehicleId: event.vehicleId } : undefined;
+    case "FIRST_CLIENT_CREATED":
+      return event.clientId ? { clientId: event.clientId } : undefined;
+    case "FIRST_LOAN_CREATED":
+      return event.loanId ? { loanId: event.loanId } : undefined;
     default:
       return undefined;
   }
@@ -80,6 +96,16 @@ export function onAppUIEvent<T extends EventName>(
       case "OPEN_VEHICLE_HISTORY": {
         const d = (detail ?? {}) as Record<string, unknown>;
         handler({ type, vehicleId: typeof d.vehicleId === "string" ? d.vehicleId : undefined } as Payload<T>);
+        return;
+      }
+      case "FIRST_CLIENT_CREATED": {
+        const d = (detail ?? {}) as Record<string, unknown>;
+        handler({ type, clientId: typeof d.clientId === "string" ? d.clientId : undefined } as Payload<T>);
+        return;
+      }
+      case "FIRST_LOAN_CREATED": {
+        const d = (detail ?? {}) as Record<string, unknown>;
+        handler({ type, loanId: typeof d.loanId === "string" ? d.loanId : undefined } as Payload<T>);
         return;
       }
       default:

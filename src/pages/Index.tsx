@@ -273,13 +273,10 @@ import { SpeedDialFab, type SpeedDialAction } from "@/components/navigation/Spee
 import { revealDeepLinkTarget } from "@/lib/deepLink";
 import { onAppUIEvent } from "@/lib/appUIEvents";
 
-// Static imports for tiny, session-critical UI (banners/gates + DashboardCards).
-// Bundle-analysis (gzip): SubscriptionBanner 0.5 kB, SubscriptionGate 0.8 kB,
-// TrialBanner 0.6 kB, DashboardCards 2.2 kB — negligible for the initial JS.
+// Static imports for tiny, session-critical UI (banners/gates).
 import { SubscriptionBanner } from "@/components/SubscriptionBanner";
 import { SubscriptionGate } from "@/components/SubscriptionGate";
 import { TrialBanner } from "@/features/admin/components/upgrade/TrialBanner";
-import { DashboardCards } from "@/features/dashboard/components/DashboardCards";
 import { PlanExpirationInfo } from "@/components/PlanExpirationInfo";
 
 // Lazy load heavy components
@@ -373,6 +370,8 @@ const Settings = lazy(() => import("@/components/Settings").then((m) => ({ defau
 const SystemSettings = lazy(() => import("@/components/SystemSettings").then((m) => ({ default: m.SystemSettings })));
 const SalaryTab = lazy(() => import("@/features/payroll/components/salary/SalaryTab").then((m) => ({ default: m.SalaryTab })));
 const BoletosTab = lazy(() => import("@/features/boletos/components/boletos/BoletosTab").then((m) => ({ default: m.BoletosTab })));
+import { GettingStartedChecklist } from "@/components/onboarding/GettingStartedChecklist";
+import { QuickOnboardingWizard } from "@/components/onboarding/QuickOnboardingWizard";
 
 // Direct import for the constant used at render time
 import { isVehicleExpenseForVehicles } from "@/features/vehicles/components/VehicleExpenseForm";
@@ -1056,6 +1055,21 @@ const Index = () => {
   const nonVehicleExpenses = expenses.filter((e) => !isVehicleExpenseForVehicles(e));
   const businessExpenses = nonVehicleExpenses.filter((e) => (e.scope ?? "business") === "business");
   const personalExpenses = nonVehicleExpenses.filter((e) => e.scope === "personal");
+  const [showOnboardingWizard, setShowOnboardingWizard] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("onboarding") === "true") {
+        params.delete("onboarding");
+        const remaining = params.toString();
+        const newUrl = window.location.pathname + (remaining ? `?${remaining}` : "") + window.location.hash;
+        window.history.replaceState(window.history.state, "", newUrl);
+        return true;
+      }
+    } catch {
+      /* noop */
+    }
+    return false;
+  });
   const [showLoanForm, setShowLoanForm] = useState(false);
   const [showLoanSimulator, setShowLoanSimulator] = useState(false);
   const [loanFormPrefill, setLoanFormPrefill] = useState<{
@@ -1484,6 +1498,15 @@ const Index = () => {
               />
             ) : (
               <>
+                {/* Checklist de Primeiros Passos Pós-Ativação */}
+                <GettingStartedChecklist
+                  clientsCount={clients.length}
+                  loansCount={loans.length}
+                  onOpenWizard={() => setShowOnboardingWizard(true)}
+                  onOpenNewClient={() => setShowClientForm(true)}
+                  onOpenNewLoan={() => setShowLoanForm(true)}
+                />
+
                 {tab === "overview" && (
                   <SubscriptionGate requiredTier={1} featureName="Dashboard">
                     <DashboardOverview
@@ -1498,6 +1521,14 @@ const Index = () => {
                       onDeletePayment={deletePayment}
                       onDeleteSale={deleteSale}
                       onDeleteLoan={deleteLoan}
+                      onPayment={addPayment}
+                      onPartialPayment={addPartialPayment}
+                      onFullPayment={payOffLoan}
+                      onInterestPayment={addInterestOnlyPayment}
+                      onAmortize={amortizeLoan}
+                      onNewLoan={() => setShowLoanForm(true)}
+                      onNewClient={() => setShowClientForm(true)}
+                      onNavigateToTab={(t) => setTab(t as any)}
                       readOnly={isReadOnly}
                     />
                   </SubscriptionGate>
@@ -1526,6 +1557,7 @@ const Index = () => {
                           clients={filteredClients}
                           onOpenClientHistory={openClientHistory}
                           onOpenSimulator={!isReadOnly ? () => setShowLoanSimulator(true) : undefined}
+                          onNewLoan={() => setShowLoanForm(true)}
                         />
                       </div>
                       {loanSubTab === "history" && (
@@ -1594,6 +1626,7 @@ const Index = () => {
                         installmentSchedules={filteredInstallments}
                         onDelete={deleteClient}
                         onUpdate={updateClient}
+                        onNewClient={() => setShowClientForm(true)}
                         readOnly={isReadOnly}
                       />
                     )}
@@ -2005,6 +2038,14 @@ const Index = () => {
             da aba — o que anteriormente causava o scroll voltar ao topo ao abrir
             um modal pela primeira vez na sessão. */}
         <LazyDialogBoundary>
+          {showOnboardingWizard && (
+            <QuickOnboardingWizard
+              open={showOnboardingWizard}
+              onOpenChange={setShowOnboardingWizard}
+              onAddClient={addClient}
+              onAddLoan={addLoan}
+            />
+          )}
           {showLoanForm && (
             <LoanForm
               onAdd={addLoan}

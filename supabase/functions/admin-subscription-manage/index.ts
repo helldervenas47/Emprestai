@@ -71,6 +71,46 @@ Deno.serve(async (req) => {
   }
 
   if (!body.target_user_id) return bad("target_user_id required");
+
+  // Se a ação for cancelamento e houver contrato recorrente ativo no Asaas, cancela no Asaas primeiro
+  if (body.action === "cancel") {
+    try {
+      const { data: sub } = await admin
+        .from("subscriptions")
+        .select("asaas_subscription_id")
+        .eq("user_id", body.target_user_id)
+        .eq("environment", env)
+        .maybeSingle();
+
+      const { data: contract } = await admin
+        .from("billing_contracts")
+        .select("subscription_id, order_id")
+        .eq("environment", env)
+        .order("checked_at", { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+
+      const asaasSubId = sub?.asaas_subscription_id || contract?.subscription_id;
+
+      if (asaasSubId && !asaasSubId.startsWith("legacy_") && !asaasSubId.startsWith("free_")) {
+        try {
+          const { asaasFetch } = await import("../_shared/asaas.ts");
+          await asaasFetch(`/subscriptions/${encodeURIComponent(asaasSubId)}`, {
+            method: "DELETE",
+          });
+        } catch (asaasErr: any) {
+          // Se for 404 (já cancelada ou inexistente), considera idempotente e prossegue
+          if (!asaasErr.message?.includes("404")) {
+            console.error("[admin-subscription-manage] Erro ao cancelar no Asaas:", asaasErr);
+            return bad(`Falha ao cancelar contrato no Asaas: ${asaasErr.message}`, 502);
+          }
+        }
+      }
+    } catch (e: any) {
+      console.error("[admin-subscription-manage] Erro na verificação do contrato Asaas:", e);
+    }
+  }
+
   const { data, error } = await admin.rpc("billing_admin_action", {
     _admin: adminUserId, _env: env, _body: body,
   });

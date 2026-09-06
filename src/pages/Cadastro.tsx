@@ -456,9 +456,9 @@ const Cadastro = () => {
             />
             <Label htmlFor="acceptTerms" className="text-sm font-normal text-muted-foreground cursor-pointer leading-snug">
               Li e aceito os{" "}
-              <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">termos de uso</a>
+              <a href="/termos" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">termos de uso</a>
               {" "}e a{" "}
-              <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">política de privacidade</a>.
+              <a href="/privacidade" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">política de privacidade</a>.
             </Label>
           </div>
           <Button type="submit" className="w-full h-12 rounded-xl text-base font-semibold" disabled={loading || !acceptTerms || (!!inviteCode && !inviteState.valid)}>

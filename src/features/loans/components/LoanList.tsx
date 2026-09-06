@@ -82,6 +82,7 @@ interface Props {
   clients?: Client[];
   onOpenClientHistory?: () => void;
   onOpenSimulator?: () => void;
+  onNewLoan?: () => void;
 }
 
 import type { Category, EditForm } from "@/features/loans/components/list/types";
@@ -105,7 +106,7 @@ import { useLoanListController } from "@/features/loans/components/list/useLoanL
 import { ClientFolder } from "@/features/loans/components/list/ClientFolder";
 
 
-export function LoanList({ loans, payments, installmentSchedules, onPayment, onPartialPayment, onFullPayment, onInterestPayment, onAmortize, onRenegotiate, onUpdate, onDelete, onDeletePayment, onSaveSchedule, readOnly = false, initialCategory, initialView, clients = [], onOpenClientHistory, onOpenSimulator }: Props) {
+export function LoanList({ loans, payments, installmentSchedules, onPayment, onPartialPayment, onFullPayment, onInterestPayment, onAmortize, onRenegotiate, onUpdate, onDelete, onDeletePayment, onSaveSchedule, readOnly = false, initialCategory, initialView, clients = [], onOpenClientHistory, onOpenSimulator, onNewLoan }: Props) {
   const [isOverdueAnalysisOpen, setIsOverdueAnalysisOpen] = useState(false);
   const { mask } = useHideValues();
   const { renegotiations: allRenegotiations } = useLoanRenegotiations();
@@ -444,9 +445,34 @@ export function LoanList({ loans, payments, installmentSchedules, onPayment, onP
 
 
       {categorized.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="text-sm text-muted-foreground">Nenhum empréstimo encontrado nesta categoria</p>
+        <Card className="border-dashed border-border/80 bg-muted/10">
+          <CardContent className="py-12 px-4 text-center space-y-3">
+            <div className="mx-auto w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
+              <HandCoins className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <p className="font-semibold text-foreground text-base">
+                {loans.length === 0
+                  ? "Nenhum empréstimo cadastrado ainda"
+                  : "Nenhum empréstimo encontrado nesta categoria"}
+              </p>
+              <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto">
+                {loans.length === 0
+                  ? "Cadastre seu primeiro empréstimo para começar a acompanhar sua carteira, parcelas e rendimentos em tempo real."
+                  : "Tente ajustar os filtros ou a categoria selecionada para visualizar outros contratos."}
+              </p>
+            </div>
+            {loans.length === 0 && onNewLoan && (
+              <div className="pt-2">
+                <Button
+                  onClick={onNewLoan}
+                  className="rounded-xl font-semibold gap-1.5 h-11 px-5 shadow-sm"
+                >
+                  <HandCoins className="h-4 w-4" />
+                  Criar Primeiro Empréstimo
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : (
