@@ -59,16 +59,59 @@ export async function handleCheckout(req: Request, recurring = false) {
       let customerId=customerRow.data?.customer_id;
       if (!customerId) {
         const reference=`account:${user.id}:${environment}`;
-        const found=await asaasFetch(`/customers?externalReference=${encodeURIComponent(reference)}`);
-        if (found.data?.length>1) throw new Error("duplicate_customers_review_required");
-        const customer=found.data?.[0] ?? await asaasFetch("/customers",{method:"POST",body:JSON.stringify({
-          name:profile.data.display_name || user.email,email:user.email,
-          cpfCnpj:profile.data.cpf_cnpj?.replace(/\D/g,""),externalReference:reference,notificationDisabled:true,
-        })});
-        customerId=customer.id;
+        const cleanCpf = profile.data?.cpf_cnpj?.replace(/\D/g,"") || "";
+
+        // 1. Busca por externalReference do usuário
+        const found = await asaasFetch(`/customers?externalReference=${encodeURIComponent(reference)}`);
+        if (found.data?.length > 1) throw new Error("duplicate_customers_review_required");
+        let customer = found.data?.[0];
+
+        // 2. Se não encontrou por externalReference e tem CPF, busca cliente existente por CPF no Asaas
+        if (!customer && cleanCpf) {
+          try {
+            const foundByCpf = await asaasFetch(`/customers?cpfCnpj=${encodeURIComponent(cleanCpf)}`);
+            if (foundByCpf.data?.length >= 1) {
+              customer = foundByCpf.data[0];
+            }
+          } catch {
+            // Continua para criação
+          }
+        }
+
+        // 3. Se não encontrou, cria novo cliente no Asaas (com fallback se já existir)
+        if (!customer) {
+          try {
+            customer = await asaasFetch("/customers", {
+              method: "POST",
+              body: JSON.stringify({
+                name: profile.data.display_name || user.email,
+                email: user.email,
+                cpfCnpj: cleanCpf || undefined,
+                externalReference: reference,
+                notificationDisabled: true,
+              }),
+            });
+          } catch (createErr) {
+            if (cleanCpf) {
+              const retryCpf = await asaasFetch(`/customers?cpfCnpj=${encodeURIComponent(cleanCpf)}`).catch(() => null);
+              if (retryCpf?.data?.[0]?.id) {
+                customer = retryCpf.data[0];
+              }
+            }
+            if (!customer && user.email) {
+              const retryEmail = await asaasFetch(`/customers?email=${encodeURIComponent(user.email)}`).catch(() => null);
+              if (retryEmail?.data?.[0]?.id) {
+                customer = retryEmail.data[0];
+              }
+            }
+            if (!customer) throw createErr;
+          }
+        }
+
+        customerId = customer?.id;
         if (!customerId) throw new Error("invalid_customer_response");
-        const saved=await admin.from("billing_customers").upsert({user_id:user.id,environment,customer_id:customerId});
-        if(saved.error) throw new Error("customer_save_failed");
+        const saved = await admin.from("billing_customers").upsert({ user_id: user.id, environment, customer_id: customerId });
+        if (saved.error) throw new Error("customer_save_failed");
       }
       const linked=await admin.from("billing_orders").update({customer_id:customerId}).eq("id",order.id);
       if(linked.error) throw new Error("order_save_failed");
