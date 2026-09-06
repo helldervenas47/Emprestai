@@ -18,13 +18,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Fallback pro dummy secret do Cloudflare SOMENTE quando o request NÃO vem
-// do domínio de produção (previews Vercel). Em produção, apenas o
-// TURNSTILE_SECRET real é aceito — Cloudflare não reclama.
-// Domínio(s) de produção via env TURNSTILE_PROD_ORIGINS (CSV) ou default abaixo.
-const TURNSTILE_DUMMY_SECRET = "__PULSE_REDACTED_CREDENTIAL_ASSIGNMENT__";
-const DEFAULT_PROD_ORIGINS = ["https://emprestaiii.vercel.app", "https://emprestaii.com.br", "https://www.emprestaii.com.br"];
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -74,18 +67,7 @@ Deno.serve(async (req) => {
       );
       return await verify.json().catch(() => ({ success: false }));
     };
-    let cfResult = await trySecret(TURNSTILE_SECRET);
-    if (!cfResult?.success) {
-      // Só tenta dummy se o request NÃO vem de um domínio de produção.
-      const prodOrigins = (Deno.env.get("TURNSTILE_PROD_ORIGINS")?.split(",").map((s) => s.trim()).filter(Boolean)) ?? DEFAULT_PROD_ORIGINS;
-      const origin = req.headers.get("origin") ?? "";
-      const referer = req.headers.get("referer") ?? "";
-      const isProd = prodOrigins.some((o) => origin === o || referer.startsWith(o + "/") || referer === o);
-      if (!isProd) {
-        console.log("[turnstile] retrying with dummy secret for non-prod origin", { origin });
-        cfResult = await trySecret(TURNSTILE_DUMMY_SECRET);
-      }
-    }
+    const cfResult = await trySecret(TURNSTILE_SECRET);
     if (!cfResult?.success) {
       console.warn("[turnstile] siteverify failed", {
         codes: cfResult?.["error-codes"],

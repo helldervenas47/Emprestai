@@ -1,8 +1,10 @@
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+import { requireCronOrAdmin, cronCors } from "../_shared/require-cron-or-admin.ts";
 
 const corsHeaders = {
+  ...cronCors,
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
 const EXTERNAL_PROJECT_REF = Deno.env.get("EXTERNAL_PROJECT_REF") ?? "syyxnqzxqabeuqbuptkh";
@@ -43,17 +45,6 @@ export function getExternalAdmin(): SupabaseClient {
   return createClient(getExternalSupabaseUrl(), getExternalServiceRoleKey(), {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-}
-
-function decodeJwtPayload(token: string): any {
-  try {
-    const part = token.split(".")[1];
-    if (!part) return null;
-    const norm = part.replace(/-/g, "+").replace(/_/g, "/");
-    return JSON.parse(atob(norm.padEnd(Math.ceil(norm.length / 4) * 4, "=")));
-  } catch {
-    return null;
-  }
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -722,7 +713,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const authHeader = req.headers.get("Authorization") ?? "";
     const token = authHeader.replace(/^Bearer\s+/i, "");
 
-    // 1. Chamada manual autenticada
+    // 1. Chamada manual sob demanda autenticada pelo usuário
     if (token && req.method === "POST") {
       let userId: string | null = null;
       try {
@@ -731,14 +722,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
           global: { headers: { Authorization: `Bearer ${token}` } },
         });
-        const { data: { user } } = await userClient.auth.getUser();
-        if (user?.id) userId = user.id;
+        const { data: { user }, error: userErr } = await userClient.auth.getUser();
+        if (!userErr && user?.id) userId = user.id;
       } catch (_) {}
-
-      if (!userId) {
-        const payload = decodeJwtPayload(token);
-        if (payload?.sub) userId = payload.sub;
-      }
 
       if (userId) {
         let resolvedOwnerId = userId;
@@ -774,7 +760,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
     }
 
-    // 2. Modo Cron agendado
+    // 2. Modo Cron Agendado: exige autenticação rígida de Cron ou Admin
+    const cronAuth = await requireCronOrAdmin(req);
+    if (cronAuth instanceof Response) return cronAuth;
     let prefs: any[] = [];
     try {
       const { data } = await admin

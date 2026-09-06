@@ -20,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { NativeDatePicker } from "@/components/ui/native-date-picker";
 import { calculateInstallment, calculateTotalWithInterest } from "@/features/loans/hooks/useLoans";
 import { getInstallmentAmount, getOverdueAmount } from "@/features/loans/lib/loanInstallmentAmount";
+import { normalizeClientKey } from "@/features/loans/lib/clientRiskUtils";
 import { getLoanLateFees, getBaseRemainingAmount, getLoanReceivable } from "@/features/loans/lib/loanLateFees";
 import { cn } from "@/lib/utils";
 import {
@@ -1228,8 +1229,7 @@ function LoanRowView({
                       return `${d}/${m}/${y}`;
                     };
                     const currentDueIso = loan.dueDate;
-                    const rawOriginal = loan.originalDueDate || loan.dueDate;
-                    const originalDueIso = rawOriginal > currentDueIso ? currentDueIso : rawOriginal;
+                    const originalDueIso = currentDueIso;
                     const wasRenegotiated = !!loan.originalDueDate && loan.originalDueDate !== loan.dueDate && loan.originalDueDate <= loan.dueDate;
                     const freq = loan.interestType || "Mensal";
                     const nextDue = (() => {
@@ -1321,16 +1321,15 @@ function LoanRowView({
                           return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
                         };
                         const freq = loan.interestType || "Mensal";
-                        const rawBase = loan.originalDueDate || loan.dueDate;
-                        const baseIso = rawBase > loan.dueDate ? loan.dueDate : rawBase;
+                          const baseIso = loan.dueDate;
                         const interestPayments = allPayments
                           .filter((p) => p.loanId === loan.id && p.metadata?.kind !== "amortization")
                           .sort((a, b) => a.date.localeCompare(b.date));
                         const steps: { label: string; date: string; detail?: string; highlight?: boolean }[] = [];
                         steps.push({
-                          label: "Data base (vencimento original — âncora fixa)",
+                          label: "Data base (vencimento atual)",
                           date: fmtBR(baseIso),
-                          detail: `Frequência: ${freq}. Esta data nunca muda, mesmo após renegociações.`,
+                          detail: `Frequência: ${freq}. Novos ciclos partem do vencimento pendente atual.`,
                         });
                         let runningDue = baseIso;
                         interestPayments.forEach((p, idx) => {
@@ -1347,8 +1346,8 @@ function LoanRowView({
                           label: "Vencimento atual no sistema",
                           date: fmtBR(loan.dueDate),
                           detail: loan.originalDueDate && loan.originalDueDate !== loan.dueDate
-                            ? "⚠️ Renegociado — diferente da âncora."
-                            : "Alinhado com a âncora original.",
+                            ? "Renegociado — a data original é mantida apenas no histórico."
+                            : "Vencimento atual do ciclo.",
                         });
                         const todayIso = new Date().toISOString().split("T")[0];
                         let nextProj = addPeriod(baseIso, baseIso, freq);
@@ -1670,8 +1669,7 @@ function LoanRowView({
             const partialVal = interestPartialEnabled && isFinite(partialRaw) && partialRaw > 0 ? partialRaw : 0;
             const exceeds = interestPartialEnabled && partialVal > pending && pending > 0;
             const willClose = !interestPartialEnabled || (partialVal + 0.005 >= pending);
-            const rawAnchor = loan.originalDueDate || loan.dueDate;
-            const anchorRef = rawAnchor > loan.dueDate ? loan.dueDate : rawAnchor;
+            const anchorRef = loan.dueDate;
             const freq = loan.interestType || "Mensal";
             const advance = (d: Date) => {
               if (freq === "Semanal") d.setDate(d.getDate() + 7);

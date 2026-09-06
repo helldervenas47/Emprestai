@@ -25,6 +25,7 @@ function nowBrasiliaHM(): { date: string; h: number; m: number; key: string } {
 }
 
 import { sendReportsAsImage, getReportsLinkForUser } from "../_shared/reports-bot.ts";
+import { requireCronOrAdmin, cronCors } from "../_shared/require-cron-or-admin.ts";
 
 function safeTruncate(text: string, max = 3800) {
   return text.length > max ? text.slice(0, max) + "\n\n…(truncado)" : text;
@@ -141,6 +142,9 @@ Deno.serve(async (req) => {
     }
 
     // ---------- SCHEDULED MODE: cron every 5 min, check all enabled users ----------
+    const cronAuth = await requireCronOrAdmin(req);
+    if (cronAuth instanceof Response) return cronAuth;
+
     const { date: today, h, m } = nowBrasiliaHM();
     const nowMin = h * 60 + m;
 

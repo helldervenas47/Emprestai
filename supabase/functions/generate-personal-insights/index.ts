@@ -1,10 +1,11 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { getExternalAdmin, getExternalUserClient } from "../_shared/external-supabase.ts";
-
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { requireCronOrAdmin, cronCors } from "../_shared/require-cron-or-admin.ts";
 
 const corsHeaders = {
+  ...cronCors,
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
 function fmt(v: number): string {
@@ -277,7 +278,7 @@ Deno.serve(async (req) => {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
 
     const authHeader = req.headers.get("Authorization") || "";
-    const token = authHeader.replace("Bearer ", "");
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
     
     if (token) {
       // Validate token against the EXTERNAL Supabase where users are actually authenticated
@@ -292,8 +293,14 @@ Deno.serve(async (req) => {
         ownerId = (ownerRow as any)?.owner_id || userData.user.id;
       }
     }
-    if (!ownerId && body.user_id) {
-      ownerId = body.user_id;
+
+    // Se não for chamada de usuário autenticado, exige autorização de Cron ou Admin
+    if (!ownerId) {
+      const cronAuth = await requireCronOrAdmin(req);
+      if (cronAuth instanceof Response) return cronAuth;
+      if (body.user_id) {
+        ownerId = body.user_id;
+      }
     }
 
     if (!ownerId) {
@@ -301,6 +308,17 @@ Deno.serve(async (req) => {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Rate limiting para geração de insights por IA
+    const allowed = await checkRateLimit({
+      bucket: "generate-personal-insights",
+      key: ownerId,
+      max: 20,
+      windowSecs: 60,
+    });
+    if (!allowed) {
+      return rateLimitResponse(corsHeaders);
     }
 
     force = !!body.force;

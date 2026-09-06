@@ -20,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { NativeDatePicker } from "@/components/ui/native-date-picker";
 import { calculateInstallment, calculateTotalWithInterest } from "@/features/loans/hooks/useLoans";
 import { getInstallmentAmount, getOverdueAmount } from "@/features/loans/lib/loanInstallmentAmount";
+import { normalizeClientKey } from "@/features/loans/lib/clientRiskUtils";
 import { getLoanLateFees, getBaseRemainingAmount, getLoanReceivable } from "@/features/loans/lib/loanLateFees";
 import { cn } from "@/lib/utils";
 import {
@@ -96,6 +97,7 @@ export function LoanCardView({
   const { mask } = useHideValues();
   const formatCurrency = useCallback((v: number) => mask(rawFormatCurrency(v)), [mask]);
   const [editing, setEditing] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
   const [form, setForm] = useState<EditForm>(loanToForm(loan));
   // Keep form in sync with loan prop when not editing (prevents stale notes/etc on refetch)
   React.useEffect(() => {
@@ -296,6 +298,7 @@ export function LoanCardView({
   };
   const cancelEdit = () => setEditing(false);
   const saveEdit = async () => {
+    if (savingEdit) return;
     if (editHasManager && !editManagerId) {
       toast.error("Selecione um gerente para o empréstimo com gerente.");
       return;
@@ -330,41 +333,53 @@ export function LoanCardView({
         `Para reestruturar valores preservando os pagamentos, use a opção "Renegociar".\n\n` +
         `Deseja continuar mesmo assim?`
       );
+      if (!ok) return;
+    }
     const matchedClient = clients.find(
       (c) => normalizeClientKey(c.name) === normalizeClientKey(form.borrowerName)
     );
 
-    onUpdate({
-      borrowerName: form.borrowerName,
-      borrowerId: matchedClient ? matchedClient.id : undefined,
-      amount: parseFloat(form.amount) || loan.amount,
-      interestRate: form.interestRate.trim() === "" || isNaN(parseFloat(form.interestRate)) ? loan.interestRate : Math.max(0, parseFloat(form.interestRate)),
-      installments: parseInt(form.installments) || loan.installments,
-      paidInstallments: parseInt(form.paidInstallments) || 0,
-      startDate: form.startDate || loan.startDate,
-      dueDate,
-      interestType: form.interestType,
-      notes: form.notes,
-      tags: parsedTags,
-      remainingAmount: parseFloat(form.remainingAmount) || 0,
-      customInstallmentValue: hasCustom ? firstVal : null,
-      customInterestValue: hasCustomInterest ? manualInterest : null,
-      hasManager: editHasManager,
-      managerId: editHasManager && editManagerId ? editManagerId : null,
-      managerCommissionRate: editHasManager ? parseFloat(editCommissionRate) || 10 : null,
-      isSale: editIsSale,
-    });
+    setSavingEdit(true);
+    try {
+      await Promise.resolve(onUpdate({
+        borrowerName: form.borrowerName,
+        borrowerId: matchedClient ? matchedClient.id : undefined,
+        amount: parseFloat(form.amount) || loan.amount,
+        interestRate: form.interestRate.trim() === "" || isNaN(parseFloat(form.interestRate)) ? loan.interestRate : Math.max(0, parseFloat(form.interestRate)),
+        installments: parseInt(form.installments) || loan.installments,
+        paidInstallments: parseInt(form.paidInstallments) || 0,
+        startDate: form.startDate || loan.startDate,
+        dueDate,
+        interestType: form.interestType,
+        notes: form.notes,
+        tags: parsedTags,
+        remainingAmount: parseFloat(form.remainingAmount) || 0,
+        customInstallmentValue: hasCustom ? firstVal : null,
+        customInterestValue: hasCustomInterest ? manualInterest : null,
+        hasManager: editHasManager,
+        managerId: editHasManager && editManagerId ? editManagerId : null,
+        managerCommissionRate: editHasManager ? parseFloat(editCommissionRate) || 10 : null,
+        isSale: editIsSale,
+      }));
 
-    // Save ALL installment rows
-    if (editScheduleRows.length > 0) {
-      await onSaveSchedule(loan.id, editScheduleRows.map((row, idx) => ({
-        installmentNumber: idx + 1,
-        dueDate: row.date.toISOString().split("T")[0],
-        amount: parseFloat(row.value) || 0,
-      })));
+      // Save all installment rows before closing so the contract and its
+      // schedule remain consistent.
+      if (editScheduleRows.length > 0) {
+        await onSaveSchedule(loan.id, editScheduleRows.map((row, idx) => ({
+          installmentNumber: idx + 1,
+          dueDate: row.date.toISOString().split("T")[0],
+          amount: parseFloat(row.value) || 0,
+        })));
+      }
+
+      setEditing(false);
+      toast.success("Alterações salvas");
+    } catch (error: any) {
+      console.error("[saveLoanEdit]", error);
+      toast.error(`Não foi possível salvar: ${error?.message ?? "tente novamente"}`);
+    } finally {
+      setSavingEdit(false);
     }
-
-    setEditing(false);
   };
 
   const openPaymentDialog = (type: "installment" | "interest" | "partial" | "full" | "payoff" | "amortize", amount?: number) => {
@@ -575,7 +590,9 @@ export function LoanCardView({
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-foreground">Editar Empréstimo</h3>
             <div className="flex gap-1">
-              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={saveEdit}><Check className="h-4 w-4 text-success" /></Button>
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={saveEdit} disabled={savingEdit} aria-label="Salvar alterações">
+                <Check className="h-4 w-4 text-success" />
+              </Button>
                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={cancelEdit}><X className="w-[25px] h-[25px] text-destructive" /></Button>
             </div>
           </div>
@@ -1267,20 +1284,17 @@ export function LoanCardView({
         )}
 
         {showDetails && (() => {
-          // Auditoria: original_due_date vs due_date atual e próximo vencimento (juros)
+          // Auditoria do vencimento atual e do próximo ciclo de juros.
           const fmt = (iso?: string | null) => {
             if (!iso) return "—";
             const [y, m, d] = iso.split("-");
             return `${d}/${m}/${y}`;
           };
           const currentDueIso = loan.dueDate;
-          const rawOriginal = loan.originalDueDate || loan.dueDate;
-          // Proteção: se "original" > due_date atual, está corrompido — usa due_date como âncora.
-          const originalDueIso = rawOriginal > currentDueIso ? currentDueIso : rawOriginal;
+          const originalDueIso = currentDueIso;
           const wasRenegotiated = !!loan.originalDueDate && loan.originalDueDate !== loan.dueDate && loan.originalDueDate <= loan.dueDate;
           const freq = loan.interestType || "Mensal";
-          // Replica regra de addInterestOnlyPayment: avança 1 período a partir do dueDate atual
-          // e, no caso Mensal, "snap" para o dia da âncora (originalDueDate)
+          // Replica regra de addInterestOnlyPayment: avança a partir do vencimento atual.
           const nextDue = (() => {
             // Regra alinhada com addInterestOnlyPayment: parte da âncora e avança
             // ciclos até ficar > hoje (ignora renegociações no due_date).
@@ -1375,17 +1389,15 @@ export function LoanCardView({
                 return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
               };
               const freq = loan.interestType || "Mensal";
-              const rawBase = loan.originalDueDate || loan.dueDate;
-              // Proteção: se "original" > due atual, está corrompido — usa due_date.
-              const baseIso = rawBase > loan.dueDate ? loan.dueDate : rawBase;
+              const baseIso = loan.dueDate;
               const interestPayments = allPayments
                 .filter((p) => p.loanId === loan.id && p.metadata?.kind !== "amortization")
                 .sort((a, b) => a.date.localeCompare(b.date));
               const steps: { label: string; date: string; detail?: string; highlight?: boolean }[] = [];
               steps.push({
-                label: "Data base (vencimento original — âncora fixa)",
+                label: "Data base (vencimento atual)",
                 date: fmtBR(baseIso),
-                detail: `Frequência: ${freq}. Esta data nunca muda, mesmo após renegociações.`,
+                detail: `Frequência: ${freq}. Novos ciclos partem do vencimento pendente atual.`,
               });
               let runningDue = baseIso;
               interestPayments.forEach((p, idx) => {
@@ -1402,8 +1414,8 @@ export function LoanCardView({
                 label: "Vencimento atual no sistema",
                 date: fmtBR(loan.dueDate),
                 detail: loan.originalDueDate && loan.originalDueDate !== loan.dueDate
-                  ? "⚠️ Renegociado — diferente da âncora."
-                  : "Alinhado com a âncora original.",
+                  ? "Renegociado — a data original é mantida apenas no histórico."
+                  : "Vencimento atual do ciclo.",
               });
               const todayIso = new Date().toISOString().split("T")[0];
               let nextProj = addPeriod(baseIso, baseIso, freq);
@@ -1958,8 +1970,7 @@ export function LoanCardView({
             const exceeds = interestPartialEnabled && partialVal > pending && pending > 0;
             const willClose = !interestPartialEnabled || (partialVal + 0.005 >= pending);
             // Próxima data após quitação total: avança 1 ciclo a partir da âncora original
-            const rawAnchor = loan.originalDueDate || loan.dueDate;
-            const anchorRef = rawAnchor > loan.dueDate ? loan.dueDate : rawAnchor;
+            const anchorRef = loan.dueDate;
             const freq = loan.interestType || "Mensal";
             const advance = (d: Date) => {
               if (freq === "Diário") d.setDate(d.getDate() + 1);

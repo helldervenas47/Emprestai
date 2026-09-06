@@ -60,26 +60,8 @@ Deno.serve(async (req) => {
       )
       .map((p) => p.value.name);
 
-    // Discover tables via exec_sql
-    let database_tables: unknown = [];
-    if (service_role_key) {
-      try {
-        const supabase = createClient(SUPABASE_URL, service_role_key);
-        const tablesQuery = `
-          SELECT
-            t.tablename,
-            COALESCE((SELECT n_live_tup FROM pg_stat_user_tables s WHERE s.relname = t.tablename AND s.schemaname = 'public'), 0)::int AS row_count,
-            (SELECT COUNT(*)::int FROM information_schema.columns c WHERE c.table_schema = 'public' AND c.table_name = t.tablename) AS column_count,
-            (SELECT COUNT(*)::int FROM information_schema.columns c WHERE c.table_schema = 'public' AND c.table_name = t.tablename AND c.column_name ILIKE '%encrypted%') AS encrypted_columns,
-            EXISTS (SELECT 1 FROM information_schema.columns c WHERE c.table_schema = 'public' AND c.table_name = t.tablename AND c.column_name = 'user_id') AS has_user_id
-          FROM pg_tables t
-          WHERE t.schemaname = 'public'
-          ORDER BY t.tablename
-        `;
-        const { data, error } = await supabase.rpc("exec_sql", { sql_query: tablesQuery });
-        if (!error) database_tables = data ?? [];
-      } catch (_) { /* ignore */ }
-    }
+    // Database tables discovery desativado para eliminar superfície de SQL dinâmico
+    const database_tables: unknown[] = [];
 
     return new Response(
       JSON.stringify({

@@ -4,12 +4,14 @@ import { getExternalAdmin, getExternalSupabaseUrl, getExternalAnonKey } from "..
 import { isTimeDueToday } from "../_shared/schedule.ts";
 import { buildTextReportSVG, svgToPng, tgSendPhoto, buildCaptionFromLines } from "../_shared/renderReportImage.ts";
 import { getImageDeliveryPrefs, sendReportsMessage, sendReportsPhoto, getReportsLinkForUser } from "../_shared/reports-bot.ts";
+import { requireCronOrAdmin, cronCors } from "../_shared/require-cron-or-admin.ts";
 
 const GATEWAY_URL = "https://api.telegram.org";
 
 const corsHeaders = {
+  ...cronCors,
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
 function fmtBRL(n: number) {
@@ -44,9 +46,6 @@ async function tgSend(chatId: number, text: string, telegramKey: string) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-  const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
   const admin = getExternalAdmin();
 
   // Fetch brand name once for this invocation
@@ -57,7 +56,7 @@ Deno.serve(async (req) => {
   } catch (_) { /* ignore */ }
 
   const url = new URL(req.url);
-  let forceUserId = url.searchParams.get("user_id");
+  const forceUserId = url.searchParams.get("user_id");
 
   // If forcing for a specific user, require that user to be authenticated as themselves
   if (forceUserId) {
@@ -77,6 +76,10 @@ Deno.serve(async (req) => {
     if (user.id !== forceUserId) {
       return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: corsHeaders });
     }
+  } else {
+    // Modo Cron Global: exige autenticação rígida de Cron ou Admin
+    const cronAuth = await requireCronOrAdmin(req);
+    if (cronAuth instanceof Response) return cronAuth;
   }
   const { date: today, hhmm } = todayInTZ();
   const [hh, mm] = hhmm.split(":").map(Number);

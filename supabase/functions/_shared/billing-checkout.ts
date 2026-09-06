@@ -1,5 +1,6 @@
 import { getExternalAdmin } from "../_shared/external-supabase.ts";
 import { asaasFetch, authenticatedOwner, billingConfig, billingJson, planPriceCents } from "../_shared/asaas.ts";
+import { checkRateLimit } from "../_shared/rate-limit.ts";
 
 export async function handleCheckout(req: Request, recurring = false) {
   if (req.method === "OPTIONS") return billingJson({});
@@ -10,6 +11,17 @@ export async function handleCheckout(req: Request, recurring = false) {
   try {
     admin = getExternalAdmin();
     const user = await authenticatedOwner(admin, req);
+
+    const allowed = await checkRateLimit({
+      bucket: "billing:checkout",
+      key: user.id,
+      max: 10,
+      windowSecs: 60,
+    });
+    if (!allowed) {
+      return billingJson({ error: "Muitas tentativas de checkout. Aguarde 1 minuto." }, 429);
+    }
+
     const { environment } = billingConfig();
     const body = await req.json();
     if (!/^[0-9a-f-]{36}$/i.test(body.requestKey ?? "")) return billingJson({ error: "invalid_request_key" },400);

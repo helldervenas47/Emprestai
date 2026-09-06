@@ -24,6 +24,7 @@ import { assertWritable } from "@/lib/readOnlyState";
 import { computeInstallmentInterest, allocateInterestByPayment, allocatePartialProrata, ALLOCATION_VERSION_REMAINING_PRORATA } from "@/features/financial/lib/interestAllocation";
 import { buildPaymentAllocationMetadata, withAllocation, lateFeeAllocationMetadata, interestCycleAllocationMetadata, amortizationAllocationMetadata } from "@/features/loans/lib/paymentAllocationMetadata";
 import { buildPaymentLedgerRows } from "@/features/loans/lib/paymentLedgerRows";
+import { advanceLoanDueDate, advanceLoanDueDateAfter } from "@/features/loans/lib/advanceDueDate";
 import { BILLING_ENVIRONMENT } from "@/lib/billing/subscriptionState";
 
 async function resolveWalletKind(paymentMethodId: string | null): Promise<"account" | "cash"> {
@@ -1235,40 +1236,11 @@ export function useLoans() {
     // No fechamento do ciclo (advanceCycle), se houve fees acumulados em parciais anteriores,
     // limpamos a multa de renegociação mesmo que feesExtra seja 0 nesta chamada.
     const cycleHadFees = priorCycleFeesTarget > 0 || feesExtra > 0;
-    // Regra (Bugfix Fase 4): O usuário relatou que ao alterar o vencimento (ex: 20/08 -> 30/08),
-    // o pagamento do juros retornava para a data original (20/09). Para corrigir, usamos SEMPRE
-    // a dueDate atual como âncora para avançar o ciclo se for Juros Mensal.
-    const anchorRef = loan.dueDate;
-    const freq = loan.interestType || "Mensal";
-    const advance = (d: Date) => {
-      if (freq === "Diário") d.setDate(d.getDate() + 1);
-      else if (freq === "Semanal") d.setDate(d.getDate() + 7);
-      else if (freq === "Quinzenal") d.setDate(d.getDate() + 15);
-      else {
-        const anchorDay = Number(anchorRef.split("-")[2]);
-        const currentMonth = d.getMonth();
-        const currentYear = d.getFullYear();
-        // Fix JS setMonth bug (ex: Jan 31 + 1 month = Mar 3)
-        // Usa o dia 1 para pular de mês em segurança, e só depois define o dia alvo.
-        d.setMonth(currentMonth + 1, 1);
-        if (Number.isFinite(anchorDay) && anchorDay >= 1 && anchorDay <= 31) {
-          const lastDay = new Date(currentYear, currentMonth + 2, 0).getDate();
-          d.setDate(Math.min(anchorDay, lastDay));
-        }
-      }
-    };
-    // Avança a partir da âncora original até superar o vencimento atual do contrato
-    // (NÃO a data do pagamento). Isso garante que pagar com atraso de poucos dias
-    // não pule o próximo ciclo — ex.: âncora 02/04, dueDate 29/04, pago 03/05 → próximo 02/05.
-    const currentDue = new Date(anchorRef + "T00:00:00");
-    advance(currentDue);
-    let guard = 0;
-    while (currentDue.toISOString().split("T")[0] <= loan.dueDate && guard < 600) {
-      advance(currentDue);
-      guard += 1;
-    }
-    // Se for pagamento parcial, mantém a data atual; só avança quando quita o ciclo.
-    const newDueDate = advanceCycle ? currentDue.toISOString().split("T")[0] : loan.dueDate;
+    // O ciclo sempre avança a partir do vencimento pendente atual. A data
+    // original do contrato é histórica e nunca participa deste cálculo.
+    const newDueDate = advanceCycle
+      ? advanceLoanDueDateAfter(loan.dueDate, loan.interestType || "Mensal")
+      : loan.dueDate;
     const online = isOnline();
 
     const tempPaymentId = crypto.randomUUID();
@@ -2274,12 +2246,7 @@ export function calculateInstallment(principal: number, rate: number, months: nu
 }
 
 export function computeNextDueDate(currentDueDate: string, frequency: string, paidCount: number): string {
-  const base = new Date(currentDueDate + "T00:00:00");
-  if (frequency === "Diário") base.setDate(base.getDate() + paidCount);
-  else if (frequency === "Semanal") base.setDate(base.getDate() + 7 * paidCount);
-  else if (frequency === "Quinzenal") base.setDate(base.getDate() + 15 * paidCount);
-  else base.setMonth(base.getMonth() + paidCount);
-  return base.toISOString().split("T")[0];
+  return advanceLoanDueDate(currentDueDate, frequency, paidCount);
 }
 
 export function calculateTotalWithInterest(principal: number, rate: number, _months: number): number {

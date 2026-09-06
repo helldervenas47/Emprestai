@@ -22,6 +22,7 @@ import { getCurrentCycleInterest } from "@/features/loans/lib/currentCycleIntere
 import { getLoanFinancialStateForUI } from "@/features/loans/lib/loanFinancialAdapter";
 import { simulateLoanPayment, type LoanPaymentKind } from "@/features/loans/lib/simulateLoanPayment";
 import { roundCurrency } from "@/lib/money";
+import { advanceLoanDueDateAfter } from "@/features/loans/lib/advanceDueDate";
 
 import { LoanSummaryComposition } from "@/features/loans/components/payment-hub/LoanSummaryComposition";
 
@@ -173,37 +174,13 @@ export function PaymentHubDialog({
 
 
 
-  // Próximo vencimento após fechar o ciclo de juros — replica a regra de useLoans.registerInterestPayment:
-  // Avança a partir da data atual (dueDate) usando o dia âncora.
+  // Próximo vencimento após fechar o ciclo de juros, sempre a partir do
+  // vencimento pendente atual.
   const nextCycleDueLabel = useMemo(() => {
     if (loan.status === "paid") return null;
     if (!loan.dueDate) return null;
-    const anchorRef = loan.dueDate;
-    const freq = loan.interestType || "Mensal";
-    const advance = (d: Date) => {
-      if (freq === "Diário") d.setDate(d.getDate() + 1);
-      else if (freq === "Semanal") d.setDate(d.getDate() + 7);
-      else if (freq === "Quinzenal") d.setDate(d.getDate() + 15);
-      else {
-        const anchorDay = Number(anchorRef.split("-")[2]);
-        const currentMonth = d.getMonth();
-        const currentYear = d.getFullYear();
-        d.setMonth(currentMonth + 1, 1);
-        if (Number.isFinite(anchorDay) && anchorDay >= 1 && anchorDay <= 31) {
-          const lastDay = new Date(currentYear, currentMonth + 2, 0).getDate();
-          d.setDate(Math.min(anchorDay, lastDay));
-        }
-      }
-    };
-    const cur = new Date(anchorRef + "T00:00:00");
-    if (isNaN(cur.getTime())) return null;
-    advance(cur);
-    let guard = 0;
-    while (cur.toISOString().split("T")[0] <= loan.dueDate && guard < 600) {
-      advance(cur);
-      guard += 1;
-    }
-    return format(cur, "dd/MM/yyyy");
+    const nextDueDate = advanceLoanDueDateAfter(loan.dueDate, loan.interestType || "Mensal");
+    return format(new Date(`${nextDueDate}T00:00:00`), "dd/MM/yyyy");
   }, [loan.status, loan.dueDate, loan.interestType]);
 
 

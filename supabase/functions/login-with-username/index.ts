@@ -53,43 +53,27 @@ Deno.serve(async (req) => {
     }
     {
       const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-      // Cloudflare official DUMMY test secret — validates ONLY tokens minted
-      // by the test sitekey (1x00000000000000000000AA). Safe to keep in
-      // production: real production tokens are rejected by it, so it doesn't
-      // weaken security; it only lets the Lovable preview (which uses the
-      // test sitekey) pass through the same endpoint.
-      const TEST_SECRET = "__PULSE_REDACTED_CREDENTIAL_ASSIGNMENT__";
-      const trySecret = async (secret: string) => {
-        const verify = await fetch(
-          "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({
-              secret,
-              response: captchaToken,
-              ...(clientIp ? { remoteip: clientIp } : {}),
-            }),
-          },
-        );
-        return await verify.json().catch(() => ({ success: false }));
-      };
-      let result = await trySecret(TURNSTILE_SECRET);
+      const verify = await fetch(
+        "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            secret: TURNSTILE_SECRET,
+            response: captchaToken,
+            ...(clientIp ? { remoteip: clientIp } : {}),
+          }),
+        },
+      );
+      const result = await verify.json().catch(() => ({ success: false }));
       if (!result?.success) {
-        // Retry with Cloudflare's test secret — only test-sitekey tokens will pass.
-        const testResult = await trySecret(TEST_SECRET);
-        if (testResult?.success) {
-          result = testResult;
-        } else {
-          console.warn("[turnstile] siteverify failed", {
-            realCodes: result?.["error-codes"],
-            testCodes: testResult?.["error-codes"],
-          });
-          return new Response(
-            JSON.stringify({ error: "Falha na verificação de segurança. Recarregue a página." }),
-            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-          );
-        }
+        console.warn("[turnstile] siteverify failed", {
+          codes: result?.["error-codes"],
+        });
+        return new Response(
+          JSON.stringify({ error: "Falha na verificação de segurança. Recarregue a página." }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
       }
     }
 

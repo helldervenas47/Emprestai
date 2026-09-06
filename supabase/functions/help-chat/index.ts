@@ -138,33 +138,9 @@ async function getExternalClient() {
 
 // --- Bootstrap da tabela (idempotente, roda apenas se necessário) --------
 let bootstrapped = false;
-async function ensureKnowledgeTable(supa: any) {
-  if (bootstrapped) return;
-  const sql = `
-    CREATE TABLE IF NOT EXISTS public.help_chat_knowledge (
-      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id uuid NULL,
-      question text NOT NULL,
-      answer text NOT NULL,
-      search_text text GENERATED ALWAYS AS (lower(question || ' ' || answer)) STORED,
-      upvotes int NOT NULL DEFAULT 0,
-      downvotes int NOT NULL DEFAULT 0,
-      approved boolean NOT NULL DEFAULT true,
-      created_at timestamptz NOT NULL DEFAULT now()
-    );
-    CREATE INDEX IF NOT EXISTS help_chat_knowledge_search_idx
-      ON public.help_chat_knowledge USING gin (to_tsvector('simple', search_text));
-    CREATE INDEX IF NOT EXISTS help_chat_knowledge_created_idx
-      ON public.help_chat_knowledge (created_at DESC);
-    ALTER TABLE public.help_chat_knowledge ENABLE ROW LEVEL SECURITY;
-  `;
-  try {
-    await supa.rpc("exec_sql", { sql_query: sql });
-    bootstrapped = true;
-  } catch (e) {
-    console.warn("[help-chat] bootstrap falhou (talvez já exista):", e);
-    bootstrapped = true; // não tenta de novo nesta instância
-  }
+async function ensureKnowledgeTable(_supa: any) {
+  // Tabela criada e versionada no banco de dados via migrações oficiais.
+  return;
 }
 
 // --- Contexto: bots do Telegram -----------------------------------------

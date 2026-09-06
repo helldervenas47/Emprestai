@@ -214,23 +214,26 @@ export function useWarranty(saleId: string | undefined) {
     if (!input.productId) throw new Error("Selecione um produto cadastrado para movimentar estoque");
     if (input.quantity <= 0) throw new Error("Quantidade inválida");
 
-    // Read current stock
-    const { data: prodRow, error: prodErr } = await supabase
-      .from("products").select("id, name, stock").eq("id", input.productId).maybeSingle();
-    if (prodErr || !prodRow) throw new Error("Produto não encontrado");
-    const currentStock = Number((prodRow as any).stock || 0);
-    if (input.direction === "out" && currentStock < input.quantity) {
-      throw new Error(`Estoque insuficiente (disponível: ${currentStock})`);
+    const delta = input.direction === "in" ? input.quantity : -input.quantity;
+    let productName = "Produto";
+
+    // 1) Ajuste atômico no PostgreSQL com lock de linha (previne race conditions e estoque negativo)
+    const { data: stockResult, error: rpcErr } = await supabase.rpc("adjust_product_stock" as any, {
+      _product_id: input.productId,
+      _quantity_delta: delta,
+      _allow_negative: false,
+    });
+
+    if (rpcErr) {
+      // Caso a RPC falhe por estoque insuficiente ou erro de permissão
+      throw new Error(rpcErr.message || "Falha ao ajustar estoque");
     }
-    const newStock = input.direction === "in"
-      ? currentStock + input.quantity
-      : currentStock - input.quantity;
 
-    // 1) Update product stock
-    const { error: updErr } = await supabase.from("products").update({ stock: newStock }).eq("id", input.productId);
-    if (updErr) throw new Error(updErr.message);
+    if (stockResult && (stockResult as any).product_name) {
+      productName = (stockResult as any).product_name;
+    }
 
-    // 2) Insert warranty_movements
+    // 2) Registrar warranty_movements
     const { data: movRow, error: movErr } = await supabase.from("warranty_movements" as any).insert({
       warranty_case_id: input.caseId,
       warranty_item_id: input.itemId,
@@ -243,14 +246,14 @@ export function useWarranty(saleId: string | undefined) {
     } as any).select(WARRANTY_MOVEMENT_COLUMNS).single();
     if (movErr || !movRow) throw new Error(movErr?.message || "Falha ao registrar movimentação");
 
-    // 3) Mirror to stock_movements for unified history
+    // 3) Histórico unificado em stock_movements
     await supabase.from("stock_movements" as any).insert({
       owner_id: dataOwnerId,
       user_id: user.id,
       product_id: input.productId,
-      product_name: (prodRow as any).name,
+      product_name: productName,
       movement_type: input.direction === "in" ? "entrada_manual" : "ajuste",
-      quantity: input.direction === "in" ? input.quantity : -input.quantity,
+      quantity: delta,
       notes: `Garantia (${input.direction === "in" ? "retorno" : "substituição"}) — caso ${input.caseId.slice(0, 8)}${input.notes ? ` · ${input.notes}` : ""}`,
     } as any);
 

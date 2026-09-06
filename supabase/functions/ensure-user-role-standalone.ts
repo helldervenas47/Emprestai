@@ -40,30 +40,6 @@ function getExternalAdmin(): SupabaseClient {
   });
 }
 
-async function ensureClienteEnum(admin: SupabaseClient) {
-  await admin.rpc("exec_sql", {
-    sql_query: "ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'cliente';",
-  });
-}
-
-async function resolvePublicSignupUser(
-  admin: SupabaseClient,
-  body: Record<string, unknown>,
-) {
-  const userId = typeof body.userId === "string" ? body.userId : "";
-  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-  if (!userId || !email) return null;
-
-  const { data, error } = await admin.auth.admin.getUserById(userId);
-  const user = data?.user;
-  if (error || !user?.id || (user.email ?? "").trim().toLowerCase() !== email) return null;
-
-  const createdAt = new Date(user.created_at).getTime();
-  if (!Number.isFinite(createdAt) || Date.now() - createdAt > 15 * 60 * 1000) return null;
-
-  return user;
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -71,33 +47,24 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const admin = getExternalAdmin();
     const authHeader = req.headers.get("Authorization") ?? "";
-    const token = authHeader.replace(/^Bearer\s+/i, "");
-    let userRes: any = null;
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
 
-    if (token) {
-      const { data: userData, error: userTokenError } = await admin.auth.getUser(token);
-      if (userTokenError || !userData?.user?.id) {
-        console.error("[ensure-user-role] invalid token", userTokenError);
-        userRes = await resolvePublicSignupUser(admin, body);
-        if (!userRes?.id) {
-          return new Response(JSON.stringify({ ok: false, error: "invalid_token", reauth_required: true }), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-      } else {
-        userRes = userData.user;
-      }
-    } else {
-      userRes = await resolvePublicSignupUser(admin, body);
-    }
-
-    if (!userRes?.id) {
+    if (!token) {
       return new Response(JSON.stringify({ error: "missing_token" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const { data: userData, error: userTokenError } = await admin.auth.getUser(token);
+    if (userTokenError || !userData?.user?.id) {
+      return new Response(JSON.stringify({ error: "invalid_token", reauth_required: true }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const userRes = userData.user;
 
     const userId = userRes.id;
     const displayName =
@@ -171,15 +138,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    let insert = await admin
+    const insert = await admin
       .from("user_roles")
       .upsert({ user_id: userId, role: "cliente" }, { onConflict: "user_id,role", ignoreDuplicates: true });
-    if (insert.error && insert.error.message.toLowerCase().includes("enum")) {
-      await ensureClienteEnum(admin);
-      insert = await admin
-        .from("user_roles")
-        .upsert({ user_id: userId, role: "cliente" }, { onConflict: "user_id,role", ignoreDuplicates: true });
-    }
 
     if (insert.error) {
       return new Response(JSON.stringify({ error: insert.error.message }), {

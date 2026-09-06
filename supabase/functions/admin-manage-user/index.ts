@@ -83,31 +83,10 @@ Deno.serve(async (req) => {
     // Toda autenticação e escrita passa pelo mesmo projeto externo.
     const adminClient = getExternalAdmin();
 
-    // Resolve o usuário chamador de forma resiliente:
-    // 1) getUser() no projeto externo (caminho normal);
-    // 2) fallback: decodifica o JWT (iss/exp) e confirma o usuário via Admin API.
-    // Isso evita 401 falso quando a validação remota do token falha por
-    // rotação de chaves de assinatura / secret stale, sem afrouxar a checagem
-    // de papel admin feita abaixo.
     let callerId: string | null = null;
-    const { data: userData } = await adminClient.auth.getUser(token);
-    if (userData?.user?.id) {
+    const { data: userData, error: userError } = await adminClient.auth.getUser(token);
+    if (!userError && userData?.user?.id) {
       callerId = userData.user.id;
-    } else {
-      try {
-        const part = token.split(".")[1];
-        const json = JSON.parse(
-          atob(part.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(part.length / 4) * 4, "=")),
-        ) as { sub?: string; exp?: number; iss?: string };
-        const notExpired = typeof json.exp === "number" && json.exp * 1000 > Date.now();
-        const sameProject = !json.iss || json.iss.includes(EXTERNAL_PROJECT_REF);
-        if (json.sub && notExpired && sameProject) {
-          const { data: byId } = await adminClient.auth.admin.getUserById(json.sub);
-          if (byId?.user?.id) callerId = byId.user.id;
-        }
-      } catch {
-        callerId = null;
-      }
     }
 
     if (!callerId) {

@@ -1,10 +1,12 @@
 import { getExternalAdmin, getExternalUserClient, getExternalAnonKey } from "../_shared/external-supabase.ts";
 import { sendReportsMessage, getReportsLinkForUser, sendReportsAsImage } from "../_shared/reports-bot.ts";
 import { dueSlotKeys } from "../_shared/schedule.ts";
+import { requireCronOrAdmin, cronCors } from "../_shared/require-cron-or-admin.ts";
 
 const corsHeaders = {
+  ...cronCors,
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
 function fmtBRL(n: number) {
@@ -12,16 +14,6 @@ function fmtBRL(n: number) {
 }
 function fmtDateBR(iso: string) {
   return iso.split("-").reverse().join("/");
-}
-function decodeJwtPayload(token: string): Record<string, unknown> | null {
-  try {
-    const payload = token.split(".")[1];
-    if (!payload) return null;
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    return JSON.parse(atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=")));
-  } catch (_) {
-    return null;
-  }
 }
 function nowInTZ(tz = "America/Sao_Paulo") {
   const fmt = new Intl.DateTimeFormat("en-CA", {
@@ -276,16 +268,6 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const admin = getExternalAdmin();
-  const url = new URL(req.url);
-  if (url.searchParams.get("debug") === "1") {
-    const { data: bots } = await admin.from("system_telegram_bots")
-      .select("id, name, bot_username, active, purpose").eq("purpose", "reports");
-    const { data: rep } = await admin.from("telegram_reports_links").select("user_id, chat_id, bot_id");
-    const { data: leg } = await admin.from("telegram_links").select("user_id, chat_id, bot_id");
-    return new Response(JSON.stringify({ bots, reports_links: rep, telegram_links: leg }, null, 2), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
 
   let brandName = "EmprestAI";
   try {
@@ -301,19 +283,18 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_ANON_KEY") ?? "",
     Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? "",
   ].filter(Boolean));
-  const jwtPayload = decodeJwtPayload(token);
-  const hasUserJwt = Boolean(token) && !anonKeys.has(token) && typeof jwtPayload?.sub === "string";
 
-  // Manual on-demand send — valida o JWT contra o Supabase EXTERNO (onde o usuário está logado)
-  if (hasUserJwt && req.method === "POST") {
+  let authenticatedUser: any = null;
+  if (token && !anonKeys.has(token)) {
     const userClient = getExternalUserClient();
     const { data: { user }, error: userErr } = await userClient.auth.getUser(token);
-    if (userErr || !user) {
-      return new Response(
-        JSON.stringify({ error: "unauthorized", detail: userErr?.message ?? "invalid token" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    if (!userErr && user?.id) {
+      authenticatedUser = user;
     }
+  }
+
+  // 1. Envio sob demanda autenticado pelo próprio usuário
+  if (authenticatedUser && req.method === "POST") {
     let body: any = {};
     try { body = await req.json(); } catch (_) {}
     const returnText = body?.return_text === true;
@@ -323,7 +304,7 @@ Deno.serve(async (req) => {
       const { data: pref } = await admin
         .from("incomes_expenses_telegram_prefs")
         .select("send_target")
-        .eq("user_id", user.id)
+        .eq("user_id", authenticatedUser.id)
         .maybeSingle();
       if ((pref as any)?.send_target === "today") {
         manualTarget = today;
@@ -334,7 +315,7 @@ Deno.serve(async (req) => {
     }
     // Checa link antes para devolver erro claro ao front
     if (!returnText) {
-      const link = await getReportsLinkForUser(admin, user.id);
+      const link = await getReportsLinkForUser(admin, authenticatedUser.id);
       if (!link) {
         return new Response(
           JSON.stringify({ ok: false, error: "no_reports_link", message: "Conecte o Bot de Relatórios (envie /start ao bot) antes de enviar." }),
@@ -342,15 +323,16 @@ Deno.serve(async (req) => {
         );
       }
     }
-    const res = await buildAndSend(admin, user.id, manualTarget, brandName, manualLabel, { returnText });
+    const res = await buildAndSend(admin, authenticatedUser.id, manualTarget, brandName, manualLabel, { returnText });
     return new Response(
       JSON.stringify({ ok: res.sent || returnText, sent: res.sent ? 1 : 0, date: manualTarget, text: res.text }),
       { status: res.sent || returnText ? 200 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 
-
-  // Cron mode
+  // 2. Modo Cron Global: exige autenticação rígida de Cron ou Admin
+  const cronAuth = await requireCronOrAdmin(req);
+  if (cronAuth instanceof Response) return cronAuth;
   const [hh, mm] = hhmm.split(":").map(Number);
   const nowMin = hh * 60 + mm;
 

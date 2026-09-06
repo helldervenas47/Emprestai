@@ -152,13 +152,10 @@ export function AdjustDueDateDialog({
       return;
     }
 
-    // Sync loan.dueDate so reports and internal state stay aligned
-    // Also update originalDueDate (anchor) if this is the first installment, or applies to future ones, or is a single-installment (interest-only) loan
+    // Sync the active due date. originalDueDate remains an immutable historical
+    // record and must not influence the next operational due date.
     try {
       const updates: Partial<Omit<Loan, "id">> = { dueDate: newDate };
-      if (!isMultiInstallment || nextNum === 1 || scope === "future") {
-        updates.originalDueDate = newDate;
-      }
       if (newDate >= todayStr && (loan.status === "overdue" || loan.status === "late" || loan.status === "defaulted")) {
         updates.status = "active";
       }

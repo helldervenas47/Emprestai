@@ -24,20 +24,22 @@ describe("Business Pulse Engine — 'O que está acontecendo com seu negócio?'"
   it("Cenário 1 — Crescimento saudável (Faturamento ↑, Recebimentos ↑, Inadimplência estável/↓)", () => {
     // Período anterior (01/08 a 15/08)
     const prevLoans: Loan[] = [
-      { id: "l_prev", borrowerId: "c1", borrowerName: "João Silva", amount: 10000, interestRate: 30, installments: 1, startDate: "2026-08-05", dueDate: "2026-09-05", status: "active", paidInstallments: 0, totalAmount: 13000, remainingAmount: 13000, createdAt: "2026-08-05" },
+      { id: "l_prev", borrowerId: "c1", borrowerName: "João Silva", amount: 10000, interestRate: 30, installments: 1, startDate: "2026-08-05", dueDate: "2026-09-05", status: "paid", paidInstallments: 1, totalAmount: 13000, remainingAmount: 0, createdAt: "2026-08-05" },
     ];
     const prevPayments: Payment[] = [
-      { id: "p_prev", loanId: "l_prev", amount: 5000, date: "2026-08-10", installmentNumber: 1 },
+      { id: "p_prev", loanId: "l_prev", amount: 13000, date: "2026-08-10", installmentNumber: 1 },
     ];
 
     // Período atual (01/09 a 15/09)
     const curLoans: Loan[] = [
       ...prevLoans,
-      { id: "l_cur", borrowerId: "c2", borrowerName: "Carlos Souza", amount: 15000, interestRate: 30, installments: 1, startDate: "2026-09-05", dueDate: "2026-10-05", status: "active", paidInstallments: 0, totalAmount: 19500, remainingAmount: 19500, createdAt: "2026-09-05" },
+      { id: "l_cur1", borrowerId: "c2", borrowerName: "Carlos Souza", amount: 15000, interestRate: 30, installments: 1, startDate: "2026-09-05", dueDate: "2026-10-05", status: "active", paidInstallments: 0, totalAmount: 19500, remainingAmount: 19500, createdAt: "2026-09-05" },
+      { id: "l_cur2", borrowerId: "c3", borrowerName: "Marcos Lima", amount: 5000, interestRate: 30, installments: 1, startDate: "2026-09-06", dueDate: "2026-10-06", status: "active", paidInstallments: 0, totalAmount: 6500, remainingAmount: 6500, createdAt: "2026-09-06" },
     ];
     const curPayments: Payment[] = [
       ...prevPayments,
-      { id: "p_cur", loanId: "l_cur", amount: 8000, date: "2026-09-10", installmentNumber: 1 },
+      { id: "p_cur1", loanId: "l_cur1", amount: 15000, date: "2026-09-10", installmentNumber: 1 },
+      { id: "p_cur2", loanId: "l_cur2", amount: 5000, date: "2026-09-12", installmentNumber: 1 },
     ];
 
     const metrics = calculateBusinessPulseMetrics({
@@ -58,12 +60,24 @@ describe("Business Pulse Engine — 'O que está acontecendo com seu negócio?'"
   });
 
   it("Cenário 2 — Crescimento com Inadimplência (Faturamento ↑, Inadimplência ↑)", () => {
+    // Período anterior sem atrasos
+    const prevLoans: Loan[] = [
+      { id: "l_prev", borrowerId: "c1", borrowerName: "João Silva", amount: 10000, interestRate: 30, installments: 1, startDate: "2026-08-02", dueDate: "2026-08-20", status: "paid", paidInstallments: 1, totalAmount: 13000, remainingAmount: 0, createdAt: "2026-08-02" },
+      { id: "l_prev2", borrowerId: "c2", borrowerName: "Carlos Souza", amount: 5000, interestRate: 30, installments: 1, startDate: "2026-08-03", dueDate: "2026-08-20", status: "paid", paidInstallments: 1, totalAmount: 6500, remainingAmount: 0, createdAt: "2026-08-03" },
+    ];
+    const prevPayments: Payment[] = [
+      { id: "p_prev", loanId: "l_prev", amount: 13000, date: "2026-08-05", installmentNumber: 1 },
+      { id: "p_prev2", loanId: "l_prev2", amount: 6500, date: "2026-08-06", installmentNumber: 1 },
+    ];
+
     // Contratos atuais com atraso ativo relevante
     const loans: Loan[] = [
+      ...prevLoans,
       { id: "l1", borrowerId: "c1", borrowerName: "João Silva", amount: 20000, interestRate: 30, installments: 1, startDate: "2026-09-02", dueDate: "2026-09-05", status: "active", paidInstallments: 0, totalAmount: 26000, remainingAmount: 26000, createdAt: "2026-09-02" },
       { id: "l2", borrowerId: "c2", borrowerName: "Carlos Souza", amount: 15000, interestRate: 30, installments: 1, startDate: "2026-09-03", dueDate: "2026-09-08", status: "active", paidInstallments: 0, totalAmount: 19500, remainingAmount: 19500, createdAt: "2026-09-03" },
     ];
     const payments: Payment[] = [
+      ...prevPayments,
       { id: "p1", loanId: "l1", amount: 6000, date: "2026-09-04", installmentNumber: 1 },
     ];
 
@@ -85,13 +99,15 @@ describe("Business Pulse Engine — 'O que está acontecendo com seu negócio?'"
   it("Cenário 3 — Queda operacional (Faturamento ↓, Recebimentos ↓)", () => {
     // Período anterior alto
     const prevLoans: Loan[] = [
-      { id: "l_prev", borrowerId: "c1", borrowerName: "João Silva", amount: 30000, interestRate: 30, installments: 1, startDate: "2026-08-05", dueDate: "2026-09-05", status: "active", paidInstallments: 0, totalAmount: 39000, remainingAmount: 39000, createdAt: "2026-08-05" },
+      { id: "l_prev1", borrowerId: "c1", borrowerName: "João Silva", amount: 30000, interestRate: 30, installments: 1, startDate: "2026-08-05", dueDate: "2026-08-20", status: "paid", paidInstallments: 1, totalAmount: 39000, remainingAmount: 0, createdAt: "2026-08-05" },
+      { id: "l_prev2", borrowerId: "c2", borrowerName: "Carlos Souza", amount: 20000, interestRate: 30, installments: 1, startDate: "2026-08-06", dueDate: "2026-08-22", status: "paid", paidInstallments: 1, totalAmount: 26000, remainingAmount: 0, createdAt: "2026-08-06" },
     ];
     const prevPayments: Payment[] = [
-      { id: "p_prev", loanId: "l_prev", amount: 25000, date: "2026-08-10", installmentNumber: 1 },
+      { id: "p_prev1", loanId: "l_prev1", amount: 25000, date: "2026-08-10", installmentNumber: 1 },
+      { id: "p_prev2", loanId: "l_prev2", amount: 20000, date: "2026-08-12", installmentNumber: 1 },
     ];
 
-    // Período atual com queda drástica
+    // Período atual com queda drástica e sem atrasos
     const curLoans: Loan[] = [
       ...prevLoans,
       { id: "l_cur", borrowerId: "c2", borrowerName: "Carlos Souza", amount: 5000, interestRate: 30, installments: 1, startDate: "2026-09-05", dueDate: "2026-10-05", status: "active", paidInstallments: 0, totalAmount: 6500, remainingAmount: 6500, createdAt: "2026-09-05" },
@@ -118,16 +134,27 @@ describe("Business Pulse Engine — 'O que está acontecendo com seu negócio?'"
   });
 
   it("Cenário 4 — Concentração de Dívida e Recomendação com nomes reais", () => {
+    // Histórico comparativo com movimentações anteriores
+    const prevLoans: Loan[] = [
+      { id: "l_prev1", borrowerId: "c1", borrowerName: "João Silva", amount: 5000, interestRate: 30, installments: 1, startDate: "2026-08-01", dueDate: "2026-08-15", status: "paid", paidInstallments: 1, totalAmount: 6500, remainingAmount: 0, createdAt: "2026-08-01" },
+      { id: "l_prev2", borrowerId: "c2", borrowerName: "Carlos Souza", amount: 5000, interestRate: 30, installments: 1, startDate: "2026-08-01", dueDate: "2026-08-15", status: "paid", paidInstallments: 1, totalAmount: 6500, remainingAmount: 0, createdAt: "2026-08-01" },
+    ];
+    const prevPayments: Payment[] = [
+      { id: "p_prev1", loanId: "l_prev1", amount: 6500, date: "2026-08-05", installmentNumber: 1 },
+      { id: "p_prev2", loanId: "l_prev2", amount: 6500, date: "2026-08-06", installmentNumber: 1 },
+    ];
+
     const loans: Loan[] = [
-      { id: "l1", borrowerId: "c1", borrowerName: "João Silva", amount: 10000, interestRate: 30, installments: 1, startDate: "2026-07-01", dueDate: "2026-08-01", status: "active", paidInstallments: 0, totalAmount: 13000, remainingAmount: 13000, createdAt: "2026-07-01" },
-      { id: "l2", borrowerId: "c2", borrowerName: "Carlos Souza", amount: 8000, interestRate: 30, installments: 1, startDate: "2026-07-01", dueDate: "2026-08-01", status: "active", paidInstallments: 0, totalAmount: 10400, remainingAmount: 10400, createdAt: "2026-07-01" },
-      { id: "l3", borrowerId: "c3", borrowerName: "Marcos Lima", amount: 5000, interestRate: 30, installments: 1, startDate: "2026-07-01", dueDate: "2026-08-01", status: "active", paidInstallments: 0, totalAmount: 6500, remainingAmount: 6500, createdAt: "2026-07-01" },
-      { id: "l4", borrowerId: "c4", borrowerName: "Ana Pereira", amount: 500, interestRate: 30, installments: 1, startDate: "2026-07-01", dueDate: "2026-08-01", status: "active", paidInstallments: 0, totalAmount: 650, remainingAmount: 650, createdAt: "2026-07-01" },
+      ...prevLoans,
+      { id: "l1", borrowerId: "c1", borrowerName: "João Silva", amount: 10000, interestRate: 30, installments: 1, startDate: "2026-09-01", dueDate: "2026-09-05", status: "active", paidInstallments: 0, totalAmount: 13000, remainingAmount: 13000, createdAt: "2026-09-01" },
+      { id: "l2", borrowerId: "c2", borrowerName: "Carlos Souza", amount: 8000, interestRate: 30, installments: 1, startDate: "2026-09-01", dueDate: "2026-09-05", status: "active", paidInstallments: 0, totalAmount: 10400, remainingAmount: 10400, createdAt: "2026-09-01" },
+      { id: "l3", borrowerId: "c3", borrowerName: "Marcos Lima", amount: 5000, interestRate: 30, installments: 1, startDate: "2026-09-01", dueDate: "2026-09-05", status: "active", paidInstallments: 0, totalAmount: 6500, remainingAmount: 6500, createdAt: "2026-09-01" },
+      { id: "l4", borrowerId: "c4", borrowerName: "Ana Pereira", amount: 500, interestRate: 30, installments: 1, startDate: "2026-09-01", dueDate: "2026-09-05", status: "active", paidInstallments: 0, totalAmount: 650, remainingAmount: 650, createdAt: "2026-09-01" },
     ];
 
     const metrics = calculateBusinessPulseMetrics({
       loans,
-      payments: [],
+      payments: prevPayments,
       expenses: [],
       clients: mockClients,
       range,
