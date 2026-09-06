@@ -223,8 +223,10 @@ const Pricing = () => {
       if (data?.paid) {
         reset();
         await queryClient.invalidateQueries({ queryKey: ["profile"] });
+        await queryClient.invalidateQueries({ queryKey: ["subscription"] });
+        await queryClient.invalidateQueries({ queryKey: ["system_settings"] });
         window.dispatchEvent(new Event("subscription:changed"));
-        navigate("/");
+        navigate("/?tab=settings");
       } else {
         toast({ title: data?.review ? "Pagamento em conferência" : "Aguardando pagamento",
           description: "A confirmação é automática. Se você já pagou, aguarde alguns instantes e consulte novamente." });

@@ -253,7 +253,7 @@ import { HideValuesProvider, useHideValues } from "@/contexts/HideValuesContext"
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useSubscription } from "@/hooks/useSubscription";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAccessLock } from "@/hooks/useAccessLock";
 import { AccessLockScreen } from "@/features/admin/components/upgrade/AccessLockScreen";
 import { resolveTabTransition } from "@/lib/tabNavigation";
@@ -390,23 +390,68 @@ import {
   isAutomaticIdlePrefetchAllowed,
 } from "@/lib/primaryFormLoader";
 
-// Prefetch most-used chunks after idle.
-// Respects slow connections and skips when the user opted into Data Saver.
+// Pré-carregamento de todas as abas e componentes principais logo após abrir o app.
 const prefetchChunks = () => {
+  // Empréstimos & Simulador
   void import("@/features/loans/components/LoanList");
   void loadLoanForm();
-  void import("@/components/BillingCalendar");
+  void import("@/features/loans/components/LoanSimulator");
+
+  // Clientes & Vendas
   void import("@/features/clients/components/ClientList");
   void loadClientForm();
+  void import("@/features/clients/components/ranking/ClientRankingView");
+  void import("@/features/clients/components/ClientLoanHistory");
+  void import("@/features/sales/components/ProductSalesView");
+  void import("@/features/sales/components/ProductForm");
+  void import("@/features/sales/components/SaleForm");
+
+  // Cobranças / Calendário
+  void import("@/components/BillingCalendar");
+
+  // Financeiro (Receitas, Despesas, Cartões, Cofre, Extrato)
+  void import("@/features/financial/components/ExpenseList");
   void loadExpenseForm();
+  void import("@/features/financial/components/PersonalExpenseList");
+  void loadPersonalExpenseForm();
+  void import("@/features/financial/components/IncomeList");
+  void import("@/features/creditCards/components/CreditCardList");
+  void import("@/features/piggyBanks/components/PiggyBankList");
+  void import("@/features/financial/components/LedgerView");
+
+  // Metas, Salários, Boletos
+  void import("@/features/piggyBanks/components/metas/MetasTab");
+  void import("@/features/payroll/components/salary/SalaryTab");
+  void import("@/features/boletos/components/boletos/BoletosTab");
+
+  // Veículos & Locadores
+  void import("@/features/vehicles/components/VehicleCardList");
+  void import("@/features/vehicles/components/LocadorList");
+  void import("@/features/vehicles/components/VehicleExpenseForm");
+
+  // Relatórios & Dashboard
+  void import("@/components/AccountantReport");
+  void import("@/features/dashboard/components/DashboardOverview");
+
+  // Configurações & Administração
+  void import("@/components/Settings");
+  void import("@/components/SystemSettings");
+  void import("@/components/NotificationSettings");
+  void import("@/components/WebhookSettings");
+  void import("@/features/admin/components/UserManagement");
+  void import("@/features/admin/components/PlanManagement");
+  void import("@/features/admin/components/PlanSubscribers");
+  void import("@/components/BackupExport");
+  void import("@/features/telegram/components/TelegramBotsHub");
+  void import("@/components/HelpChat");
 };
 if (typeof window !== "undefined") {
   const conn = (navigator as any).connection ?? null;
   if (isAutomaticIdlePrefetchAllowed(conn)) {
     if ("requestIdleCallback" in window) {
-      (window as any).requestIdleCallback(prefetchChunks, { timeout: 3000 });
+      (window as any).requestIdleCallback(prefetchChunks, { timeout: 1500 });
     } else {
-      setTimeout(prefetchChunks, 2000);
+      setTimeout(prefetchChunks, 500);
     }
   }
 }
@@ -734,6 +779,7 @@ const Index = () => {
   setNavigationScope(user?.id ?? null);
   const roleAllowedTabs = useMyRoleTabs(role);
   const navigate = useNavigate();
+  const location = useLocation();
   const scrollPolicy = useScrollPolicy();
 
   const { subscription, isActive: hasActiveSub } = useSubscription();
@@ -747,9 +793,8 @@ const Index = () => {
     if (urlTab && tabConfig.some((t) => t.id === urlTab)) return urlTab as Tab;
     const saved = sessionStorage.getItem("activeTab");
     if (saved && tabConfig.some((t) => t.id === saved)) return saved as Tab;
-    // Mobile: abrir direto em "Empréstimos" (fluxo principal). Desktop: "overview".
-    const isMobileViewport = typeof window !== "undefined" && window.innerWidth < 768;
-    return isMobileViewport ? "dashboard" : "overview";
+    // Padrão do app ao abrir: sempre a aba Empréstimos ("dashboard")
+    return "dashboard";
   });
   // Troca de aba com fluxos separados (ver src/lib/tabNavigation.ts):
   //  - source="user":    clique manual do usuário; único caminho que rola,
@@ -835,6 +880,15 @@ const Index = () => {
     return () => window.removeEventListener("app:navigate", handler as EventListener);
   }, [changeTab]);
 
+  // Sincroniza a aba ativa sempre que os query params da URL mudarem (ex: /?tab=settings após checkout)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const urlTab = params.get("tab");
+    if (urlTab && tabConfig.some((t) => t.id === urlTab)) {
+      changeTab(urlTab as Tab, { source: "internal" });
+    }
+  }, [location.search, changeTab]);
+
   // Read initial loan filter/view from URL query params (for push notification deep links)
   const urlParams = new URLSearchParams(window.location.search);
   const initialLoanCategory = urlParams.get("filter") as any;
@@ -863,12 +917,11 @@ const Index = () => {
   // Calcula e sincroniza snapshots de patrimônio globalmente (para metas, etc)
   usePatrimonioPublisher(loans, payments, installmentSchedules);
 
-  // Prefetch financeiro/veículos assim que o app abre. As telas continuam usando
-  // os mesmos hooks/caches, mas os dados já chegam antes do usuário trocar de aba.
+  // Pré-carregamento de dados para que todas as abas estejam prontas assim que o app abre.
   const needsProducts = true;
   const needsExpenses = true;
-  const needsVehicles = tab === "clients" || tab === "vehicles";
-  const needsLocadores = tab === "vehicles" || tab === "settings" || tab === "clients";
+  const needsVehicles = true;
+  const needsLocadores = true;
 
   const { products, sales, addProduct, updateProduct, deleteProduct, addSale, updateSale, deleteSale } =
     useProducts(needsProducts);
