@@ -24,6 +24,7 @@ export interface AsaasCheckoutParams {
   /** ID do plano em `plans`. O preço é resolvido no servidor. */
   planId: string;
   cycle: AsaasCycle;
+  cpfCnpj?: string;
 }
 
 
@@ -52,10 +53,16 @@ async function createAsaasCheckout(
     body: JSON.stringify({ ...params, requestKey }),
   });
 
-  const json = await res.json();
+  const json = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    if (json?.error === "checkout_not_created") sessionStorage.removeItem(key);
+    if (json?.error === "checkout_not_created" || json?.error === "cpf_required") {
+      sessionStorage.removeItem(key);
+    }
+    const serverMessage = json?.message || json?.error;
+    if (serverMessage && serverMessage !== "checkout_not_created") {
+      throw new Error(serverMessage);
+    }
     throw new Error(
       json?.error === "checkout_in_progress" ? "A cobrança está sendo confirmada. Aguarde e tente novamente; não é necessário gerar outro PIX."
       : json?.error === "only_account_owner_can_purchase" ? "A contratação deve ser feita pelo titular da conta."

@@ -74,11 +74,10 @@ Deno.serve(async (req) => {
       userRes.email?.split("@")[0] ||
       "Usuário";
 
+    // Ensure base profile row exists
     await admin.from("profiles").upsert(
       {
         user_id: userId,
-        email: userRes.email,
-        full_name: userRes.user_metadata?.full_name || displayName,
         display_name: displayName,
       },
       { onConflict: "user_id", ignoreDuplicates: true },

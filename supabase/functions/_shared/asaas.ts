@@ -19,8 +19,15 @@ export async function asaasFetch(path: string, init: RequestInit = {}) {
     ...init, signal: AbortSignal.timeout(20_000),
     headers: { "Content-Type": "application/json", access_token: apiKey, ...init.headers },
   });
-  const data = await response.json();
-  if (!response.ok) throw new Error(`asaas_http_${response.status}`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const desc = data?.errors?.[0]?.description || data?.message || `asaas_http_${response.status}`;
+    console.error(`[asaasFetch] Erro ${response.status} em ${path}:`, desc, data);
+    const err = new Error(desc);
+    (err as any).status = response.status;
+    (err as any).details = data;
+    throw err;
+  }
   if (data?.object === "payment" || (data?.id?.startsWith("pay_") && data?.customer)) data._observed_at = observedAt;
   return data;
 }

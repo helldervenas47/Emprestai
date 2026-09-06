@@ -52,14 +52,24 @@ export async function handleCheckout(req: Request, recurring = false) {
       if (found.data?.length !== 1) return billingJson({ error: "checkout_in_progress", orderId:order.id },409);
       payment=found.data[0];
     } else {
-      const profile = await admin.from("profiles").select("display_name,cpf_cnpj").eq("user_id",user.id).single();
-      if (profile.error) throw new Error("profile_lookup_failed");
+      const profile = await admin.from("profiles").select("display_name,cpf_cnpj").eq("user_id",user.id).maybeSingle();
+      const cleanCpf = (
+        (typeof body.cpfCnpj === "string" ? body.cpfCnpj : "") ||
+        profile.data?.cpf_cnpj ||
+        user.user_metadata?.cpf_cnpj ||
+        user.raw_user_meta_data?.cpf_cnpj ||
+        ""
+      ).replace(/\D/g, "");
+
+      if (cleanCpf && profile.data && !profile.data.cpf_cnpj) {
+        await admin.from("profiles").update({ cpf_cnpj: cleanCpf }).eq("user_id", user.id).catch(() => {});
+      }
+
       const customerRow = await admin.from("billing_customers").select("customer_id").eq("user_id",user.id).eq("environment",environment).maybeSingle();
       if (customerRow.error) throw new Error("customer_lookup_failed");
       let customerId=customerRow.data?.customer_id;
       if (!customerId) {
         const reference=`account:${user.id}:${environment}`;
-        const cleanCpf = profile.data?.cpf_cnpj?.replace(/\D/g,"") || "";
 
         // 1. Busca por externalReference do usuário
         const found = await asaasFetch(`/customers?externalReference=${encodeURIComponent(reference)}`);
@@ -84,7 +94,7 @@ export async function handleCheckout(req: Request, recurring = false) {
             customer = await asaasFetch("/customers", {
               method: "POST",
               body: JSON.stringify({
-                name: profile.data.display_name || user.email,
+                name: profile.data?.display_name || user.email,
                 email: user.email,
                 cpfCnpj: cleanCpf || undefined,
                 externalReference: reference,
@@ -146,10 +156,13 @@ export async function handleCheckout(req: Request, recurring = false) {
   } catch(e) {
     const message=(e as Error).message;
     console.error("[asaas-checkout]",message);
-    if (admin && newOrderId && (!gatewayAttempted || message === "asaas_http_400")) {
-      const released = await admin.from("billing_orders").update({status:"error",review_reason:"checkout_not_created",checked_at:new Date().toISOString()}).eq("id",newOrderId);
-      if (!released.error) return billingJson({error:"checkout_not_created"},400);
+    if (admin && newOrderId) {
+      await admin.from("billing_orders").update({
+        status: "error",
+        review_reason: message,
+        checked_at: new Date().toISOString()
+      }).eq("id", newOrderId).catch(() => {});
     }
-    return billingJson({error:message},message==="unauthorized"?401:message==="only_account_owner_can_purchase"?403:500);
+    return billingJson({ error: message, message }, 400);
   }
 }
