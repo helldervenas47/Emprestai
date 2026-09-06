@@ -53,13 +53,18 @@ Deno.serve(async (req) => {
     }
     {
       const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+      // Preview/dev usa a sitekey de teste oficial do Cloudflare, que emite
+      // tokens "XXXX.DUMMY.TOKEN..." — esses só validam com o secret de teste.
+      const isDummyToken = captchaToken.startsWith("XXXX.DUMMY.TOKEN");
+      const TEST_SECRET = "1x0000000000000000000000000000000AA";
+      const secret = isDummyToken ? TEST_SECRET : TURNSTILE_SECRET;
       const verify = await fetch(
         "https://challenges.cloudflare.com/turnstile/v0/siteverify",
         {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: new URLSearchParams({
-            secret: TURNSTILE_SECRET,
+            secret,
             response: captchaToken,
             ...(clientIp ? { remoteip: clientIp } : {}),
           }),
@@ -69,6 +74,7 @@ Deno.serve(async (req) => {
       if (!result?.success) {
         console.warn("[turnstile] siteverify failed", {
           codes: result?.["error-codes"],
+          dummy: isDummyToken,
         });
         return new Response(
           JSON.stringify({ error: "Falha na verificação de segurança. Recarregue a página." }),
@@ -76,6 +82,7 @@ Deno.serve(async (req) => {
         );
       }
     }
+
 
 
     const supabaseUrl = Deno.env.get("EXTERNAL_SUPABASE_URL")!;
