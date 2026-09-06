@@ -280,6 +280,7 @@ import { SubscriptionBanner } from "@/components/SubscriptionBanner";
 import { SubscriptionGate } from "@/components/SubscriptionGate";
 import { TrialBanner } from "@/features/admin/components/upgrade/TrialBanner";
 import { DashboardCards } from "@/features/dashboard/components/DashboardCards";
+import { PlanExpirationInfo } from "@/components/PlanExpirationInfo";
 
 // Lazy load heavy components
 const HelpChat = lazy(() => import("@/components/HelpChat"));
@@ -2285,14 +2286,17 @@ const Index = () => {
                           <p className="text-[10px] text-muted-foreground uppercase tracking-widest truncate">
                             Controle de Empréstimos
                           </p>
-                          {planLabel && (
-                            <div className="mt-1.5">
-                              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-semibold">
-                                <Crown className="h-3 w-3" />
-                                {planLabel}
-                              </span>
-                            </div>
-                          )}
+                          <div className="mt-1.5 space-y-1">
+                            {planLabel && (
+                              <div className="flex items-center gap-1.5">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-semibold">
+                                  <Crown className="h-3 w-3" />
+                                  {planLabel}
+                                </span>
+                              </div>
+                            )}
+                            <PlanExpirationInfo className="text-[10.5px]" />
+                          </div>
                         </div>
                         <SheetClose asChild>
                           <button

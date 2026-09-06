@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/popover";
 import { useIsMobileOrTablet } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
+import { PlanExpirationInfo } from "@/components/PlanExpirationInfo";
 
 export type SidebarTabItem = {
   id: string;
@@ -320,14 +321,14 @@ export function AppSidebar({
             <PopoverContent
               side={collapsed ? "right" : "top"}
               align="start"
-              className="w-56 p-1"
+              className="w-64 p-1"
             >
-              <div className="px-2 py-1.5 border-b border-border mb-1">
+              <div className="px-2.5 py-2 border-b border-border/70 mb-1 space-y-1.5">
                 <p className="text-xs font-semibold truncate">{displayName}</p>
                 {user?.email && (
                   <p className="text-[10px] text-muted-foreground truncate">{user.email}</p>
                 )}
-                <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   {role && (
                     <Badge
                       variant={role === "admin" ? "default" : role === "visualizador" ? "outline" : "secondary"}
@@ -338,12 +339,13 @@ export function AppSidebar({
                   )}
                   <Badge
                     variant="outline"
-                    className="text-[9px] px-1.5 py-0 cursor-pointer hover:bg-primary/10 border-primary/40 text-primary"
+                    className="text-[9px] px-1.5 py-0 cursor-pointer hover:bg-primary/10 border-primary/40 text-primary uppercase font-semibold"
                     onClick={() => (onOpenPlans ? onOpenPlans() : navigate("/planos"))}
                   >
-                    {hasActiveSub ? planLabel : "Sem Plano"}
+                    {hasActiveSub ? (planLabel.toLowerCase().startsWith("plano") ? planLabel : `PLANO ${planLabel}`) : "Sem Plano"}
                   </Badge>
                 </div>
+                <PlanExpirationInfo className="pt-1 text-[10px] border-t border-border/40" />
               </div>
               <SidebarMenuAction
                 icon={UserIcon}
