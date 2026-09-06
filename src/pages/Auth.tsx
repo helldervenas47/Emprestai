@@ -105,27 +105,51 @@ const Auth = () => {
       let emailToUse = cleanLoginId;
 
       if (!isEmail(cleanLoginId)) {
-        // Login com Nome de Usuário — resolve email via Edge Function
-        const { data, error: fnError } = await supabase.functions.invoke("login-with-username", {
-          body: { username: cleanLoginId, password, captchaToken },
-        });
-
-        let serverError: string | undefined = data?.error;
-        if (fnError && (fnError as any).context instanceof Response) {
-          try {
-            const body = await (fnError as any).context.clone().json();
-            serverError = body?.error ?? serverError;
-          } catch { /* noop */ }
+        // 1. Tenta resolver o username via RPC direto no banco de dados (rápido e direto)
+        let resolvedEmail: string | null = null;
+        try {
+          const { data: rpcEmail, error: rpcError } = await supabase.rpc("get_email_by_username", {
+            p_username: cleanLoginId,
+          });
+          if (!rpcError && rpcEmail && typeof rpcEmail === "string") {
+            resolvedEmail = rpcEmail;
+          }
+        } catch {
+          // segue para a edge function
         }
 
-        if (fnError || data?.error || !data?.email) {
+        // 2. Se a RPC não resolveu, consulta a Edge Function login-with-username
+        if (!resolvedEmail) {
+          const { data, error: fnError } = await supabase.functions.invoke("login-with-username", {
+            body: { username: cleanLoginId, password, captchaToken },
+          });
+
+          let serverError: string | undefined = data?.error;
+          if (fnError && (fnError as any).context instanceof Response) {
+            try {
+              const body = await (fnError as any).context.clone().json();
+              serverError = body?.error ?? serverError;
+            } catch { /* noop */ }
+          }
+
+          if (data?.email) {
+            resolvedEmail = data.email;
+          } else if (fnError || data?.error) {
+            setLoading(false);
+            resetCaptcha();
+            toast.error(serverError || "Email/usuário ou senha incorretos");
+            return;
+          }
+        }
+
+        if (!resolvedEmail) {
           setLoading(false);
           resetCaptcha();
-          toast.error(serverError || "Email/usuário ou senha incorretos");
+          toast.error("Email/usuário ou senha incorretos");
           return;
         }
 
-        emailToUse = data.email;
+        emailToUse = resolvedEmail;
       }
 
       // Autentica via Supabase Auth
