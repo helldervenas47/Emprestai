@@ -67,7 +67,11 @@ Deno.serve(async (req) => {
       );
       return await verify.json().catch(() => ({ success: false }));
     };
-    const cfResult = await trySecret(TURNSTILE_SECRET);
+    // Tokens da sitekey de teste (preview/dev) só validam com o secret de teste.
+    const isDummyToken = captchaToken.startsWith("XXXX.DUMMY.TOKEN");
+    const cfResult = await trySecret(
+      isDummyToken ? "1x0000000000000000000000000000000AA" : TURNSTILE_SECRET,
+    );
     if (!cfResult?.success) {
       console.warn("[turnstile] siteverify failed", {
         codes: cfResult?.["error-codes"],
