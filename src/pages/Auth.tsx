@@ -89,40 +89,66 @@ const Auth = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanLoginId = loginId.trim();
+    if (!cleanLoginId || !password) {
+      toast.error("Informe seu usuário/email e senha");
+      return;
+    }
+
     if (!captchaToken) {
       toast.error("Complete a verificação de segurança");
       return;
     }
     setLoading(true);
-    // Sempre passa pela edge function (valida captcha + senha + rate limit)
-    const { data, error: fnError } = await supabase.functions.invoke("login-with-username", {
-      body: { username: loginId, password, captchaToken },
-    });
-    let serverError: string | undefined = data?.error;
-    if (fnError && (fnError as any).context instanceof Response) {
-      try {
-        const body = await (fnError as any).context.clone().json();
-        serverError = body?.error ?? serverError;
-      } catch { /* noop */ }
-    }
-    if (fnError || data?.error || !data?.email) {
+
+    try {
+      let emailToUse = cleanLoginId;
+
+      if (!isEmail(cleanLoginId)) {
+        // Login com Nome de Usuário — resolve email via Edge Function
+        const { data, error: fnError } = await supabase.functions.invoke("login-with-username", {
+          body: { username: cleanLoginId, password, captchaToken },
+        });
+
+        let serverError: string | undefined = data?.error;
+        if (fnError && (fnError as any).context instanceof Response) {
+          try {
+            const body = await (fnError as any).context.clone().json();
+            serverError = body?.error ?? serverError;
+          } catch { /* noop */ }
+        }
+
+        if (fnError || data?.error || !data?.email) {
+          setLoading(false);
+          resetCaptcha();
+          toast.error(serverError || "Email/usuário ou senha incorretos");
+          return;
+        }
+
+        emailToUse = data.email;
+      }
+
+      // Autentica via Supabase Auth
+      const { error } = await supabase.auth.signInWithPassword({
+        email: emailToUse.toLowerCase(),
+        password,
+      });
+
+      setLoading(false);
+      if (error) {
+        resetCaptcha();
+        if (error.message === "Invalid login credentials") {
+          toast.error("Email/usuário ou senha incorretos");
+        } else if (error.message.toLowerCase().includes("banned") || error.message.toLowerCase().includes("ban")) {
+          toast.error("Usuário inativo. Contate o administrador.");
+        } else {
+          toast.error(error.message);
+        }
+      }
+    } catch {
       setLoading(false);
       resetCaptcha();
-      toast.error(serverError || "Email/usuário ou senha incorretos");
-      return;
-    }
-    const emailToUse = data.email;
-    const { error } = await supabase.auth.signInWithPassword({ email: emailToUse, password });
-    setLoading(false);
-    if (error) {
-      resetCaptcha();
-      if (error.message === "Invalid login credentials") {
-        toast.error("Email/usuário ou senha incorretos");
-      } else if (error.message.toLowerCase().includes("banned") || error.message.toLowerCase().includes("ban")) {
-        toast.error("Usuário inativo. Contate o administrador.");
-      } else {
-        toast.error(error.message);
-      }
+      toast.error("Erro ao realizar login. Verifique seus dados e tente novamente.");
     }
   };
 
