@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
       },
     );
 
-    let email: string;
+    let email: string = "";
     let user: any = null;
 
     if (isEmail) {
@@ -110,22 +110,46 @@ Deno.serve(async (req) => {
       const { data: list } = await adminClient.auth.admin.listUsers();
       user = list?.users?.find((u: any) => u.email?.toLowerCase() === email) ?? null;
     } else {
-      const { data: profile } = await adminClient
-        .from("profiles")
-        .select("user_id, email")
-        .ilike("username", input)
-        .maybeSingle();
-
-      if (!profile) return genericError;
-
-      if (profile.email) {
-        email = profile.email;
-      } else {
-        const { data: userResp } = await adminClient.auth.admin.getUserById(profile.user_id);
-        user = userResp?.user;
-        if (!user?.email) return genericError;
-        email = user.email;
+      // 1. Tenta via RPC get_email_by_username
+      const { data: rpcEmail } = await adminClient.rpc("get_email_by_username", { p_username: input });
+      if (rpcEmail && typeof rpcEmail === "string") {
+        email = rpcEmail.toLowerCase().trim();
       }
+
+      // 2. Se não encontrou, busca no profiles por username ou display_name
+      if (!email) {
+        const { data: profile } = await adminClient
+          .from("profiles")
+          .select("user_id")
+          .or(`username.ilike.${input},display_name.ilike.${input}`)
+          .maybeSingle();
+
+        if (profile?.user_id) {
+          const { data: userResp } = await adminClient.auth.admin.getUserById(profile.user_id);
+          user = userResp?.user;
+          if (user?.email) {
+            email = user.email.toLowerCase().trim();
+          }
+        }
+      }
+
+      // 3. Fallback: busca nos metadados de auth.users
+      if (!email) {
+        const { data: list } = await adminClient.auth.admin.listUsers();
+        const found = list?.users?.find((u: any) => {
+          const metaUser = (u.user_metadata?.username || u.raw_user_meta_data?.username || "").toLowerCase();
+          const metaName = (u.user_metadata?.display_name || u.raw_user_meta_data?.display_name || "").toLowerCase();
+          const emailPrefix = (u.email || "").split("@")[0]?.toLowerCase();
+          const cleanIn = input.toLowerCase();
+          return metaUser === cleanIn || metaName === cleanIn || emailPrefix === cleanIn;
+        });
+        if (found?.email) {
+          user = found;
+          email = found.email.toLowerCase().trim();
+        }
+      }
+
+      if (!email) return genericError;
     }
 
     // Check if user is banned/inactive
