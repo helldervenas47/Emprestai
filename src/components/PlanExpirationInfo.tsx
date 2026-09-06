@@ -43,7 +43,7 @@ export function PlanExpirationInfo({ className, showIcon = true }: PlanExpiratio
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-1.5 text-[11px] leading-tight transition-colors",
+        "inline-flex items-center gap-1.5 text-[11px] leading-none whitespace-nowrap overflow-hidden transition-colors select-none",
         isExpired
           ? "text-destructive font-medium"
           : isCritical
@@ -64,11 +64,11 @@ export function PlanExpirationInfo({ className, showIcon = true }: PlanExpiratio
       )}
 
       {isExpired ? (
-        <span>
+        <span className="truncate whitespace-nowrap">
           Plano expirado • Venceu em: <span className="font-semibold">{formattedDate}</span>
         </span>
       ) : (
-        <span>
+        <span className="truncate whitespace-nowrap">
           Plano vence em: <span className="font-medium text-foreground/90">{formattedDate}</span>
           <span className="mx-1 text-muted-foreground/60">•</span>
           <span className={cn(isCritical && "font-semibold text-amber-600 dark:text-amber-400")}>

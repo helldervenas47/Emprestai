@@ -321,7 +321,7 @@ export function AppSidebar({
             <PopoverContent
               side={collapsed ? "right" : "top"}
               align="start"
-              className="w-64 p-1"
+              className="w-[285px] p-1"
             >
               <div className="px-2.5 py-2 border-b border-border/70 mb-1 space-y-1.5">
                 <p className="text-xs font-semibold truncate">{displayName}</p>
@@ -345,7 +345,9 @@ export function AppSidebar({
                     {hasActiveSub ? (planLabel.toLowerCase().startsWith("plano") ? planLabel : `PLANO ${planLabel}`) : "Sem Plano"}
                   </Badge>
                 </div>
-                <PlanExpirationInfo className="pt-1 text-[10px] border-t border-border/40" />
+                <div className="pt-1.5 border-t border-border/40">
+                  <PlanExpirationInfo className="text-[11px]" />
+                </div>
               </div>
               <SidebarMenuAction
                 icon={UserIcon}
