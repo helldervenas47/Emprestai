@@ -15,7 +15,11 @@ As quatro funções chamadas por usuários exigem JWT. O webhook exige `ASAAS_WE
 
 O ambiente remoto está configurado como `live`. A validação confirmou os sete objetos de billing, as nove funções SQL, as colunas de auditoria do webhook, 34 tabelas protegidas por 102 políticas restritivas e nenhum dos dois riscos residuais consultados. Nenhuma cobrança real foi criada durante a validação.
 
-Ainda faltam a publicação do frontend e o agendamento periódico de `asaas-reconcile`. O webhook manteve a mesma URL pública; deve-se conferir no painel do Asaas que o token configurado corresponde ao `ASAAS_WEBHOOK_SECRET` do Supabase. As alterações anteriores do usuário nos componentes de empréstimos permanecem preservadas na pasta local.
+O frontend do commit `8d0751a` foi publicado primeiro como preview, validado no navegador e promovido para produção pela Vercel. O deployment de produção `AvHQcE5aRAT5po5rTDgLLqbqNgBg` ficou pronto em 34 segundos e atende `https://www.emprestaii.com.br`. A página redirecionou para `/auth`, exibiu login e acesso aos planos, sem overlay ou registro de erro no navegador.
+
+O job `asaas-reconcile` (job ID 94) foi criado no `pg_cron`, está ativo e roda a cada cinco minutos. Seu segredo foi rotacionado, permanece criptografado no Vault e corresponde ao `CRON_SECRET` das Edge Functions. A primeira chamada controlada retornou HTTP 200, sem timeout e com `{"results":[]}`.
+
+O webhook manteve a mesma URL pública; deve-se conferir no painel do Asaas que o token configurado corresponde ao `ASAAS_WEBHOOK_SECRET` do Supabase. As alterações anteriores do usuário nos componentes de empréstimos permanecem preservadas na pasta local.
 
 ## Comportamento definido
 
