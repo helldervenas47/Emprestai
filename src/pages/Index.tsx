@@ -790,10 +790,14 @@ const Index = () => {
   const [tab, setTabState] = useState<Tab>(() => {
     const params = new URLSearchParams(window.location.search);
     const urlTab = params.get("tab");
-    if (urlTab && tabConfig.some((t) => t.id === urlTab)) return urlTab as Tab;
-    const saved = sessionStorage.getItem("activeTab");
-    if (saved && tabConfig.some((t) => t.id === saved)) return saved as Tab;
-    // Padrão do app ao abrir: sempre a aba Empréstimos ("dashboard")
+    if (urlTab && tabConfig.some((t) => t.id === urlTab)) {
+      params.delete("tab");
+      const remaining = params.toString();
+      const newUrl = window.location.pathname + (remaining ? `?${remaining}` : "") + window.location.hash;
+      window.history.replaceState(window.history.state, "", newUrl);
+      return urlTab as Tab;
+    }
+    // Padrão do app ao abrir/atualizar: sempre a aba Empréstimos ("dashboard")
     return "dashboard";
   });
   // Troca de aba com fluxos separados (ver src/lib/tabNavigation.ts):
@@ -881,11 +885,16 @@ const Index = () => {
   }, [changeTab]);
 
   // Sincroniza a aba ativa sempre que os query params da URL mudarem (ex: /?tab=settings após checkout)
+  // e limpa o parâmetro da URL para que futuros recarregamentos (F5) abram na aba padrão Empréstimos.
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const urlTab = params.get("tab");
     if (urlTab && tabConfig.some((t) => t.id === urlTab)) {
       changeTab(urlTab as Tab, { source: "internal" });
+      params.delete("tab");
+      const remaining = params.toString();
+      const newUrl = window.location.pathname + (remaining ? `?${remaining}` : "") + window.location.hash;
+      window.history.replaceState(window.history.state, "", newUrl);
     }
   }, [location.search, changeTab]);
 
