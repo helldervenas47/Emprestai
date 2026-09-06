@@ -1,4 +1,4 @@
--- Função RPC SECURITY DEFINER para resolver nome de usuário em email para login
+-- Atualização da função RPC get_email_by_username para busca inteligente
 -- Suporta: profiles.username, display_name, prefixo do email antes do @, metadados
 
 CREATE OR REPLACE FUNCTION public.get_email_by_username(p_username text)
