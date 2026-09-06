@@ -38,40 +38,44 @@ async function createAsaasCheckout(
     throw new Error("Sessão não encontrada. Faça login novamente.");
   }
 
-  const url = `${USER_SUPABASE_URL}/functions/v1/asaas-checkout`;
-
   const key = `billing-request:${sessionData.session.user.id}:${params.planId}:${params.cycle}`;
   const requestKey = sessionStorage.getItem(key) ?? crypto.randomUUID();
   sessionStorage.setItem(key, requestKey);
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      apikey: USER_SUPABASE_PUBLISHABLE_KEY,
-    },
-    body: JSON.stringify({ ...params, requestKey }),
+
+  const { data, error } = await supabase.functions.invoke("asaas-checkout", {
+    body: { ...params, requestKey },
   });
 
-  const json = await res.json().catch(() => ({}));
+  if (error) {
+    let serverMessage: string | undefined;
+    if ((error as any).context instanceof Response) {
+      try {
+        const body = await (error as any).context.clone().json();
+        serverMessage = body?.message || body?.error;
+      } catch { /* noop */ }
+    }
+    serverMessage = serverMessage || error.message;
 
-  if (!res.ok) {
-    if (json?.error === "checkout_not_created" || json?.error === "cpf_required") {
+    if (serverMessage?.includes("checkout_not_created") || serverMessage?.includes("cpf_required")) {
       sessionStorage.removeItem(key);
     }
-    const serverMessage = json?.message || json?.error;
-    if (serverMessage && serverMessage !== "checkout_not_created") {
+
+    if (serverMessage && !serverMessage.includes("checkout_not_created") && !serverMessage.includes("non-2xx status code")) {
       throw new Error(serverMessage);
     }
-    throw new Error(
-      json?.error === "checkout_in_progress" ? "A cobrança está sendo confirmada. Aguarde e tente novamente; não é necessário gerar outro PIX."
-      : json?.error === "only_account_owner_can_purchase" ? "A contratação deve ser feita pelo titular da conta."
-      : "Não foi possível gerar o PIX. Tente novamente ou contate o suporte."
-    );
+
+    throw new Error("Não foi possível gerar a cobrança PIX. Verifique seus dados ou contate o suporte.");
   }
 
-  if (json.paymentId) sessionStorage.removeItem(key);
-  return json as AsaasCheckoutData;
+  if (data?.error) {
+    if (data.error === "checkout_not_created" || data.error === "cpf_required") {
+      sessionStorage.removeItem(key);
+    }
+    throw new Error(data.message || data.error);
+  }
+
+  if (data?.paymentId) sessionStorage.removeItem(key);
+  return data as AsaasCheckoutData;
 }
 
 export function useAsaasCheckout() {
