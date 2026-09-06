@@ -1,3 +1,4 @@
+import { usePlanEntitlements } from "@/features/admin/hooks/usePlanEntitlements";
 /* Leia o arquivo instrucoes.md em anexo e siga as instruções. Analise também os demais arquivos anexados. */
 /* Utilize o commit **`4112fd3` como referência funcional** para corrigir a lógica de avanço das **despesas parceladas**, pois nessa versão o comportamento de avanço das parcelas está correto.
 
@@ -1093,6 +1094,7 @@ const Index = () => {
     };
   }, [isMobileOrTablet]);
 
+  const { allowedTabs: planAllowedTabs, loading: planAccessLoading } = usePlanEntitlements();
   const visibleTabs = React.useMemo(() => tabConfig.filter((t) => {
     if (loading) return false;
     // "Ajuda" é sempre visível para qualquer usuário logado.
@@ -1105,6 +1107,7 @@ const Index = () => {
     // Admin sempre vê todas as abas (ignora plano e demais restrições).
     if (role === "admin") return true;
     if (!user) return false;
+    if (t.id !== "system" && (planAccessLoading || (Array.isArray(planAllowedTabs) && !planAllowedTabs.includes(t.id)))) return false;
     // Permissão por papel (role_tab_permissions): se a aba não está liberada
     // para o papel do usuário, esconde.
     if (Array.isArray(roleAllowedTabs) && !roleAllowedTabs.includes(t.id)) return false;
@@ -1116,7 +1119,7 @@ const Index = () => {
       allowedTabs.every((id) => LEGACY_CLIENT_PLAN_TAB_IDS.has(id));
     if (Array.isArray(allowedTabs) && !isLegacyClientPlanTabs) return allowedTabs.includes(t.id);
     return true;
-  }), [loading, user, role, roleAllowedTabs, allowedTabs]);
+  }), [loading, user, role, roleAllowedTabs, allowedTabs, planAllowedTabs, planAccessLoading]);
 
   const visibleTabsSignature = React.useMemo(
     () => visibleTabs.map((t) => t.id).join(","),

@@ -55,12 +55,15 @@ export function useAccessLock(): AccessLockState {
       if (cancelled) return;
 
       if (!rpcError && rpcData) {
-        const s = rpcData as {
+        const raw = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+        const s = raw as {
           locked?: boolean;
+          blocked?: boolean;
           reason?: AccessLockReason;
           blocked_reason?: string | null;
         };
-        setServerState({ locked: Boolean(s.locked), reason: s.reason ?? null });
+        const locked = Boolean(s.locked ?? s.blocked);
+        setServerState({ locked, reason: s.reason ?? null });
         setAdminBlocked(s.reason === "admin_blocked");
         setBlockedReason(s.blocked_reason ?? null);
         setProfileLoading(false);
@@ -105,8 +108,8 @@ export function useAccessLock(): AccessLockState {
 
   const loading = authLoading || planLoading || profileLoading;
 
-  // Admin da conta nunca é travado.
-  if (role === "admin") {
+  // Explicit administrative blocks take precedence, including for account admins.
+  if (role === "admin" && !adminBlocked) {
     return { loading, locked: false, reason: null, blockedReason: null, planExpiresAt: trial.endsAt };
   }
 
@@ -137,4 +140,3 @@ export function useAccessLock(): AccessLockState {
     planExpiresAt: trial.endsAt,
   };
 }
-

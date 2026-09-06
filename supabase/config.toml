@@ -81,7 +81,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.admin-subscription-manage]
-verify_jwt = false
+verify_jwt = true
 
 [functions.admin-manage-user]
 verify_jwt = false
@@ -90,7 +90,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.asaas-checkout]
-verify_jwt = false
+verify_jwt = true
+
+[functions.asaas-create-subscription]
+verify_jwt = true
 
 
 
@@ -98,4 +101,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.ai-assistant]
+verify_jwt = false
+
+[functions.asaas-payment-status]
+verify_jwt = true
+
+[functions.asaas-reconcile]
 verify_jwt = false

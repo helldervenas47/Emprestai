@@ -41,14 +41,14 @@ export interface AdminPlanRow {
 export interface AuditRow {
   id: string;
   action: string;
-  before: any;
-  after: any;
+  before: Record<string, unknown>;
+  after: Record<string, unknown>;
   note: string | null;
   created_at: string;
   admin_user_id: string;
 }
 
-async function invoke(body: Record<string, unknown>) {
+async function invoke<T = Record<string, unknown>>(body: Record<string, unknown>): Promise<T> {
   let { data: { session } } = await supabase.auth.getSession();
   if (session?.expires_at && session.expires_at * 1000 < Date.now() + 60_000) {
     const refreshed = await supabase.auth.refreshSession();
@@ -73,8 +73,8 @@ async function invoke(body: Record<string, unknown>) {
     }
     throw new Error(error.message);
   }
-  if ((data as any)?.error) throw new Error((data as any).error);
-  return data as any;
+  if (data?.error) throw new Error(String(data.error));
+  return data as T;
 }
 
 export function useAdminSubscriptions() {
@@ -82,18 +82,21 @@ export function useAdminSubscriptions() {
   const [plans, setPlans] = useState<AdminPlanRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [page, setPage] = useState(0);
+  const [search, updateSearch] = useState("");
+  const [statusFilter, updateStatusFilter] = useState<string>("");
 
+  const setSearch = useCallback((value: string) => { updateSearch(value); setPage(0); }, []);
+  const setStatusFilter = useCallback((value: string) => { updateStatusFilter(value); setPage(0); }, []);
   const fetchRows = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await invoke({
+      const data = await invoke<{ rows: AdminSubRow[]; plans: AdminPlanRow[]; total: number }>({
         action: "list",
         search: search || undefined,
         status_filter: statusFilter || undefined,
         limit: 100,
-        offset: 0,
+        offset: page * 100,
       });
       setRows(data.rows ?? []);
       setPlans(data.plans ?? []);
@@ -103,7 +106,7 @@ export function useAdminSubscriptions() {
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter]);
+  }, [search, statusFilter, page]);
 
   useEffect(() => { fetchRows(); }, [fetchRows]);
 
@@ -128,7 +131,7 @@ export function useAdminSubscriptions() {
 
   const fetchAudit = useCallback(async (userId: string): Promise<AuditRow[]> => {
     try {
-      const data = await invoke({ action: "audit", target_user_id: userId });
+      const data = await invoke<{ rows: AuditRow[] }>({ action: "audit", target_user_id: userId });
       return data.rows ?? [];
     } catch (e) {
       toast.error((e as Error).message);
@@ -136,5 +139,5 @@ export function useAdminSubscriptions() {
     }
   }, []);
 
-  return { rows, plans, total, loading, search, setSearch, statusFilter, setStatusFilter, fetchRows, runAction, fetchAudit };
+  return { page, setPage, rows, plans, total, loading, search, setSearch, statusFilter, setStatusFilter, fetchRows, runAction, fetchAudit };
 }

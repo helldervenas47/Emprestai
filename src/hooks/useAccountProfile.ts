@@ -23,7 +23,7 @@ interface AccountProfileState {
 }
 
 const DEFAULT_PROFILE: AccountProfile = {
-  financial_status: "ACTIVE",
+  financial_status: "INACTIVE",
   manual_override: null,
   current_period_end: null,
 };

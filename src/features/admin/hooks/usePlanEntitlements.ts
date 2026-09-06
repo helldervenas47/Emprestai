@@ -1,3 +1,4 @@
+import { productIdFromPlanName } from "@/lib/billing/subscriptionState";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/userClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -36,7 +37,7 @@ type PlanEntitlementRow = PlanLite & {
 };
 
 export function usePlanEntitlements() {
-  const { user, dataOwnerId, loading: authLoading } = useAuth();
+  const { user, dataOwnerId, role, loading: authLoading } = useAuth();
   const { subscription, isActive, loading: subscriptionLoading } = useSubscription();
   const [plan, setPlan] = useState<PlanLite | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,7 +78,6 @@ export function usePlanEntitlements() {
         supabase
           .from("plans")
           .select("id, name, trial_days, limits, permissions, allowed_tabs, expiration_action, active, sort_order")
-          .eq("active", true)
           .order("sort_order", { ascending: true }),
         effectiveUserId
           ? supabase
@@ -89,25 +89,17 @@ export function usePlanEntitlements() {
       ]);
 
       const list = (allPlans ?? []) as unknown as PlanEntitlementRow[];
+      const activePlans = list.filter((candidate) => candidate.active !== false);
       const prof = (profileRes?.data ?? null) as ProfilePlanFields | null;
       let picked: PlanEntitlementRow | null = null;
 
       if (subscription?.product_id) {
-        picked = list.find((p) => (p.name || "").toLowerCase() === subscription.product_id.toLowerCase()) ?? null;
+        picked = list.find((p) => subscription.plan_id ? p.id === subscription.plan_id : productIdFromPlanName(p.name) === subscription.product_id) ?? null;
       }
-      if (!picked && prof?.trial_plan_name) {
-        picked = list.find((p) => (p.name || "").toLowerCase() === String(prof.trial_plan_name).toLowerCase()) ?? null;
+      if (!picked && (!subscription || subscription.product_id === "free_plan") && prof?.trial_plan_name) {
+        picked = activePlans.find((p) => (p.name || "").toLowerCase() === String(prof.trial_plan_name).toLowerCase()) ?? null;
       }
-      if (!picked) {
-        if (subscription?.product_id) {
-          console.warn(
-            "[usePlanEntitlements] Nenhum plano ativo encontrou product_id:",
-            subscription.product_id,
-            "— usando fallback list[0]. Verifique o campo 'name' dos planos no banco."
-          );
-        }
-        picked = list[0] ?? null;
-      }
+      if (!picked && (!subscription || subscription.product_id === "free_plan")) picked = activePlans[0] ?? null;
 
       if (!cancel) {
         setPlan(
@@ -134,14 +126,14 @@ export function usePlanEntitlements() {
       }
     })();
     return () => { cancel = true; };
-  }, [effectiveUserId, user?.created_at, subscription?.product_id, subscription?.current_period_end, subscription?.status, authLoading, refetchTick]);
+  }, [effectiveUserId, user?.created_at, subscription, authLoading, refetchTick]);
 
 
   // Tick a cada 60s para que o contador de trial atualize sozinho no UI
   // sem depender de navegação ou refetch. Barato: um setState/min.
-  const [, setTick] = useState(0);
+  const [now, setNow] = useState(Date.now);
   useEffect(() => {
-    const id = setInterval(() => setTick((n) => n + 1), 60_000);
+    const id = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(id);
   }, []);
 
@@ -149,35 +141,40 @@ export function usePlanEntitlements() {
     // Prioridade: override manual do admin > default do plano.
     // Isso garante que "Iniciar teste" / "Prorrogar teste" na Administração
     // reflitam imediatamente no contador do usuário.
-    const days = trialDaysOverride ?? (plan?.trial_days || 7);
+    const days = trialDaysOverride ?? plan?.trial_days ?? 7;
     const action = plan?.expiration_action ?? "force_upgrade";
     const stillResolving = authLoading || subscriptionLoading || loading;
-    if (!days || !trialStartedAt || stillResolving) {
+    if (!plan || !trialStartedAt || stillResolving) {
       return { active: false, daysLeft: 0, hoursLeft: 0, msLeft: 0, endsAt: null as Date | null, expired: false, expirationAction: action };
     }
-    const endsAt = new Date(trialStartedAt.getTime() + days * 86400_000);
-    const msLeft = endsAt.getTime() - Date.now();
+    // An explicit subscription period replaces the registration trial, including zero days.
+    const hasExplicitPlan = subscription && subscription.product_id !== "free_plan";
+    const endsAt = hasExplicitPlan
+      ? new Date(subscription.current_period_end ?? 0)
+      : new Date(trialStartedAt.getTime() + days * 86400_000);
+    const msLeft = endsAt.getTime() - now;
     const daysLeft = Math.max(0, Math.ceil(msLeft / 86400_000));
     const hoursLeft = Math.max(0, Math.ceil(msLeft / 3600_000));
     const expired = msLeft <= 0 && !isActive;
-    return { active: !isActive && msLeft > 0, daysLeft, hoursLeft, msLeft: Math.max(0, msLeft), endsAt, expired, expirationAction: action };
-  }, [plan, trialStartedAt, trialDaysOverride, isActive, authLoading, subscriptionLoading, loading]);
+    return { active: !hasExplicitPlan && !isActive && msLeft > 0, daysLeft, hoursLeft, msLeft: Math.max(0, msLeft), endsAt, expired, expirationAction: action };
+  }, [plan, trialStartedAt, trialDaysOverride, isActive, authLoading, subscriptionLoading, loading, now, subscription]);
 
   const lockdown = trial.expired && trial.expirationAction === "readonly";
+  const hasPlanAccess = role === "admin" || isActive;
 
   const can = (action: string) => {
-    if (lockdown) return false;
+    if (!plan || loading || (!hasPlanAccess && !trial.active)) return false;
     return isPermitted(plan?.permissions, action);
   };
   const withinLimit = (key: LimitKey, current: number) => {
-    if (lockdown) return false;
+    if (!plan || loading || (!hasPlanAccess && !trial.active)) return false;
     return isWithinLimit(plan?.limits, key, current);
   };
 
   return {
     loading: loading || authLoading || subscriptionLoading,
     plan, limits: plan?.limits ?? {}, permissions: plan?.permissions ?? {},
-    allowedTabs: plan?.allowed_tabs ?? null, trial, can, withinLimit,
-    isPaid: isActive, allKnownPermissions: ALL_PERMISSION_KEYS,
+    allowedTabs: plan ? plan.allowed_tabs : [], trial, can, withinLimit,
+    isPaid: hasPlanAccess, allKnownPermissions: ALL_PERMISSION_KEYS,
   };
 }

@@ -104,7 +104,7 @@ function getActions(
   runAction: (payload: Record<string, unknown>) => Promise<unknown>,
   openAudit: (u: AdminSubRow) => void,
 ) {
-  const isSuspended = st === "suspended";
+  const isSuspended = st === "suspended" || Boolean(u.is_blocked);
   const isBlocked = Boolean(u.is_blocked);
   return [
     { label: "Liberar plano", icon: <Gift className="h-4 w-4" />, onClick: () => setDialog({ kind: "grant_plan", user: u }) },
@@ -114,7 +114,7 @@ function getActions(
     { label: "Renovar", icon: <RotateCw className="h-4 w-4" />, onClick: () => setDialog({ kind: "renew", user: u }) },
     isSuspended
       ? { label: "Reativar", icon: <PlayCircle className="h-4 w-4 text-green-600" />, onClick: () => runAction({ action: "reactivate", target_user_id: u.user_id }) }
-      : { label: "Suspender", icon: <Pause className="h-4 w-4" />, onClick: () => runAction({ action: "suspend", target_user_id: u.user_id }) },
+      : { label: "Suspender", icon: <Pause className="h-4 w-4" />, onClick: () => setDialog({ kind: "suspend", user: u }) },
     { label: "Editar datas", icon: <PencilLine className="h-4 w-4" />, onClick: () => setDialog({ kind: "set_dates", user: u }) },
     isBlocked
       ? {
@@ -187,7 +187,7 @@ function LiberarButton({ actions }: { actions: ReturnType<typeof getActions> }) 
 }
 
 export function SubscriptionManagement() {
-  const { rows, plans, loading, search, setSearch, statusFilter, setStatusFilter, fetchRows, runAction, fetchAudit } = useAdminSubscriptions();
+  const { page, setPage, total, rows, plans, loading, search, setSearch, statusFilter, setStatusFilter, fetchRows, runAction, fetchAudit } = useAdminSubscriptions();
   const [dialog, setDialog] = useState<{ kind: ActionKind; user: AdminSubRow } | null>(null);
   const [audit, setAudit] = useState<{ user: AdminSubRow; rows: AuditRow[]; loading: boolean } | null>(null);
 
@@ -270,7 +270,7 @@ export function SubscriptionManagement() {
                       <div className="text-xs text-muted-foreground truncate mt-0.5">{u.email}</div>
                     </div>
                     <div className="flex flex-col items-end gap-0.5 shrink-0">
-                      <Badge variant={meta.variant as any} className="font-semibold">{meta.label}</Badge>
+                      <Badge variant={meta.variant as "default" | "secondary" | "destructive" | "outline"} className="font-semibold">{meta.label}</Badge>
                       <span className="text-[10px] text-muted-foreground whitespace-nowrap">{daysLeftLabel(end)}</span>
                       {u.is_blocked && (
                         <Badge variant="destructive" className="gap-1 mt-1 text-[10px]"><ShieldOff className="h-3 w-3" />Bloqueado</Badge>
@@ -332,7 +332,7 @@ export function SubscriptionManagement() {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1 items-start">
-                          <Badge variant={meta.variant as any}>{meta.label}</Badge>
+                          <Badge variant={meta.variant as "default" | "secondary" | "destructive" | "outline"}>{meta.label}</Badge>
                           <span className="text-[11px] text-muted-foreground">{daysLeftLabel(end)}</span>
                           {u.is_blocked && (
                             <Badge variant="destructive" className="gap-1 text-[10px]"><ShieldOff className="h-3 w-3" />Bloqueado</Badge>
@@ -359,6 +359,11 @@ export function SubscriptionManagement() {
       </CardContent>
 
 
+      <div className="flex items-center justify-between gap-3 p-4">
+        <Button variant="outline" disabled={loading || page === 0} onClick={() => setPage(page - 1)}>Anterior</Button>
+        <span className="text-sm" aria-live="polite">Página {page + 1} · {total} usuários</span>
+        <Button variant="outline" disabled={loading || (page + 1) * 100 >= total} onClick={() => setPage(page + 1)}>Próxima</Button>
+      </div>
       {dialog && (
         <ActionDialog
           key={dialog.kind + dialog.user.user_id}
@@ -417,8 +422,8 @@ function ActionDialog({ kind, user, plans, fetchAudit, onClose, onSubmit }: {
     [user.subscription?.current_period_end],
   );
   const [planId, setPlanId] = useState(plans[0]?.id ?? "");
-  const [startDate, setStartDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
-  const [endDate, setEndDate] = useState<string>(() => new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10));
+  const [startDate, setStartDate] = useState<string>(() => (kind === "set_dates" && user.subscription?.current_period_start ? user.subscription.current_period_start : new Date().toISOString()).slice(0, 10));
+  const [endDate, setEndDate] = useState<string>(() => (kind === "set_dates" && user.subscription?.current_period_end ? user.subscription.current_period_end : new Date(Math.max(Date.now() + 30 * 86400_000, Date.parse(user.subscription?.current_period_end ?? "") || 0)).toISOString()).slice(0, 10));
   const [trialDays, setTrialDays] = useState<number>(kind === "set_days_remaining" ? currentDaysLeft : 7);
   const [productId, setProductId] = useState<string>("");
   const [note, setNote] = useState<string>("");
@@ -446,7 +451,7 @@ function ActionDialog({ kind, user, plans, fetchAudit, onClose, onSubmit }: {
     renew: "Renovar assinatura",
     suspend: "Suspender",
     reactivate: "Reativar",
-    cancel: "Cancelar",
+    cancel: "Encerrar acesso ao fim do período",
     update_note: "Atualizar observação",
     clear_override: "Remover override manual",
     set_days_remaining: "Gerenciamento de dias de acesso",
@@ -472,7 +477,7 @@ function ActionDialog({ kind, user, plans, fetchAudit, onClose, onSubmit }: {
         });
       } else if (kind === "start_trial") {
         if (trialDays < 0) return toast.error("Dias inválidos");
-        Object.assign(base, { trial_days: trialDays, product_id: productId || undefined });
+        Object.assign(base, { trial_days: trialDays, plan_id: planId });
       } else if (kind === "extend_trial" || kind === "renew") {
         Object.assign(base, { trial_days: trialDays });
       } else if (kind === "set_days_remaining") {
@@ -480,7 +485,7 @@ function ActionDialog({ kind, user, plans, fetchAudit, onClose, onSubmit }: {
           return toast.error("Informe uma quantidade válida (0 a 3650 dias)");
         }
         Object.assign(base, { trial_days: Math.floor(trialDays) });
-      } else if (kind === "block_user") {
+      } else if (kind === "block_user" || kind === "suspend") {
         if (!note.trim()) return toast.error("Informe o motivo do bloqueio");
       }
       await onSubmit(base);
@@ -494,7 +499,7 @@ function ActionDialog({ kind, user, plans, fetchAudit, onClose, onSubmit }: {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{user.display_name} — {user.email}</DialogDescription>
+          <DialogDescription>{user.display_name} — {user.email}. Esta alteração controla o acesso ao app. Cobranças e estornos no Asaas são gerenciados separadamente.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           {kind === "grant_plan" && (
@@ -525,8 +530,11 @@ function ActionDialog({ kind, user, plans, fetchAudit, onClose, onSubmit }: {
           {kind === "start_trial" && (
             <>
               <div>
-                <Label>Plano do teste (opcional)</Label>
-                <Input value={productId} onChange={(e) => setProductId(e.target.value)} placeholder="Ex.: Profissional" />
+                <Label>Plano do teste</Label>
+                <Select value={planId} onValueChange={setPlanId}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{plans.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                </Select>
               </div>
               <div><Label>Dias de teste</Label><Input type="number" min={0} max={365} value={trialDays} onChange={(e) => setTrialDays(Number(e.target.value))} /></div>
             </>
@@ -590,7 +598,7 @@ function ActionDialog({ kind, user, plans, fetchAudit, onClose, onSubmit }: {
           )}
           <div>
             <Label>
-              {kind === "block_user" ? "Motivo do bloqueio (obrigatório)" : "Observação (opcional)"}
+              {(kind === "block_user" || kind === "suspend") ? "Motivo do bloqueio (obrigatório)" : "Observação (opcional)"}
             </Label>
             <Textarea
               value={note}

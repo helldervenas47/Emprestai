@@ -1,3 +1,4 @@
+import { BILLING_ENVIRONMENT, hasSubscriptionAccess } from "@/lib/billing/subscriptionState";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/userClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -10,11 +11,14 @@ import {
 
 export interface Subscription {
   id: string;
+  plan_id?: string | null;
+  current_period_start?: string | null;
   product_id: string;
   price_id: string;
   status: string;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
+  manual_override: boolean;
   environment: string;
   asaas_subscription_id?: string | null;
 }
@@ -41,42 +45,17 @@ const PLAN_LIMITS: Record<string, { maxLoans: number; maxUsers: number }> = {
 const STALE_MS = 5 * 60_000;
 
 async function fetchSubscription(userId: string, environment: string): Promise<Subscription | null> {
-  // IMPORTANTE: não filtramos mais por `environment` para evitar divergência entre
-  // APP_ENVIRONMENT (edge function do admin) e VITE_ASAAS_ENVIRONMENT (frontend).
-  // Buscamos todas as linhas do usuário e escolhemos a mesma "mais relevante" que
-  // a admin function usa (manual_override / não-free / mais recente), garantindo
-  // que qualquer alteração administrativa apareça imediatamente para o usuário.
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("subscriptions")
-    .select("id, product_id, price_id, status, current_period_end, cancel_at_period_end, environment, manual_override, updated_at" as any)
-    .eq("user_id", userId);
-  const rows = ((data ?? []) as unknown) as Array<Subscription & { manual_override?: boolean | null; updated_at?: string | null }>;
-  if (!rows.length) return null;
-  const sorted = rows.slice().sort((a, b) => {
-    const aManual = a.manual_override ? 1 : 0;
-    const bManual = b.manual_override ? 1 : 0;
-    if (aManual !== bManual) return bManual - aManual;
-    const aFree = !a.product_id || a.product_id === "free_plan" ? 1 : 0;
-    const bFree = !b.product_id || b.product_id === "free_plan" ? 1 : 0;
-    if (aFree !== bFree) return aFree - bFree;
-    const aEnv = a.environment === environment ? 0 : 1;
-    const bEnv = b.environment === environment ? 0 : 1;
-    if (aEnv !== bEnv) return aEnv - bEnv;
-    
-    // Prioriza assinaturas que possuem data de expiração
-    const aHasDate = a.current_period_end ? 1 : 0;
-    const bHasDate = b.current_period_end ? 1 : 0;
-    if (aHasDate !== bHasDate) return bHasDate - aHasDate;
-
-    return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime();
-  });
-  const { updated_at: _ua, ...pick } = sorted[0] as any;
-  return pick as Subscription;
+    .select("id, plan_id, product_id, price_id, status, current_period_start, current_period_end, cancel_at_period_end, manual_override, environment, asaas_subscription_id")
+    .eq("user_id", userId).eq("environment", environment).maybeSingle();
+  if (error) throw error;
+  return data as unknown as Subscription | null;
 }
 
 export function useSubscription() {
   const { user, dataOwnerId, loading: authLoading } = useAuth();
-  const environment = "live";
+  const environment = BILLING_ENVIRONMENT;
   const effectiveUserId = dataOwnerId ?? user?.id ?? null;
   const cacheKey = effectiveUserId ? `subscription:${effectiveUserId}:${environment}` : "";
 
@@ -155,24 +134,12 @@ export function useSubscription() {
     };
   }, [user?.id, effectiveUserId, environment, authLoading, cacheKey]);
 
-  // Considera ativa toda assinatura cujo período ainda não venceu e cujo status
-  // não seja explicitamente cancelado ou suspenso. Se current_period_end está no futuro,
-  // dias restantes já estão pagos/concedidos e uma cobrança nova pendente não desativa a conta.
-  const TERMINAL_STATUSES = new Set(["canceled", "suspended", "expired"]);
-  const hasFuturePeriod = Boolean(
-    subscription?.current_period_end && new Date(subscription.current_period_end) > new Date()
-  );
-  const periodOk = Boolean(
-    subscription && (!subscription.current_period_end || hasFuturePeriod),
-  );
-  const statusOk = Boolean(
-    subscription && (
-      !TERMINAL_STATUSES.has((subscription.status || "").toLowerCase()) &&
-      (hasFuturePeriod || !["past_due", "unpaid"].includes((subscription.status || "").toLowerCase()))
-    ),
-  );
-  const isFreeProduct = subscription?.product_id === "free_plan" || !subscription?.product_id;
-  const isActive = Boolean(subscription && periodOk && statusOk && !isFreeProduct);
+  const [, setClock] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setClock((n) => n + 1), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+  const isActive = hasSubscriptionAccess(subscription);
 
   const daysRemaining = subscription?.current_period_end 
     ? Math.ceil((new Date(subscription.current_period_end).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))

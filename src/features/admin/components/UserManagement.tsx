@@ -582,32 +582,11 @@ export function UserManagement() {
         target_user_id: planUser.id,
         plan_id: plan?.id,
         product_id: planProductId,
-        start_date: new Date().toISOString(),
-        end_date: endDate,
         note: "Alteração manual pela aba Usuários",
       });
 
       if (error || data?.error) {
         throw new Error(data?.error || error?.message || "Erro ao atualizar plano");
-      }
-
-      if (plan?.allowed_tabs) {
-        const { data: existing } = await supabase
-          .from("user_tab_permissions" as any)
-          .select("id")
-          .eq("user_id", planUser.id)
-          .maybeSingle();
-
-        if (existing) {
-          await supabase
-            .from("user_tab_permissions" as any)
-            .update({ allowed_tabs: plan.allowed_tabs, updated_at: new Date().toISOString() })
-            .eq("user_id", planUser.id);
-        } else {
-          await supabase
-            .from("user_tab_permissions" as any)
-            .insert({ user_id: planUser.id, allowed_tabs: plan.allowed_tabs });
-        }
       }
 
       toast.success("Plano atualizado!");

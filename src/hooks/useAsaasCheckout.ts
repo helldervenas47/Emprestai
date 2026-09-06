@@ -1,8 +1,11 @@
+import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { useMutation } from "@tanstack/react-query";
 import { supabase, USER_SUPABASE_URL, USER_SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/userClient";
 import { toast } from "@/hooks/use-toast";
 
 export interface AsaasCheckoutData {
+  orderId: string;
   paymentId: string;
   invoiceUrl: string | null;
   status: string | null;
@@ -36,6 +39,9 @@ async function createAsaasCheckout(
 
   const url = `${USER_SUPABASE_URL}/functions/v1/asaas-checkout`;
 
+  const key = `billing-request:${sessionData.session.user.id}:${params.planId}:${params.cycle}`;
+  const requestKey = sessionStorage.getItem(key) ?? crypto.randomUUID();
+  sessionStorage.setItem(key, requestKey);
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -43,24 +49,40 @@ async function createAsaasCheckout(
       "Content-Type": "application/json",
       apikey: USER_SUPABASE_PUBLISHABLE_KEY,
     },
-    body: JSON.stringify(params),
+    body: JSON.stringify({ ...params, requestKey }),
   });
 
   const json = await res.json();
 
   if (!res.ok) {
+    if (json?.error === "checkout_not_created") sessionStorage.removeItem(key);
     throw new Error(
-      json?.error || json?.message || "Erro ao gerar cobrança PIX."
+      json?.error === "checkout_in_progress" ? "A cobrança está sendo confirmada. Aguarde e tente novamente; não é necessário gerar outro PIX."
+      : json?.error === "only_account_owner_can_purchase" ? "A contratação deve ser feita pelo titular da conta."
+      : "Não foi possível gerar o PIX. Tente novamente ou contate o suporte."
     );
   }
 
+  if (json.paymentId) sessionStorage.removeItem(key);
   return json as AsaasCheckoutData;
 }
 
 export function useAsaasCheckout() {
-  return useMutation<AsaasCheckoutData, Error, AsaasCheckoutParams>({
+  const { user } = useAuth();
+  const storageKey = `billing-checkout:${user?.id ?? "anonymous"}`;
+  const [saved, setSaved] = useState<AsaasCheckoutData | undefined>();
+  const [savedOwner, setSavedOwner] = useState(storageKey);
+  useEffect(() => {
+    setSavedOwner(storageKey);
+    try { setSaved(JSON.parse(sessionStorage.getItem(storageKey) ?? "null") ?? undefined); }
+    catch { setSaved(undefined); }
+  }, [storageKey]);
+  const mutation = useMutation<AsaasCheckoutData, Error, AsaasCheckoutParams>({
     mutationFn: createAsaasCheckout,
-    onSuccess: () => {
+    onSuccess: (data) => {
+      setSavedOwner(storageKey);
+      setSaved(data);
+      sessionStorage.setItem(storageKey, JSON.stringify(data));
       toast({
         title: "Cobrança gerada",
         description: "Escaneie o QR Code ou copie o código PIX.",
@@ -74,4 +96,7 @@ export function useAsaasCheckout() {
       });
     },
   });
+  return { ...mutation, data: savedOwner === storageKey ? saved : undefined, reset: () => {
+    mutation.reset(); setSaved(undefined); sessionStorage.removeItem(storageKey);
+  } };
 }

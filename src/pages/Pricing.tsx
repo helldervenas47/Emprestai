@@ -125,14 +125,14 @@ const Pricing = () => {
   const [checkingPayment, setCheckingPayment] = useState(false);
 
   useEffect(() => {
-    (supabase as any)
+    supabase
       .from("plans")
       .select("id, name, description, price, price_semestral, price_anual, discount_semestral, discount_anual, badge, promo_text, highlight_color, highlight, recommended, features, sort_order, show_monthly, show_semestral, show_anual")
       .eq("active", true)
       .order("sort_order")
-      .then(({ data }: { data: any[] | null }) => {
+      .then(({ data }) => {
         if (data) {
-          setPlans(data.map((p) => ({
+          setPlans((data as unknown as Plan[]).map((p) => ({
             id: p.id,
             name: p.name,
             description: p.description ?? null,
@@ -213,49 +213,27 @@ const Pricing = () => {
   };
 
   const handlePaymentDone = async () => {
+    if (!checkoutData?.paymentId || checkingPayment) return;
     setCheckingPayment(true);
-
-    // Invalida explicitamente o cache do perfil para forçar uma nova leitura
-    // após o pagamento, quebrando o stale state de "Sem plano ativo".
-    await queryClient.invalidateQueries({ queryKey: ["profile"] });
-
-    const checkIsActive = async () => {
-      const freshProfile = await refetch();
-      if (checkoutData?.paymentId) {
-        return freshProfile?.last_payment_id === checkoutData.paymentId;
+    try {
+      const { data, error } = await supabase.functions.invoke("asaas-payment-status", {
+        body: { paymentId: checkoutData.paymentId },
+      });
+      if (error) throw error;
+      if (data?.paid) {
+        reset();
+        await queryClient.invalidateQueries({ queryKey: ["profile"] });
+        window.dispatchEvent(new Event("subscription:changed"));
+        navigate("/");
+      } else {
+        toast({ title: data?.review ? "Pagamento em conferência" : "Aguardando pagamento",
+          description: "A confirmação é automática. Se você já pagou, aguarde alguns instantes e consulte novamente." });
       }
-      return freshProfile?.financial_status === "ACTIVE";
-    };
-
-    if (await checkIsActive()) {
+    } catch {
+      toast({ title: "Não foi possível consultar o pagamento", description: "Tente novamente em instantes. Não é necessário pagar outro PIX.", variant: "destructive" });
+    } finally {
       setCheckingPayment(false);
-      navigate("/");
-      return;
     }
-
-    const maxAttempts = 50;
-    let attempts = 0;
-
-    const poll = () => {
-      setTimeout(async () => {
-        attempts++;
-        if (await checkIsActive()) {
-          setCheckingPayment(false);
-          navigate("/");
-        } else if (attempts >= maxAttempts) {
-          setCheckingPayment(false);
-          toast({
-            title: "Pagamento não confirmado",
-            description: "Ainda não identificamos o pagamento desse PIX. Se você já pagou, aguarde alguns segundos e tente novamente.",
-            variant: "destructive",
-          });
-        } else {
-          poll();
-        }
-      }, 100);
-    };
-
-    poll();
   };
 
   const handleBackToPlans = () => {
