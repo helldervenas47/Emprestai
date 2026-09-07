@@ -292,8 +292,11 @@ export function TelegramCheckoutModal({
 
               <TabsContent value="card" className="pt-2">
                 <CreditCardPaymentForm
-                  onSubmit={handlePayWithCard}
-                  isLoading={isCardProcessing || isPending}
+                  planName="👑 EmprestAI Telegram"
+                  cycleLabel="Mensal"
+                  totalPrice={14.90}
+                  isProcessing={isCardProcessing || isPending}
+                  onPayWithCard={handlePayWithCard}
                   initialCpf={profile?.cpf_cnpj || ""}
                   initialName={profile?.display_name || user?.email || ""}
                   initialEmail={user?.email || ""}

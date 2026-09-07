@@ -16,16 +16,21 @@ import {
 } from "lucide-react";
 import type { AsaasCreditCardData, AsaasCreditCardHolderInfo } from "@/hooks/useAsaasCheckout";
 
-interface CreditCardPaymentFormProps {
-  planName: string;
-  cycleLabel: string;
-  totalPrice: number;
-  isProcessing: boolean;
-  onPayWithCard: (
+export interface CreditCardPaymentFormProps {
+  planName?: string;
+  cycleLabel?: string;
+  totalPrice?: number;
+  isProcessing?: boolean;
+  isLoading?: boolean;
+  onPayWithCard?: (
     cardData: AsaasCreditCardData,
     holderInfo: AsaasCreditCardHolderInfo
   ) => void;
-  onBackToPlans: () => void;
+  onSubmit?: (
+    cardData: AsaasCreditCardData,
+    holderInfo: AsaasCreditCardHolderInfo
+  ) => void;
+  onBackToPlans?: () => void;
   initialCpf?: string;
   initialName?: string;
   initialEmail?: string;
@@ -42,11 +47,13 @@ export function detectCardBrand(number: string): string {
 }
 
 export function CreditCardPaymentForm({
-  planName,
-  cycleLabel,
-  totalPrice,
-  isProcessing,
+  planName = "Plano Selecionado",
+  cycleLabel = "Mensal",
+  totalPrice = 0,
+  isProcessing = false,
+  isLoading = false,
   onPayWithCard,
+  onSubmit,
   onBackToPlans,
   initialCpf = "",
   initialName = "",
@@ -62,8 +69,11 @@ export function CreditCardPaymentForm({
   const [phone, setPhone] = useState("");
   const [showAddressFields, setShowAddressFields] = useState(false);
 
-  const formatBRL = (val: number) =>
-    val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const processing = isProcessing || isLoading;
+  const handlePayment = onPayWithCard || onSubmit;
+
+  const formatBRL = (val?: number) =>
+    (val ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   const brand = useMemo(() => detectCardBrand(cardNumber), [cardNumber]);
 
@@ -140,7 +150,7 @@ export function CreditCardPaymentForm({
       return;
     }
 
-    onPayWithCard(
+    handlePayment?.(
       {
         holderName: holderName.trim().toUpperCase(),
         number: cleanCard,
@@ -184,190 +194,168 @@ export function CreditCardPaymentForm({
         </div>
       </div>
 
-      {/* Cartão Visual Preview */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-tr from-slate-900 via-slate-800 to-indigo-950 p-5 text-white shadow-xl border border-slate-700/60">
-        <div className="flex justify-between items-start mb-6">
-          <div className="w-10 h-8 rounded bg-amber-400/80 border border-amber-200/50 flex items-center justify-center">
-            <div className="w-6 h-4 border border-amber-800/40 rounded-xs" />
-          </div>
-          <div className="text-right">
-            {brand ? (
-              <Badge className="bg-white/20 text-white hover:bg-white/30 font-semibold px-2.5 py-0.5">
+      {/* Inputs do Formulário */}
+      <div className="space-y-3.5">
+        {/* Número do Cartão */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="cc-number" className="text-xs">
+              Número do Cartão
+            </Label>
+            {brand && (
+              <Badge variant="outline" className="text-[10px] h-4 py-0 px-1.5 font-medium">
                 {brand}
               </Badge>
-            ) : (
-              <CreditCardIcon className="h-6 w-6 text-slate-400" />
             )}
           </div>
-        </div>
-
-        <div className="space-y-4">
-          <p className="font-mono text-lg sm:text-xl tracking-wider select-none">
-            {cardNumber || "•••• •••• •••• ••••"}
-          </p>
-
-          <div className="flex justify-between items-end text-xs">
-            <div>
-              <p className="text-[10px] text-slate-400 uppercase tracking-wider">Titular</p>
-              <p className="font-semibold truncate max-w-[190px] uppercase">
-                {holderName || "NOME IMPRESSO NO CARTÃO"}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] text-slate-400 uppercase tracking-wider">Validade</p>
-              <p className="font-semibold font-mono">{expiry || "MM/AA"}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Campos do Cartão */}
-      <div className="space-y-3.5">
-        <div>
-          <Label htmlFor="card-number" className="text-xs font-medium">
-            Número do Cartão
-          </Label>
-          <div className="relative mt-1">
+          <div className="relative">
             <Input
-              id="card-number"
+              id="cc-number"
               placeholder="0000 0000 0000 0000"
               value={cardNumber}
               onChange={handleCardNumberChange}
               maxLength={19}
-              className="h-11 pl-10 font-mono text-sm bg-muted/20"
-              required
+              className="font-mono text-sm pl-9"
+              autoComplete="cc-number"
             />
-            <CreditCardIcon className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+            <CreditCardIcon className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           </div>
         </div>
 
-        <div>
-          <Label htmlFor="holder-name" className="text-xs font-medium">
+        {/* Nome do Titular */}
+        <div className="space-y-1.5">
+          <Label htmlFor="cc-holder" className="text-xs">
             Nome Impresso no Cartão
           </Label>
-          <div className="relative mt-1">
+          <div className="relative">
             <Input
-              id="holder-name"
-              placeholder="Ex: CARLOS M SILVA"
+              id="cc-holder"
+              placeholder="NOME COMPLETO"
               value={holderName}
               onChange={(e) => setHolderName(e.target.value.toUpperCase())}
-              className="h-11 pl-10 uppercase text-sm bg-muted/20"
-              required
+              className="text-sm pl-9 uppercase"
+              autoComplete="cc-name"
             />
-            <User className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+            <User className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           </div>
         </div>
 
+        {/* Validade e CVV */}
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label htmlFor="card-expiry" className="text-xs font-medium">
+          <div className="space-y-1.5">
+            <Label htmlFor="cc-expiry" className="text-xs">
               Validade (MM/AA)
             </Label>
-            <div className="relative mt-1">
+            <div className="relative">
               <Input
-                id="card-expiry"
+                id="cc-expiry"
                 placeholder="MM/AA"
                 value={expiry}
                 onChange={handleExpiryChange}
                 maxLength={5}
-                className="h-11 pl-10 font-mono text-sm bg-muted/20"
-                required
+                className="font-mono text-sm pl-9 text-center"
+                autoComplete="cc-exp"
               />
-              <Calendar className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+              <Calendar className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="card-ccv" className="text-xs font-medium">
-              CVV / CVC
+          <div className="space-y-1.5">
+            <Label htmlFor="cc-cvv" className="text-xs">
+              Código de Segurança (CVV)
             </Label>
-            <div className="relative mt-1">
+            <div className="relative">
               <Input
-                id="card-ccv"
+                id="cc-cvv"
                 placeholder="123"
-                type="password"
                 value={ccv}
                 onChange={(e) => setCcv(e.target.value.replace(/\D/g, "").slice(0, 4))}
                 maxLength={4}
-                className="h-11 pl-10 font-mono text-sm bg-muted/20"
-                required
+                className="font-mono text-sm pl-9 text-center"
+                autoComplete="cc-csc"
               />
-              <Lock className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+              <Lock className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             </div>
           </div>
         </div>
 
-        <div>
-          <Label htmlFor="card-cpf" className="text-xs font-medium">
+        {/* CPF/CNPJ do Titular */}
+        <div className="space-y-1.5">
+          <Label htmlFor="cc-cpf" className="text-xs">
             CPF ou CNPJ do Titular
           </Label>
           <Input
-            id="card-cpf"
+            id="cc-cpf"
             placeholder="000.000.000-00"
             value={cpfCnpj}
             onChange={handleCpfChange}
-            maxLength={18}
-            className="h-11 mt-1 font-mono text-sm bg-muted/20"
-            required
+            className="text-sm font-mono"
           />
         </div>
 
-        {/* Toggle para Dados Complementares de Faturamento */}
-        <div className="pt-1">
-          <button
-            type="button"
-            onClick={() => setShowAddressFields(!showAddressFields)}
-            className="text-xs text-primary hover:underline flex items-center gap-1 font-medium"
-          >
-            <MapPin className="h-3.5 w-3.5" />
-            {showAddressFields ? "Ocultar dados de endereço" : "Adicionar CEP e telefone (recomendado para aprovação rápida)"}
-          </button>
-        </div>
+        {/* Botão de Toggle para Campos Opcionais de Endereço/Telefone */}
+        <button
+          type="button"
+          onClick={() => setShowAddressFields(!showAddressFields)}
+          className="text-[11px] text-primary hover:underline flex items-center gap-1 pt-1"
+        >
+          <MapPin className="h-3 w-3" />
+          {showAddressFields ? "Ocultar endereço de cobrança" : "Informar endereço e telefone (opcional/recomendado)"}
+        </button>
 
+        {/* Campos extras opcionais para maior taxa de aprovação anti-fraude */}
         {showAddressFields && (
-          <div className="p-3.5 rounded-xl bg-muted/30 border border-border/40 space-y-3 animate-in fade-in-50 duration-200">
+          <div className="space-y-3 pt-2 border-t border-border/40 animate-in fade-in-50 duration-200">
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="card-cep" className="text-xs font-medium">
+              <div className="space-y-1.5">
+                <Label htmlFor="cc-cep" className="text-xs">
                   CEP
                 </Label>
                 <Input
-                  id="card-cep"
+                  id="cc-cep"
                   placeholder="00000-000"
                   value={postalCode}
-                  onChange={handlePostalCodeChange}
-                  maxLength={9}
-                  className="h-10 mt-1 text-xs bg-background"
+                  onChange={(e) => {
+                    let v = e.target.value.replace(/\D/g, "").slice(0, 8);
+                    if (v.length > 5) v = `${v.slice(0, 5)}-${v.slice(5)}`;
+                    setPostalCode(v);
+                  }}
+                  className="text-sm font-mono"
                 />
               </div>
-              <div>
-                <Label htmlFor="card-num" className="text-xs font-medium">
-                  Número / Compl.
+
+              <div className="space-y-1.5">
+                <Label htmlFor="cc-number-addr" className="text-xs">
+                  Número
                 </Label>
                 <Input
-                  id="card-num"
-                  placeholder="Ex: 120 Apto 4"
+                  id="cc-number-addr"
+                  placeholder="123 ou S/N"
                   value={addressNumber}
                   onChange={(e) => setAddressNumber(e.target.value)}
-                  className="h-10 mt-1 text-xs bg-background"
+                  className="text-sm"
                 />
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="card-phone" className="text-xs font-medium">
-                Telefone com DDD
+            <div className="space-y-1.5">
+              <Label htmlFor="cc-phone" className="text-xs">
+                Telefone Celular
               </Label>
-              <div className="relative mt-1">
+              <div className="relative">
                 <Input
-                  id="card-phone"
+                  id="cc-phone"
                   placeholder="(00) 00000-0000"
                   value={phone}
-                  onChange={handlePhoneChange}
-                  maxLength={15}
-                  className="h-10 pl-9 text-xs bg-background"
+                  onChange={(e) => {
+                    let v = e.target.value.replace(/\D/g, "").slice(0, 11);
+                    if (v.length > 6) v = `(${v.slice(0, 2)}) ${v.slice(2, 7)}-${v.slice(7)}`;
+                    else if (v.length > 2) v = `(${v.slice(0, 2)}) ${v.slice(2)}`;
+                    setPhone(v);
+                  }}
+                  className="text-sm pl-9 font-mono"
                 />
-                <Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Phone className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               </div>
             </div>
           </div>
@@ -385,10 +373,10 @@ export function CreditCardPaymentForm({
         <Button
           type="submit"
           size="lg"
-          disabled={!isFormValid || isProcessing}
+          disabled={!isFormValid || processing}
           className="w-full h-12 font-semibold text-sm rounded-xl gap-2 shadow-md bg-primary hover:bg-primary/90 text-primary-foreground"
         >
-          {isProcessing ? (
+          {processing ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
               Processando com a operadora...
@@ -401,16 +389,18 @@ export function CreditCardPaymentForm({
           )}
         </Button>
 
-        <Button
-          type="button"
-          variant="ghost"
-          disabled={isProcessing}
-          className="w-full text-muted-foreground hover:text-foreground h-10 text-xs"
-          onClick={onBackToPlans}
-        >
-          <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
-          Voltar aos Planos
-        </Button>
+        {onBackToPlans && (
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={processing}
+            className="w-full text-muted-foreground hover:text-foreground h-10 text-xs"
+            onClick={onBackToPlans}
+          >
+            <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
+            Voltar aos Planos
+          </Button>
+        )}
       </div>
     </form>
   );
