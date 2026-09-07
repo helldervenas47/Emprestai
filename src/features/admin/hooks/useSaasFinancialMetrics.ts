@@ -6,6 +6,7 @@ export type PeriodFilterKey = "today" | "7d" | "30d" | "this_month" | "last_mont
 
 export interface SaasFinancialSummary {
   gross_revenue: number;
+  app_discounts: number;
   refunds_amount: number;
   net_revenue: number;
   paid_orders_count: number;
@@ -24,6 +25,7 @@ export interface SaasFinancialSummary {
 export interface DailyEvolutionItem {
   date: string;
   gross: number;
+  discounts: number;
   refunds: number;
   net: number;
   count: number;
@@ -33,6 +35,7 @@ export interface MonthlyEvolutionItem {
   month: string;
   label: string;
   gross: number;
+  discounts: number;
   refunds: number;
   net: number;
   count: number;
@@ -43,6 +46,9 @@ export interface PlanDistributionItem {
   plan_name: string;
   product_id: string;
   gross: number;
+  discounts: number;
+  refunds: number;
+  net: number;
   count: number;
   percentage: number;
 }
@@ -51,6 +57,9 @@ export interface CycleDistributionItem {
   cycle: string;
   cycle_label: string;
   gross: number;
+  discounts: number;
+  refunds: number;
+  net: number;
   count: number;
   average_ticket: number;
   percentage: number;
@@ -65,6 +74,8 @@ export interface RecentTransactionItem {
   user_email: string | null;
   plan_name: string;
   cycle: string;
+  original_amount: number;
+  discount_amount: number;
   amount: number;
   status: string;
   checkout_kind: string;
@@ -90,6 +101,88 @@ export interface SaasFinancialData {
   recent_transactions: RecentTransactionItem[];
 }
 
+/**
+ * Hook para buscar o Saldo em Conta no Asaas via Edge Function segura
+ */
+export function useAsaasBalance() {
+  const { user, role } = useAuth();
+  const isAdmin = role === "admin";
+
+  const [balance, setBalance] = useState<number>(0);
+  const [pendingBalance, setPendingBalance] = useState<number>(0);
+  const [retainedBalance, setRetainedBalance] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isVisible, setIsVisible] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("emprestaii_asaas_balance_visible");
+      return saved !== null ? JSON.parse(saved) : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleVisibility = useCallback(() => {
+    setIsVisible((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("emprestaii_asaas_balance_visible", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  const fetchBalance = useCallback(async () => {
+    if (!isAdmin || !user?.id) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke("asaas-balance", {
+        method: "POST",
+      });
+
+      if (fnError) {
+        throw new Error(fnError.message || "Erro ao consultar saldo Asaas.");
+      }
+
+      if (data) {
+        setBalance(Number(data.balance ?? 0));
+        setPendingBalance(Number(data.pendingBalance ?? 0));
+        setRetainedBalance(Number(data.retainedBalance ?? 0));
+      }
+    } catch (err: any) {
+      // Fallback gracioso caso a function ainda não tenha sido deployada no runtime
+      console.warn("[useAsaasBalance] Não foi possível consultar saldo do Asaas:", err?.message);
+      setError(err?.message || "Saldo do Asaas temporariamente indisponível.");
+    } finally {
+      setLoading(false);
+    }
+  }, [isAdmin, user?.id]);
+
+  useEffect(() => {
+    fetchBalance();
+  }, [fetchBalance]);
+
+  return {
+    balance,
+    pendingBalance,
+    retainedBalance,
+    loading,
+    error,
+    isVisible,
+    toggleVisibility,
+    refetch: fetchBalance,
+  };
+}
+
+/**
+ * Hook principal para métricas de faturamento e finanças do SaaS
+ */
 export function useSaasFinancialMetrics() {
   const { user, role } = useAuth();
   const isAdmin = role === "admin";
@@ -211,7 +304,7 @@ export function useSaasFinancialMetrics() {
           .eq("status", "active"),
         supabase
           .from("plans")
-          .select("id, name, price"),
+          .select("id, name, price, price_semestral, price_anual, discount_semestral, discount_anual"),
         supabase
           .from("profiles")
           .select("user_id, display_name, trial_started_at"),
@@ -235,6 +328,27 @@ export function useSaasFinancialMetrics() {
         return productId || "Plano";
       };
 
+      // Helper para calcular valor bruto original e desconto concedido pelo app
+      const getOrderAmounts = (order: any) => {
+        const paidVal = Number(order.amount_cents || 0) / 100;
+        const plan = planMap.get(order.plan_id);
+        const cycleMonths = order.cycle === "annual" ? 12 : order.cycle === "semestral" ? 6 : 1;
+        const baseMonthly = Number(plan?.price || 0);
+
+        let grossVal = paidVal;
+        if (baseMonthly > 0) {
+          grossVal = Math.max(baseMonthly * cycleMonths, paidVal);
+        }
+
+        const discountVal = Math.max(grossVal - paidVal, 0);
+
+        return {
+          gross: grossVal,
+          discount: discountVal,
+          paid: paidVal,
+        };
+      };
+
       // Faturamento Mês Atual (Bruto)
       const currentMonthGross = allOrders
         .filter((o) => {
@@ -242,7 +356,7 @@ export function useSaasFinancialMetrics() {
           const cred = new Date(o.credited_at);
           return cred >= curMonthStart && cred <= curMonthEnd;
         })
-        .reduce((sum, o) => sum + Number(o.amount_cents || 0) / 100, 0);
+        .reduce((sum, o) => sum + getOrderAmounts(o).gross, 0);
 
       // Faturamento Mês Anterior (Bruto)
       const previousMonthGross = allOrders
@@ -251,7 +365,7 @@ export function useSaasFinancialMetrics() {
           const cred = new Date(o.credited_at);
           return cred >= prevMonthStart && cred <= prevMonthEnd;
         })
-        .reduce((sum, o) => sum + Number(o.amount_cents || 0) / 100, 0);
+        .reduce((sum, o) => sum + getOrderAmounts(o).gross, 0);
 
       const monthGrowthPct = previousMonthGross > 0
         ? Math.round(((currentMonthGross - previousMonthGross) / previousMonthGross) * 1000) / 10
@@ -274,20 +388,23 @@ export function useSaasFinancialMetrics() {
 
       // Cálculos do período
       let grossPeriod = 0;
+      let discountsPeriod = 0;
       let refundsPeriod = 0;
       let paidCount = 0;
 
       periodOrders.forEach((o) => {
-        const val = Number(o.amount_cents || 0) / 100;
+        const amounts = getOrderAmounts(o);
         if (o.status === "paid") {
-          grossPeriod += val;
+          grossPeriod += amounts.gross;
+          discountsPeriod += amounts.discount;
           paidCount += 1;
         } else if (o.status === "revoked" || o.status === "refunded") {
-          refundsPeriod += val;
+          refundsPeriod += amounts.paid;
         }
       });
 
-      const netPeriod = grossPeriod - refundsPeriod;
+      // RECEITA LÍQUIDA = RECEITA BRUTA - DESCONTOS DO APP - ESTORNOS
+      const netPeriod = grossPeriod - discountsPeriod - refundsPeriod;
       const averageTicket = paidCount > 0 ? Math.round((grossPeriod / paidCount) * 100) / 100 : 0;
 
       // Pendentes
@@ -329,36 +446,37 @@ export function useSaasFinancialMetrics() {
       }).length;
 
       // 3. Evolução Diária
-      const dailyMap = new Map<string, { date: string; gross: number; refunds: number; net: number; count: number }>();
+      const dailyMap = new Map<string, { date: string; gross: number; discounts: number; refunds: number; net: number; count: number }>();
       periodOrders.forEach((o) => {
         if (!o.credited_at && !o.created_at) return;
         const d = new Date(o.credited_at || o.created_at);
         const key = d.toISOString().split("T")[0];
-        const val = Number(o.amount_cents || 0) / 100;
+        const amounts = getOrderAmounts(o);
 
         if (!dailyMap.has(key)) {
-          dailyMap.set(key, { date: key, gross: 0, refunds: 0, net: 0, count: 0 });
+          dailyMap.set(key, { date: key, gross: 0, discounts: 0, refunds: 0, net: 0, count: 0 });
         }
         const item = dailyMap.get(key)!;
         if (o.status === "paid") {
-          item.gross += val;
-          item.net += val;
+          item.gross += amounts.gross;
+          item.discounts += amounts.discount;
+          item.net += (amounts.gross - amounts.discount);
           item.count += 1;
         } else if (o.status === "revoked" || o.status === "refunded") {
-          item.refunds += val;
-          item.net -= val;
+          item.refunds += amounts.paid;
+          item.net -= amounts.paid;
         }
       });
 
       const dailyEvolution = Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date));
 
       // 4. Evolução Mensal (Últimos 12 meses)
-      const monthlyMap = new Map<string, { month: string; label: string; gross: number; refunds: number; net: number; count: number }>();
+      const monthlyMap = new Map<string, { month: string; label: string; gross: number; discounts: number; refunds: number; net: number; count: number }>();
       for (let i = 11; i >= 0; i--) {
         const d = new Date(currentYear, currentMonth - i, 1);
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
         const label = d.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" });
-        monthlyMap.set(key, { month: key, label, gross: 0, refunds: 0, net: 0, count: 0 });
+        monthlyMap.set(key, { month: key, label, gross: 0, discounts: 0, refunds: 0, net: 0, count: 0 });
       }
 
       allOrders.forEach((o) => {
@@ -367,56 +485,95 @@ export function useSaasFinancialMetrics() {
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
         if (monthlyMap.has(key)) {
           const item = monthlyMap.get(key)!;
-          const val = Number(o.amount_cents || 0) / 100;
-          item.gross += val;
-          item.net += val;
+          const amounts = getOrderAmounts(o);
+          item.gross += amounts.gross;
+          item.discounts += amounts.discount;
+          item.net += (amounts.gross - amounts.discount);
           item.count += 1;
         }
       });
 
       const monthlyEvolution = Array.from(monthlyMap.values());
 
-      // 5. Distribuição por Plano
-      const planDistMap = new Map<string, { plan_id: string | null; plan_name: string; product_id: string; gross: number; count: number; percentage: number }>();
+      // 5. Distribuição por Plano (com Bruto, Descontos, Estornos e Líquido)
+      const planDistMap = new Map<string, { plan_id: string | null; plan_name: string; product_id: string; gross: number; discounts: number; refunds: number; net: number; count: number; percentage: number }>();
       periodOrders.forEach((o) => {
-        if (o.status !== "paid") return;
         const key = o.product_id || o.plan_id || "outros";
-        const val = Number(o.amount_cents || 0) / 100;
         const name = planNameResolver(o.plan_id, o.product_id);
+        const amounts = getOrderAmounts(o);
 
         if (!planDistMap.has(key)) {
-          planDistMap.set(key, { plan_id: o.plan_id || null, plan_name: name, product_id: o.product_id || key, gross: 0, count: 0, percentage: 0 });
+          planDistMap.set(key, {
+            plan_id: o.plan_id || null,
+            plan_name: name,
+            product_id: o.product_id || key,
+            gross: 0,
+            discounts: 0,
+            refunds: 0,
+            net: 0,
+            count: 0,
+            percentage: 0,
+          });
         }
         const item = planDistMap.get(key)!;
-        item.gross += val;
-        item.count += 1;
+        if (o.status === "paid") {
+          item.gross += amounts.gross;
+          item.discounts += amounts.discount;
+          item.net += (amounts.gross - amounts.discount);
+          item.count += 1;
+        } else if (o.status === "revoked" || o.status === "refunded") {
+          item.refunds += amounts.paid;
+          item.net -= amounts.paid;
+        }
       });
 
       const plansDistribution = Array.from(planDistMap.values()).map((p) => ({
         ...p,
         gross: Math.round(p.gross * 100) / 100,
+        discounts: Math.round(p.discounts * 100) / 100,
+        refunds: Math.round(p.refunds * 100) / 100,
+        net: Math.round(p.net * 100) / 100,
         percentage: grossPeriod > 0 ? Math.round((p.gross / grossPeriod) * 1000) / 10 : 0,
       })).sort((a, b) => b.gross - a.gross);
 
       // 6. Distribuição por Ciclo
-      const cycleDistMap = new Map<string, { cycle: string; cycle_label: string; gross: number; count: number; average_ticket: number; percentage: number }>();
+      const cycleDistMap = new Map<string, { cycle: string; cycle_label: string; gross: number; discounts: number; refunds: number; net: number; count: number; average_ticket: number; percentage: number }>();
       periodOrders.forEach((o) => {
-        if (o.status !== "paid") return;
         const key = o.cycle || "monthly";
-        const val = Number(o.amount_cents || 0) / 100;
         const label = key === "annual" ? "Anual" : key === "semestral" ? "Semestral" : "Mensal";
+        const amounts = getOrderAmounts(o);
 
         if (!cycleDistMap.has(key)) {
-          cycleDistMap.set(key, { cycle: key, cycle_label: label, gross: 0, count: 0, average_ticket: 0, percentage: 0 });
+          cycleDistMap.set(key, {
+            cycle: key,
+            cycle_label: label,
+            gross: 0,
+            discounts: 0,
+            refunds: 0,
+            net: 0,
+            count: 0,
+            average_ticket: 0,
+            percentage: 0,
+          });
         }
         const item = cycleDistMap.get(key)!;
-        item.gross += val;
-        item.count += 1;
+        if (o.status === "paid") {
+          item.gross += amounts.gross;
+          item.discounts += amounts.discount;
+          item.net += (amounts.gross - amounts.discount);
+          item.count += 1;
+        } else if (o.status === "revoked" || o.status === "refunded") {
+          item.refunds += amounts.paid;
+          item.net -= amounts.paid;
+        }
       });
 
       const cyclesDistribution = Array.from(cycleDistMap.values()).map((c) => ({
         ...c,
         gross: Math.round(c.gross * 100) / 100,
+        discounts: Math.round(c.discounts * 100) / 100,
+        refunds: Math.round(c.refunds * 100) / 100,
+        net: Math.round(c.net * 100) / 100,
         average_ticket: c.count > 0 ? Math.round((c.gross / c.count) * 100) / 100 : 0,
         percentage: grossPeriod > 0 ? Math.round((c.gross / grossPeriod) * 1000) / 10 : 0,
       })).sort((a, b) => b.gross - a.gross);
@@ -425,6 +582,7 @@ export function useSaasFinancialMetrics() {
       const recentTransactions: RecentTransactionItem[] = periodOrders.map((o) => {
         const prof = profileMap.get(o.user_id);
         const planName = planNameResolver(o.plan_id, o.product_id);
+        const amounts = getOrderAmounts(o);
         return {
           id: o.id,
           payment_id: o.payment_id,
@@ -434,7 +592,9 @@ export function useSaasFinancialMetrics() {
           user_email: null,
           plan_name: planName,
           cycle: o.cycle || "monthly",
-          amount: Number(o.amount_cents || 0) / 100,
+          original_amount: amounts.gross,
+          discount_amount: amounts.discount,
+          amount: amounts.paid,
           status: o.status,
           checkout_kind: o.checkout_kind || "pix",
           credited_at: o.credited_at,
@@ -451,6 +611,7 @@ export function useSaasFinancialMetrics() {
         period: { start: dateRange.start, end: dateRange.end },
         summary: {
           gross_revenue: Math.round(grossPeriod * 100) / 100,
+          app_discounts: Math.round(discountsPeriod * 100) / 100,
           refunds_amount: Math.round(refundsPeriod * 100) / 100,
           net_revenue: Math.round(netPeriod * 100) / 100,
           paid_orders_count: paidCount,

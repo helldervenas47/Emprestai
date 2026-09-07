@@ -1,6 +1,7 @@
 -- ============================================================================
 -- MIGRATION: SaaS Financial Analytics & Revenue Dashboard (Asaas / Billing)
 -- Read-only analytics engine for platform administrators
+-- Regra da Receita Líquida: RECEITA LÍQUIDA = RECEITA BRUTA - DESCONTOS DO APP - ESTORNOS
 -- ============================================================================
 
 -- Índices otimizados para agregação financeira e relatórios
@@ -10,11 +11,32 @@ CREATE INDEX IF NOT EXISTS idx_billing_orders_analytics_live
 
 CREATE INDEX IF NOT EXISTS idx_billing_orders_analytics_revoked
   ON public.billing_orders (environment, status, revoked_at DESC)
-  WHERE environment = 'live' AND status = 'revoked';
+  WHERE environment = 'live' AND status IN ('revoked', 'refunded');
 
 CREATE INDEX IF NOT EXISTS idx_billing_orders_analytics_pending
   ON public.billing_orders (environment, status, created_at DESC)
   WHERE environment = 'live' AND status = 'pending';
+
+-- Permitir que administradores autenticados consultem billing_orders diretamente
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' 
+      AND tablename = 'billing_orders' 
+      AND policyname = 'billing_orders_admin_read'
+  ) THEN
+    CREATE POLICY billing_orders_admin_read ON public.billing_orders
+      FOR SELECT TO authenticated
+      USING (
+        EXISTS (
+          SELECT 1 FROM public.user_roles 
+          WHERE user_roles.user_id = auth.uid() 
+            AND user_roles.role = 'admin'
+        )
+      );
+  END IF;
+END $$;
 
 -- Função RPC: Obter Métricas Financeiras Completas do SaaS
 CREATE OR REPLACE FUNCTION public.billing_get_saas_financial_metrics(
@@ -33,7 +55,7 @@ SET search_path = public, auth
 AS $$
 DECLARE
   v_tz text := 'America/Sao_Paulo';
-  v_now timestamptz := now();
+  v_is_admin boolean := false;
   v_start timestamptz;
   v_end timestamptz;
   
@@ -45,6 +67,7 @@ DECLARE
   
   -- Variáveis de agregação do período
   v_gross_period numeric := 0;
+  v_discounts_period numeric := 0;
   v_refunds_period numeric := 0;
   v_net_period numeric := 0;
   v_paid_count integer := 0;
@@ -60,60 +83,69 @@ DECLARE
   v_pending_count integer := 0;
   
   -- Assinaturas e MRR
-  v_active_subs_count integer := 0;
-  v_active_trials_count integer := 0;
   v_mrr numeric := 0;
   v_arpu numeric := 0;
+  v_active_subs_count integer := 0;
+  v_active_trials_count integer := 0;
   
-  -- JSONs agregados
+  -- Estruturas JSON
   v_daily_evolution jsonb := '[]'::jsonb;
   v_monthly_evolution jsonb := '[]'::jsonb;
   v_plans_dist jsonb := '[]'::jsonb;
   v_cycles_dist jsonb := '[]'::jsonb;
   v_transactions jsonb := '[]'::jsonb;
-  
   v_result jsonb;
 BEGIN
-  -- 1. Verificação de permissão: somente administradores
-  IF NOT public.has_role(_admin, 'admin') THEN
-    RAISE EXCEPTION 'forbidden' USING ERRCODE = '42501';
+  -- 1. Validar se o executor é administrador
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles
+    WHERE user_id = _admin AND role = 'admin'
+  ) INTO v_is_admin;
+
+  IF NOT v_is_admin THEN
+    RAISE EXCEPTION 'Acesso negado: apenas administradores podem consultar o financeiro do SaaS.';
   END IF;
 
-  -- 2. Validação do ambiente
-  IF _env NOT IN ('live', 'sandbox') THEN
-    _env := 'live';
-  END IF;
+  -- 2. Configurar limites temporais no timezone de São Paulo
+  v_cur_month_start := date_trunc('month', timezone(v_tz, now())) AT TIME ZONE v_tz;
+  v_cur_month_end   := (date_trunc('month', timezone(v_tz, now())) + interval '1 month' - interval '1 millisecond') AT TIME ZONE v_tz;
+  v_prev_month_start := (date_trunc('month', timezone(v_tz, now())) - interval '1 month') AT TIME ZONE v_tz;
+  v_prev_month_end   := (date_trunc('month', timezone(v_tz, now())) - interval '1 millisecond') AT TIME ZONE v_tz;
 
-  -- 3. Configuração das janelas de tempo no fuso horário de São Paulo
-  v_cur_month_start := date_trunc('month', v_now AT TIME ZONE v_tz) AT TIME ZONE v_tz;
-  v_cur_month_end := (date_trunc('month', v_now AT TIME ZONE v_tz) + interval '1 month' - interval '1 millisecond') AT TIME ZONE v_tz;
-  
-  v_prev_month_start := (date_trunc('month', v_now AT TIME ZONE v_tz) - interval '1 month') AT TIME ZONE v_tz;
-  v_prev_month_end := (date_trunc('month', v_now AT TIME ZONE v_tz) - interval '1 millisecond') AT TIME ZONE v_tz;
-
-  -- Se não informado, o período padrão é o mês atual
   v_start := COALESCE(_start_date, v_cur_month_start);
-  v_end := COALESCE(_end_date, v_now);
+  v_end   := COALESCE(_end_date, v_cur_month_end);
 
-  -- 4. Cálculo de Faturamento do Mês Atual (Bruto Confirmado em live)
-  SELECT COALESCE(SUM(amount_cents), 0) / 100.0
-    INTO v_cur_month_gross
-    FROM public.billing_orders
-   WHERE environment = _env
-     AND status = 'paid'
-     AND credited_at >= v_cur_month_start
-     AND credited_at <= v_cur_month_end;
+  -- 3. Faturamento Mês Atual (Bruto antes de descontos)
+  SELECT COALESCE(SUM(
+    GREATEST(
+      COALESCE(pl.price * (CASE WHEN bo.cycle = 'annual' THEN 12 WHEN bo.cycle = 'semestral' THEN 6 ELSE 1 END), bo.amount_cents / 100.0),
+      bo.amount_cents / 100.0
+    )
+  ), 0)
+  INTO v_cur_month_gross
+  FROM public.billing_orders bo
+  LEFT JOIN public.plans pl ON pl.id = bo.plan_id
+  WHERE bo.environment = _env
+    AND bo.status = 'paid'
+    AND bo.credited_at >= v_cur_month_start
+    AND bo.credited_at <= v_cur_month_end;
 
-  -- 5. Cálculo de Faturamento do Mês Anterior (Bruto Confirmado)
-  SELECT COALESCE(SUM(amount_cents), 0) / 100.0
-    INTO v_prev_month_gross
-    FROM public.billing_orders
-   WHERE environment = _env
-     AND status = 'paid'
-     AND credited_at >= v_prev_month_start
-     AND credited_at <= v_prev_month_end;
+  -- 4. Faturamento Mês Anterior (Bruto antes de descontos)
+  SELECT COALESCE(SUM(
+    GREATEST(
+      COALESCE(pl.price * (CASE WHEN bo.cycle = 'annual' THEN 12 WHEN bo.cycle = 'semestral' THEN 6 ELSE 1 END), bo.amount_cents / 100.0),
+      bo.amount_cents / 100.0
+    )
+  ), 0)
+  INTO v_prev_month_gross
+  FROM public.billing_orders bo
+  LEFT JOIN public.plans pl ON pl.id = bo.plan_id
+  WHERE bo.environment = _env
+    AND bo.status = 'paid'
+    AND bo.credited_at >= v_prev_month_start
+    AND bo.credited_at <= v_prev_month_end;
 
-  -- Variação percentual entre mês atual e anterior (proteção contra divisão por zero)
+  -- Variação percentual mês a mês
   IF v_prev_month_gross > 0 THEN
     v_month_growth_pct := ROUND(((v_cur_month_gross - v_prev_month_gross) / v_prev_month_gross) * 100.0, 1);
   ELSIF v_cur_month_gross > 0 THEN
@@ -122,230 +154,352 @@ BEGIN
     v_month_growth_pct := 0.0;
   END IF;
 
-  -- 6. Agregação Geral do Período Filtrado
+  -- 5. Métricas do Período Filtrado (Bruto, Descontos, Estornos, Líquido)
   SELECT
-    COALESCE(SUM(CASE WHEN status = 'paid' THEN amount_cents ELSE 0 END), 0) / 100.0,
-    COALESCE(COUNT(CASE WHEN status = 'paid' THEN 1 ELSE NULL END), 0),
-    COALESCE(SUM(CASE WHEN status = 'revoked' THEN amount_cents ELSE 0 END), 0) / 100.0
-  INTO v_gross_period, v_paid_count, v_refunds_period
-  FROM public.billing_orders o
-  WHERE o.environment = _env
+    COALESCE(SUM(
+      CASE WHEN bo.status = 'paid' THEN
+        GREATEST(
+          COALESCE(pl.price * (CASE WHEN bo.cycle = 'annual' THEN 12 WHEN bo.cycle = 'semestral' THEN 6 ELSE 1 END), bo.amount_cents / 100.0),
+          bo.amount_cents / 100.0
+        )
+      ELSE 0 END
+    ), 0),
+    COALESCE(SUM(
+      CASE WHEN bo.status = 'paid' THEN
+        GREATEST(
+          COALESCE(pl.price * (CASE WHEN bo.cycle = 'annual' THEN 12 WHEN bo.cycle = 'semestral' THEN 6 ELSE 1 END), bo.amount_cents / 100.0) - (bo.amount_cents / 100.0),
+          0
+        )
+      ELSE 0 END
+    ), 0),
+    COALESCE(SUM(
+      CASE WHEN bo.status IN ('refunded', 'revoked') THEN bo.amount_cents / 100.0 ELSE 0 END
+    ), 0),
+    COALESCE(COUNT(CASE WHEN bo.status = 'paid' THEN 1 END), 0)
+  INTO
+    v_gross_period,
+    v_discounts_period,
+    v_refunds_period,
+    v_paid_count
+  FROM public.billing_orders bo
+  LEFT JOIN public.plans pl ON pl.id = bo.plan_id
+  WHERE bo.environment = _env
     AND (
-      (o.status = 'paid' AND o.credited_at >= v_start AND o.credited_at <= v_end)
-      OR (o.status = 'revoked' AND COALESCE(o.revoked_at, o.credited_at, o.created_at) >= v_start AND COALESCE(o.revoked_at, o.credited_at, o.created_at) <= v_end)
+      (bo.status = 'paid' AND bo.credited_at >= v_start AND bo.credited_at <= v_end)
+      OR
+      (bo.status IN ('refunded', 'revoked') AND COALESCE(bo.revoked_at, bo.created_at) >= v_start AND COALESCE(bo.revoked_at, bo.created_at) <= v_end)
     )
-    AND (_plan_id IS NULL OR o.plan_id = _plan_id)
-    AND (_cycle IS NULL OR o.cycle = _cycle)
-    AND (_status IS NULL OR o.status = _status);
+    AND (_plan_id IS NULL OR bo.plan_id = _plan_id)
+    AND (_cycle IS NULL OR bo.cycle = _cycle)
+    AND (_status IS NULL OR bo.status = _status);
 
-  v_net_period := v_gross_period - v_refunds_period;
+  -- Fórmula fundamental: RECEITA LÍQUIDA = BRUTO - DESCONTOS - ESTORNOS
+  v_net_period := v_gross_period - v_discounts_period - v_refunds_period;
+
   IF v_paid_count > 0 THEN
     v_avg_ticket := ROUND(v_gross_period / v_paid_count, 2);
   ELSE
-    v_avg_ticket := 0;
+    v_avg_ticket := 0.0;
   END IF;
 
-  -- 7. Cobranças Pendentes no Momento
+  -- 6. Ordens Pendentes (Previsão)
   SELECT
     COALESCE(SUM(amount_cents), 0) / 100.0,
-    COUNT(*)
-  INTO v_pending_amount, v_pending_count
+    COUNT(1)
+  INTO
+    v_pending_amount,
+    v_pending_count
   FROM public.billing_orders
   WHERE environment = _env
     AND status = 'pending'
     AND (_plan_id IS NULL OR plan_id = _plan_id)
     AND (_cycle IS NULL OR cycle = _cycle);
 
-  -- 8. Métricas de Assinaturas e MRR Normalizado
-  SELECT
-    COUNT(*)
+  -- 7. Assinantes Ativos e MRR Normalizado
+  SELECT COUNT(DISTINCT s.user_id)
   INTO v_active_subs_count
   FROM public.subscriptions s
   WHERE s.environment = _env
-    AND s.status = 'active'
-    AND COALESCE(s.current_period_end, now()) > now()
-    AND s.product_id != 'free_plan';
+    AND s.status = 'active';
 
-  -- MRR Normalizado com base nos planos ativos
   SELECT COALESCE(SUM(
     CASE 
       WHEN o.cycle = 'annual' THEN (o.amount_cents / 100.0) / 12.0
       WHEN o.cycle = 'semestral' THEN (o.amount_cents / 100.0) / 6.0
-      ELSE (o.amount_cents / 100.0)
+      WHEN o.cycle = 'monthly' THEN (o.amount_cents / 100.0)
+      ELSE COALESCE(pl.price, 0)
     END
   ), 0)
   INTO v_mrr
   FROM public.subscriptions s
-  JOIN LATERAL (
-    SELECT cycle, amount_cents 
-      FROM public.billing_orders bo 
-     WHERE bo.user_id = s.user_id 
-       AND bo.environment = _env 
-       AND bo.status = 'paid'
-     ORDER BY bo.credited_at DESC NULLS LAST 
-     LIMIT 1
+  LEFT JOIN public.plans pl ON pl.id = s.plan_id
+  LEFT JOIN LATERAL (
+    SELECT amount_cents, cycle
+    FROM public.billing_orders bo
+    WHERE bo.user_id = s.user_id 
+      AND bo.environment = _env 
+      AND bo.status = 'paid'
+    ORDER BY bo.created_at DESC
+    LIMIT 1
   ) o ON true
   WHERE s.environment = _env
-    AND s.status = 'active'
-    AND COALESCE(s.current_period_end, now()) > now()
-    AND s.product_id != 'free_plan';
+    AND s.status = 'active';
 
   IF v_active_subs_count > 0 THEN
     v_arpu := ROUND(v_mrr / v_active_subs_count, 2);
   ELSE
-    v_arpu := 0;
+    v_arpu := 0.0;
   END IF;
 
-  -- Contagem de Trials Ativos (usuários em período de teste de 7 dias sem assinatura paga)
-  SELECT COUNT(*)
+  -- 8. Trials Ativos (Últimos 7 dias)
+  SELECT COUNT(1)
   INTO v_active_trials_count
   FROM public.profiles p
   WHERE p.trial_started_at IS NOT NULL
-    AND p.trial_started_at + interval '7 days' > now()
+    AND p.trial_started_at >= (now() - interval '7 days')
     AND NOT EXISTS (
-      SELECT 1 FROM public.subscriptions s 
-       WHERE s.user_id = p.user_id 
-         AND s.environment = _env 
-         AND s.status = 'active' 
-         AND COALESCE(s.current_period_end, now()) > now()
+      SELECT 1 FROM public.subscriptions s
+      WHERE s.user_id = p.user_id AND s.environment = _env AND s.status = 'active'
     );
 
-  -- 9. Evolução Diária no Período Selecionado
-  SELECT COALESCE(jsonb_agg(d ORDER BY d->>'date' ASC), '[]'::jsonb)
+  -- 9. Evolução Diária (Bruto, Descontos, Estornos, Líquido)
+  SELECT COALESCE(jsonb_agg(d ORDER BY d->>'date'), '[]'::jsonb)
   INTO v_daily_evolution
   FROM (
     SELECT 
-      to_char(o.credited_at AT TIME ZONE v_tz, 'YYYY-MM-DD') AS date,
-      ROUND(SUM(CASE WHEN o.status = 'paid' THEN o.amount_cents ELSE 0 END) / 100.0, 2) AS gross,
-      ROUND(SUM(CASE WHEN o.status = 'revoked' THEN o.amount_cents ELSE 0 END) / 100.0, 2) AS refunds,
-      ROUND((SUM(CASE WHEN o.status = 'paid' THEN o.amount_cents ELSE 0 END) - SUM(CASE WHEN o.status = 'revoked' THEN o.amount_cents ELSE 0 END)) / 100.0, 2) AS net,
-      COUNT(CASE WHEN o.status = 'paid' THEN 1 ELSE NULL END) AS count
-    FROM public.billing_orders o
-    WHERE o.environment = _env
-      AND o.credited_at >= v_start
-      AND o.credited_at <= v_end
-      AND (_plan_id IS NULL OR o.plan_id = _plan_id)
-      AND (_cycle IS NULL OR o.cycle = _cycle)
-      AND (_status IS NULL OR o.status = _status)
-    GROUP BY to_char(o.credited_at AT TIME ZONE v_tz, 'YYYY-MM-DD')
+      to_char(timezone(v_tz, COALESCE(bo.credited_at, bo.created_at)), 'YYYY-MM-DD') AS date,
+      ROUND(SUM(
+        CASE WHEN bo.status = 'paid' THEN
+          GREATEST(
+            COALESCE(pl.price * (CASE WHEN bo.cycle = 'annual' THEN 12 WHEN bo.cycle = 'semestral' THEN 6 ELSE 1 END), bo.amount_cents / 100.0),
+            bo.amount_cents / 100.0
+          )
+        ELSE 0 END
+      ), 2) AS gross,
+      ROUND(SUM(
+        CASE WHEN bo.status = 'paid' THEN
+          GREATEST(
+            COALESCE(pl.price * (CASE WHEN bo.cycle = 'annual' THEN 12 WHEN bo.cycle = 'semestral' THEN 6 ELSE 1 END), bo.amount_cents / 100.0) - (bo.amount_cents / 100.0),
+            0
+          )
+        ELSE 0 END
+      ), 2) AS discounts,
+      ROUND(SUM(
+        CASE WHEN bo.status IN ('refunded', 'revoked') THEN bo.amount_cents / 100.0 ELSE 0 END
+      ), 2) AS refunds,
+      ROUND(
+        SUM(CASE WHEN bo.status = 'paid' THEN (bo.amount_cents / 100.0) ELSE 0 END) -
+        SUM(CASE WHEN bo.status IN ('refunded', 'revoked') THEN (bo.amount_cents / 100.0) ELSE 0 END)
+      , 2) AS net,
+      COUNT(CASE WHEN bo.status = 'paid' THEN 1 END) AS count
+    FROM public.billing_orders bo
+    LEFT JOIN public.plans pl ON pl.id = bo.plan_id
+    WHERE bo.environment = _env
+      AND (
+        (bo.status = 'paid' AND bo.credited_at >= v_start AND bo.credited_at <= v_end)
+        OR
+        (bo.status IN ('refunded', 'revoked') AND COALESCE(bo.revoked_at, bo.created_at) >= v_start AND COALESCE(bo.revoked_at, bo.created_at) <= v_end)
+      )
+      AND (_plan_id IS NULL OR bo.plan_id = _plan_id)
+      AND (_cycle IS NULL OR bo.cycle = _cycle)
+      AND (_status IS NULL OR bo.status = _status)
+    GROUP BY 1
   ) d;
 
-  -- 10. Evolução Mensal dos Últimos 12 Meses
-  SELECT COALESCE(jsonb_agg(m ORDER BY m->>'month' ASC), '[]'::jsonb)
+  -- 10. Evolução Mensal (Últimos 12 meses)
+  SELECT COALESCE(jsonb_agg(m ORDER BY m->>'month'), '[]'::jsonb)
   INTO v_monthly_evolution
   FROM (
     SELECT 
-      to_char(o.credited_at AT TIME ZONE v_tz, 'YYYY-MM') AS month,
-      to_char(o.credited_at AT TIME ZONE v_tz, 'Mon/YY') AS label,
-      ROUND(SUM(CASE WHEN o.status = 'paid' THEN o.amount_cents ELSE 0 END) / 100.0, 2) AS gross,
-      ROUND(SUM(CASE WHEN o.status = 'revoked' THEN o.amount_cents ELSE 0 END) / 100.0, 2) AS refunds,
-      ROUND((SUM(CASE WHEN o.status = 'paid' THEN o.amount_cents ELSE 0 END) - SUM(CASE WHEN o.status = 'revoked' THEN o.amount_cents ELSE 0 END)) / 100.0, 2) AS net,
-      COUNT(CASE WHEN o.status = 'paid' THEN 1 ELSE NULL END) AS count
-    FROM public.billing_orders o
-    WHERE o.environment = _env
-      AND o.credited_at >= (date_trunc('month', v_now AT TIME ZONE v_tz) - interval '11 months') AT TIME ZONE v_tz
-      AND o.credited_at <= v_now
-    GROUP BY to_char(o.credited_at AT TIME ZONE v_tz, 'YYYY-MM'), to_char(o.credited_at AT TIME ZONE v_tz, 'Mon/YY')
+      to_char(timezone(v_tz, bo.credited_at), 'YYYY-MM') AS month,
+      to_char(timezone(v_tz, bo.credited_at), 'Mon/YY') AS label,
+      ROUND(SUM(
+        GREATEST(
+          COALESCE(pl.price * (CASE WHEN bo.cycle = 'annual' THEN 12 WHEN bo.cycle = 'semestral' THEN 6 ELSE 1 END), bo.amount_cents / 100.0),
+          bo.amount_cents / 100.0
+        )
+      ), 2) AS gross,
+      ROUND(SUM(
+        GREATEST(
+          COALESCE(pl.price * (CASE WHEN bo.cycle = 'annual' THEN 12 WHEN bo.cycle = 'semestral' THEN 6 ELSE 1 END), bo.amount_cents / 100.0) - (bo.amount_cents / 100.0),
+          0
+        )
+      ), 2) AS discounts,
+      0.0 AS refunds,
+      ROUND(SUM(bo.amount_cents / 100.0), 2) AS net,
+      COUNT(1) AS count
+    FROM public.billing_orders bo
+    LEFT JOIN public.plans pl ON pl.id = bo.plan_id
+    WHERE bo.environment = _env
+      AND bo.status = 'paid'
+      AND bo.credited_at >= (v_current_month_start - interval '11 months')
+    GROUP BY 1, 2
   ) m;
 
-  -- 11. Distribuição de Receita por Plano no Período
+  -- 11. Distribuição por Plano (com Bruto, Descontos, Estornos e Líquido)
   SELECT COALESCE(jsonb_agg(p ORDER BY (p->>'gross')::numeric DESC), '[]'::jsonb)
   INTO v_plans_dist
   FROM (
     SELECT 
-      o.plan_id,
-      COALESCE(pl.name, CASE 
-        WHEN o.product_id = 'basico_plan' THEN 'Básico'
-        WHEN o.product_id = 'profissional_plan' THEN 'Profissional'
-        WHEN o.product_id = 'empresarial_plan' THEN 'Empresarial'
-        ELSE o.product_id 
-      END) AS plan_name,
-      o.product_id,
-      ROUND(SUM(o.amount_cents) / 100.0, 2) AS gross,
-      COUNT(*) AS count,
+      bo.plan_id,
+      COALESCE(pl.name, bo.product_id, 'Outros') AS plan_name,
+      bo.product_id,
+      ROUND(SUM(
+        CASE WHEN bo.status = 'paid' THEN
+          GREATEST(
+            COALESCE(pl.price * (CASE WHEN bo.cycle = 'annual' THEN 12 WHEN bo.cycle = 'semestral' THEN 6 ELSE 1 END), bo.amount_cents / 100.0),
+            bo.amount_cents / 100.0
+          )
+        ELSE 0 END
+      ), 2) AS gross,
+      ROUND(SUM(
+        CASE WHEN bo.status = 'paid' THEN
+          GREATEST(
+            COALESCE(pl.price * (CASE WHEN bo.cycle = 'annual' THEN 12 WHEN bo.cycle = 'semestral' THEN 6 ELSE 1 END), bo.amount_cents / 100.0) - (bo.amount_cents / 100.0),
+            0
+          )
+        ELSE 0 END
+      ), 2) AS discounts,
+      ROUND(SUM(
+        CASE WHEN bo.status IN ('refunded', 'revoked') THEN bo.amount_cents / 100.0 ELSE 0 END
+      ), 2) AS refunds,
+      ROUND(
+        SUM(CASE WHEN bo.status = 'paid' THEN (bo.amount_cents / 100.0) ELSE 0 END) -
+        SUM(CASE WHEN bo.status IN ('refunded', 'revoked') THEN (bo.amount_cents / 100.0) ELSE 0 END)
+      , 2) AS net,
+      COUNT(CASE WHEN bo.status = 'paid' THEN 1 END) AS count,
       CASE WHEN v_gross_period > 0 
-        THEN ROUND(((SUM(o.amount_cents) / 100.0) / v_gross_period) * 100.0, 1)
-        ELSE 0 
+        THEN ROUND((
+          SUM(
+            CASE WHEN bo.status = 'paid' THEN
+              GREATEST(
+                COALESCE(pl.price * (CASE WHEN bo.cycle = 'annual' THEN 12 WHEN bo.cycle = 'semestral' THEN 6 ELSE 1 END), bo.amount_cents / 100.0),
+                bo.amount_cents / 100.0
+              )
+            ELSE 0 END
+          ) / v_gross_period
+        ) * 100.0, 1)
+        ELSE 0.0 
       END AS percentage
-    FROM public.billing_orders o
-    LEFT JOIN public.plans pl ON pl.id = o.plan_id
-    WHERE o.environment = _env
-      AND o.status = 'paid'
-      AND o.credited_at >= v_start
-      AND o.credited_at <= v_end
-      AND (_plan_id IS NULL OR o.plan_id = _plan_id)
-      AND (_cycle IS NULL OR o.cycle = _cycle)
-    GROUP BY o.plan_id, pl.name, o.product_id
+    FROM public.billing_orders bo
+    LEFT JOIN public.plans pl ON pl.id = bo.plan_id
+    WHERE bo.environment = _env
+      AND (
+        (bo.status = 'paid' AND bo.credited_at >= v_start AND bo.credited_at <= v_end)
+        OR
+        (bo.status IN ('refunded', 'revoked') AND COALESCE(bo.revoked_at, bo.created_at) >= v_start AND COALESCE(bo.revoked_at, bo.created_at) <= v_end)
+      )
+    GROUP BY bo.plan_id, pl.name, bo.product_id
   ) p;
 
-  -- 12. Distribuição de Receita por Ciclo no Período
+  -- 12. Distribuição por Ciclo
   SELECT COALESCE(jsonb_agg(c ORDER BY (c->>'gross')::numeric DESC), '[]'::jsonb)
   INTO v_cycles_dist
   FROM (
     SELECT 
-      o.cycle,
+      bo.cycle,
       CASE 
-        WHEN o.cycle = 'monthly' THEN 'Mensal'
-        WHEN o.cycle = 'semestral' THEN 'Semestral'
-        WHEN o.cycle = 'annual' THEN 'Anual'
-        ELSE o.cycle
+        WHEN bo.cycle = 'annual' THEN 'Anual'
+        WHEN bo.cycle = 'semestral' THEN 'Semestral'
+        ELSE 'Mensal'
       END AS cycle_label,
-      ROUND(SUM(o.amount_cents) / 100.0, 2) AS gross,
-      COUNT(*) AS count,
-      ROUND((SUM(o.amount_cents) / 100.0) / NULLIF(COUNT(*), 0), 2) AS average_ticket,
+      ROUND(SUM(
+        CASE WHEN bo.status = 'paid' THEN
+          GREATEST(
+            COALESCE(pl.price * (CASE WHEN bo.cycle = 'annual' THEN 12 WHEN bo.cycle = 'semestral' THEN 6 ELSE 1 END), bo.amount_cents / 100.0),
+            bo.amount_cents / 100.0
+          )
+        ELSE 0 END
+      ), 2) AS gross,
+      ROUND(SUM(
+        CASE WHEN bo.status = 'paid' THEN
+          GREATEST(
+            COALESCE(pl.price * (CASE WHEN bo.cycle = 'annual' THEN 12 WHEN bo.cycle = 'semestral' THEN 6 ELSE 1 END), bo.amount_cents / 100.0) - (bo.amount_cents / 100.0),
+            0
+          )
+        ELSE 0 END
+      ), 2) AS discounts,
+      ROUND(SUM(
+        CASE WHEN bo.status IN ('refunded', 'revoked') THEN bo.amount_cents / 100.0 ELSE 0 END
+      ), 2) AS refunds,
+      ROUND(
+        SUM(CASE WHEN bo.status = 'paid' THEN (bo.amount_cents / 100.0) ELSE 0 END) -
+        SUM(CASE WHEN bo.status IN ('refunded', 'revoked') THEN (bo.amount_cents / 100.0) ELSE 0 END)
+      , 2) AS net,
+      COUNT(CASE WHEN bo.status = 'paid' THEN 1 END) AS count,
       CASE WHEN v_gross_period > 0 
-        THEN ROUND(((SUM(o.amount_cents) / 100.0) / v_gross_period) * 100.0, 1)
-        ELSE 0 
+        THEN ROUND((
+          SUM(
+            CASE WHEN bo.status = 'paid' THEN
+              GREATEST(
+                COALESCE(pl.price * (CASE WHEN bo.cycle = 'annual' THEN 12 WHEN bo.cycle = 'semestral' THEN 6 ELSE 1 END), bo.amount_cents / 100.0),
+                bo.amount_cents / 100.0
+              )
+            ELSE 0 END
+          ) / v_gross_period
+        ) * 100.0, 1)
+        ELSE 0.0 
       END AS percentage
-    FROM public.billing_orders o
-    WHERE o.environment = _env
-      AND o.status = 'paid'
-      AND o.credited_at >= v_start
-      AND o.credited_at <= v_end
-      AND (_plan_id IS NULL OR o.plan_id = _plan_id)
-      AND (_cycle IS NULL OR o.cycle = _cycle)
-    GROUP BY o.cycle
+    FROM public.billing_orders bo
+    LEFT JOIN public.plans pl ON pl.id = bo.plan_id
+    WHERE bo.environment = _env
+      AND (
+        (bo.status = 'paid' AND bo.credited_at >= v_start AND bo.credited_at <= v_end)
+        OR
+        (bo.status IN ('refunded', 'revoked') AND COALESCE(bo.revoked_at, bo.created_at) >= v_start AND COALESCE(bo.revoked_at, bo.created_at) <= v_end)
+      )
+    GROUP BY bo.cycle
   ) c;
 
-  -- 13. Últimas Transações do Período
+  -- 13. Transações Recentes
   SELECT COALESCE(jsonb_agg(t), '[]'::jsonb)
   INTO v_transactions
   FROM (
     SELECT 
-      o.id,
-      o.payment_id,
-      o.customer_id,
-      o.user_id,
-      COALESCE(pr.full_name, pr.username, pr.email, 'Usuário ' || substr(o.user_id::text, 1, 8)) AS user_name,
-      pr.email AS user_email,
-      COALESCE(pl.name, CASE 
-        WHEN o.product_id = 'basico_plan' THEN 'Básico'
-        WHEN o.product_id = 'profissional_plan' THEN 'Profissional'
-        WHEN o.product_id = 'empresarial_plan' THEN 'Empresarial'
-        ELSE o.product_id 
-      END) AS plan_name,
-      o.cycle,
-      ROUND(o.amount_cents / 100.0, 2) AS amount,
-      o.status,
-      o.checkout_kind,
-      o.credited_at,
-      o.revoked_at,
-      o.due_date,
-      o.created_at,
-      o.invoice_url
-    FROM public.billing_orders o
-    LEFT JOIN public.profiles pr ON pr.user_id = o.user_id
-    LEFT JOIN public.plans pl ON pl.id = o.plan_id
-    WHERE o.environment = _env
+      bo.id,
+      bo.payment_id,
+      bo.customer_id,
+      bo.user_id,
+      COALESCE(pr.display_name, 'Usuário ' || SUBSTRING(bo.user_id::text, 1, 8)) AS user_name,
+      NULL AS user_email,
+      COALESCE(pl.name, bo.product_id, 'Plano') AS plan_name,
+      bo.cycle,
+      ROUND(
+        GREATEST(
+          COALESCE(pl.price * (CASE WHEN bo.cycle = 'annual' THEN 12 WHEN bo.cycle = 'semestral' THEN 6 ELSE 1 END), bo.amount_cents / 100.0),
+          bo.amount_cents / 100.0
+        )
+      , 2) AS original_amount,
+      ROUND(
+        GREATEST(
+          COALESCE(pl.price * (CASE WHEN bo.cycle = 'annual' THEN 12 WHEN bo.cycle = 'semestral' THEN 6 ELSE 1 END), bo.amount_cents / 100.0) - (bo.amount_cents / 100.0),
+          0
+        )
+      , 2) AS discount_amount,
+      ROUND(bo.amount_cents / 100.0, 2) AS amount,
+      bo.status,
+      bo.checkout_kind,
+      bo.credited_at,
+      bo.revoked_at,
+      bo.due_date,
+      bo.created_at,
+      bo.invoice_url
+    FROM public.billing_orders bo
+    LEFT JOIN public.plans pl ON pl.id = bo.plan_id
+    LEFT JOIN public.profiles pr ON pr.user_id = bo.user_id
+    WHERE bo.environment = _env
       AND (
-        (o.status = 'paid' AND o.credited_at >= v_start AND o.credited_at <= v_end)
-        OR (o.status != 'paid' AND o.created_at >= v_start AND o.created_at <= v_end)
+        (bo.status = 'paid' AND bo.credited_at >= v_start AND bo.credited_at <= v_end)
+        OR
+        (bo.status IN ('refunded', 'revoked') AND COALESCE(bo.revoked_at, bo.created_at) >= v_start AND COALESCE(bo.revoked_at, bo.created_at) <= v_end)
+        OR
+        (bo.status = 'pending' AND bo.created_at >= v_start AND bo.created_at <= v_end)
       )
-      AND (_plan_id IS NULL OR o.plan_id = _plan_id)
-      AND (_cycle IS NULL OR o.cycle = _cycle)
-      AND (_status IS NULL OR o.status = _status)
-    ORDER BY COALESCE(o.credited_at, o.created_at) DESC
-    LIMIT 200
+      AND (_plan_id IS NULL OR bo.plan_id = _plan_id)
+      AND (_cycle IS NULL OR bo.cycle = _cycle)
+      AND (_status IS NULL OR bo.status = _status)
+    ORDER BY COALESCE(bo.credited_at, bo.created_at) DESC
+    LIMIT 100
   ) t;
 
   -- 14. Montagem do Resultado JSON
@@ -358,6 +512,7 @@ BEGIN
     ),
     'summary', jsonb_build_object(
       'gross_revenue', v_gross_period,
+      'app_discounts', v_discounts_period,
       'refunds_amount', v_refunds_period,
       'net_revenue', v_net_period,
       'paid_orders_count', v_paid_count,
@@ -386,25 +541,3 @@ $$;
 -- Permissões de Acesso
 REVOKE ALL ON FUNCTION public.billing_get_saas_financial_metrics FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.billing_get_saas_financial_metrics TO authenticated;
-
--- Permitir que administradores autenticados consultem billing_orders diretamente
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies 
-    WHERE schemaname = 'public' 
-      AND tablename = 'billing_orders' 
-      AND policyname = 'billing_orders_admin_read'
-  ) THEN
-    CREATE POLICY billing_orders_admin_read ON public.billing_orders
-      FOR SELECT TO authenticated
-      USING (
-        EXISTS (
-          SELECT 1 FROM public.user_roles 
-          WHERE user_roles.user_id = auth.uid() 
-            AND user_roles.role = 'admin'
-        )
-      );
-  END IF;
-END $$;
-
