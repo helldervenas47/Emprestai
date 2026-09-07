@@ -2,7 +2,7 @@ import { lazy, Suspense, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CreditCard, Users as UsersIcon, Image as ImageIcon, Loader2, ShieldCheck, Palette, Wallet, Activity, KeyRound, Package, BadgeCheck, Sparkles } from "lucide-react";
+import { CreditCard, Users as UsersIcon, Image as ImageIcon, Loader2, ShieldCheck, Palette, Wallet, Activity, KeyRound, Package, BadgeCheck, Sparkles, TrendingUp } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -20,6 +20,7 @@ const ApiKeysManager = lazy(() => import("@/components/ApiKeysManager").then(m =
 const RolePermissionsMatrix = lazy(() => import("@/features/admin/components/admin/RolePermissionsMatrix").then(m => ({ default: m.RolePermissionsMatrix })));
 const PlanManagement = lazy(() => import("@/features/admin/components/admin/PlanManagement").then(m => ({ default: m.PlanManagement })));
 const SubscriptionManagement = lazy(() => import("@/features/admin/components/admin/SubscriptionManagement").then(m => ({ default: m.SubscriptionManagement })));
+const SaasFinancialDashboard = lazy(() => import("@/features/admin/components/admin/SaasFinancialDashboard").then(m => ({ default: m.SaasFinancialDashboard })));
 
 
 const SectionLoader = () => (
@@ -48,6 +49,11 @@ export function SystemSettings() {
           {isAdmin && (
             <TabsTrigger value="admin" className="flex items-center gap-1.5 flex-1 min-w-[120px]">
               <ShieldCheck className="h-3.5 w-3.5" /> Administração
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="financial" className="flex items-center gap-1.5 flex-1 min-w-[120px]">
+              <TrendingUp className="h-3.5 w-3.5" /> Faturamento
             </TabsTrigger>
           )}
           {isAdmin && (
@@ -104,6 +110,14 @@ export function SystemSettings() {
             </Suspense>
 
             <TelegramImageDeliveryCard />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="financial" className="space-y-4 mt-4">
+            <Suspense fallback={<SectionLoader />}>
+              <SaasFinancialDashboard />
+            </Suspense>
           </TabsContent>
         )}
 
