@@ -151,35 +151,23 @@ BEGIN
     AND (_plan_id IS NULL OR plan_id = _plan_id)
     AND (_cycle IS NULL OR cycle = _cycle);
 
-  -- 7. Assinantes Ativos e MRR Normalizado
-  SELECT COUNT(DISTINCT s.user_id)
-  INTO v_active_subs_count
-  FROM public.subscriptions s
-  WHERE s.environment = _env
-    AND s.status = 'active';
-
-  SELECT COALESCE(SUM(
-    CASE 
-      WHEN o.cycle = 'annual' THEN (o.amount_cents / 100.0) / 12.0
-      WHEN o.cycle = 'semestral' THEN (o.amount_cents / 100.0) / 6.0
-      WHEN o.cycle = 'monthly' THEN (o.amount_cents / 100.0)
-      ELSE COALESCE(pl.price, 0)
-    END
-  ), 0)
-  INTO v_mrr
-  FROM public.subscriptions s
-  LEFT JOIN public.plans pl ON pl.id = s.plan_id
-  LEFT JOIN LATERAL (
-    SELECT amount_cents, cycle
-    FROM public.billing_orders bo
-    WHERE bo.user_id = s.user_id 
-      AND bo.environment = _env 
-      AND bo.status = 'paid'
-    ORDER BY bo.created_at DESC
-    LIMIT 1
-  ) o ON true
-  WHERE s.environment = _env
-    AND s.status = 'active';
+  -- 7. Assinantes Pagantes Ativos e MRR Normalizado (baseado em pedidos pagos confirmados)
+  SELECT 
+    COUNT(DISTINCT bo.user_id),
+    COALESCE(SUM(
+      CASE 
+        WHEN bo.cycle = 'annual' THEN (bo.amount_cents / 100.0) / 12.0
+        WHEN bo.cycle = 'semestral' THEN (bo.amount_cents / 100.0) / 6.0
+        ELSE (bo.amount_cents / 100.0)
+      END
+    ), 0)
+  INTO v_active_subs_count, v_mrr
+  FROM (
+    SELECT DISTINCT ON (user_id) user_id, amount_cents, cycle
+    FROM public.billing_orders
+    WHERE environment = _env AND status = 'paid'
+    ORDER BY user_id, credited_at DESC NULLS LAST, created_at DESC
+  ) bo;
 
   IF v_active_subs_count > 0 THEN
     v_arpu := ROUND(v_mrr / v_active_subs_count, 2);
@@ -187,15 +175,15 @@ BEGIN
     v_arpu := 0.0;
   END IF;
 
-  -- 8. Trials Ativos (Últimos 7 dias)
+  -- 8. Trials Ativos (Últimos 7 dias sem pedido pago)
   SELECT COUNT(1)
   INTO v_active_trials_count
   FROM public.profiles p
   WHERE p.trial_started_at IS NOT NULL
     AND p.trial_started_at >= (now() - interval '7 days')
     AND NOT EXISTS (
-      SELECT 1 FROM public.subscriptions s
-      WHERE s.user_id = p.user_id AND s.environment = _env AND s.status = 'active'
+      SELECT 1 FROM public.billing_orders bo
+      WHERE bo.user_id = p.user_id AND bo.environment = _env AND bo.status = 'paid'
     );
 
   -- 9. Evolução Diária (Bruto, Descontos, Estornos, Líquido)

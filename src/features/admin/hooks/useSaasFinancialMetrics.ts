@@ -406,32 +406,33 @@ export function useSaasFinancialMetrics() {
       const pendingAmount = pendingOrders.reduce((s, o) => s + Number(o.amount_cents || 0) / 100, 0);
       const pendingCount = pendingOrders.length;
 
-      // MRR Normalizado
-      const activeSubsCount = activeSubs.length;
-      let mrrTotal = 0;
-
-      activeSubs.forEach((sub: any) => {
-        const userOrder = allOrders.find((o) => o.user_id === sub.user_id && o.status === "paid");
-        if (userOrder) {
-          const val = Number(userOrder.amount_cents || 0) / 100;
-          if (userOrder.cycle === "annual") mrrTotal += val / 12;
-          else if (userOrder.cycle === "semestral") mrrTotal += val / 6;
-          else mrrTotal += val;
-        } else {
-          const plan = planMap.get(sub.plan_id) || plansList.find((p: any) => p.name === planNameResolver(sub.plan_id, sub.product_id));
-          const val = Number(plan?.price || 0);
-          mrrTotal += val;
+      // MRR Normalizado baseado em clientes com pagamentos confirmados
+      const userLatestPaidOrder = new Map<string, typeof allOrders[0]>();
+      allOrders.forEach((o) => {
+        if (o.status === "paid" && !userLatestPaidOrder.has(o.user_id)) {
+          userLatestPaidOrder.set(o.user_id, o);
         }
       });
 
-      const arpu = activeSubsCount > 0 ? Math.round((mrrTotal / activeSubsCount) * 100) / 100 : 0;
+      let mrrTotal = 0;
+      let activePaidSubsCount = 0;
+
+      userLatestPaidOrder.forEach((order) => {
+        const val = Number(order.amount_cents || 0) / 100;
+        if (order.cycle === "annual") mrrTotal += val / 12;
+        else if (order.cycle === "semestral") mrrTotal += val / 6;
+        else mrrTotal += val;
+        activePaidSubsCount += 1;
+      });
+
+      const arpu = activePaidSubsCount > 0 ? Math.round((mrrTotal / activePaidSubsCount) * 100) / 100 : 0;
 
       // Trials Ativos
       const activeTrialsCount = profilesList.filter((p: any) => {
         if (!p.trial_started_at) return false;
         const start = new Date(p.trial_started_at).getTime();
-        const hasSub = activeSubs.some((s: any) => s.user_id === p.user_id);
-        return Date.now() - start < 7 * 86400000 && !hasSub;
+        const hasPaidOrder = userLatestPaidOrder.has(p.user_id);
+        return Date.now() - start < 7 * 86400000 && !hasPaidOrder;
       }).length;
 
       // 3. Evolução Diária
@@ -612,7 +613,7 @@ export function useSaasFinancialMetrics() {
           month_growth_pct: monthGrowthPct,
           mrr: Math.round(mrrTotal * 100) / 100,
           arpu: arpu,
-          active_subscribers_count: activeSubsCount,
+          active_subscribers_count: activePaidSubsCount,
           active_trials_count: activeTrialsCount,
         },
         daily_evolution: dailyEvolution,
