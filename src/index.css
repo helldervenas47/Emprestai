@@ -451,6 +451,21 @@
     padding-right: env(safe-area-inset-right);
   }
 
+  /* Barra de navegação móvel PWA: isolamento de layout e GPU hardware layer
+     Garante que a barra nunca suba para o meio da tela durante scrolls ou ao fechar o teclado virtual. */
+  .mobile-bottom-nav {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    transform: translate3d(0, 0, 0) !important;
+    -webkit-transform: translate3d(0, 0, 0) !important;
+    will-change: transform;
+    contain: layout style paint;
+    touch-action: manipulation;
+    z-index: 40;
+  }
+
   /* Touch-action: only on clickable elements; inputs keep default behavior */
   button, [role="button"], a {
     touch-action: manipulation;

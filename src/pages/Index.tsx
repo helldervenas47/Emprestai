@@ -855,7 +855,16 @@ const Index = () => {
     [changeTab],
   );
 
-  // A barra inferior permanece sempre fixa; não reagimos ao teclado virtual.
+  // A barra inferior permanece sempre fixa; no mobile PWA, força reflow do viewport ao fechar o teclado
+  useEffect(() => {
+    if (!isMobile || typeof window === "undefined") return;
+    const handleFocusOut = () => {
+      // Quando o teclado virtual fecha no iOS, força reancoragem do layout viewport
+      window.scrollTo({ top: window.scrollY, behavior: "instant" });
+    };
+    window.addEventListener("focusout", handleFocusOut);
+    return () => window.removeEventListener("focusout", handleFocusOut);
+  }, [isMobile]);
 
 
   // Atualiza apenas a aba (reload simples), preservando cache e localStorage.
@@ -2162,7 +2171,7 @@ const Index = () => {
         {isMobile && (
           <>
             <nav
-              className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/40 bg-card/90 backdrop-blur-xl backdrop-saturate-150 shadow-[0_-4px_20px_-8px_hsl(0_0%_0%/0.25)] animate-fade-in"
+              className="mobile-bottom-nav border-t border-border/40 bg-card/90 backdrop-blur-xl backdrop-saturate-150 shadow-[0_-4px_20px_-8px_hsl(0_0%_0%/0.25)]"
               style={{
                 paddingBottom: "env(safe-area-inset-bottom)",
                 paddingLeft: "env(safe-area-inset-left)",
