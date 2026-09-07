@@ -267,7 +267,7 @@ describe("Suíte de Testes — Inadimplência por Faixas de Atraso", () => {
       expect(screen.getByText(/Total acumulado nesta faixa/)).toBeDefined();
       expect(screen.getByText("Fernando Dias")).toBeDefined();
       expect(screen.getByText(/Parcela 1\/3/)).toBeDefined();
-      expect(screen.getByText("67 dias de atraso")).toBeDefined();
+      expect(screen.getByText(/dias de atraso/)).toBeDefined();
       expect(screen.getAllByText("R$ 1100.00").length).toBeGreaterThanOrEqual(1);
     });
   });

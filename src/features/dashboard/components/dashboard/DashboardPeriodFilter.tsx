@@ -49,7 +49,7 @@ export function DashboardPeriodFilter({ rangeLabel, period, onPrev, onNext, onRe
                   <strong>Taxa de Juros Mensal:</strong> relação entre os juros a receber e o capital emprestado, considerando apenas os contratos com juros no período.
                 </li>
                 <li>
-                  <strong>Faturamento do Período:</strong> lucro já realizado + lucros pendentes que vencem no período, usando a contabilidade "Juros Primeiro".
+                  <strong>Juros Recebidos:</strong> lucro já realizado + lucros pendentes que vencem no período, usando a contabilidade "Juros Primeiro".
                 </li>
               </ul>
               <p>

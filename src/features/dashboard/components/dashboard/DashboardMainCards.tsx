@@ -481,7 +481,7 @@ export function DashboardMainCards({
 
 
 
-      {/* Profit Card — Faturamento do Período */}
+      {/* Profit Card — Juros Recebidos */}
       <div className="dash-card dash-card-hero-soft dash-rise" style={{ animationDelay: '210ms' }}>
 
         <DecorSparkline tone="blue" subtle />
@@ -490,7 +490,7 @@ export function DashboardMainCards({
             <div className="dash-icon h-10 w-10 sm:h-11 sm:w-11 shrink-0">
               <TrendingUp className="h-5 w-5" />
             </div>
-            <p className="dash-label text-[12px] leading-tight">Faturamento do Período</p>
+            <p className="dash-label text-[12px] leading-tight">Juros Recebidos</p>
           </div>
 
           {/* Grade 2x2 de métricas: labels na linha de cima, valores alinhados abaixo */}
