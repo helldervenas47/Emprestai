@@ -298,18 +298,18 @@ export function VideoLessonFormModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !isUploadingVideo && onClose()}>
-      <DialogContent className="max-w-xl p-5 sm:p-6 bg-card border-border/80 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full max-w-xl p-4 sm:p-6 bg-card border-border/80 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader className="space-y-1">
-          <DialogTitle className="text-xl font-bold flex items-center gap-2 text-foreground">
-            <Video className="h-5 w-5 text-primary" />
-            {lessonToEdit ? "Editar Vídeo Aula" : "Publicar Nova Vídeo Aula"}
+          <DialogTitle className="text-lg sm:text-xl font-bold flex items-center gap-2 text-foreground">
+            <Video className="h-5 w-5 text-primary shrink-0" />
+            <span className="truncate">{lessonToEdit ? "Editar Vídeo Aula" : "Publicar Nova Vídeo Aula"}</span>
           </DialogTitle>
           <p className="text-xs text-muted-foreground">
-            Envie vídeos diretamente do seu computador ou informe links externos para disponibilizar aos usuários.
+            Envie vídeos diretamente do seu dispositivo ou informe links externos.
           </p>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2 w-full min-w-0">
           {/* Título */}
           <div className="space-y-1.5">
             <Label htmlFor="lesson-title" className="text-xs font-semibold">
@@ -321,20 +321,20 @@ export function VideoLessonFormModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
-              className="h-10 text-sm bg-muted/20"
+              className="h-10 text-sm bg-muted/20 w-full"
             />
           </div>
 
           {/* VÍDEO (UPLOAD OU LINK) */}
-          <div className="space-y-2 rounded-xl border border-border/60 bg-muted/10 p-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold flex items-center gap-1.5">
+          <div className="space-y-2 rounded-xl border border-border/60 bg-muted/10 p-3 w-full min-w-0">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Label className="text-xs font-semibold flex items-center gap-1.5 shrink-0">
                 <FileVideo className="h-4 w-4 text-primary" />
                 Vídeo da Aula <span className="text-destructive">*</span>
               </Label>
 
               {/* Botões de alternância Upload / Link */}
-              <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg text-[11px]">
+              <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg text-[11px] shrink-0">
                 <button
                   type="button"
                   onClick={() => setVideoSourceMode("upload")}
@@ -363,7 +363,7 @@ export function VideoLessonFormModal({
             </div>
 
             {videoSourceMode === "upload" ? (
-              <div className="space-y-2">
+              <div className="space-y-2 w-full min-w-0">
                 <input
                   ref={videoInputRef}
                   type="file"
@@ -373,14 +373,14 @@ export function VideoLessonFormModal({
                 />
 
                 {videoUrl ? (
-                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 overflow-hidden">
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-between gap-2 sm:gap-3 w-full min-w-0 overflow-hidden">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
                       <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-                      <div className="text-xs truncate">
+                      <div className="text-xs min-w-0 flex-1 overflow-hidden">
                         <p className="font-semibold text-emerald-800 dark:text-emerald-300 truncate">
                           {videoFileName || "Arquivo de vídeo pronto para reprodução"}
                         </p>
-                        <p className="text-[11px] text-muted-foreground truncate">
+                        <p className="text-[11px] text-muted-foreground truncate" title={videoUrl}>
                           {videoUrl}
                         </p>
                       </div>
@@ -392,7 +392,7 @@ export function VideoLessonFormModal({
                         size="sm"
                         onClick={() => videoInputRef.current?.click()}
                         disabled={isUploadingVideo}
-                        className="h-8 text-xs rounded-lg"
+                        className="h-8 text-xs rounded-lg px-2 sm:px-3"
                       >
                         Trocar
                       </Button>
@@ -404,7 +404,7 @@ export function VideoLessonFormModal({
                           setVideoUrl("");
                           setVideoFileName("");
                         }}
-                        className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-lg"
+                        className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-lg shrink-0"
                         title="Remover vídeo"
                       >
                         <X className="h-4 w-4" />
@@ -414,7 +414,7 @@ export function VideoLessonFormModal({
                 ) : (
                   <div
                     onClick={() => !isUploadingVideo && videoInputRef.current?.click()}
-                    className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
+                    className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 w-full ${
                       isUploadingVideo
                         ? "bg-muted/40 border-primary/40 cursor-not-allowed"
                         : "border-border hover:border-primary hover:bg-primary/5"
@@ -442,7 +442,7 @@ export function VideoLessonFormModal({
                             Clique para selecionar o vídeo do seu dispositivo
                           </p>
                           <p className="text-[11px] text-muted-foreground">
-                            Formatos suportados: MP4, WebM, MOV, OGG (Até 500 MB)
+                            Formatos: MP4, WebM, MOV, OGG (Até 500 MB)
                           </p>
                         </div>
                       </>
@@ -451,18 +451,18 @@ export function VideoLessonFormModal({
                 )}
               </div>
             ) : (
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 w-full">
                 <Input
                   id="lesson-url"
                   placeholder="https://www.youtube.com/watch?v=... ou Vimeo / Loom"
                   value={videoUrl}
                   onChange={(e) => setVideoUrl(e.target.value)}
-                  className="h-10 text-sm bg-muted/20"
+                  className="h-10 text-sm bg-muted/20 w-full"
                 />
                 {parsedVideo.type !== "generic" && videoUrl && (
                   <p className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
-                    <Sparkles className="h-3 w-3" />
-                    Plataforma identificada: {parsedVideo.type.toUpperCase()}
+                    <Sparkles className="h-3 w-3 shrink-0" />
+                    <span className="truncate">Plataforma identificada: {parsedVideo.type.toUpperCase()}</span>
                   </p>
                 )}
               </div>
@@ -480,7 +480,7 @@ export function VideoLessonFormModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
-              className="text-xs sm:text-sm bg-muted/20 resize-none"
+              className="text-xs sm:text-sm bg-muted/20 resize-none w-full"
             />
           </div>
 
@@ -489,7 +489,7 @@ export function VideoLessonFormModal({
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">Categoria</Label>
               <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="h-10 text-xs bg-muted/20">
+                <SelectTrigger className="h-10 text-xs bg-muted/20 w-full">
                   <SelectValue placeholder="Selecione a categoria" />
                 </SelectTrigger>
                 <SelectContent>
@@ -516,7 +516,7 @@ export function VideoLessonFormModal({
                 placeholder="0"
                 value={displayOrder}
                 onChange={(e) => setDisplayOrder(Number(e.target.value))}
-                className="h-10 text-sm bg-muted/20"
+                className="h-10 text-sm bg-muted/20 w-full"
               />
             </div>
           </div>
@@ -531,20 +531,20 @@ export function VideoLessonFormModal({
                 placeholder="Ex: Recursos Avançados"
                 value={customCategory}
                 onChange={(e) => setCustomCategory(e.target.value)}
-                className="h-10 text-xs bg-muted/20"
+                className="h-10 text-xs bg-muted/20 w-full"
               />
             </div>
           )}
 
           {/* CAPA / THUMBNAIL (UPLOAD OU URL) */}
-          <div className="space-y-2 rounded-xl border border-border/60 bg-muted/10 p-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold flex items-center gap-1.5">
+          <div className="space-y-2 rounded-xl border border-border/60 bg-muted/10 p-3 w-full min-w-0">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Label className="text-xs font-semibold flex items-center gap-1.5 shrink-0">
                 <ImageIcon className="h-4 w-4 text-primary" />
                 Capa / Thumbnail (opcional)
               </Label>
 
-              <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg text-[11px]">
+              <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg text-[11px] shrink-0">
                 <button
                   type="button"
                   onClick={() => setThumbSourceMode("upload")}
@@ -573,7 +573,7 @@ export function VideoLessonFormModal({
             </div>
 
             {thumbSourceMode === "upload" ? (
-              <div className="space-y-2">
+              <div className="space-y-2 w-full min-w-0">
                 <input
                   ref={thumbInputRef}
                   type="file"
@@ -582,7 +582,7 @@ export function VideoLessonFormModal({
                   className="hidden"
                 />
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <Button
                     type="button"
                     variant="outline"
@@ -626,23 +626,23 @@ export function VideoLessonFormModal({
                 placeholder="https://exemplo.com/capa.jpg"
                 value={thumbnailUrl}
                 onChange={(e) => setThumbnailUrl(e.target.value)}
-                className="h-10 text-xs bg-muted/20"
+                className="h-10 text-xs bg-muted/20 w-full"
               />
             )}
 
             {/* Prévia da capa se existir */}
             {effectiveThumbnail && (
-              <div className="mt-2 flex items-center gap-3 p-2 bg-muted/30 rounded-xl border border-border/40">
-                <div className="relative w-28 aspect-video rounded-lg overflow-hidden border border-border/60 bg-muted shrink-0">
+              <div className="mt-2 flex items-center gap-3 p-2 bg-muted/30 rounded-xl border border-border/40 w-full min-w-0 overflow-hidden">
+                <div className="relative w-24 sm:w-28 aspect-video rounded-lg overflow-hidden border border-border/60 bg-muted shrink-0">
                   <img
                     src={effectiveThumbnail}
                     alt="Prévia da capa"
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <div className="text-[11px] text-muted-foreground">
-                  <p className="font-semibold text-foreground">Prévia da Capa</p>
-                  <p className="line-clamp-1">
+                <div className="text-[11px] text-muted-foreground min-w-0 flex-1 overflow-hidden">
+                  <p className="font-semibold text-foreground truncate">Prévia da Capa</p>
+                  <p className="truncate" title={effectiveThumbnail}>
                     {autoThumbnail && !thumbnailUrl ? "Capa automática gerada pela plataforma" : effectiveThumbnail}
                   </p>
                 </div>
@@ -657,7 +657,7 @@ export function VideoLessonFormModal({
               value={status}
               onValueChange={(val: VideoLessonStatus) => setStatus(val)}
             >
-              <SelectTrigger className="h-10 text-xs bg-muted/20">
+              <SelectTrigger className="h-10 text-xs bg-muted/20 w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -672,13 +672,13 @@ export function VideoLessonFormModal({
           </div>
 
           {/* Ações */}
-          <DialogFooter className="pt-3 gap-2 sm:gap-0">
+          <DialogFooter className="pt-3 flex flex-col-reverse sm:flex-row gap-2 sm:gap-2 w-full">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
               disabled={isSaving || isUploadingVideo || isUploadingThumb}
-              className="h-10 text-xs rounded-xl"
+              className="h-10 text-xs rounded-xl w-full sm:w-auto"
             >
               Cancelar
             </Button>
@@ -691,7 +691,7 @@ export function VideoLessonFormModal({
                 !title.trim() ||
                 !videoUrl.trim()
               }
-              className="h-10 text-xs rounded-xl font-semibold gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"
+              className="h-10 text-xs rounded-xl font-semibold gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto"
             >
               {isSaving ? (
                 <>

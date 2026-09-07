@@ -34,7 +34,7 @@ export function VideoLessonPlayerModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl p-0 overflow-hidden bg-card border-border/80 rounded-2xl shadow-2xl gap-0">
+      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full max-w-4xl p-0 overflow-hidden bg-card border-border/80 rounded-2xl shadow-2xl gap-0">
         <DialogHeader className="p-4 sm:p-5 border-b border-border/40 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             {lesson.category && (
