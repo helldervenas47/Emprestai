@@ -228,6 +228,7 @@ import {
   ChevronRight,
   Crown,
   Trophy,
+  GraduationCap,
 } from "lucide-react";
 import type { Expense } from "@/types/loan";
 import { applyScopedExpenseDelete, type DeleteScope } from "@/features/financial/lib/expenseSeriesScope";
@@ -281,6 +282,9 @@ import { PlanExpirationInfo } from "@/components/PlanExpirationInfo";
 
 // Lazy load heavy components
 const HelpChat = lazy(() => import("@/components/HelpChat"));
+const VideoLessonsTab = lazy(() =>
+  import("@/features/videoLessons/components/VideoLessonsTab").then((m) => ({ default: m.VideoLessonsTab })),
+);
 // Shared dynamic-import loaders — reused by React.lazy and by prefetch triggers so
 // the module cache dedupes and there is a single source of truth for the path.
 const loadLoanForm = () =>
@@ -496,6 +500,7 @@ type Tab =
   | "salary"
   | "accountant"
   | "calendar"
+  | "video_lessons"
   | "settings"
   | "system"
   | "help";
@@ -521,6 +526,7 @@ const tabConfig = [
 
   { id: "overdue" as Tab, label: "Relatório", icon: Folders },
   { id: "metas" as Tab, label: "Metas", icon: Target },
+  { id: "video_lessons" as Tab, label: "Vídeo Aulas", icon: GraduationCap },
   { id: "settings" as Tab, label: "Configurações", icon: SettingsIcon },
   { id: "system" as Tab, label: "Sistema", icon: Sliders },
   { id: "help" as Tab, label: "Assistente IA", icon: Sparkles },
@@ -1174,8 +1180,8 @@ const Index = () => {
   const { allowedTabs: planAllowedTabs, loading: planAccessLoading } = usePlanEntitlements();
   const visibleTabs = React.useMemo(() => tabConfig.filter((t) => {
     if (loading) return false;
-    // "Ajuda" é sempre visível para qualquer usuário logado.
-    if (t.id === "help") return !!user;
+    // "Ajuda" e "Vídeo Aulas" são sempre visíveis para qualquer usuário logado.
+    if (t.id === "help" || t.id === "video_lessons") return !!user;
     // Tabs marcadas como adminOnly são exclusivas para administradores
     if ((t as any).adminOnly && role !== "admin") return false;
     // Visualizador: aba de Configurações é ocultada por completo (apenas leitura
@@ -1195,6 +1201,7 @@ const Index = () => {
       t.id !== "system" &&
       t.id !== "settings" &&
       t.id !== "help" &&
+      t.id !== "video_lessons" &&
       !isLegacyPlanTabs &&
       !planAccessLoading &&
       Array.isArray(planAllowedTabs) &&
@@ -1974,6 +1981,7 @@ const Index = () => {
                   />
                 )}
                 {tab === "system" && canAccessTab("system") && <SystemSettings />}
+                {tab === "video_lessons" && canAccessTab("video_lessons") && <VideoLessonsTab />}
                 {tab === "help" && canAccessTab("help") && <HelpChat />}
               </>
             )}

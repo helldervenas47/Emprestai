@@ -10,9 +10,9 @@ export interface RoleTabRow { role: string; tab_id: string; }
 // configurada para o papel (nenhuma linha jamais criada). Se o admin
 // desmarcar todas as abas explicitamente, respeitamos o bloqueio total.
 const DEFAULT_ROLE_TABS: Record<string, string[]> = {
-  cliente: ["overview", "dashboard", "products", "vehicles", "calendar", "clients", "expenses", "boletos", "salary", "accountant", "overdue", "metas", "settings"],
-  gerente: ["overview", "dashboard", "products", "vehicles", "calendar", "clients", "expenses", "boletos", "salary", "accountant", "overdue", "metas", "settings"],
-  visualizador: ["overview", "dashboard", "clients", "calendar", "overdue"],
+  cliente: ["overview", "dashboard", "products", "vehicles", "calendar", "clients", "expenses", "boletos", "salary", "accountant", "overdue", "metas", "video_lessons", "settings"],
+  gerente: ["overview", "dashboard", "products", "vehicles", "calendar", "clients", "expenses", "boletos", "salary", "accountant", "overdue", "metas", "video_lessons", "settings"],
+  visualizador: ["overview", "dashboard", "clients", "calendar", "overdue", "video_lessons"],
 };
 
 
