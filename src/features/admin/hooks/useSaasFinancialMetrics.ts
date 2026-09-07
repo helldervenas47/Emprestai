@@ -311,6 +311,10 @@ export function useSaasFinancialMetrics() {
           if (userOrder.cycle === "annual") mrrTotal += val / 12;
           else if (userOrder.cycle === "semestral") mrrTotal += val / 6;
           else mrrTotal += val;
+        } else {
+          const plan = planMap.get(sub.plan_id) || plansList.find((p: any) => p.name === planNameResolver(sub.plan_id, sub.product_id));
+          const val = Number(plan?.price || 0);
+          mrrTotal += val;
         }
       });
 

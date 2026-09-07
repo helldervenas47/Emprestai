@@ -386,3 +386,25 @@ $$;
 -- Permissões de Acesso
 REVOKE ALL ON FUNCTION public.billing_get_saas_financial_metrics FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.billing_get_saas_financial_metrics TO authenticated;
+
+-- Permitir que administradores autenticados consultem billing_orders diretamente
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' 
+      AND tablename = 'billing_orders' 
+      AND policyname = 'billing_orders_admin_read'
+  ) THEN
+    CREATE POLICY billing_orders_admin_read ON public.billing_orders
+      FOR SELECT TO authenticated
+      USING (
+        EXISTS (
+          SELECT 1 FROM public.user_roles 
+          WHERE user_roles.user_id = auth.uid() 
+            AND user_roles.role = 'admin'
+        )
+      );
+  END IF;
+END $$;
+
