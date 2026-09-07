@@ -1,9 +1,10 @@
--- Migração para Add-ons Premium (ex: EmprestAI Telegram)
--- Criação da tabela user_addons e registro no catálogo de planos
+-- ====================================================================
+-- MIGRAÇÃO DEFINITIVA: EMPRESTAI TELEGRAM ADD-ON PREMIUM (R$ 14,90/mês)
+-- ====================================================================
 
 BEGIN;
 
--- 1. Tabela para gerenciar Add-ons independentes de cada usuário
+-- 1. Criar tabela user_addons caso não exista
 CREATE TABLE IF NOT EXISTS public.user_addons (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -24,10 +25,10 @@ CREATE TABLE IF NOT EXISTS public.user_addons (
   CONSTRAINT user_addons_user_env_key_unique UNIQUE (user_id, environment, addon_key)
 );
 
--- Habilitar RLS na tabela user_addons
+-- Habilitar RLS
 ALTER TABLE public.user_addons ENABLE ROW LEVEL SECURITY;
 
--- Políticas de RLS para user_addons
+-- Políticas de RLS
 DROP POLICY IF EXISTS "Usuários podem visualizar seus próprios add-ons" ON public.user_addons;
 CREATE POLICY "Usuários podem visualizar seus próprios add-ons"
   ON public.user_addons
@@ -47,42 +48,37 @@ CREATE POLICY "Service role possui acesso total aos add-ons"
   USING (true)
   WITH CHECK (true);
 
--- Permissões
 GRANT SELECT ON public.user_addons TO authenticated;
 GRANT ALL ON public.user_addons TO service_role;
 
--- 2. Garantir o plano do EmprestAI Telegram no catálogo de planos
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'plans') THEN
-    ALTER TABLE public.plans ADD COLUMN IF NOT EXISTS is_addon boolean NOT NULL DEFAULT false;
-    ALTER TABLE public.plans ADD COLUMN IF NOT EXISTS addon_key text;
+-- 2. Adicionar colunas is_addon e addon_key na tabela plans
+ALTER TABLE public.plans ADD COLUMN IF NOT EXISTS is_addon boolean NOT NULL DEFAULT false;
+ALTER TABLE public.plans ADD COLUMN IF NOT EXISTS addon_key text;
 
-    INSERT INTO public.plans (
-      id,
-      name,
-      price,
-      active,
-      is_addon,
-      addon_key
-    ) VALUES (
-      'b4e60000-0000-0000-0000-000000000001'::uuid,
-      '👑 EmprestAI Telegram',
-      14.90,
-      true,
-      true,
-      'telegram'
-    )
-    ON CONFLICT (id) DO UPDATE SET
-      name = EXCLUDED.name,
-      price = EXCLUDED.price,
-      active = EXCLUDED.active,
-      is_addon = true,
-      addon_key = 'telegram';
-  END IF;
-END $$;
+-- 3. Inserir ou atualizar o plano EmprestAI Telegram usando 'price'
+INSERT INTO public.plans (
+  id,
+  name,
+  price,
+  active,
+  is_addon,
+  addon_key
+) VALUES (
+  'b4e60000-0000-0000-0000-000000000001'::uuid,
+  '👑 EmprestAI Telegram',
+  14.90,
+  true,
+  true,
+  'telegram'
+)
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  price = EXCLUDED.price,
+  active = EXCLUDED.active,
+  is_addon = true,
+  addon_key = 'telegram';
 
--- 3. Trigger para sincronizar ordens de Add-ons com a tabela user_addons
+-- 4. Função e trigger para sincronizar pagamentos de Add-ons automaticamente
 CREATE OR REPLACE FUNCTION public.sync_user_addon_order()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -163,7 +159,7 @@ AFTER INSERT OR UPDATE ON public.billing_orders
 FOR EACH ROW
 EXECUTE FUNCTION public.sync_user_addon_order();
 
--- 4. Função RPC para verificar se um usuário possui o add-on ativo
+-- 5. Função RPC para checagem rápida de acesso
 CREATE OR REPLACE FUNCTION public.has_user_addon(
   _user_id uuid,
   _addon_key text,
