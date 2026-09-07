@@ -2304,7 +2304,7 @@ const Index = () => {
                     { label: "Principal", ids: ["overview", "calendar", "metas"] },
                     { label: "Financeiro", ids: ["expenses", "dashboard", "products", "boletos", "salary", "vehicles"] },
                     { label: "Gestão", ids: ["clients", "accountant", "overdue"] },
-                    { label: "Ferramentas", ids: ["help", "settings", "system"] },
+                    { label: "Ferramentas", ids: ["video_lessons", "help", "settings", "system"] },
                   ];
                   const groupedNav = MOBILE_GROUPS.map((g) => ({
                     label: g.label,
