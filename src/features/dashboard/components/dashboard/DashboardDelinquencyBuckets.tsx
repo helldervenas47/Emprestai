@@ -22,6 +22,7 @@ import {
 import type { Loan, InstallmentSchedule, Payment, Client } from "@/types/loan";
 import { todayInAppTz } from "@/lib/timezone";
 import { getLoanLateFees } from "@/features/loans/lib/loanLateFees";
+import { getOverdueInstallments } from "@/features/loans/lib/loanInstallmentAmount";
 import { buildBillingWhatsappLink, DEFAULT_WHATSAPP_MESSAGES } from "@/lib/whatsappBilling";
 
 export type DelinquencyBucketId = "1-7" | "8-30" | "31-60" | "60+";
@@ -72,18 +73,6 @@ export function DashboardDelinquencyBuckets({
     return map;
   }, [clients]);
 
-  const paidMap = useMemo(() => {
-    const map = new Map<string, Set<number>>();
-    payments.forEach((p) => {
-      if (p.loanId && p.installmentNumber > 0) {
-        const set = map.get(p.loanId) || new Set<number>();
-        set.add(p.installmentNumber);
-        map.set(p.loanId, set);
-      }
-    });
-    return map;
-  }, [payments]);
-
   // Agrupa os empréstimos em atraso por faixas
   const buckets = useMemo(() => {
     const stats: Record<DelinquencyBucketId, BucketStats> = {
@@ -132,80 +121,43 @@ export function DashboardDelinquencyBuckets({
       const clientName = client?.name || loan.borrowerName || "Cliente";
       const clientPhone = client?.phone || "";
 
-      const schedules = installmentSchedules
-        .filter((s) => s.loanId === loan.id)
-        .sort((a, b) => a.installmentNumber - b.installmentNumber);
+      const overdueInsts = getOverdueInstallments(loan, installmentSchedules, todayStr, payments);
+      if (overdueInsts.length === 0) continue;
 
-      const paidSet = paidMap.get(loan.id) || new Set<number>();
+      const fees = getLoanLateFees(loan, payments, installmentSchedules);
 
-      if (schedules.length > 0) {
-        const pendingSchedules = schedules.filter((s) => !paidSet.has(s.installmentNumber));
+      for (const inst of overdueInsts) {
+        const sDue = inst.dueDate.substring(0, 10);
+        const dueTimestamp = new Date(`${sDue}T00:00:00`).getTime();
+        const todayTimestamp = new Date(`${todayStr}T00:00:00`).getTime();
+        const daysOver = Math.max(1, Math.round((todayTimestamp - dueTimestamp) / (1000 * 60 * 60 * 24)));
+        const amountVal = Number(inst.amount) || 0;
 
-        for (const s of pendingSchedules) {
-          const sDue = s.dueDate.substring(0, 10);
-          if (sDue < todayStr) {
-            const dueTimestamp = new Date(`${sDue}T00:00:00`).getTime();
-            const todayTimestamp = new Date(`${todayStr}T00:00:00`).getTime();
-            const daysOver = Math.max(1, Math.round((todayTimestamp - dueTimestamp) / (1000 * 60 * 60 * 24)));
-            const fees = getLoanLateFees(loan, payments, schedules);
-            const amountVal = Number(s.amount) || 0;
+        let bucketId: DelinquencyBucketId = "1-7";
+        if (daysOver > 60) bucketId = "60+";
+        else if (daysOver >= 31) bucketId = "31-60";
+        else if (daysOver >= 8) bucketId = "8-30";
 
-            let bucketId: DelinquencyBucketId = "1-7";
-            if (daysOver > 60) bucketId = "60+";
-            else if (daysOver >= 31) bucketId = "31-60";
-            else if (daysOver >= 8) bucketId = "8-30";
+        stats[bucketId].amount += amountVal;
+        stats[bucketId].count += 1;
+        if (loan.borrowerId) stats[bucketId].clientIds.add(loan.borrowerId);
 
-            stats[bucketId].amount += amountVal;
-            stats[bucketId].count += 1;
-            if (loan.borrowerId) stats[bucketId].clientIds.add(loan.borrowerId);
-
-            stats[bucketId].items.push({
-              loan,
-              clientName,
-              clientId: loan.borrowerId || undefined,
-              clientPhone,
-              daysOverdue: daysOver,
-              amount: amountVal,
-              lateFees: fees.lateFees || 0,
-              dueDate: sDue,
-              installmentNumber: s.installmentNumber,
-            });
-          }
-        }
-      } else {
-        const lDue = (loan.dueDate || "").substring(0, 10);
-        if (lDue < todayStr) {
-          const dueTimestamp = new Date(`${lDue}T00:00:00`).getTime();
-          const todayTimestamp = new Date(`${todayStr}T00:00:00`).getTime();
-          const daysOver = Math.max(1, Math.round((todayTimestamp - dueTimestamp) / (1000 * 60 * 60 * 24)));
-          const amountVal = Number(loan.remainingAmount ?? loan.amount) || 0;
-          const fees = getLoanLateFees(loan, payments, schedules);
-
-          let bucketId: DelinquencyBucketId = "1-7";
-          if (daysOver > 60) bucketId = "60+";
-          else if (daysOver >= 31) bucketId = "31-60";
-          else if (daysOver >= 8) bucketId = "8-30";
-
-          stats[bucketId].amount += amountVal;
-          stats[bucketId].count += 1;
-          if (loan.borrowerId) stats[bucketId].clientIds.add(loan.borrowerId);
-
-          stats[bucketId].items.push({
-            loan,
-            clientName,
-            clientId: loan.borrowerId || undefined,
-            clientPhone,
-            daysOverdue: daysOver,
-            amount: amountVal,
-            lateFees: fees.lateFees || 0,
-            dueDate: lDue,
-          });
-        }
+        stats[bucketId].items.push({
+          loan,
+          clientName,
+          clientId: loan.borrowerId || undefined,
+          clientPhone,
+          daysOverdue: daysOver,
+          amount: amountVal,
+          lateFees: fees.lateFees || 0,
+          dueDate: sDue,
+          installmentNumber: inst.installmentNumber,
+        });
       }
     }
 
     return Object.values(stats);
-  }, [loans, installmentSchedules, payments, clientMap, paidMap, todayStr]);
+  }, [loans, installmentSchedules, payments, clientMap, todayStr]);
 
   const totalOverdueAmount = buckets.reduce((acc, b) => acc + b.amount, 0);
   const totalOverdueCount = buckets.reduce((acc, b) => acc + b.count, 0);
