@@ -30,10 +30,26 @@ export async function handleCheckout(req: Request, recurring = false) {
     if (recurring && !body.planId && body.planName) {
       return billingJson({ error: "plan_id_required" }, 400);
     }
+    const isCreditCard = body.paymentMethod === "CREDIT_CARD" || Boolean(body.creditCard);
+    const checkoutKind = isCreditCard ? "credit_card" : recurring ? "recurring" : "pix";
     const cents = planPriceCents(plan, body.cycle);
-    const prepared = await admin.rpc("billing_prepare_order", {
-      _uid: user.id, _env: environment, _key: body.requestKey, _plan: plan.id, _cycle: body.cycle, _cents: cents, _kind: recurring ? "recurring" : "pix",
-    });
+
+    let prepared: any;
+    try {
+      prepared = await admin.rpc("billing_prepare_order", {
+        _uid: user.id, _env: environment, _key: body.requestKey, _plan: plan.id, _cycle: body.cycle, _cents: cents, _kind: checkoutKind,
+      });
+    } catch (prepareErr) {
+      // Fallback para versões anteriores da RPC que só aceitavam 'pix' ou 'recurring'
+      if (checkoutKind === "credit_card") {
+        prepared = await admin.rpc("billing_prepare_order", {
+          _uid: user.id, _env: environment, _key: body.requestKey, _plan: plan.id, _cycle: body.cycle, _cents: cents, _kind: recurring ? "recurring" : "pix",
+        });
+      } else {
+        throw prepareErr;
+      }
+    }
+
     if (prepared.error) throw new Error(prepared.error.message);
     const order = prepared.data.order;
     if (prepared.data.created) newOrderId = order.id;
@@ -66,6 +82,7 @@ export async function handleCheckout(req: Request, recurring = false) {
         const profile = await admin.from("profiles").select("display_name,cpf_cnpj").eq("user_id", user.id).maybeSingle();
         const cleanCpf = (
           (typeof body.cpfCnpj === "string" ? body.cpfCnpj : "") ||
+          (typeof body.creditCardHolderInfo?.cpfCnpj === "string" ? body.creditCardHolderInfo.cpfCnpj : "") ||
           profile.data?.cpf_cnpj ||
           user.user_metadata?.cpf_cnpj ||
           user.raw_user_meta_data?.cpf_cnpj ||
@@ -81,7 +98,7 @@ export async function handleCheckout(req: Request, recurring = false) {
         if (!cleanCpf) {
           return billingJson({
             error: "cpf_required",
-            message: "Para gerar a cobrança PIX, informe seu CPF ou CNPJ em Configurações > Perfil.",
+            message: "Para concluir a cobrança, informe seu CPF ou CNPJ.",
           }, 400);
         }
 
@@ -163,7 +180,76 @@ export async function handleCheckout(req: Request, recurring = false) {
         if (linked.error) throw new Error("order_save_failed");
         const due = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
         gatewayAttempted = true;
-        if (recurring) {
+
+        if (isCreditCard) {
+          if (!body.creditCard?.number || !body.creditCard?.holderName || !body.creditCard?.expiryMonth || !body.creditCard?.expiryYear || !body.creditCard?.ccv) {
+            return billingJson({
+              error: "invalid_card_data",
+              message: "Por favor, preencha todos os dados do cartão de crédito.",
+            }, 400);
+          }
+
+          const rawYear = String(body.creditCard.expiryYear).trim();
+          const formattedYear = rawYear.length === 2 ? `20${rawYear}` : rawYear;
+          const formattedMonth = String(body.creditCard.expiryMonth).padStart(2, "0");
+
+          const creditCard = {
+            holderName: String(body.creditCard.holderName).trim(),
+            number: String(body.creditCard.number).replace(/\D/g, ""),
+            expiryMonth: formattedMonth,
+            expiryYear: formattedYear,
+            ccv: String(body.creditCard.ccv).trim(),
+          };
+
+          const holderInfo = body.creditCardHolderInfo || {};
+          const creditCardHolderInfo = {
+            name: String(holderInfo.name || body.creditCard.holderName || profile.data?.display_name || user.email).trim(),
+            email: String(holderInfo.email || user.email).trim(),
+            cpfCnpj: cleanCpf,
+            postalCode: holderInfo.postalCode ? String(holderInfo.postalCode).replace(/\D/g, "") : undefined,
+            addressNumber: holderInfo.addressNumber ? String(holderInfo.addressNumber).trim() : "S/N",
+            addressComplement: holderInfo.addressComplement ? String(holderInfo.addressComplement).trim() : undefined,
+            phone: holderInfo.phone ? String(holderInfo.phone).replace(/\D/g, "") : undefined,
+            mobilePhone: holderInfo.mobilePhone ? String(holderInfo.mobilePhone).replace(/\D/g, "") : undefined,
+          };
+
+          if (recurring) {
+            const subscription = await asaasFetch("/subscriptions", {
+              method: "POST",
+              body: JSON.stringify({
+                customer: customerId,
+                billingType: "CREDIT_CARD",
+                value: cents / 100,
+                nextDueDate: due,
+                cycle: body.cycle === "annual" ? "YEARLY" : body.cycle === "semestral" ? "SEMIANNUALLY" : "MONTHLY",
+                description: `Assinatura ${plan.name}`,
+                externalReference: order.id,
+                creditCard,
+                creditCardHolderInfo,
+              }),
+            });
+            if (!subscription.id) throw new Error("invalid_subscription_response");
+            const contract = await admin.from("billing_contracts").insert({ environment, subscription_id: subscription.id, order_id: order.id });
+            if (contract.error) throw new Error("contract_save_failed");
+            payment = (await asaasFetch(`/subscriptions/${encodeURIComponent(subscription.id)}/payments`)).data?.[0];
+            if (!payment) return billingJson({ error: "checkout_in_progress", orderId: order.id }, 409);
+          } else {
+            payment = await asaasFetch("/payments", {
+              method: "POST",
+              body: JSON.stringify({
+                customer: customerId,
+                billingType: "CREDIT_CARD",
+                value: cents / 100,
+                dueDate: due,
+                description: `Assinatura ${plan.name} (${body.cycle})`,
+                externalReference: order.id,
+                notificationDisabled: true,
+                creditCard,
+                creditCardHolderInfo,
+              }),
+            });
+          }
+        } else if (recurring) {
           const subscription = await asaasFetch("/subscriptions", {
             method: "POST",
             body: JSON.stringify({
@@ -203,12 +289,23 @@ export async function handleCheckout(req: Request, recurring = false) {
     const result = await admin.rpc("billing_apply_payment", { _env: environment, _event_id: `checkout:${crypto.randomUUID()}`, _event_type: "CHECKOUT_SYNC", _payment: payment });
     if (result.error || result.data?.review) throw new Error("payment_sync_review_required");
     let pix = null;
-    if (!payment.deleted && ["PENDING", "OVERDUE"].includes(payment.status)) {
+    if (!payment.deleted && payment.billingType === "PIX" && ["PENDING", "OVERDUE"].includes(payment.status)) {
       try { pix = await asaasFetch(`/payments/${encodeURIComponent(payment.id)}/pixQrCode`); } catch { /* invoice remains available */ }
     }
     return billingJson({
-      checkoutUrl: payment.invoiceUrl, orderId: order.id, paymentId: payment.id, invoiceUrl: payment.invoiceUrl, status: payment.status,
-      dueDate: payment.dueDate, value: payment.value, pix,
+      checkoutUrl: payment.invoiceUrl,
+      orderId: order.id,
+      paymentId: payment.id,
+      invoiceUrl: payment.invoiceUrl,
+      status: payment.status,
+      dueDate: payment.dueDate,
+      value: payment.value,
+      billingType: payment.billingType || (isCreditCard ? "CREDIT_CARD" : "PIX"),
+      pix,
+      creditCard: payment.creditCard ? {
+        creditCardNumber: payment.creditCard.creditCardNumber,
+        creditCardBrand: payment.creditCard.creditCardBrand,
+      } : null,
     });
   } catch (e) {
     const message = (e as Error).message;

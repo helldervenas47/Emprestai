@@ -204,6 +204,21 @@ const Pricing = () => {
     mutate({ planId: plan.id, cycle });
   };
 
+  const handlePayWithCard = async (
+    cardData: any,
+    holderInfo: any
+  ) => {
+    const targetPlan = plans.find((p) => p.name === checkoutPlan);
+    if (!targetPlan) return;
+    mutate({
+      planId: targetPlan.id,
+      cycle,
+      paymentMethod: "CREDIT_CARD",
+      creditCard: cardData,
+      creditCardHolderInfo: holderInfo,
+    });
+  };
+
 
   const handleCopyPayload = () => {
     const payload = checkoutData?.pix?.payload;
@@ -371,6 +386,11 @@ const Pricing = () => {
                   handleBackToPlans();
                 }
               }}
+              onPayWithCard={handlePayWithCard}
+              isCardProcessing={isPending}
+              initialCpf={profile?.cpf_cnpj || ""}
+              initialName={profile?.display_name || user?.email || ""}
+              initialEmail={user?.email || ""}
             />
           ) : (
             <>

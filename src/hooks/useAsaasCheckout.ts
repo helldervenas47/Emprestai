@@ -4,6 +4,25 @@ import { useMutation } from "@tanstack/react-query";
 import { supabase, USER_SUPABASE_URL, USER_SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/userClient";
 import { toast } from "@/hooks/use-toast";
 
+export interface AsaasCreditCardData {
+  holderName: string;
+  number: string;
+  expiryMonth: string;
+  expiryYear: string;
+  ccv: string;
+}
+
+export interface AsaasCreditCardHolderInfo {
+  name?: string;
+  email?: string;
+  cpfCnpj?: string;
+  postalCode?: string;
+  addressNumber?: string;
+  addressComplement?: string;
+  phone?: string;
+  mobilePhone?: string;
+}
+
 export interface AsaasCheckoutData {
   orderId: string;
   paymentId: string;
@@ -11,10 +30,15 @@ export interface AsaasCheckoutData {
   status: string | null;
   dueDate: string | null;
   value: number;
+  billingType?: "PIX" | "CREDIT_CARD" | string;
   pix: {
     payload?: string;
     encodedImage?: string;
     expirationDate?: string;
+  } | null;
+  creditCard?: {
+    creditCardNumber?: string;
+    creditCardBrand?: string;
   } | null;
 }
 
@@ -25,6 +49,9 @@ export interface AsaasCheckoutParams {
   planId: string;
   cycle: AsaasCycle;
   cpfCnpj?: string;
+  paymentMethod?: "PIX" | "CREDIT_CARD";
+  creditCard?: AsaasCreditCardData;
+  creditCardHolderInfo?: AsaasCreditCardHolderInfo;
 }
 
 
@@ -38,7 +65,8 @@ async function createAsaasCheckout(
     throw new Error("Sessão não encontrada. Faça login novamente.");
   }
 
-  const key = `billing-request:${sessionData.session.user.id}:${params.planId}:${params.cycle}`;
+  const isCard = params.paymentMethod === "CREDIT_CARD" || Boolean(params.creditCard);
+  const key = `billing-request:${sessionData.session.user.id}:${params.planId}:${params.cycle}:${isCard ? "card" : "pix"}`;
   const requestKey = sessionStorage.getItem(key) ?? crypto.randomUUID();
   sessionStorage.setItem(key, requestKey);
 
@@ -56,7 +84,7 @@ async function createAsaasCheckout(
     }
     serverMessage = serverMessage || error.message;
 
-    if (serverMessage?.includes("checkout_not_created") || serverMessage?.includes("cpf_required")) {
+    if (serverMessage?.includes("checkout_not_created") || serverMessage?.includes("cpf_required") || serverMessage?.includes("invalid_card_data")) {
       sessionStorage.removeItem(key);
     }
 
@@ -64,11 +92,15 @@ async function createAsaasCheckout(
       throw new Error(serverMessage);
     }
 
-    throw new Error("Não foi possível gerar a cobrança PIX. Verifique seus dados ou contate o suporte.");
+    throw new Error(
+      isCard
+        ? "Não foi possível processar o pagamento com cartão. Verifique os dados digitados ou contate o suporte."
+        : "Não foi possível gerar a cobrança PIX. Verifique seus dados ou contate o suporte."
+    );
   }
 
   if (data?.error) {
-    if (data.error === "checkout_not_created" || data.error === "cpf_required") {
+    if (data.error === "checkout_not_created" || data.error === "cpf_required" || data.error === "invalid_card_data") {
       sessionStorage.removeItem(key);
     }
     throw new Error(data.message || data.error);
@@ -94,14 +126,26 @@ export function useAsaasCheckout() {
       setSavedOwner(storageKey);
       setSaved(data);
       sessionStorage.setItem(storageKey, JSON.stringify(data));
-      toast({
-        title: "Cobrança gerada",
-        description: "Escaneie o QR Code ou copie o código PIX.",
-      });
+      if (data.status === "CONFIRMED" || data.status === "RECEIVED") {
+        toast({
+          title: "Pagamento Aprovado!",
+          description: "Sua assinatura foi ativada com sucesso.",
+        });
+      } else if (data.billingType === "CREDIT_CARD") {
+        toast({
+          title: "Processando Pagamento",
+          description: "Estamos aguardando a confirmação da operadora do cartão.",
+        });
+      } else {
+        toast({
+          title: "Cobrança gerada",
+          description: "Escaneie o QR Code ou copie o código PIX.",
+        });
+      }
     },
     onError: (error) => {
       toast({
-        title: "Erro ao gerar pagamento",
+        title: "Erro no pagamento",
         description: error.message,
         variant: "destructive",
       });

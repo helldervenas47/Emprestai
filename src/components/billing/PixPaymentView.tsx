@@ -18,9 +18,15 @@ import {
   ExternalLink,
   ShieldCheck,
   Zap,
+  CreditCard as CreditCardIcon,
 } from "lucide-react";
-import type { AsaasCheckoutData } from "@/hooks/useAsaasCheckout";
+import type {
+  AsaasCheckoutData,
+  AsaasCreditCardData,
+  AsaasCreditCardHolderInfo,
+} from "@/hooks/useAsaasCheckout";
 import { syncSubscriptionState } from "@/lib/billing/subscriptionSync";
+import { CreditCardPaymentForm } from "./CreditCardPaymentForm";
 
 interface PixPaymentViewProps {
   checkoutData: AsaasCheckoutData;
@@ -28,6 +34,14 @@ interface PixPaymentViewProps {
   cycleLabel?: string;
   onBackToPlans: () => void;
   onGenerateNewPix?: () => void;
+  onPayWithCard?: (
+    cardData: AsaasCreditCardData,
+    holderInfo: AsaasCreditCardHolderInfo
+  ) => Promise<void> | void;
+  isCardProcessing?: boolean;
+  initialCpf?: string;
+  initialName?: string;
+  initialEmail?: string;
 }
 
 type PaymentStatusState = "PENDING" | "PROCESSING" | "CONFIRMED" | "EXPIRED" | "ERROR";
@@ -38,13 +52,24 @@ export function PixPaymentView({
   cycleLabel = "Mensal",
   onBackToPlans,
   onGenerateNewPix,
+  onPayWithCard,
+  isCardProcessing = false,
+  initialCpf = "",
+  initialName = "",
+  initialEmail = "",
 }: PixPaymentViewProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [copied, setCopied] = useState(false);
   const [checking, setChecking] = useState(false);
-  const [statusState, setStatusState] = useState<PaymentStatusState>("PENDING");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [statusState, setStatusState] = useState<PaymentStatusState>(
+    checkoutData.status === "CONFIRMED" || checkoutData.status === "RECEIVED"
+      ? "CONFIRMED"
+      : "PENDING"
+  );
+  const [paymentMethod, setPaymentMethod] = useState<"PIX" | "CREDIT_CARD">(
+    checkoutData.billingType === "CREDIT_CARD" ? "CREDIT_CARD" : "PIX"
+  );
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   const formatBRL = (val: number) =>
@@ -75,7 +100,7 @@ export function PixPaymentView({
       if (data?.paid) {
         if (pollingRef.current) clearInterval(pollingRef.current);
 
-        // Reconcilia ativamente a assinatura no banco, atualiza cache local e notifica a aplicacao em tempo real
+        // Reconcilia ativamente a assinatura no banco, atualiza cache local e notifica a aplicação em tempo real
         await syncSubscriptionState(undefined, { waitForActive: true, queryClient });
 
         setStatusState("CONFIRMED");
@@ -90,7 +115,6 @@ export function PixPaymentView({
       }
     } catch (err: any) {
       if (isManual) {
-        setErrorMessage("Não foi possível verificar agora. Tentaremos novamente em instantes.");
         toast.error("Não foi possível consultar o pagamento no momento.");
       }
     } finally {
@@ -113,6 +137,12 @@ export function PixPaymentView({
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, [checkStatus, statusState]);
+
+  useEffect(() => {
+    if (checkoutData.status === "CONFIRMED" || checkoutData.status === "RECEIVED") {
+      setStatusState("CONFIRMED");
+    }
+  }, [checkoutData.status]);
 
   const handleCopyPayload = () => {
     const payload = checkoutData.pix?.payload;
@@ -185,11 +215,11 @@ export function PixPaymentView({
 
           <div className="space-y-2">
             <Badge variant="destructive" className="text-xs px-3 py-1 font-semibold">
-              PIX Expirado
+              Cobrança Expirada
             </Badge>
             <h2 className="text-2xl font-bold text-foreground">Cobrança Vencida</h2>
             <p className="text-sm text-muted-foreground">
-              O tempo limite para pagamento deste PIX expirou. Você pode gerar um novo código imediatamente sem custos adicionais.
+              O tempo limite para pagamento expirou. Você pode gerar um novo código ou pagar com cartão imediatamente.
             </p>
           </div>
 
@@ -201,7 +231,7 @@ export function PixPaymentView({
                 className="w-full font-semibold py-6 text-base rounded-xl gap-2"
               >
                 <RefreshCw className="w-4 h-4" />
-                Gerar Novo PIX
+                Gerar Nova Cobrança
               </Button>
             ) : null}
             <Button
@@ -215,151 +245,206 @@ export function PixPaymentView({
           </div>
         </Card>
       ) : (
-        /* Estado: PENDENTE OU PROCESSANDO */
+        /* Estado: PENDENTE / FORMULÁRIO DE CHECKOUT */
         <Card className="border-border/60 bg-card shadow-xl overflow-hidden rounded-2xl">
-          <div className="p-5 sm:p-6 text-center border-b border-border/40 bg-muted/20 space-y-2">
-            <div className="inline-flex items-center justify-center h-12 w-12 rounded-2xl bg-primary/10 text-primary mb-1 shadow-xs">
-              <QrCode className="h-6 w-6" />
-            </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-foreground">
-              Pagamento via PIX
-            </h2>
-            <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto">
-              Escaneie o QR Code no app do seu banco ou copie o código abaixo para ativar sua conta.
-            </p>
-
-            {/* Status dinâmico */}
-            <div className="pt-2">
-              {statusState === "PROCESSING" ? (
-                <Badge className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 animate-pulse flex items-center gap-1.5 mx-auto w-fit">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Pagamento identificado. Confirmando plano...
-                </Badge>
-              ) : (
-                <Badge variant="secondary" className="text-xs px-3 py-1 flex items-center gap-1.5 mx-auto w-fit border border-primary/20 bg-primary/5 text-primary">
-                  <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
-                  Aguardando pagamento... (confirmação automática)
-                </Badge>
-              )}
+          {/* Seletor de Método de Pagamento */}
+          <div className="p-3 bg-muted/30 border-b border-border/40">
+            <div className="grid grid-cols-2 gap-2 bg-background p-1 rounded-xl border border-border/40">
+              <button
+                type="button"
+                onClick={() => setPaymentMethod("PIX")}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                  paymentMethod === "PIX"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <QrCode className="h-4 w-4" />
+                PIX Instantâneo
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentMethod("CREDIT_CARD")}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                  paymentMethod === "CREDIT_CARD"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <CreditCardIcon className="h-4 w-4" />
+                Cartão de Crédito
+              </button>
             </div>
           </div>
 
-          <CardContent className="p-5 sm:p-6 space-y-5">
-            {/* Detalhes do Pedido */}
-            <div className="p-3.5 rounded-xl bg-muted/40 border border-border/60 flex items-center justify-between text-xs">
-              <div>
-                <p className="text-muted-foreground">Plano Selecionado</p>
-                <p className="font-semibold text-foreground text-sm">{planName} ({cycleLabel})</p>
-              </div>
-              <div className="text-right">
-                <p className="text-muted-foreground">Valor Total</p>
-                <p className="font-bold text-primary text-base">{formatBRL(checkoutData.value)}</p>
-              </div>
-            </div>
-
-            {/* Imagem do QR Code */}
-            {checkoutData.pix?.encodedImage ? (
-              <div className="flex flex-col items-center justify-center p-3 bg-white rounded-xl border border-border/40 shadow-xs">
-                <img
-                  src={`data:image/png;base64,${checkoutData.pix.encodedImage}`}
-                  alt="QR Code PIX"
-                  className="w-48 h-48 sm:w-56 sm:h-56 max-w-full object-contain rounded"
-                />
-                <p className="text-[11px] text-muted-foreground mt-2 font-medium">
-                  Válido até: {formatDueDate(checkoutData.dueDate)}
+          {/* Conteúdo: PIX */}
+          {paymentMethod === "PIX" ? (
+            <div>
+              <div className="p-5 text-center border-b border-border/40 bg-muted/10 space-y-2">
+                <div className="inline-flex items-center justify-center h-10 w-10 rounded-xl bg-primary/10 text-primary mb-1 shadow-xs">
+                  <QrCode className="h-5 w-5" />
+                </div>
+                <h2 className="text-xl font-bold text-foreground">
+                  Pagamento via PIX
+                </h2>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                  Escaneie o QR Code no app do seu banco ou copie a chave abaixo.
                 </p>
-              </div>
-            ) : (
-              <div className="h-40 flex items-center justify-center text-muted-foreground text-xs border rounded-xl bg-muted/20">
-                QR Code não disponível. Utilize o código copia e cola abaixo.
-              </div>
-            )}
 
-            {/* Código Copia e Cola */}
-            <div className="space-y-1.5">
-              <label htmlFor="pix-copia-cola" className="text-xs font-medium text-muted-foreground">
-                Código PIX Copia e Cola
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  id="pix-copia-cola"
-                  readOnly
-                  value={checkoutData.pix?.payload || "Carregando código..."}
-                  className="font-mono text-xs truncate bg-muted/30 select-all cursor-pointer h-11"
-                  onClick={handleCopyPayload}
-                />
-                <Button
-                  type="button"
-                  variant={copied ? "default" : "secondary"}
-                  size="default"
-                  onClick={handleCopyPayload}
-                  disabled={!checkoutData.pix?.payload}
-                  className="shrink-0 h-11 px-4 gap-1.5 font-medium transition-all"
-                >
-                  {copied ? (
-                    <>
-                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                      <span>Copiado!</span>
-                    </>
+                {/* Status dinâmico */}
+                <div className="pt-1">
+                  {statusState === "PROCESSING" ? (
+                    <Badge className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 animate-pulse flex items-center gap-1.5 mx-auto w-fit">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Pagamento identificado. Confirmando...
+                    </Badge>
                   ) : (
-                    <>
-                      <Copy className="h-4 w-4" />
-                      <span className="hidden sm:inline">Copiar Código</span>
-                    </>
+                    <Badge variant="secondary" className="text-xs px-3 py-1 flex items-center gap-1.5 mx-auto w-fit border border-primary/20 bg-primary/5 text-primary">
+                      <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
+                      Aguardando pagamento... (automático)
+                    </Badge>
                   )}
-                </Button>
+                </div>
               </div>
-            </div>
 
-            {/* Botões de Ação */}
-            <div className="space-y-2 pt-2">
-              <Button
-                type="button"
-                className="w-full h-12 font-semibold text-sm rounded-xl gap-2 shadow-sm"
-                onClick={() => checkStatus(true)}
-                disabled={checking}
-              >
-                {checking ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Consultando confirmação...
-                  </>
+              <CardContent className="p-5 space-y-4">
+                {/* Detalhes do Pedido */}
+                <div className="p-3 rounded-xl bg-muted/40 border border-border/60 flex items-center justify-between text-xs">
+                  <div>
+                    <p className="text-muted-foreground">Plano Selecionado</p>
+                    <p className="font-semibold text-foreground text-sm">{planName} ({cycleLabel})</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-muted-foreground">Valor Total</p>
+                    <p className="font-bold text-primary text-base">{formatBRL(checkoutData.value)}</p>
+                  </div>
+                </div>
+
+                {/* Imagem do QR Code */}
+                {checkoutData.pix?.encodedImage ? (
+                  <div className="flex flex-col items-center justify-center p-3 bg-white rounded-xl border border-border/40 shadow-xs">
+                    <img
+                      src={`data:image/png;base64,${checkoutData.pix.encodedImage}`}
+                      alt="QR Code PIX"
+                      className="w-44 h-44 max-w-full object-contain rounded"
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-2 font-medium">
+                      Válido até: {formatDueDate(checkoutData.dueDate)}
+                    </p>
+                  </div>
                 ) : (
-                  <>
-                    <RefreshCw className="h-4 w-4" />
-                    Já realizei o pagamento
-                  </>
+                  <div className="h-36 flex items-center justify-center text-muted-foreground text-xs border rounded-xl bg-muted/20">
+                    QR Code gerado. Utilize o código copia e cola abaixo.
+                  </div>
                 )}
-              </Button>
 
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full text-muted-foreground hover:text-foreground h-10 text-xs"
-                onClick={onBackToPlans}
-              >
-                <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
-                Trocar de plano ou cancelar
-              </Button>
+                {/* Código Copia e Cola */}
+                <div className="space-y-1.5">
+                  <label htmlFor="pix-copia-cola" className="text-xs font-medium text-muted-foreground">
+                    Código PIX Copia e Cola
+                  </label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="pix-copia-cola"
+                      readOnly
+                      value={checkoutData.pix?.payload || "Carregando código..."}
+                      className="font-mono text-xs truncate bg-muted/30 select-all cursor-pointer h-10"
+                      onClick={handleCopyPayload}
+                    />
+                    <Button
+                      type="button"
+                      variant={copied ? "default" : "secondary"}
+                      size="default"
+                      onClick={handleCopyPayload}
+                      disabled={!checkoutData.pix?.payload}
+                      className="shrink-0 h-10 px-3.5 gap-1.5 font-medium transition-all"
+                    >
+                      {copied ? (
+                        <>
+                          <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                          <span>Copiado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-4 w-4" />
+                          <span className="hidden sm:inline">Copiar</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Botões de Ação */}
+                <div className="space-y-2 pt-1">
+                  <Button
+                    type="button"
+                    className="w-full h-11 font-semibold text-sm rounded-xl gap-2 shadow-sm"
+                    onClick={() => checkStatus(true)}
+                    disabled={checking}
+                  >
+                    {checking ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Consultando confirmação...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4" />
+                        Já realizei o pagamento
+                      </>
+                    )}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full text-muted-foreground hover:text-foreground h-9 text-xs"
+                    onClick={onBackToPlans}
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
+                    Voltar aos Planos
+                  </Button>
+                </div>
+
+                {/* Link alternativo da fatura */}
+                {checkoutData.invoiceUrl && (
+                  <p className="text-center text-[11px] text-muted-foreground pt-1">
+                    Problemas para escanear? Acesse o{" "}
+                    <a
+                      href={checkoutData.invoiceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-foreground inline-flex items-center gap-0.5 text-primary"
+                    >
+                      comprovante oficial Asaas <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </p>
+                )}
+              </CardContent>
             </div>
-
-            {/* Link alternativo da fatura */}
-            {checkoutData.invoiceUrl && (
-              <p className="text-center text-[11px] text-muted-foreground">
-                Problemas para escanear? Acesse o{" "}
-                <a
-                  href={checkoutData.invoiceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-foreground inline-flex items-center gap-0.5 text-primary"
-                >
-                  comprovante oficial Asaas <ExternalLink className="h-3 w-3" />
-                </a>
-              </p>
-            )}
-          </CardContent>
+          ) : (
+            /* Conteúdo: Cartão de Crédito */
+            <div className="p-5">
+              <CreditCardPaymentForm
+                planName={planName}
+                cycleLabel={cycleLabel}
+                totalPrice={checkoutData.value}
+                isProcessing={isCardProcessing}
+                onPayWithCard={(cardData, holderInfo) => {
+                  if (onPayWithCard) {
+                    onPayWithCard(cardData, holderInfo);
+                  }
+                }}
+                onBackToPlans={onBackToPlans}
+                initialCpf={initialCpf}
+                initialName={initialName}
+                initialEmail={initialEmail}
+              />
+            </div>
+          )}
         </Card>
       )}
     </div>
   );
 }
+
