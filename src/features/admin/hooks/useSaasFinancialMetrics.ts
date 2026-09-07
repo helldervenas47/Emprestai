@@ -328,23 +328,12 @@ export function useSaasFinancialMetrics() {
         return productId || "Plano";
       };
 
-      // Helper para calcular valor bruto original e desconto concedido pelo app
+      // Helper para calcular valor bruto histórico real da transação
       const getOrderAmounts = (order: any) => {
         const paidVal = Number(order.amount_cents || 0) / 100;
-        const plan = planMap.get(order.plan_id);
-        const cycleMonths = order.cycle === "annual" ? 12 : order.cycle === "semestral" ? 6 : 1;
-        const baseMonthly = Number(plan?.price || 0);
-
-        let grossVal = paidVal;
-        if (baseMonthly > 0) {
-          grossVal = Math.max(baseMonthly * cycleMonths, paidVal);
-        }
-
-        const discountVal = Math.max(grossVal - paidVal, 0);
-
         return {
-          gross: grossVal,
-          discount: discountVal,
+          gross: paidVal,
+          discount: 0,
           paid: paidVal,
         };
       };

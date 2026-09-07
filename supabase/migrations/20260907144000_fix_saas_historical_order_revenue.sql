@@ -1,45 +1,9 @@
 -- ============================================================================
--- MIGRATION: SaaS Financial Analytics & Revenue Dashboard (Asaas / Billing)
--- Read-only analytics engine for platform administrators
--- Regra da Receita Líquida: RECEITA LÍQUIDA = RECEITA BRUTA - DESCONTOS DO APP - ESTORNOS
--- Preserva estritamente os valores nominais e históricos transacionados na época da compra
+-- MIGRATION: Fix SaaS Historical Order Revenue Calculation
+-- Garante que o Faturamento Bruto e a Receita Líquida utilizem estritamente
+-- o valor nominal histórico transacionado no momento da compra (amount_cents).
 -- ============================================================================
 
--- Índices otimizados para agregação financeira e relatórios
-CREATE INDEX IF NOT EXISTS idx_billing_orders_analytics_live
-  ON public.billing_orders (environment, status, credited_at DESC)
-  WHERE environment = 'live';
-
-CREATE INDEX IF NOT EXISTS idx_billing_orders_analytics_revoked
-  ON public.billing_orders (environment, status, revoked_at DESC)
-  WHERE environment = 'live' AND status IN ('revoked', 'refunded');
-
-CREATE INDEX IF NOT EXISTS idx_billing_orders_analytics_pending
-  ON public.billing_orders (environment, status, created_at DESC)
-  WHERE environment = 'live' AND status = 'pending';
-
--- Permitir que administradores autenticados consultem billing_orders diretamente
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies 
-    WHERE schemaname = 'public' 
-      AND tablename = 'billing_orders' 
-      AND policyname = 'billing_orders_admin_read'
-  ) THEN
-    CREATE POLICY billing_orders_admin_read ON public.billing_orders
-      FOR SELECT TO authenticated
-      USING (
-        EXISTS (
-          SELECT 1 FROM public.user_roles 
-          WHERE user_roles.user_id = auth.uid() 
-            AND user_roles.role = 'admin'
-        )
-      );
-  END IF;
-END $$;
-
--- Função RPC: Obter Métricas Financeiras Completas do SaaS
 CREATE OR REPLACE FUNCTION public.billing_get_saas_financial_metrics(
   _admin uuid,
   _env text DEFAULT 'live',
@@ -146,7 +110,7 @@ BEGIN
   -- 5. Métricas do Período Filtrado (Bruto histórico, Descontos, Estornos, Líquido)
   SELECT
     COALESCE(SUM(CASE WHEN bo.status = 'paid' THEN bo.amount_cents / 100.0 ELSE 0 END), 0),
-    0.0, -- Descontos comerciais adicionais registrados
+    0.0, -- Descontos adicionais registrados
     COALESCE(SUM(CASE WHEN bo.status IN ('refunded', 'revoked') THEN bo.amount_cents / 100.0 ELSE 0 END), 0),
     COALESCE(COUNT(CASE WHEN bo.status = 'paid' THEN 1 END), 0)
   INTO
@@ -421,6 +385,4 @@ BEGIN
 END;
 $$;
 
--- Permissões de Acesso
-REVOKE ALL ON FUNCTION public.billing_get_saas_financial_metrics FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.billing_get_saas_financial_metrics TO authenticated;
