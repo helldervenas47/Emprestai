@@ -22,7 +22,12 @@ import {
 import type { Loan, InstallmentSchedule, Payment, Client } from "@/types/loan";
 import { todayInAppTz } from "@/lib/timezone";
 import { getLoanLateFees } from "@/features/loans/lib/loanLateFees";
-import { getOverdueInstallments } from "@/features/loans/lib/loanInstallmentAmount";
+import { getOverdueAmount } from "@/features/loans/lib/loanInstallmentAmount";
+import {
+  getLoanCategory,
+  getDaysOverdue,
+  getFirstPendingDate,
+} from "@/features/loans/components/list/calculations";
 import { buildBillingWhatsappLink, DEFAULT_WHATSAPP_MESSAGES } from "@/lib/whatsappBilling";
 
 export type DelinquencyBucketId = "1-7" | "8-30" | "31-60" | "60+";
@@ -117,50 +122,47 @@ export function DashboardDelinquencyBuckets({
     const activeLoans = loans.filter((l) => l.status === "active");
 
     for (const loan of activeLoans) {
+      const cat = getLoanCategory(loan, payments, installmentSchedules);
+      if (cat !== "overdue") continue;
+
+      const overdueVal = getOverdueAmount(loan, installmentSchedules, todayStr, payments);
+      if (overdueVal <= 0) continue;
+
+      const daysOver = Math.max(1, getDaysOverdue(loan, installmentSchedules));
+      const firstDue = getFirstPendingDate(loan, installmentSchedules);
+      const sDue = !isNaN(firstDue.getTime()) ? firstDue.toISOString().split("T")[0] : (loan.dueDate || "");
+
       const client = (loan.borrowerId ? clientMap.get(loan.borrowerId) : null) ||
         clients.find((c) => c.name.trim().toLowerCase() === (loan.borrowerName || "").trim().toLowerCase()) ||
         null;
       const clientName = client?.name || loan.borrowerName || "Cliente";
       const clientPhone = client?.phone || "";
-
-      const overdueInsts = getOverdueInstallments(loan, installmentSchedules, todayStr, payments);
-      if (overdueInsts.length === 0) continue;
-
       const fees = getLoanLateFees(loan, payments, installmentSchedules);
 
-      for (const inst of overdueInsts) {
-        const sDue = inst.dueDate.substring(0, 10);
-        const dueTimestamp = new Date(`${sDue}T00:00:00`).getTime();
-        const todayTimestamp = new Date(`${todayStr}T00:00:00`).getTime();
-        const daysOver = Math.max(1, Math.round((todayTimestamp - dueTimestamp) / (1000 * 60 * 60 * 24)));
-        const amountVal = Number(inst.amount) || 0;
+      let bucketId: DelinquencyBucketId = "1-7";
+      if (daysOver > 60) bucketId = "60+";
+      else if (daysOver >= 31) bucketId = "31-60";
+      else if (daysOver >= 8) bucketId = "8-30";
 
-        let bucketId: DelinquencyBucketId = "1-7";
-        if (daysOver > 60) bucketId = "60+";
-        else if (daysOver >= 31) bucketId = "31-60";
-        else if (daysOver >= 8) bucketId = "8-30";
+      stats[bucketId].amount += overdueVal;
+      stats[bucketId].count += 1;
+      const resolvedClientId = client?.id || loan.borrowerId;
+      if (resolvedClientId) stats[bucketId].clientIds.add(resolvedClientId);
 
-        stats[bucketId].amount += amountVal;
-        stats[bucketId].count += 1;
-        const resolvedClientId = client?.id || loan.borrowerId;
-        if (resolvedClientId) stats[bucketId].clientIds.add(resolvedClientId);
-
-        stats[bucketId].items.push({
-          loan: {
-            ...loan,
-            borrowerName: clientName,
-            borrowerId: resolvedClientId,
-          },
-          clientName,
-          clientId: resolvedClientId || undefined,
-          clientPhone,
-          daysOverdue: daysOver,
-          amount: amountVal,
-          lateFees: fees.lateFees || 0,
-          dueDate: sDue,
-          installmentNumber: inst.installmentNumber,
-        });
-      }
+      stats[bucketId].items.push({
+        loan: {
+          ...loan,
+          borrowerName: clientName,
+          borrowerId: resolvedClientId,
+        },
+        clientName,
+        clientId: resolvedClientId || undefined,
+        clientPhone,
+        daysOverdue: daysOver,
+        amount: overdueVal,
+        lateFees: fees.lateFees || 0,
+        dueDate: sDue,
+      });
     }
 
     return Object.values(stats);
@@ -256,7 +258,7 @@ export function DashboardDelinquencyBuckets({
                             : "bg-muted text-muted-foreground"
                         }`}
                       >
-                        {b.count} {b.count === 1 ? "parcela" : "parcelas"}
+                        {b.count} {b.count === 1 ? "contrato" : "contratos"}
                       </Badge>
                     </div>
 
