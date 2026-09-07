@@ -61,31 +61,28 @@ BEGIN
     INSERT INTO public.plans (
       id,
       name,
-      price_cents,
+      price,
       active,
       is_addon,
-      addon_key,
-      features
+      addon_key
     ) VALUES (
       'b4e60000-0000-0000-0000-000000000001'::uuid,
       '👑 EmprestAI Telegram',
-      1490,
+      14.90,
       true,
       true,
-      'telegram',
-      '["Relatórios automáticos no Telegram", "Cadastro de despesas por mensagem", "Categorização inteligente", "Agendamentos personalizados"]'::jsonb
+      'telegram'
     )
     ON CONFLICT (id) DO UPDATE SET
       name = EXCLUDED.name,
-      price_cents = EXCLUDED.price_cents,
+      price = EXCLUDED.price,
       active = EXCLUDED.active,
       is_addon = true,
-      addon_key = 'telegram',
-      features = EXCLUDED.features;
+      addon_key = 'telegram';
   END IF;
 END $$;
 
--- 3. Função e Trigger para sincronizar ordens de Add-ons com a tabela user_addons
+-- 3. Trigger para sincronizar ordens de Add-ons com a tabela user_addons
 CREATE OR REPLACE FUNCTION public.sync_user_addon_order()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -99,7 +96,6 @@ DECLARE
   v_end timestamptz;
   v_status text;
 BEGIN
-  -- Identifica se o plano da ordem é um Add-on
   SELECT * INTO v_plan FROM public.plans WHERE id = NEW.plan_id;
   
   IF v_plan.is_addon IS TRUE OR v_plan.addon_key IS NOT NULL OR v_plan.id = 'b4e60000-0000-0000-0000-000000000001'::uuid THEN
@@ -184,7 +180,6 @@ DECLARE
 BEGIN
   v_owner_id := coalesce(public.get_data_owner_id(_user_id), _user_id);
 
-  -- Verifica se existe registro ativo na tabela user_addons com período válido
   SELECT EXISTS (
     SELECT 1
     FROM public.user_addons
@@ -195,7 +190,6 @@ BEGIN
       AND (current_period_end IS NULL OR current_period_end > now())
   ) INTO v_active;
 
-  -- Se for admin com override ou ambiente de desenvolvimento liberado
   IF NOT v_active AND public.has_role(_user_id, 'admin') THEN
     v_active := true;
   END IF;
