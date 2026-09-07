@@ -298,6 +298,13 @@ export function useClients() {
     if (error) {
       await enqueueMutation({ table: "clients", op: "update", recordId: id, payload: updatePayload });
     } else {
+      if (data.name && data.name.trim()) {
+        const trimmedName = data.name.trim();
+        await supabase
+          .from("loans")
+          .update({ borrower_name: trimmedName })
+          .eq("borrower_id", id);
+      }
       await triggerClientAnalysis(id);
     }
   }, [commit]);

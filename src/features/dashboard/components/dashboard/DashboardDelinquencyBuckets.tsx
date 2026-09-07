@@ -117,7 +117,9 @@ export function DashboardDelinquencyBuckets({
     const activeLoans = loans.filter((l) => l.status === "active");
 
     for (const loan of activeLoans) {
-      const client = loan.borrowerId ? clientMap.get(loan.borrowerId) : null;
+      const client = (loan.borrowerId ? clientMap.get(loan.borrowerId) : null) ||
+        clients.find((c) => c.name.trim().toLowerCase() === (loan.borrowerName || "").trim().toLowerCase()) ||
+        null;
       const clientName = client?.name || loan.borrowerName || "Cliente";
       const clientPhone = client?.phone || "";
 
@@ -140,12 +142,17 @@ export function DashboardDelinquencyBuckets({
 
         stats[bucketId].amount += amountVal;
         stats[bucketId].count += 1;
-        if (loan.borrowerId) stats[bucketId].clientIds.add(loan.borrowerId);
+        const resolvedClientId = client?.id || loan.borrowerId;
+        if (resolvedClientId) stats[bucketId].clientIds.add(resolvedClientId);
 
         stats[bucketId].items.push({
-          loan,
+          loan: {
+            ...loan,
+            borrowerName: clientName,
+            borrowerId: resolvedClientId,
+          },
           clientName,
-          clientId: loan.borrowerId || undefined,
+          clientId: resolvedClientId || undefined,
           clientPhone,
           daysOverdue: daysOver,
           amount: amountVal,
@@ -157,7 +164,7 @@ export function DashboardDelinquencyBuckets({
     }
 
     return Object.values(stats);
-  }, [loans, installmentSchedules, payments, clientMap, todayStr]);
+  }, [loans, installmentSchedules, payments, clientMap, clients, todayStr]);
 
   const totalOverdueAmount = buckets.reduce((acc, b) => acc + b.amount, 0);
   const totalOverdueCount = buckets.reduce((acc, b) => acc + b.count, 0);
