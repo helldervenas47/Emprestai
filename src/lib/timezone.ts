@@ -59,9 +59,59 @@ export function formatYmdInTz(date: Date, tz: string): string {
 }
 
 /** Returns true when a "YYYY-MM-DD" due date is strictly before today (in app tz). */
-export function isOverdueYmd(dueDate: string | undefined | null): boolean {
+export function isOverdueYmd(dueDate: string | undefined | null, todayStr = todayInAppTz()): boolean {
   if (!dueDate) return false;
-  return dueDate < todayInAppTz();
+  return dueDate.substring(0, 10) < todayStr;
+}
+
+/**
+ * Retorna a quantidade de dias civis inteiros entre duas datas no formato YYYY-MM-DD.
+ * Se fromDate = "2026-09-01" e toDate = "2026-09-06", retorna 5.
+ * Se fromDate = toDate, retorna 0.
+ * Utiliza Date.UTC para ser 100% imune a horário de verão, fuso local e horários de transição.
+ */
+export function differenceInCalendarDaysYmd(fromDateYmd: string, toDateYmd: string): number {
+  if (!fromDateYmd || !toDateYmd) return 0;
+  const [y1, m1, d1] = fromDateYmd.substring(0, 10).split("-").map(Number);
+  const [y2, m2, d2] = toDateYmd.substring(0, 10).split("-").map(Number);
+  if (!y1 || !m1 || !d1 || !y2 || !m2 || !d2) return 0;
+  const ut1 = Date.UTC(y1, m1 - 1, d1);
+  const ut2 = Date.UTC(y2, m2 - 1, d2);
+  return Math.floor((ut2 - ut1) / 86_400_000);
+}
+
+/**
+ * Retorna os dias de atraso de um vencimento em relação a "hoje" no fuso do app.
+ * - Se dueDate = hoje ou futuro: retorna 0 (NÃO atrasado).
+ * - Se dueDate = ontem: retorna 1.
+ * - Se dueDate = há 7 dias: retorna 7.
+ * - Se dueDate = há 30 dias: retorna 30.
+ * - Se dueDate = há 60 dias: retorna 60.
+ * - Se dueDate = há 61 dias: retorna 61.
+ */
+export function getDaysOverdueFromYmd(dueDateYmd: string | undefined | null, todayStr = todayInAppTz()): number {
+  if (!dueDateYmd) return 0;
+  const diff = differenceInCalendarDaysYmd(dueDateYmd, todayStr);
+  return Math.max(0, diff);
+}
+
+export type DelinquencyBucketId = "1-7" | "8-30" | "31-60" | "60+";
+
+/**
+ * Classifica a quantidade de dias de atraso estritamente na faixa correspondente:
+ * - 0 dias: null (não atrasado)
+ * - 1 a 7 dias: "1-7"
+ * - 8 a 30 dias: "8-30"
+ * - 31 a 60 dias: "31-60"
+ * - 61+ dias: "60+"
+ * Sem sobreposição e sem lacunas.
+ */
+export function getDelinquencyBucketId(daysOverdue: number): DelinquencyBucketId | null {
+  if (daysOverdue <= 0) return null;
+  if (daysOverdue <= 7) return "1-7";
+  if (daysOverdue <= 30) return "8-30";
+  if (daysOverdue <= 60) return "31-60";
+  return "60+";
 }
 
 /** Common IANA timezones grouped for the settings selector. */

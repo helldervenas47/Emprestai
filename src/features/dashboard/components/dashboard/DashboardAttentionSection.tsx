@@ -15,7 +15,11 @@ import {
   ExternalLink,
 } from "lucide-react";
 import type { Loan, InstallmentSchedule, Payment, Client } from "@/types/loan";
-import { todayInAppTz } from "@/lib/timezone";
+import {
+  todayInAppTz,
+  getDaysOverdueFromYmd,
+  differenceInCalendarDaysYmd,
+} from "@/lib/timezone";
 import { getLoanLateFees } from "@/features/loans/lib/loanLateFees";
 import { buildBillingWhatsappLink, DEFAULT_WHATSAPP_MESSAGES } from "@/lib/whatsappBilling";
 
@@ -80,9 +84,14 @@ export function DashboardAttentionSection({
   // Monta a lista de itens prioritários
   const attentionItems = useMemo(() => {
     const items: AttentionItem[] = [];
-    const activeLoans = loans.filter((l) => l.status === "active");
+    const openLoans = loans.filter((l) =>
+      l.status !== "paid" &&
+      l.status !== "cancelled" &&
+      l.status !== "archived" &&
+      (l.remainingAmount == null || l.remainingAmount > 0.01)
+    );
 
-    for (const loan of activeLoans) {
+    for (const loan of openLoans) {
       const client = loan.borrowerId ? clientMap.get(loan.borrowerId) : null;
       const clientName = client?.name || loan.borrowerName || "Cliente";
       const clientPhone = client?.phone || "";
@@ -102,15 +111,13 @@ export function DashboardAttentionSection({
           const isOverdue = sDue < todayStr;
           const isDueToday = sDue === todayStr;
 
-          // Próximos 3 dias
-          const dueTimestamp = new Date(`${sDue}T00:00:00`).getTime();
-          const todayTimestamp = new Date(`${todayStr}T00:00:00`).getTime();
-          const diffDays = Math.round((dueTimestamp - todayTimestamp) / (1000 * 60 * 60 * 24));
-          const isUpcoming = diffDays > 0 && diffDays <= 3;
+          // Próximos 3 dias civis
+          const diffToToday = differenceInCalendarDaysYmd(todayStr, sDue);
+          const isUpcoming = diffToToday > 0 && diffToToday <= 3;
 
           if (isOverdue || isDueToday || isUpcoming) {
             const fees = getLoanLateFees(loan, payments, schedules);
-            const daysOver = isOverdue ? Math.max(1, Math.abs(diffDays)) : 0;
+            const daysOver = getDaysOverdueFromYmd(sDue, todayStr);
             const lateFeesVal = isOverdue ? fees.lateFees : 0;
             const amountVal = Number(s.amount) || 0;
 
@@ -134,17 +141,16 @@ export function DashboardAttentionSection({
       } else {
         // Empréstimo sem cronograma detalhado (vencimento único no contrato)
         const lDue = (loan.dueDate || "").substring(0, 10);
+        if (!lDue) continue;
         const isOverdue = lDue < todayStr;
         const isDueToday = lDue === todayStr;
 
-        const dueTimestamp = new Date(`${lDue}T00:00:00`).getTime();
-        const todayTimestamp = new Date(`${todayStr}T00:00:00`).getTime();
-        const diffDays = Math.round((dueTimestamp - todayTimestamp) / (1000 * 60 * 60 * 24));
-        const isUpcoming = diffDays > 0 && diffDays <= 3;
+        const diffToToday = differenceInCalendarDaysYmd(todayStr, lDue);
+        const isUpcoming = diffToToday > 0 && diffToToday <= 3;
 
         if (isOverdue || isDueToday || isUpcoming) {
           const fees = getLoanLateFees(loan, payments, schedules);
-          const daysOver = isOverdue ? Math.max(1, Math.abs(diffDays)) : 0;
+          const daysOver = getDaysOverdueFromYmd(lDue, todayStr);
           const amountVal = Number(loan.remainingAmount ?? loan.amount) || 0;
 
           items.push({
