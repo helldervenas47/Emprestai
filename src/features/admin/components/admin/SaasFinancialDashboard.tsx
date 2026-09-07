@@ -146,7 +146,7 @@ export function SaasFinancialDashboard() {
   return (
     <div className="space-y-6">
       {/* 1. Header com Título e Filtros Globais */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card/60 p-4 rounded-2xl border border-border/50 backdrop-blur-sm shadow-sm">
+      <div className="relative z-20 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card/60 p-4 rounded-2xl border border-border/50 backdrop-blur-sm shadow-sm">
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
