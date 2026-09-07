@@ -108,3 +108,7 @@ verify_jwt = true
 
 [functions.asaas-reconcile]
 verify_jwt = false
+
+[functions.asaas-balance]
+verify_jwt = true
+

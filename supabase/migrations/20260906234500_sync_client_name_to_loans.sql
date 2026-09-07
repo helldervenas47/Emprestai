@@ -11,7 +11,7 @@ BEGIN
   -- 1. Atualiza empréstimos explicitamente vinculados pelo ID do cliente
   UPDATE public.loans
   SET borrower_name = NEW.name
-  WHERE (borrower_id = NEW.id::text OR borrower_id = NEW.id::varchar)
+  WHERE (borrower_id::text = NEW.id::text)
     AND borrower_name IS DISTINCT FROM NEW.name;
 
   -- 2. Se o borrower_id for nulo mas o nome antigo coincidia exatamente (mesmo user_id), vincula e atualiza
@@ -20,7 +20,7 @@ BEGIN
     SET borrower_name = NEW.name,
         borrower_id = NEW.id::text
     WHERE user_id = NEW.user_id
-      AND (borrower_id IS NULL OR borrower_id = '')
+      AND (borrower_id IS NULL OR borrower_id::text = '')
       AND lower(trim(borrower_name)) = lower(trim(OLD.name));
   END IF;
 
@@ -42,5 +42,5 @@ EXECUTE FUNCTION public.sync_client_name_to_loans();
 UPDATE public.loans l
 SET borrower_name = c.name
 FROM public.clients c
-WHERE (l.borrower_id = c.id::text OR l.borrower_id = c.id::varchar)
+WHERE (l.borrower_id::text = c.id::text)
   AND l.borrower_name IS DISTINCT FROM c.name;
