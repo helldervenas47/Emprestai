@@ -2316,27 +2316,18 @@ const Index = () => {
                       </div>
 
                       {/* Header */}
-                      <div className="px-5 pt-2 pb-3 flex items-start gap-3 shrink-0">
-                        <div className="shrink-0">
-                          <AppLogo area="header" alt={brandName} className="w-auto h-10" rounded />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h2 className="text-base font-bold text-foreground tracking-tight truncate">
-                            {brandName}
-                          </h2>
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-widest truncate">
-                            Controle de Empréstimos
-                          </p>
-                          <div className="mt-1.5 space-y-1">
-                            {planLabel && (
-                              <div className="flex items-center gap-1.5">
-                                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-semibold">
-                                  <Crown className="h-3 w-3" />
-                                  {planLabel}
-                                </span>
-                              </div>
-                            )}
-                            <PlanExpirationInfo className="text-[10.5px]" />
+                      <div className="px-5 pt-2 pb-3 flex items-center justify-between gap-3 shrink-0">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="shrink-0">
+                            <AppLogo area="header" alt={brandName} className="w-auto h-10" rounded />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h2 className="text-base font-bold text-foreground tracking-tight truncate">
+                              {brandName}
+                            </h2>
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-widest truncate">
+                              Controle de Empréstimos
+                            </p>
                           </div>
                         </div>
                         <SheetClose asChild>
@@ -2361,20 +2352,34 @@ const Index = () => {
                             setMoreOpen(false);
                             if (canAccessTab("settings" as Tab)) setTab("settings" as Tab);
                           }}
-                          className="w-full flex items-center gap-3 rounded-2xl border border-border/50 bg-card p-3 shadow-sm hover:bg-muted/40 active:scale-[0.99] transition-all text-left"
+                          className="w-full flex flex-col gap-2 rounded-2xl border border-border/50 bg-card p-3 shadow-sm hover:bg-muted/40 active:scale-[0.99] transition-all text-left"
                         >
-                          <div className="h-11 w-11 rounded-full bg-primary/15 text-primary flex items-center justify-center text-sm font-semibold overflow-hidden shrink-0">
-                            {avatarUrl ? (
-                              <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
-                            ) : (
-                              initials
-                            )}
+                          <div className="flex items-center gap-3 w-full">
+                            <div className="h-11 w-11 rounded-full bg-primary/15 text-primary flex items-center justify-center text-sm font-semibold overflow-hidden shrink-0">
+                              {avatarUrl ? (
+                                <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+                              ) : (
+                                initials
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="text-sm font-semibold text-foreground truncate">{displayName}</p>
+                                {planLabel && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-semibold shrink-0">
+                                    <Crown className="h-3 w-3" />
+                                    {planLabel}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-muted-foreground truncate">{roleLabel}</p>
+                            </div>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-foreground truncate">{displayName}</p>
-                            <p className="text-[11px] text-muted-foreground truncate">{roleLabel}</p>
+
+                          <div className="pt-2 border-t border-border/40 w-full">
+                            <PlanExpirationInfo className="text-[10.5px]" />
                           </div>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                         </button>
 
                         {/* Grouped navigation */}
