@@ -38,11 +38,20 @@ describe("Video Lessons URL Parser & Utilities", () => {
     expect(parsed.isIframe).toBe(true);
   });
 
-  it("identifies direct video file URLs (mp4, webm)", () => {
+  it("identifies direct video file URLs (mp4, webm, mov, supabase storage)", () => {
     const parsedMp4 = parseVideoUrl("https://example.com/videos/tutorial.mp4");
     expect(parsedMp4.type).toBe("direct");
     expect(parsedMp4.embedUrl).toBe("https://example.com/videos/tutorial.mp4");
     expect(parsedMp4.isIframe).toBe(false);
+
+    const parsedSupabase = parseVideoUrl(
+      "https://xyz.supabase.co/storage/v1/object/public/video-lessons/videos/1741372800000_aula1.mp4"
+    );
+    expect(parsedSupabase.type).toBe("direct");
+    expect(parsedSupabase.embedUrl).toBe(
+      "https://xyz.supabase.co/storage/v1/object/public/video-lessons/videos/1741372800000_aula1.mp4"
+    );
+    expect(parsedSupabase.isIframe).toBe(false);
   });
 
   it("handles empty or invalid URLs gracefully", () => {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Video, Image as ImageIcon, Sparkles } from "lucide-react";
+import {
+  Loader2,
+  Video,
+  Image as ImageIcon,
+  Sparkles,
+  UploadCloud,
+  Link2,
+  FileVideo,
+  CheckCircle2,
+  X,
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/userClient";
+import { useToast } from "@/hooks/use-toast";
 import type { VideoLesson, VideoLessonFormData, VideoLessonStatus } from "../types/videoLesson";
 import { parseVideoUrl } from "../lib/videoUrlParser";
 
@@ -42,6 +54,8 @@ const DEFAULT_CATEGORIES = [
   "Geral",
 ];
 
+const STORAGE_BUCKET = "video-lessons";
+
 export function VideoLessonFormModal({
   lessonToEdit,
   isOpen,
@@ -50,6 +64,8 @@ export function VideoLessonFormModal({
   isSaving,
   existingCategories = [],
 }: VideoLessonFormModalProps) {
+  const { toast } = useToast();
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
@@ -59,12 +75,41 @@ export function VideoLessonFormModal({
   const [displayOrder, setDisplayOrder] = useState(0);
   const [status, setStatus] = useState<VideoLessonStatus>("published");
 
+  // Modos de entrada (upload ou link externo)
+  const [videoSourceMode, setVideoSourceMode] = useState<"upload" | "url">("upload");
+  const [thumbSourceMode, setThumbSourceMode] = useState<"upload" | "url">("upload");
+
+  // Estados de Upload
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [videoFileName, setVideoFileName] = useState("");
+  const [isUploadingThumb, setIsUploadingThumb] = useState(false);
+  const [thumbFileName, setThumbFileName] = useState("");
+
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const thumbInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (lessonToEdit) {
       setTitle(lessonToEdit.title || "");
       setDescription(lessonToEdit.description || "");
-      setVideoUrl(lessonToEdit.video_url || "");
-      setThumbnailUrl(lessonToEdit.thumbnail_url || "");
+      const vUrl = lessonToEdit.video_url || "";
+      setVideoUrl(vUrl);
+      const tUrl = lessonToEdit.thumbnail_url || "";
+      setThumbnailUrl(tUrl);
+
+      // Detectar se a URL é do storage ou externa
+      if (vUrl.includes("/video-lessons/") || /\.(mp4|webm|ogg|mov)$/i.test(vUrl)) {
+        setVideoSourceMode("upload");
+      } else {
+        setVideoSourceMode("url");
+      }
+
+      if (tUrl.includes("/video-lessons/")) {
+        setThumbSourceMode("upload");
+      } else {
+        setThumbSourceMode("url");
+      }
+
       if (DEFAULT_CATEGORIES.includes(lessonToEdit.category)) {
         setCategory(lessonToEdit.category);
         setCustomCategory("");
@@ -74,6 +119,8 @@ export function VideoLessonFormModal({
       }
       setDisplayOrder(lessonToEdit.display_order || 0);
       setStatus(lessonToEdit.status || "published");
+      setVideoFileName("");
+      setThumbFileName("");
     } else {
       setTitle("");
       setDescription("");
@@ -83,6 +130,10 @@ export function VideoLessonFormModal({
       setCustomCategory("");
       setDisplayOrder(0);
       setStatus("published");
+      setVideoSourceMode("upload");
+      setThumbSourceMode("upload");
+      setVideoFileName("");
+      setThumbFileName("");
     }
   }, [lessonToEdit, isOpen]);
 
@@ -90,9 +141,140 @@ export function VideoLessonFormModal({
   const autoThumbnail = parsedVideo.autoThumbnailUrl;
   const effectiveThumbnail = thumbnailUrl.trim() || autoThumbnail;
 
+  // Upload de arquivo de vídeo para o Supabase Storage
+  const handleVideoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validações
+    const maxSizeBytes = 500 * 1024 * 1024; // 500 MB
+    if (file.size > maxSizeBytes) {
+      toast({
+        title: "Arquivo muito grande",
+        description: "O vídeo deve ter no máximo 500 MB. Para vídeos maiores, use um link do YouTube ou Loom.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploadingVideo(true);
+    setVideoFileName(file.name);
+
+    try {
+      const sanitizedName = file.name
+        .toLowerCase()
+        .replace(/[^a-z0-9.]/g, "_")
+        .replace(/_{2,}/g, "_");
+      const filePath = `videos/${Date.now()}_${sanitizedName}`;
+
+      const { data, error } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: true,
+          contentType: file.type || "video/mp4",
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(filePath);
+
+      setVideoUrl(publicUrlData.publicUrl);
+      toast({
+        title: "Vídeo carregado com sucesso!",
+        description: `Arquivo "${file.name}" importado para a plataforma.`,
+      });
+    } catch (err: any) {
+      console.error("Erro no upload do vídeo:", err);
+      toast({
+        title: "Erro ao enviar vídeo",
+        description:
+          err.message ||
+          "Não foi possível enviar o vídeo. Verifique se o bucket 'video-lessons' está configurado no Supabase Storage.",
+        variant: "destructive",
+      });
+      setVideoFileName("");
+    } finally {
+      setIsUploadingVideo(false);
+      if (videoInputRef.current) videoInputRef.current.value = "";
+    }
+  };
+
+  // Upload de arquivo de capa/imagem para o Supabase Storage
+  const handleThumbFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validações (max 15MB)
+    const maxSizeBytes = 15 * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      toast({
+        title: "Imagem muito grande",
+        description: "A imagem de capa deve ter no máximo 15 MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploadingThumb(true);
+    setThumbFileName(file.name);
+
+    try {
+      const sanitizedName = file.name
+        .toLowerCase()
+        .replace(/[^a-z0-9.]/g, "_")
+        .replace(/_{2,}/g, "_");
+      const filePath = `thumbnails/${Date.now()}_${sanitizedName}`;
+
+      const { data, error } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: true,
+          contentType: file.type || "image/jpeg",
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(filePath);
+
+      setThumbnailUrl(publicUrlData.publicUrl);
+      toast({
+        title: "Capa carregada com sucesso!",
+        description: "A imagem de capa foi importada.",
+      });
+    } catch (err: any) {
+      console.error("Erro no upload da capa:", err);
+      toast({
+        title: "Erro ao enviar capa",
+        description: err.message || "Não foi possível enviar a imagem de capa.",
+        variant: "destructive",
+      });
+      setThumbFileName("");
+    } finally {
+      setIsUploadingThumb(false);
+      if (thumbInputRef.current) thumbInputRef.current.value = "";
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !videoUrl.trim()) return;
+    if (!title.trim() || !videoUrl.trim()) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Informe o título e selecione ou insira a URL do vídeo.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const finalCategory =
       category === "outro" ? customCategory.trim() || "Geral" : category;
@@ -115,7 +297,7 @@ export function VideoLessonFormModal({
   );
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && !isUploadingVideo && onClose()}>
       <DialogContent className="max-w-xl p-5 sm:p-6 bg-card border-border/80 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="space-y-1">
           <DialogTitle className="text-xl font-bold flex items-center gap-2 text-foreground">
@@ -123,7 +305,7 @@ export function VideoLessonFormModal({
             {lessonToEdit ? "Editar Vídeo Aula" : "Publicar Nova Vídeo Aula"}
           </DialogTitle>
           <p className="text-xs text-muted-foreground">
-            Preencha as informações para disponibilizar o conteúdo em vídeo para os usuários.
+            Envie vídeos diretamente do seu computador ou informe links externos para disponibilizar aos usuários.
           </p>
         </DialogHeader>
 
@@ -143,24 +325,147 @@ export function VideoLessonFormModal({
             />
           </div>
 
-          {/* URL do Vídeo */}
-          <div className="space-y-1.5">
-            <Label htmlFor="lesson-url" className="text-xs font-semibold">
-              URL do Vídeo (YouTube, Vimeo, Loom ou MP4) <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="lesson-url"
-              placeholder="https://www.youtube.com/watch?v=..."
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-              required
-              className="h-10 text-sm bg-muted/20"
-            />
-            {parsedVideo.type !== "generic" && videoUrl && (
-              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
-                <Sparkles className="h-3 w-3" />
-                Plataforma identificada: {parsedVideo.type.toUpperCase()}
-              </p>
+          {/* VÍDEO (UPLOAD OU LINK) */}
+          <div className="space-y-2 rounded-xl border border-border/60 bg-muted/10 p-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold flex items-center gap-1.5">
+                <FileVideo className="h-4 w-4 text-primary" />
+                Vídeo da Aula <span className="text-destructive">*</span>
+              </Label>
+
+              {/* Botões de alternância Upload / Link */}
+              <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setVideoSourceMode("upload")}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all ${
+                    videoSourceMode === "upload"
+                      ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <UploadCloud className="h-3 w-3" />
+                  Upload Direto
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVideoSourceMode("url")}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all ${
+                    videoSourceMode === "url"
+                      ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Link2 className="h-3 w-3" />
+                  Link Externo
+                </button>
+              </div>
+            </div>
+
+            {videoSourceMode === "upload" ? (
+              <div className="space-y-2">
+                <input
+                  ref={videoInputRef}
+                  type="file"
+                  accept="video/mp4,video/webm,video/ogg,video/quicktime,.mp4,.webm,.mov,.ogg"
+                  onChange={handleVideoFileUpload}
+                  className="hidden"
+                />
+
+                {videoUrl ? (
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 overflow-hidden">
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                      <div className="text-xs truncate">
+                        <p className="font-semibold text-emerald-800 dark:text-emerald-300 truncate">
+                          {videoFileName || "Arquivo de vídeo pronto para reprodução"}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {videoUrl}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => videoInputRef.current?.click()}
+                        disabled={isUploadingVideo}
+                        className="h-8 text-xs rounded-lg"
+                      >
+                        Trocar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setVideoUrl("");
+                          setVideoFileName("");
+                        }}
+                        className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-lg"
+                        title="Remover vídeo"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => !isUploadingVideo && videoInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
+                      isUploadingVideo
+                        ? "bg-muted/40 border-primary/40 cursor-not-allowed"
+                        : "border-border hover:border-primary hover:bg-primary/5"
+                    }`}
+                  >
+                    {isUploadingVideo ? (
+                      <>
+                        <Loader2 className="h-7 w-7 animate-spin text-primary" />
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-semibold text-foreground">
+                            Enviando vídeo para a nuvem...
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Aguarde o processamento do arquivo.
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                          <UploadCloud className="h-5 w-5" />
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-semibold text-foreground">
+                            Clique para selecionar o vídeo do seu dispositivo
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Formatos suportados: MP4, WebM, MOV, OGG (Até 500 MB)
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <Input
+                  id="lesson-url"
+                  placeholder="https://www.youtube.com/watch?v=... ou Vimeo / Loom"
+                  value={videoUrl}
+                  onChange={(e) => setVideoUrl(e.target.value)}
+                  className="h-10 text-sm bg-muted/20"
+                />
+                {parsedVideo.type !== "generic" && videoUrl && (
+                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
+                    <Sparkles className="h-3 w-3" />
+                    Plataforma identificada: {parsedVideo.type.toUpperCase()}
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
@@ -174,7 +479,7 @@ export function VideoLessonFormModal({
               placeholder="Explique resumidamente o que o usuário aprenderá nesta aula..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows={3}
+              rows={2}
               className="text-xs sm:text-sm bg-muted/20 resize-none"
             />
           </div>
@@ -231,28 +536,116 @@ export function VideoLessonFormModal({
             </div>
           )}
 
-          {/* Thumbnail / Capa */}
-          <div className="space-y-1.5">
-            <Label htmlFor="lesson-thumb" className="text-xs font-semibold">
-              URL da Capa / Thumbnail (opcional)
-            </Label>
-            <Input
-              id="lesson-thumb"
-              placeholder="https://exemplo.com/capa.jpg (ou gerada automaticamente no YouTube)"
-              value={thumbnailUrl}
-              onChange={(e) => setThumbnailUrl(e.target.value)}
-              className="h-10 text-xs bg-muted/20"
-            />
-            {effectiveThumbnail && (
-              <div className="mt-2 relative w-32 aspect-video rounded-lg overflow-hidden border border-border/60 bg-muted">
-                <img
-                  src={effectiveThumbnail}
-                  alt="Prévia da capa"
-                  className="w-full h-full object-cover"
+          {/* CAPA / THUMBNAIL (UPLOAD OU URL) */}
+          <div className="space-y-2 rounded-xl border border-border/60 bg-muted/10 p-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold flex items-center gap-1.5">
+                <ImageIcon className="h-4 w-4 text-primary" />
+                Capa / Thumbnail (opcional)
+              </Label>
+
+              <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setThumbSourceMode("upload")}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all ${
+                    thumbSourceMode === "upload"
+                      ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <UploadCloud className="h-3 w-3" />
+                  Upload Imagem
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setThumbSourceMode("url")}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all ${
+                    thumbSourceMode === "url"
+                      ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Link2 className="h-3 w-3" />
+                  URL Externa
+                </button>
+              </div>
+            </div>
+
+            {thumbSourceMode === "upload" ? (
+              <div className="space-y-2">
+                <input
+                  ref={thumbInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp"
+                  onChange={handleThumbFileUpload}
+                  className="hidden"
                 />
-                <span className="absolute bottom-0 inset-x-0 bg-black/60 text-[9px] text-white text-center py-0.5">
-                  Prévia da capa
-                </span>
+
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => thumbInputRef.current?.click()}
+                    disabled={isUploadingThumb}
+                    className="h-9 text-xs rounded-xl gap-1.5"
+                  >
+                    {isUploadingThumb ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                        Enviando imagem...
+                      </>
+                    ) : (
+                      <>
+                        <UploadCloud className="h-3.5 w-3.5 text-primary" />
+                        {thumbnailUrl ? "Trocar Imagem de Capa" : "Selecionar Imagem de Capa"}
+                      </>
+                    )}
+                  </Button>
+
+                  {thumbnailUrl && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setThumbnailUrl("");
+                        setThumbFileName("");
+                      }}
+                      className="h-9 text-xs text-destructive hover:bg-destructive/10 rounded-xl"
+                    >
+                      Remover Capa
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <Input
+                id="lesson-thumb"
+                placeholder="https://exemplo.com/capa.jpg"
+                value={thumbnailUrl}
+                onChange={(e) => setThumbnailUrl(e.target.value)}
+                className="h-10 text-xs bg-muted/20"
+              />
+            )}
+
+            {/* Prévia da capa se existir */}
+            {effectiveThumbnail && (
+              <div className="mt-2 flex items-center gap-3 p-2 bg-muted/30 rounded-xl border border-border/40">
+                <div className="relative w-28 aspect-video rounded-lg overflow-hidden border border-border/60 bg-muted shrink-0">
+                  <img
+                    src={effectiveThumbnail}
+                    alt="Prévia da capa"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  <p className="font-semibold text-foreground">Prévia da Capa</p>
+                  <p className="line-clamp-1">
+                    {autoThumbnail && !thumbnailUrl ? "Capa automática gerada pela plataforma" : effectiveThumbnail}
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -284,14 +677,20 @@ export function VideoLessonFormModal({
               type="button"
               variant="outline"
               onClick={onClose}
-              disabled={isSaving}
+              disabled={isSaving || isUploadingVideo || isUploadingThumb}
               className="h-10 text-xs rounded-xl"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
-              disabled={isSaving || !title.trim() || !videoUrl.trim()}
+              disabled={
+                isSaving ||
+                isUploadingVideo ||
+                isUploadingThumb ||
+                !title.trim() ||
+                !videoUrl.trim()
+              }
               className="h-10 text-xs rounded-xl font-semibold gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               {isSaving ? (

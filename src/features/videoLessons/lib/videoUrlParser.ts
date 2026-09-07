@@ -67,8 +67,10 @@ export function parseVideoUrl(rawUrl: string): ParsedVideoInfo {
     };
   }
 
-  // 4. Arquivo de vídeo direto (MP4, WebM, OGG, M3U8, MOV)
-  const isDirect = /\.(mp4|webm|ogg|m3u8|mov)($|\?)/i.test(url);
+  // 4. Arquivo de vídeo direto (MP4, WebM, OGG, M3U8, MOV, MKV ou Supabase Storage)
+  const isDirect =
+    /\.(mp4|webm|ogg|m3u8|mov|mkv)($|\?)/i.test(url) ||
+    url.includes("/storage/v1/object/public/video-lessons/");
   if (isDirect) {
     return {
       type: "direct",
