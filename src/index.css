@@ -1736,10 +1736,18 @@ html[data-theme="monochrome"].dark {
     scroll-margin-bottom: 32px;
   }
 
+  /* Padding extra durante digitação é restrito a contêineres de scroll de formulários */
   [data-keyboard-open="true"] .modal-form-scrollable,
-  [data-keyboard-open="true"] [role="dialog"],
   [data-keyboard-open="true"] .scroll-container-mobile {
     padding-bottom: calc(var(--keyboard-height, 300px) + 2rem) !important;
+  }
+
+  /* Popovers flutuantes e dropdowns nunca devem ter padding inflado pelo teclado */
+  [data-keyboard-open="true"] [data-radix-popper-content-wrapper],
+  [data-keyboard-open="true"] [data-radix-popper-content-wrapper] *,
+  [data-keyboard-open="true"] [data-radix-popover-content],
+  [data-keyboard-open="true"] .bg-popover {
+    padding-bottom: inherit !important;
   }
 }
 
