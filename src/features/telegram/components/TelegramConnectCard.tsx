@@ -213,7 +213,7 @@ export function TelegramConnectCard() {
   if (loading) return null;
 
   return (
-    <Card>
+    <Card no3d>
       <CardContent className="p-4 sm:p-5 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -221,9 +221,9 @@ export function TelegramConnectCard() {
               <TelegramIcon className="h-4 w-4 text-primary" />
             </div>
             <div>
-              <p className="font-semibold text-sm">Bot do Telegram</p>
+              <p className="font-semibold text-sm">Bot de Despesas (Telegram)</p>
               <p className="text-xs text-muted-foreground">
-                Cadastre despesas pessoais por mensagem
+                Cadastre despesas e receitas diretamente por mensagem no Telegram
               </p>
             </div>
           </div>

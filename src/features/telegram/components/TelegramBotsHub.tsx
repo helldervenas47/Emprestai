@@ -5,6 +5,7 @@ import { AlertTriangle, BarChart3, CalendarCheck, FileSpreadsheet, Sun, RefreshC
 import { toast } from "sonner";
 import { invokeUserFunction } from "@/features/telegram/lib/telegramLinkCode";
 import { TelegramReportsConnectCard } from "@/features/telegram/components/TelegramReportsConnectCard";
+import { TelegramConnectCard } from "@/features/telegram/components/TelegramConnectCard";
 import { TelegramDailyPlanningScheduleCard } from "@/features/telegram/components/TelegramDailyPlanningScheduleCard";
 import { TelegramIncomesExpensesScheduleCard } from "@/features/telegram/components/TelegramIncomesExpensesScheduleCard";
 import { TelegramWeeklyVencimentosCard } from "@/features/telegram/components/TelegramWeeklyVencimentosCard";
@@ -64,6 +65,9 @@ export function TelegramBotsHub() {
 
       {/* Conexão do bot de relatórios */}
       <TelegramReportsConnectCard />
+
+      {/* Conexão do bot de despesas */}
+      <TelegramConnectCard />
 
       {/* Relatórios principais */}
       <div className="flex items-center gap-2 pt-2">

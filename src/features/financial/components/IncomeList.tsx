@@ -27,12 +27,6 @@ import { FinancialStatement } from "./FinancialStatement";
 import { PiggyBanksSummaryCard } from "@/features/piggyBanks/components/PiggyBanksSummaryCard";
 import { SilentErrorBoundary } from "@/components/SilentErrorBoundary";
 import { getDueStatus } from "@/features/financial/lib/dueStatus";
-import { FinancialListMiniCard, HeroCardSkeleton, MetricGridSkeleton } from "@/features/financial/components/financial";
-const IncomeTelegramBotButton = lazy(() =>
-  import("./IncomeTelegramBotButton")
-    .then((m) => ({ default: m.IncomeTelegramBotButton }))
-    .catch(() => ({ default: () => null })),
-);
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Plus, Search, Copy, Pencil, Trash2, CheckCircle2, Clock, AlertTriangle, ArrowUpDown, ChevronLeft, ChevronRight, CalendarCheck, ChevronDown } from "lucide-react";
 import { RowActions } from "@/components/ui/row-actions";
@@ -226,13 +220,6 @@ export function IncomeList({ readOnly }: Props) {
         onOpenPendingIncomes={() => { setSheetInitialFilter("pending"); setSheetType("incomes"); }}
         onOpenPendingExpenses={() => { setSheetInitialFilter("pending"); setSheetType("expenses"); }}
         onOpenStatement={() => setStatementOpen(true)}
-        statementLeftSlot={!readOnly ? (
-          <SilentErrorBoundary>
-            <Suspense fallback={null}>
-              <IncomeTelegramBotButton />
-            </Suspense>
-          </SilentErrorBoundary>
-        ) : undefined}
         onAdjust={async (delta) => {
           if (!delta) return;
           const today = todayInAppTz();
