@@ -23,14 +23,8 @@ import { useBusinessPulse } from "@/features/dashboard/hooks/useBusinessPulse";
 import { useDashboardOverviewController } from "@/features/dashboard/components/dashboard/useDashboardOverviewController";
 import { useDashboardMetrics } from "@/features/dashboard/components/dashboard/useDashboardMetrics";
 import { useDashboardAiReports } from "@/features/dashboard/components/dashboard/useDashboardAiReports";
-import { DashboardQuickActionsBar } from "@/features/dashboard/components/dashboard/DashboardQuickActionsBar";
-import { DashboardOperationalCards } from "@/features/dashboard/components/dashboard/DashboardOperationalCards";
-import { DashboardAttentionSection } from "@/features/dashboard/components/dashboard/DashboardAttentionSection";
 import { DashboardDelinquencyBuckets } from "@/features/dashboard/components/dashboard/DashboardDelinquencyBuckets";
-import { QuickPaymentSelectorDialog } from "@/features/dashboard/components/dashboard/QuickPaymentSelectorDialog";
 import { PaymentHubDialog } from "@/features/loans/components/payment-hub/PaymentHubDialog";
-import { todayInAppTz } from "@/lib/timezone";
-import { calculateTotalWithInterest } from "@/features/loans/hooks/useLoans";
 import { useState } from "react";
 import type { PaymentSplit } from "@/types/loan";
 
@@ -212,128 +206,7 @@ export function DashboardOverview({
     period,
   });
 
-  // Estados para busca operacional e seletor rápido de pagamentos
-  const [operationalSearch, setOperationalSearch] = useState("");
-  const [quickPaymentSelectorOpen, setQuickPaymentSelectorOpen] = useState(false);
   const [selectedPaymentLoan, setSelectedPaymentLoan] = useState<Loan | null>(null);
-
-  const todayStr = todayInAppTz();
-  const currentMonthStr = todayStr.substring(0, 7);
-
-  const activeLoans = useMemo(() => loans.filter((l) => l.status === "active"), [loans]);
-
-  // 1. CARTEIRA ATIVA (Principal)
-  const operationalCapitalOnStreet = useMemo(() => {
-    return activeLoans.reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
-  }, [activeLoans]);
-
-  // 2. A RECEBER (Saldo futuro total)
-  const operationalTotalToReceive = useMemo(() => {
-    return activeLoans.reduce((sum, l) => {
-      const full = calculateTotalWithInterest(l.amount, l.interestRate, l.installments);
-      const remaining = l.remainingAmount != null ? Number(l.remainingAmount) : full;
-      return sum + remaining;
-    }, 0);
-  }, [activeLoans]);
-
-  // Parcelas pagas por empréstimo
-  const paidNumbersMap = useMemo(() => {
-    const map = new Map<string, Set<number>>();
-    payments.forEach((p) => {
-      if (p.loanId && p.installmentNumber > 0) {
-        const set = map.get(p.loanId) || new Set<number>();
-        set.add(p.installmentNumber);
-        map.set(p.loanId, set);
-      }
-    });
-    return map;
-  }, [payments]);
-
-  // 3. VENCE HOJE & 4. EM ATRASO
-  const { dueTodayAmount, dueTodayCount, overdueAmount, overdueCount } = useMemo(() => {
-    let todayAmt = 0;
-    let todayCnt = 0;
-    let overAmt = 0;
-    let overCnt = 0;
-
-    for (const loan of activeLoans) {
-      const schedules = installmentSchedules
-        .filter((s) => s.loanId === loan.id)
-        .sort((a, b) => a.installmentNumber - b.installmentNumber);
-
-      const paidSet = paidNumbersMap.get(loan.id) || new Set<number>();
-
-      if (schedules.length > 0) {
-        const pending = schedules.filter((s) => !paidSet.has(s.installmentNumber));
-        for (const s of pending) {
-          const sDue = s.dueDate.substring(0, 10);
-          const val = Number(s.amount) || 0;
-          if (sDue === todayStr) {
-            todayAmt += val;
-            todayCnt += 1;
-          } else if (sDue < todayStr) {
-            overAmt += val;
-            overCnt += 1;
-          }
-        }
-      } else {
-        const lDue = (loan.dueDate || "").substring(0, 10);
-        const val = Number(loan.remainingAmount ?? loan.amount) || 0;
-        if (lDue === todayStr) {
-          todayAmt += val;
-          todayCnt += 1;
-        } else if (lDue < todayStr) {
-          overAmt += val;
-          overCnt += 1;
-        }
-      }
-    }
-
-    return {
-      dueTodayAmount: todayAmt,
-      dueTodayCount: todayCnt,
-      overdueAmount: overAmt,
-      overdueCount: overCnt,
-    };
-  }, [activeLoans, installmentSchedules, paidNumbersMap, todayStr]);
-
-  // 5. RECEBIDO NO MÊS
-  const operationalReceivedThisMonth = useMemo(() => {
-    return payments
-      .filter((p) => (p.date || "").substring(0, 7) === currentMonthStr)
-      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-  }, [payments, currentMonthStr]);
-
-  // 6. CLIENTES ATIVOS
-  const operationalActiveClientsCount = useMemo(() => {
-    const clientIds = new Set<string>();
-    activeLoans.forEach((l) => {
-      if (l.borrowerId) clientIds.add(l.borrowerId);
-      else if (l.borrowerName) clientIds.add(l.borrowerName.toLowerCase().trim());
-    });
-    return clientIds.size;
-  }, [activeLoans]);
-
-  // Filtragem de empréstimos pela busca operacional rápida
-  const filteredOperationalLoans = useMemo(() => {
-    const term = operationalSearch.toLowerCase().trim();
-    if (!term) return loans;
-
-    return loans.filter((l) => {
-      const client = clients.find((c) => c.id === l.borrowerId);
-      const clientName = (client?.name || l.borrowerName || "").toLowerCase();
-      const phone = (client?.phone || "").toLowerCase();
-      const cpf = (client?.cpf || "").toLowerCase();
-      const loanId = l.id.toLowerCase();
-
-      return (
-        clientName.includes(term) ||
-        phone.includes(term) ||
-        cpf.includes(term) ||
-        loanId.includes(term)
-      );
-    });
-  }, [loans, clients, operationalSearch]);
 
   const handleOpenLoanPayment = (loan: Loan) => {
     setSelectedPaymentLoan(loan);
@@ -341,55 +214,6 @@ export function DashboardOverview({
 
   return (
     <div className="@container/dash dash-premium dash-page space-y-6">
-      {/* 🚀 BARRA DE AÇÕES RÁPIDAS E BUSCA OPERACIONAL */}
-      <DashboardQuickActionsBar
-        searchTerm={operationalSearch}
-        onSearchChange={setOperationalSearch}
-        onNewLoan={() => onNewLoan?.()}
-        onNewClient={() => onNewClient?.()}
-        onOpenPaymentSelector={() => setQuickPaymentSelectorOpen(true)}
-        onFilterOverdue={() => onNavigateToTab?.("dashboard")}
-        readOnly={readOnly}
-      />
-
-      {/* 📊 6 INDICADORES OPERACIONAIS PRINCIPAIS */}
-      <DashboardOperationalCards
-        capitalOnStreet={operationalCapitalOnStreet}
-        totalToReceive={operationalTotalToReceive}
-        dueTodayAmount={dueTodayAmount}
-        dueTodayCount={dueTodayCount}
-        overdueAmount={overdueAmount}
-        overdueCount={overdueCount}
-        receivedThisMonth={operationalReceivedThisMonth}
-        activeClientsCount={operationalActiveClientsCount}
-        totalLoansActiveCount={activeLoans.length}
-        formatCurrency={formatCurrency}
-        onFilterDueToday={() => onNavigateToTab?.("dashboard")}
-        onFilterOverdue={() => onNavigateToTab?.("dashboard")}
-      />
-
-      {/* ⚡ BLOCO: PRECISAM DA SUA ATENÇÃO HOJE */}
-      <DashboardAttentionSection
-        loans={filteredOperationalLoans}
-        installmentSchedules={installmentSchedules}
-        payments={payments}
-        clients={clients}
-        formatCurrency={formatCurrency}
-        onOpenPayment={handleOpenLoanPayment}
-        onNavigateToLoan={() => onNavigateToTab?.("dashboard")}
-        onNavigateToClient={() => onNavigateToTab?.("clients")}
-      />
-
-      {/* 🛡️ PAINEL: INADIMPLÊNCIA POR FAIXAS DE ATRASO */}
-      <DashboardDelinquencyBuckets
-        loans={filteredOperationalLoans}
-        installmentSchedules={installmentSchedules}
-        payments={payments}
-        clients={clients}
-        formatCurrency={formatCurrency}
-        onOpenPayment={handleOpenLoanPayment}
-      />
-
       {/* 📅 SELETOR DE PERÍODO ANALÍTICO */}
       <DashboardPeriodFilter
         rangeLabel={range.label}
@@ -402,40 +226,50 @@ export function DashboardOverview({
       />
 
       <div className="space-y-2.5 sm:space-y-3">
-      <DashboardMainCards
+        <DashboardMainCards
+          readOnly={readOnly}
+          accountBalance={accountBalance}
+          editingBalance={editingBalance}
+          tempBalance={tempBalance}
+          setTempBalance={setTempBalance}
+          saveBalance={saveBalance}
+          cancelEditBalance={cancelEditBalance}
+          receivedByMethod={receivedByMethod}
+          setReceivedDetailMethodId={setReceivedDetailMethodId}
+          data={cardsData}
+          allLoans={loans}
+          portfolio={cardsPortfolio}
+          expandedBreakdown={expandedBreakdown}
+          setExpandedBreakdown={setExpandedBreakdown}
+          interestGoal={interestGoal}
+          profitGoal={profitGoal}
+          profitTargetAmount={profitTargetAmount}
+          formatCurrency={formatCurrency}
+        />
 
-        readOnly={readOnly}
-        accountBalance={accountBalance}
-        editingBalance={editingBalance}
-        tempBalance={tempBalance}
-        setTempBalance={setTempBalance}
-        saveBalance={saveBalance}
-        cancelEditBalance={cancelEditBalance}
-        receivedByMethod={receivedByMethod}
-        setReceivedDetailMethodId={setReceivedDetailMethodId}
-        data={cardsData}
-        allLoans={loans}
-        portfolio={cardsPortfolio}
-        expandedBreakdown={expandedBreakdown}
-        setExpandedBreakdown={setExpandedBreakdown}
-        interestGoal={interestGoal}
-        profitGoal={profitGoal}
-        profitTargetAmount={profitTargetAmount}
-        formatCurrency={formatCurrency}
-      />
+        {/* 📊 CARD RESUMO FINANCEIRO */}
+        <DashboardPortfolioMetrics
+          portfolio={cardsPortfolio}
+          periodProfitRealized={data.periodProfitRealized}
+          periodProfitExpected={data.periodProfitExpected}
+          periodProfitOverdue={data.periodProfitOverdue}
+          prevProfitRealized={data.prevProfitRealized}
+          prevProfitDue={data.prevProfitDue}
+          formatCurrency={formatCurrency}
+          onOpenInterestReceived={() => setShowInterestDetail(true)}
+          onOpenInterestExpectedAll={() => { setInterestExpectedFilter("all"); setShowInterestExpectedDetail(true); }}
+          onOpenInterestPending={() => { setInterestExpectedFilter("pending"); setShowInterestExpectedDetail(true); }}
+        />
 
-      <DashboardPortfolioMetrics
-        portfolio={cardsPortfolio}
-        periodProfitRealized={data.periodProfitRealized}
-        periodProfitExpected={data.periodProfitExpected}
-        periodProfitOverdue={data.periodProfitOverdue}
-        prevProfitRealized={data.prevProfitRealized}
-        prevProfitDue={data.prevProfitDue}
-        formatCurrency={formatCurrency}
-        onOpenInterestReceived={() => setShowInterestDetail(true)}
-        onOpenInterestExpectedAll={() => { setInterestExpectedFilter("all"); setShowInterestExpectedDetail(true); }}
-        onOpenInterestPending={() => { setInterestExpectedFilter("pending"); setShowInterestExpectedDetail(true); }}
-      />
+        {/* 🛡️ INADIMPLÊNCIA POR FAIXAS DE ATRASO (Abaixo do Resumo Financeiro) */}
+        <DashboardDelinquencyBuckets
+          loans={loans}
+          installmentSchedules={installmentSchedules}
+          payments={payments}
+          clients={clients}
+          formatCurrency={formatCurrency}
+          onOpenPayment={handleOpenLoanPayment}
+        />
       </div>
 
       {/* 🧠 O que está acontecendo com seu negócio? */}
@@ -522,16 +356,6 @@ export function DashboardOverview({
         riskAiReport={riskAiReport}
         riskAiTitle={riskAiTitle}
         generateRiskAiReport={generateRiskAiReport}
-      />
-
-      {/* Modal para Seleção Rápida de Pagamento */}
-      <QuickPaymentSelectorDialog
-        open={quickPaymentSelectorOpen}
-        onOpenChange={setQuickPaymentSelectorOpen}
-        loans={loans}
-        clients={clients}
-        formatCurrency={formatCurrency}
-        onSelectLoan={(loan) => setSelectedPaymentLoan(loan)}
       />
 
       {/* Modal Central de Registro de Pagamento */}
