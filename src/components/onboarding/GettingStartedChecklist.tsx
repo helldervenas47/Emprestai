@@ -11,7 +11,6 @@ import {
   ArrowRight,
   UserPlus,
   Zap,
-  Building2,
 } from "lucide-react";
 import { useOnboardingProgress } from "@/hooks/useOnboardingProgress";
 
@@ -34,14 +33,12 @@ export function GettingStartedChecklist({
 
   // Etapas
   const isPlanActive = true;
-  const isSetupDone = state.setupDone || !!state.businessName;
   const isClientDone = state.firstClientDone || clientsCount > 0;
   const isLoanDone = state.firstLoanDone || loansCount > 0;
 
-  const totalSteps = 4;
+  const totalSteps = 3;
   const completedStepsCount =
     (isPlanActive ? 1 : 0) +
-    (isSetupDone ? 1 : 0) +
     (isClientDone ? 1 : 0) +
     (isLoanDone ? 1 : 0);
 
@@ -104,38 +101,14 @@ export function GettingStartedChecklist({
         </div>
 
         {/* Lista de Itens do Checklist */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
           {/* Item 1: Plano Ativado */}
           <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-background/60 border border-border/40 text-xs">
             <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
             <span className="font-medium text-foreground line-through opacity-80">Plano ativado</span>
           </div>
 
-          {/* Item 2: Configurar Operação */}
-          <div
-            onClick={!isSetupDone ? onOpenWizard : undefined}
-            className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-colors ${
-              isSetupDone
-                ? "bg-background/60 border-border/40 text-foreground"
-                : "bg-card border-primary/30 hover:border-primary cursor-pointer shadow-2xs"
-            }`}
-          >
-            <div className="flex items-center gap-2.5">
-              {isSetupDone ? (
-                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-              ) : (
-                <Circle className="h-4 w-4 text-muted-foreground shrink-0" />
-              )}
-              <span className={`font-medium ${isSetupDone ? "line-through opacity-80 text-muted-foreground" : "text-foreground"}`}>
-                Configurar operação
-              </span>
-            </div>
-            {!isSetupDone && (
-              <Building2 className="h-3.5 w-3.5 text-primary shrink-0 opacity-70" />
-            )}
-          </div>
-
-          {/* Item 3: Cadastrar Cliente */}
+          {/* Item 2: Cadastrar Cliente */}
           <div
             onClick={!isClientDone ? onOpenNewClient : undefined}
             className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-colors ${
@@ -159,7 +132,7 @@ export function GettingStartedChecklist({
             )}
           </div>
 
-          {/* Item 4: Criar Empréstimo */}
+          {/* Item 3: Criar Empréstimo */}
           <div
             onClick={!isLoanDone ? onOpenNewLoan : undefined}
             className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-colors ${
