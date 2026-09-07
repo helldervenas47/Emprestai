@@ -23,7 +23,6 @@ import { useBusinessPulse } from "@/features/dashboard/hooks/useBusinessPulse";
 import { useDashboardOverviewController } from "@/features/dashboard/components/dashboard/useDashboardOverviewController";
 import { useDashboardMetrics } from "@/features/dashboard/components/dashboard/useDashboardMetrics";
 import { useDashboardAiReports } from "@/features/dashboard/components/dashboard/useDashboardAiReports";
-import { DashboardDelinquencyBuckets } from "@/features/dashboard/components/dashboard/DashboardDelinquencyBuckets";
 import { PaymentHubDialog } from "@/features/loans/components/payment-hub/PaymentHubDialog";
 import { useState } from "react";
 import type { PaymentSplit } from "@/types/loan";
@@ -259,16 +258,6 @@ export function DashboardOverview({
           onOpenInterestReceived={() => setShowInterestDetail(true)}
           onOpenInterestExpectedAll={() => { setInterestExpectedFilter("all"); setShowInterestExpectedDetail(true); }}
           onOpenInterestPending={() => { setInterestExpectedFilter("pending"); setShowInterestExpectedDetail(true); }}
-        />
-
-        {/* 🛡️ INADIMPLÊNCIA POR FAIXAS DE ATRASO (Abaixo do Resumo Financeiro) */}
-        <DashboardDelinquencyBuckets
-          loans={loans}
-          installmentSchedules={installmentSchedules}
-          payments={payments}
-          clients={clients}
-          formatCurrency={formatCurrency}
-          onOpenPayment={handleOpenLoanPayment}
         />
       </div>
 
