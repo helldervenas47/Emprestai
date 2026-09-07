@@ -23,6 +23,7 @@ import {
   RefreshCw,
   QrCode,
   ArrowLeft,
+  Crown,
 } from "lucide-react";
 import { useAsaasCheckout } from "@/hooks/useAsaasCheckout";
 import { useAuth } from "@/hooks/useAuth";
@@ -552,6 +553,72 @@ const Pricing = () => {
                 </div>
                 );
               })()}
+
+              {/* Seção de Recursos Adicionais (Add-ons) */}
+              <div className="mt-16 max-w-4xl mx-auto border-t border-border/40 pt-12">
+                <div className="text-center space-y-2 mb-8">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-500 text-xs font-semibold border border-amber-500/30">
+                    <Crown className="h-3.5 w-3.5" />
+                    RECURSOS ADICIONAIS
+                  </div>
+                  <h3 className="text-xl md:text-2xl font-bold text-foreground">
+                    Turbine sua gestão com Add-ons Premium
+                  </h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground max-w-xl mx-auto">
+                    Contrate recursos adicionais de forma independente para automatizar ainda mais o seu negócio.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
+                  <Card no3d className="border-amber-500/30 bg-gradient-to-r from-card via-card to-amber-500/5 shadow-md">
+                    <CardContent className="p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                      <div className="space-y-2 flex-1">
+                        <div className="flex items-center gap-2">
+                          <Crown className="h-5 w-5 text-amber-500" />
+                          <h4 className="text-lg font-bold text-foreground">👑 EmprestAI Telegram</h4>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                            + R$ 14,90/mês
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Receba relatórios diários de cobrança e registre despesas instantaneamente apenas enviando mensagens de texto no Telegram.
+                        </p>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1 text-[11px] text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Check className="h-3.5 w-3.5 text-primary" /> Relatórios automáticos
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Check className="h-3.5 w-3.5 text-primary" /> Despesas por texto/áudio
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Check className="h-3.5 w-3.5 text-primary" /> Categorização automática
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 flex flex-col items-end gap-2 w-full md:w-auto">
+                        <div className="text-right hidden md:block">
+                          <div className="text-2xl font-black text-amber-500">+ R$ 14,90<span className="text-xs font-normal text-muted-foreground">/mês</span></div>
+                          <div className="text-[10px] text-muted-foreground">Adicional independente</div>
+                        </div>
+                        <Button
+                          onClick={() => {
+                            if (!user) {
+                              navigate("/cadastro");
+                            } else {
+                              navigate("/?tab=overdue&subTab=bot-telegram");
+                            }
+                          }}
+                          className="w-full md:w-auto bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
+                        >
+                          <Crown className="h-4 w-4 mr-1.5" />
+                          Conhecer EmprestAI Telegram
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
             </>
           )}
         </div>

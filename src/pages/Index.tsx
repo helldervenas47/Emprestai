@@ -1838,7 +1838,7 @@ const Index = () => {
                     <div>
                       <nav className="flex gap-1 mb-4 bg-muted/60 p-1 rounded-xl border border-border/50 overflow-x-auto scrollbar-hide">
                         {([
-                          { id: "bot-telegram", label: "Bot Telegram", Icon: Send },
+                          { id: "bot-telegram", label: "👑 EmprestAI Telegram", Icon: Send },
                           { id: "whatsapp-cobranca", label: "Cobrança WhatsApp", Icon: MessageCircle },
                         ] as const).map(({ id, label, Icon }) => {
                           const active = overdueSubTab === id;

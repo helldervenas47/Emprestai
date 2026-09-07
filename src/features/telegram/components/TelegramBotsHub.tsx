@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, BarChart3, CalendarCheck, FileSpreadsheet, Sun, RefreshCw } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { AlertTriangle, BarChart3, CalendarCheck, FileSpreadsheet, Sun, RefreshCw, Crown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { invokeUserFunction } from "@/features/telegram/lib/telegramLinkCode";
 import { TelegramReportsConnectCard } from "@/features/telegram/components/TelegramReportsConnectCard";
@@ -13,11 +14,13 @@ import { TelegramAccumulatedDelinquencyScheduleCard } from "@/features/telegram/
 import { TelegramManagerWeeklyCard } from "@/features/telegram/components/TelegramManagerWeeklyCard";
 import { TelegramPersonalInsightsCard } from "@/features/telegram/components/TelegramPersonalInsightsCard";
 import { TelegramFinancialSummariesCard } from "@/features/telegram/components/TelegramFinancialSummariesCard";
+import { TelegramPaywallCard } from "@/features/telegram/components/TelegramPaywallCard";
+import { useTelegramPremium } from "@/features/telegram/hooks/useTelegramPremium";
 import { ScheduledReportCard } from "@/components/ScheduledReportCard";
 import { ReadOnlyOverlay } from "@/features/admin/components/upgrade/ReadOnlyOverlay";
 
-
 export function TelegramBotsHub() {
+  const { hasPremium, loading: loadingPremium, refetch } = useTelegramPremium();
   const [syncing, setSyncing] = useState(false);
 
   const handleSyncCommands = async () => {
@@ -36,18 +39,34 @@ export function TelegramBotsHub() {
     }
   };
 
+  if (loadingPremium) {
+    return (
+      <div className="p-12 flex flex-col items-center justify-center space-y-3">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="text-xs text-muted-foreground">Carregando EmprestAI Telegram...</span>
+      </div>
+    );
+  }
+
+  if (!hasPremium) {
+    return <TelegramPaywallCard onSuccess={refetch} />;
+  }
+
   return (
-    <ReadOnlyOverlay message="Seu plano de teste expirou. Os bots cadastrados continuam visíveis, mas não é possível conectar ou alterar configurações sem um plano ativo.">
+    <ReadOnlyOverlay message="Seu plano de teste expirou. Os recursos cadastrados continuam visíveis, mas não é possível conectar ou alterar configurações sem um plano ativo.">
     <div id="telegram-bots-hub" className="space-y-4 scroll-mt-24">
-      <Card no3d>
+      <Card no3d className="border-amber-500/20 bg-gradient-to-r from-card via-card to-amber-500/5">
         <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-semibold">Bot de Relatórios</h3>
+              <Crown className="h-4 w-4 text-amber-500" />
+              <h3 className="text-sm font-semibold">👑 EmprestAI Telegram</h3>
+              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px] py-0">
+                🟢 Premium Ativo
+              </Badge>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Configure o bot e os horários de envio automático dos relatórios do negócio.
+              Configure o bot de relatórios, o bot de despesas e os horários de envio automático.
             </p>
           </div>
           <Button
