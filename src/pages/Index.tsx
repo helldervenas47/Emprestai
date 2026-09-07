@@ -855,16 +855,7 @@ const Index = () => {
     [changeTab],
   );
 
-  // A barra inferior permanece sempre fixa; no mobile PWA, força reflow do viewport ao fechar o teclado
-  useEffect(() => {
-    if (!isMobile || typeof window === "undefined") return;
-    const handleFocusOut = () => {
-      // Quando o teclado virtual fecha no iOS, força reancoragem do layout viewport
-      window.scrollTo({ top: window.scrollY, behavior: "instant" });
-    };
-    window.addEventListener("focusout", handleFocusOut);
-    return () => window.removeEventListener("focusout", handleFocusOut);
-  }, [isMobile]);
+  // A barra inferior permanece sempre fixa; não reagimos ao teclado virtual.
 
 
   // Atualiza apenas a aba (reload simples), preservando cache e localStorage.
@@ -1156,6 +1147,17 @@ const Index = () => {
   useApprovalPushAlerts();
   const isMobile = useIsMobile();
   const isMobileOrTablet = useIsMobileOrTablet();
+
+  // No mobile PWA, força reflow do viewport ao fechar o teclado virtual para manter a barra ancorada no rodapé
+  useEffect(() => {
+    if (!isMobile || typeof window === "undefined") return;
+    const handleFocusOut = () => {
+      window.scrollTo({ top: window.scrollY, behavior: "instant" });
+    };
+    window.addEventListener("focusout", handleFocusOut);
+    return () => window.removeEventListener("focusout", handleFocusOut);
+  }, [isMobile]);
+
   // Treat unresolved role as read-only to prevent flashing create buttons
   // before the role loads (defensive — viewers should never see write actions).
   const isReadOnly = loading || role === null || role === "visualizador";
