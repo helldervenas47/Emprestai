@@ -2,10 +2,12 @@ import { lazy, Suspense, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CreditCard, Users as UsersIcon, Image as ImageIcon, Loader2, ShieldCheck, Palette, Wallet, Activity, KeyRound, Package, BadgeCheck } from "lucide-react";
+import { CreditCard, Users as UsersIcon, Image as ImageIcon, Loader2, ShieldCheck, Palette, Wallet, Activity, KeyRound, Package, BadgeCheck, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useOnboardingProgress } from "@/hooks/useOnboardingProgress";
+import { toast } from "sonner";
 import { ThemeSettingsCard } from "@/components/ThemeSettingsCard";
 import { TelegramImageDeliveryCard } from "@/features/telegram/components/TelegramImageDeliveryCard";
 import { AppFontSelector } from "@/components/AppFontSelector";
@@ -28,6 +30,7 @@ export function SystemSettings() {
   const { role } = useAuth();
   const navigate = useNavigate();
   const { subscription, isActive } = useSubscription();
+  const { resetOnboarding } = useOnboardingProgress();
   const isAdmin = role === "admin";
   const [subTab, setSubTab] = useState<string>(isAdmin ? "admin" : "billing");
 
@@ -135,6 +138,29 @@ export function SystemSettings() {
             <CardContent>
               <Button onClick={() => navigate("/planos")} variant="outline" size="sm">
                 Gerenciar plano
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Sparkles className="h-4 w-4 text-primary" /> Guia de Primeiros Passos
+              </CardTitle>
+              <CardDescription>
+                Deseja rever os passos recomendados de configuração inicial no Dashboard?
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  await resetOnboarding();
+                  toast.success("Guia de primeiros passos reativado no Dashboard!");
+                }}
+              >
+                Mostrar guia inicial novamente
               </Button>
             </CardContent>
           </Card>

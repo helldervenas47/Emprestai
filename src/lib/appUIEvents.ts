@@ -21,7 +21,10 @@ export type AppUIEvent =
   | { type: "FIRST_CLIENT_CREATED"; clientId?: string }
   | { type: "FIRST_LOAN_CREATED"; loanId?: string }
   | { type: "ONBOARDING_COMPLETED" }
-  | { type: "ONBOARDING_SKIPPED" };
+  | { type: "ONBOARDING_SKIPPED" }
+  | { type: "ONBOARDING_POSTPONED" }
+  | { type: "ONBOARDING_DISMISSED" }
+  | { type: "ONBOARDING_RESET" };
 
 type EventName = AppUIEvent["type"];
 
@@ -40,6 +43,9 @@ export const APP_UI_EVENT_NAMES: Record<EventName, string> = {
   FIRST_LOAN_CREATED: "app:first-loan-created",
   ONBOARDING_COMPLETED: "app:onboarding-completed",
   ONBOARDING_SKIPPED: "app:onboarding-skipped",
+  ONBOARDING_POSTPONED: "app:onboarding-postponed",
+  ONBOARDING_DISMISSED: "app:onboarding-dismissed",
+  ONBOARDING_RESET: "app:onboarding-reset",
 };
 
 type Payload<T extends EventName> = Extract<AppUIEvent, { type: T }>;
