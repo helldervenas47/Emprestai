@@ -969,15 +969,16 @@ function LoanRowView({
                 </Button>
               )}
 
-              {/* Toolbar horizontal de ações rápidas + Menu de opções */}
-              <div className="flex items-center gap-1.5 flex-wrap w-full" onClick={(e) => e.stopPropagation()}>
+              {/* Linha 2: WhatsApp (ícone) + Renegociar + PDF */}
+              <div className="flex items-center gap-2 w-full" onClick={(e) => e.stopPropagation()}>
                 {loan.status !== "paid" && (
                   <WhatsappBillButton
                     loan={loan}
                     clients={clients}
                     payments={allPayments}
                     installmentSchedules={installmentSchedules}
-                    variant="compact"
+                    variant="outline"
+                    className="w-14 sm:w-16 h-11 shrink-0 rounded-xl"
                   />
                 )}
 
@@ -985,18 +986,16 @@ function LoanRowView({
                   <Button
                     data-mutation
                     variant="outline"
-                    size="sm"
-                    className="flex-1 min-w-[100px] h-9 text-xs gap-1.5 rounded-xl border-border/60 hover:border-amber-500/50 hover:text-amber-600"
+                    className="flex-1 h-11 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-amber-500/50 hover:text-amber-600"
                     onClick={(e) => { e.stopPropagation(); setShowRenegotiateDialog(true); }}
                   >
-                    <RefreshCw className="h-3.5 w-3.5 text-amber-500" /> Renegociar
+                    <RefreshCw className="h-4 w-4 text-amber-500 shrink-0" /> Renegociar
                   </Button>
                 )}
 
                 <Button
                   variant="outline"
-                  size="sm"
-                  className="flex-1 min-w-[90px] h-9 text-xs gap-1.5 rounded-xl border-border/60 hover:border-primary/50"
+                  className="flex-1 h-11 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-primary/50"
                   onClick={async (e) => {
                     e.stopPropagation();
                     try {
@@ -1012,16 +1011,18 @@ function LoanRowView({
                     }
                   }}
                 >
-                  <FileDown className="h-3.5 w-3.5 text-primary" /> PDF
+                  <FileDown className="h-4 w-4 text-primary shrink-0" /> PDF
                 </Button>
+              </div>
 
+              {/* Linha 3: Histórico + Menu de Opções (...) */}
+              <div className="flex items-center gap-2 w-full" onClick={(e) => e.stopPropagation()}>
                 <Button
                   variant="outline"
-                  size="sm"
-                  className="flex-1 min-w-[90px] h-9 text-xs gap-1.5 rounded-xl border-border/60"
+                  className="flex-1 h-11 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70"
                   onClick={(e) => { e.stopPropagation(); setShowHistory(true); }}
                 >
-                  <History className="h-3.5 w-3.5 text-muted-foreground" /> Histórico
+                  <History className="h-4 w-4 text-muted-foreground shrink-0" /> Histórico
                 </Button>
 
                 {/* Dropdown Menu de Ações Secundárias */}
@@ -1030,12 +1031,10 @@ function LoanRowView({
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="outline"
-                        size="sm"
-                        className="h-9 px-3 text-xs gap-1 rounded-xl border-border/60"
+                        className="w-14 sm:w-16 h-11 shrink-0 px-0 rounded-xl border-border/70 flex items-center justify-center"
                         title="Mais opções"
                       >
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="hidden sm:inline">Opções</span>
+                        <MoreHorizontal className="h-5 w-5 text-primary" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56 p-1.5 space-y-0.5">
@@ -1067,7 +1066,6 @@ function LoanRowView({
                   </DropdownMenu>
                 )}
               </div>
-
             </div>
 
             {/* Diálogos de Juros e Multa */}
