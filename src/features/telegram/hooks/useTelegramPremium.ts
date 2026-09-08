@@ -134,6 +134,21 @@ export function useTelegramPremium() {
       (!addon.current_period_end || new Date(addon.current_period_end).getTime() > Date.now()))
   );
 
+  // Desconecta automaticamente os bots caso o plano expire
+  useEffect(() => {
+    if (loading || authLoading || !effectiveUserId || isAdmin || isActive) return;
+
+    const cleanExpiredLinks = async () => {
+      try {
+        await supabase.from("telegram_links" as any).delete().eq("user_id", effectiveUserId);
+        await supabase.from("telegram_reports_links" as any).delete().eq("user_id", effectiveUserId);
+      } catch (_) {
+        /* noop */
+      }
+    };
+    cleanExpiredLinks();
+  }, [loading, authLoading, effectiveUserId, isAdmin, isActive]);
+
   const cancelAddon = async () => {
     if (!addon?.id) return false;
     try {

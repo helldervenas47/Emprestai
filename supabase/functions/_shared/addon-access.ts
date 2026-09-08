@@ -14,7 +14,17 @@ export async function hasAddonAccess(
   if (!userId) return false;
 
   try {
-    // 1. Checa a tabela user_addons
+    // 1. Checa se o usuário é administrador (acesso irrestrito)
+    const { data: hasAdminRole } = await admin.rpc("has_role", {
+      _user_id: userId,
+      _role: "admin",
+    });
+
+    if (hasAdminRole === true) {
+      return true;
+    }
+
+    // 2. Checa a tabela user_addons
     const { data: addon, error } = await admin
       .from("user_addons")
       .select("status, current_period_end")
@@ -31,20 +41,35 @@ export async function hasAddonAccess(
       }
     }
 
-    // 2. Fallback para verificar se é admin
-    const { data: hasAdminRole } = await admin.rpc("has_role", {
-      _user_id: userId,
-      _role: "admin",
-    });
-
-    if (hasAdminRole === true) {
-      return true;
-    }
-
     return false;
   } catch (e) {
     console.warn("[addon-access] Erro ao verificar acesso ao add-on:", e);
-    // Em caso de erro na checagem, permite para não interromper indevidamente se a tabela estiver sendo criada
     return false;
   }
+}
+
+/**
+ * Valida o acesso ao add-on e, caso tenha expirado ou não exista, desconecta
+ * automaticamente os vínculos de telegram_links e telegram_reports_links do usuário.
+ */
+export async function ensureAddonAccessOrDisconnect(
+  admin: SupabaseClient,
+  userId: string,
+  addonKey: string = "telegram",
+  env: string = "live"
+): Promise<boolean> {
+  if (!userId) return false;
+
+  const hasAccess = await hasAddonAccess(admin, userId, addonKey, env);
+  if (!hasAccess) {
+    try {
+      await admin.from("telegram_links").delete().eq("user_id", userId);
+      await admin.from("telegram_reports_links").delete().eq("user_id", userId);
+    } catch (err) {
+      console.warn("[addon-access] Erro ao desconectar vínculos de Telegram expirados:", err);
+    }
+    return false;
+  }
+
+  return true;
 }

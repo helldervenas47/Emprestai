@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+import { ensureAddonAccessOrDisconnect } from "../_shared/addon-access.ts";
 
 // ===== INLINED: interest-allocation.ts =====
 /**
@@ -1759,6 +1760,12 @@ async function processReportsMessage(
 
   if (!userId) {
     await tgSend(token, chatId, "🔒 Este chat não está vinculado.\n\nAbra o app, gere o comando */start* em *Configurações → Bots do Telegram → Bot de Relatórios* e envie aqui para vincular.");
+    return;
+  }
+
+  const hasAccess = await ensureAddonAccessOrDisconnect(supabase, userId, "telegram");
+  if (!hasAccess) {
+    await tgSend(token, chatId, "⚠️ *Seu plano EmprestAI Telegram expirou.*\n\nO bot foi desconectado automaticamente da sua conta. Para voltar a utilizar os recursos, renove sua assinatura no painel do Emprestaii.");
     return;
   }
 

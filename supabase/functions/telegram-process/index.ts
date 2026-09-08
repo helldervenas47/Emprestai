@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { getReportsBotId } from "../_shared/reports-bot.ts";
 import { getExternalServiceRoleKey, getExternalAdmin } from "../_shared/external-supabase.ts";
+import { ensureAddonAccessOrDisconnect } from "../_shared/addon-access.ts";
 
 
 const GATEWAY_URL = "https://api.telegram.org";
@@ -50,7 +51,16 @@ const LINK_CACHE_TTL_MS = 5 * 60 * 1000;
 async function getLinkedUserId(admin: any, chatId: number, botId?: string | null): Promise<string | null> {
   const cacheKey = botId ? `${chatId}:${botId}` : String(chatId);
   const cached = linkCache.get(cacheKey);
-  if (cached && cached.expires > Date.now()) return cached.userId;
+  if (cached && cached.expires > Date.now()) {
+    if (cached.userId) {
+      const hasAccess = await ensureAddonAccessOrDisconnect(admin, cached.userId, "telegram");
+      if (!hasAccess) {
+        linkCache.delete(cacheKey);
+        return null;
+      }
+    }
+    return cached.userId;
+  }
   let q = admin.from("telegram_links")
     .select("user_id").eq("chat_id", chatId)
     .order("bot_id", { ascending: false, nullsFirst: false })
@@ -64,6 +74,15 @@ async function getLinkedUserId(admin: any, chatId: number, botId?: string | null
   }
   const { data } = await q.maybeSingle();
   const userId = data?.user_id ?? null;
+
+  if (userId) {
+    const hasAccess = await ensureAddonAccessOrDisconnect(admin, userId, "telegram");
+    if (!hasAccess) {
+      linkCache.delete(cacheKey);
+      return null;
+    }
+  }
+
   linkCache.set(cacheKey, { userId, expires: Date.now() + LINK_CACHE_TTL_MS });
   return userId;
 }

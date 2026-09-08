@@ -1,6 +1,7 @@
 // Shared helpers for the GLOBAL "reports" Telegram bot.
 // Reports prefer dedicated `telegram_reports_links/codes` so they never compete
 // with expense links. Legacy fallback uses `telegram_links` filtered by bot_id.
+import { ensureAddonAccessOrDisconnect } from "./addon-access.ts";
 
 let _cachedReportsBotId: { id: string | null; ts: number } | null = null;
 
@@ -23,11 +24,15 @@ export async function getReportsBotId(supabase: any): Promise<string | null> {
   return id;
 }
 
-/** Returns { chat_id } for the user's reports-bot link, or null. */
+/** Returns { chat_id } for the user's reports-bot link, or null. Desconecta automaticamente se o plano expirou. */
 export async function getReportsLinkForUser(
   supabase: any,
   userId: string,
 ): Promise<{ chat_id: number } | null> {
+  if (!userId) return null;
+  const hasAccess = await ensureAddonAccessOrDisconnect(supabase, userId, "telegram");
+  if (!hasAccess) return null;
+
   const botId = await getReportsBotId(supabase);
   if (!botId) return null;
   const { data: dedicated, error: dedicatedErr } = await supabase
