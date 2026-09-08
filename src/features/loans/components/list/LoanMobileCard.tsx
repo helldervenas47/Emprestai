@@ -549,7 +549,7 @@ export function LoanCardView({
           return Array.from({ length: months }, (_, i) => {
             if (i < paidInst && prev[i]) return prev[i]; // Keep paid rows
             return {
-              date: i === 0 ? firstDue : getNextDate(firstDue, next.interestType, i),
+              date: getNextDate(firstDue, next.interestType, i - paidInst),
               value: next.installmentValue,
             };
           });
@@ -565,7 +565,7 @@ export function LoanCardView({
         next.installmentValue = (rem / remInst).toFixed(2);
       } else if (field === "installmentValue") {
         // Manual override — no back-calculation needed
-      } else if (field === "interestType" || field === "dueDate") {
+      } else if (field === "interestType" || field === "dueDate" || field === "startDate") {
         // Rebuild dates when contract type or due date changes
         const paidInst = parseInt(next.paidInstallments) || 0;
         const firstDue = next.dueDate ? new Date(next.dueDate + "T00:00:00") : new Date();
@@ -573,7 +573,7 @@ export function LoanCardView({
           Array.from({ length: months }, (_, i) => {
             if (i < paidInst && prev[i]) return prev[i]; // Keep paid rows
             return {
-              date: i === 0 ? firstDue : getNextDate(firstDue, next.interestType, i),
+              date: getNextDate(firstDue, next.interestType, i - paidInst),
               value: prev[i]?.value || next.installmentValue,
             };
           })

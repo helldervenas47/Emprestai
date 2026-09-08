@@ -8,15 +8,7 @@ import { AlertTriangle, History as HistoryIcon, Info } from "lucide-react";
 import { toast } from "sonner";
 import { Loan, InstallmentSchedule } from "@/types/loan";
 import { calculateInstallment } from "@/features/loans/hooks/useLoans";
-
-function getNextDate(base: Date, frequency: string, periods: number): Date {
-  const d = new Date(base);
-  if (frequency === "Diário") d.setDate(d.getDate() + periods);
-  else if (frequency === "Semanal") d.setDate(d.getDate() + 7 * periods);
-  else if (frequency === "Quinzenal") d.setDate(d.getDate() + 15 * periods);
-  else d.setMonth(d.getMonth() + periods);
-  return d;
-}
+import { advanceLoanDueDate } from "@/features/loans/lib/advanceDueDate";
 
 function getFirstPendingDate(loan: Loan, schedules: InstallmentSchedule[]): string {
   const loanSchedules = schedules
@@ -124,8 +116,7 @@ export function AdjustDueDateDialog({
       const amount = existing?.amount ?? defaultAmount;
       // Paid installments — preserve
       if (num < nextNum) {
-        const firstDue = new Date(loan.dueDate + "T00:00:00");
-        const fallback = getNextDate(firstDue, freq, num - 1).toISOString().split("T")[0];
+        const fallback = advanceLoanDueDate(loan.dueDate, freq, num - 1);
         return { installmentNumber: num, dueDate: existing?.dueDate ?? fallback, amount };
       }
       // Current pending installment — always uses newDate
@@ -135,12 +126,11 @@ export function AdjustDueDateDialog({
       // Future installments
       if (scope === "future") {
         const offset = num - nextNum;
-        const computed = getNextDate(newDateObj, freq, offset).toISOString().split("T")[0];
+        const computed = advanceLoanDueDate(newDate, freq, offset);
         return { installmentNumber: num, dueDate: computed, amount };
       }
       // single mode — keep existing future dates
-      const firstDue = new Date(loan.dueDate + "T00:00:00");
-      const fallback = getNextDate(firstDue, freq, num - 1).toISOString().split("T")[0];
+      const fallback = advanceLoanDueDate(loan.dueDate, freq, num - 1);
       return { installmentNumber: num, dueDate: existing?.dueDate ?? fallback, amount };
     });
 

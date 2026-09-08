@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Plus, X, CalendarIcon, ChevronDown, ChevronRight, UserPlus } from "lucide-react";
 import { calculateInstallment, calculateTotalWithInterest } from "@/features/loans/hooks/useLoans";
+import { advanceLoanDueDate } from "@/features/loans/lib/advanceDueDate";
 import { Loan, Client } from "@/types/loan";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -49,12 +50,9 @@ interface Props {
 }
 
 function getNextDate(base: Date, frequency: string, periods: number): Date {
-  const d = new Date(base);
-  if (frequency === "Diário") d.setDate(d.getDate() + periods);
-  else if (frequency === "Semanal") d.setDate(d.getDate() + 7 * periods);
-  else if (frequency === "Quinzenal") d.setDate(d.getDate() + 15 * periods);
-  else d.setMonth(d.getMonth() + periods);
-  return d;
+  const baseIso = `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, "0")}-${String(base.getDate()).padStart(2, "0")}`;
+  const advancedIso = advanceLoanDueDate(baseIso, frequency, periods);
+  return new Date(`${advancedIso}T00:00:00`);
 }
 
 export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payments, installmentSchedules, existingTags = [], prefill, onAddClient }: Props) {

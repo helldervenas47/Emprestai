@@ -1,15 +1,13 @@
 import { Loan, Payment, InstallmentSchedule } from "@/types/loan";
 import { calculateTotalWithInterest } from "@/features/loans/hooks/useLoans";
 import { getBaseRemainingAmount, getLoanLateFees } from "@/features/loans/lib/loanLateFees";
+import { advanceLoanDueDate } from "@/features/loans/lib/advanceDueDate";
 import type { EditForm } from "./types";
 
 export function getNextDate(base: Date, frequency: string, periods: number): Date {
-  const d = new Date(base);
-  if (frequency === "Diário") d.setDate(d.getDate() + periods);
-  else if (frequency === "Semanal") d.setDate(d.getDate() + 7 * periods);
-  else if (frequency === "Quinzenal") d.setDate(d.getDate() + 15 * periods);
-  else d.setMonth(d.getMonth() + periods);
-  return d;
+  const baseIso = `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, "0")}-${String(base.getDate()).padStart(2, "0")}`;
+  const advancedIso = advanceLoanDueDate(baseIso, frequency, periods);
+  return new Date(`${advancedIso}T00:00:00`);
 }
 
 export function getFirstPendingDate(loan: Loan, schedules: InstallmentSchedule[]): Date {
@@ -57,10 +55,7 @@ export function getInstallmentDueDate(
     (s) => s.loanId === loan.id && s.installmentNumber === installmentNumber,
   );
   if (savedSchedule?.dueDate) return savedSchedule.dueDate;
-  const firstDue = new Date(loan.dueDate + "T00:00:00");
-  return getNextDate(firstDue, loan.interestType || "Mensal", Math.max(0, installmentNumber - 1))
-    .toISOString()
-    .split("T")[0];
+  return advanceLoanDueDate(loan.dueDate, loan.interestType || "Mensal", Math.max(0, installmentNumber - 1));
 }
 
 export function loanToForm(loan: Loan): EditForm {

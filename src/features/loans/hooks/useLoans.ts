@@ -1294,6 +1294,22 @@ export function useLoans() {
         remainingAmount: Math.max(0, Math.round((Number(l.remainingAmount || 0) - renegPenaltyPending) * 100) / 100),
       } : {}),
     } : l));
+
+    if (advanceCycle) {
+      setInstallmentSchedules((prev) =>
+        prev.map((s) => (s.loanId === loanId && s.installmentNumber === 1 ? { ...s, dueDate: newDueDate } : s))
+      );
+      if (online) {
+        supabase
+          .from("loan_installments")
+          .update({ due_date: newDueDate })
+          .eq("loan_id", loanId)
+          .eq("installment_number", 1)
+          .then(() => {})
+          .catch((err) => console.error("[addInterestOnlyPayment] Falha ao sincronizar schedule:", err));
+      }
+    }
+
     await upsertCachedRow("payments", { ...paymentPayload, created_at: new Date().toISOString() });
 
     if (!online) {
@@ -1769,6 +1785,94 @@ export function useLoans() {
         ? { parts: split.parts.map((p) => ({ payment_method_id: p.paymentMethodId, amount: Number(p.amount) })) }
         : null;
     }
+    // Recalcula e sincroniza o cronograma de parcelas pendentes (loan_installments)
+    // sempre que a data de vencimento, tipo de contrato (frequência) ou número de parcelas mudar.
+    const oldLoan = loans.find((l) => l.id === id);
+    const newDueDate = data.dueDate ?? (data.startDate && oldLoan && oldLoan.dueDate === oldLoan.startDate ? data.startDate : undefined);
+    const dateChanged = newDueDate !== undefined && oldLoan !== undefined && newDueDate !== oldLoan.dueDate;
+    const freqChanged = data.interestType !== undefined && oldLoan !== undefined && data.interestType !== oldLoan.interestType;
+    const installmentsChanged = data.installments !== undefined && oldLoan !== undefined && data.installments !== oldLoan.installments;
+
+    if (oldLoan && (dateChanged || freqChanged || installmentsChanged)) {
+      const effectiveDueDate = newDueDate ?? oldLoan.dueDate;
+      const effectiveFreq = data.interestType ?? oldLoan.interestType ?? "Mensal";
+      const totalInst = data.installments ?? oldLoan.installments ?? 1;
+      const paidInst = data.paidInstallments ?? oldLoan.paidInstallments ?? 0;
+      const nextNum = paidInst + 1;
+
+      const existingLoanSchedules = installmentSchedules.filter((s) => s.loanId === id);
+      const hasExistingSchedules = existingLoanSchedules.length > 0;
+
+      if (totalInst > 1 || hasExistingSchedules) {
+        const defaultInstallmentAmount = calculateInstallment(
+          data.amount ?? oldLoan.amount,
+          data.interestRate ?? oldLoan.interestRate,
+          totalInst
+        );
+
+        const updatedScheduleRows: { installmentNumber: number; dueDate: string; amount: number }[] = [];
+
+        for (let num = 1; num <= totalInst; num++) {
+          const existing = existingLoanSchedules.find((s) => s.installmentNumber === num);
+          const amt = existing?.amount ?? (oldLoan.customInstallmentValue && oldLoan.customInstallmentValue > 0 ? oldLoan.customInstallmentValue : defaultInstallmentAmount);
+
+          if (num < nextNum) {
+            const fallbackPaidDate = advanceLoanDueDate(oldLoan.dueDate, effectiveFreq, num - nextNum);
+            updatedScheduleRows.push({
+              installmentNumber: num,
+              dueDate: existing?.dueDate ?? fallbackPaidDate,
+              amount: amt,
+            });
+          } else if (num === nextNum) {
+            updatedScheduleRows.push({
+              installmentNumber: num,
+              dueDate: effectiveDueDate,
+              amount: amt,
+            });
+          } else {
+            const offset = num - nextNum;
+            const computedDueDate = advanceLoanDueDate(effectiveDueDate, effectiveFreq, offset);
+            updatedScheduleRows.push({
+              installmentNumber: num,
+              dueDate: computedDueDate,
+              amount: amt,
+            });
+          }
+        }
+
+        // Atualiza memória local de installmentSchedules
+        setInstallmentSchedules((prev) => {
+          const otherSchedules = prev.filter((s) => s.loanId !== id);
+          const newSchedules = updatedScheduleRows.map((r) => ({
+            loanId: id,
+            installmentNumber: r.installmentNumber,
+            dueDate: r.dueDate,
+            amount: r.amount,
+          }));
+          return [...otherSchedules, ...newSchedules];
+        });
+
+        // Persiste em loan_installments (Supabase ou fila de mutação offline)
+        if (isOnline()) {
+          try {
+            await supabase.from("loan_installments").delete().eq("loan_id", id);
+            if (updatedScheduleRows.length > 0 && dataOwnerId) {
+              const insertPayload = updatedScheduleRows.map((r) => ({
+                user_id: dataOwnerId,
+                loan_id: id,
+                installment_number: r.installmentNumber,
+                due_date: r.dueDate,
+                amount: r.amount,
+              }));
+              await supabase.from("loan_installments").insert(insertPayload);
+            }
+          } catch (scheduleErr) {
+            console.error("[updateLoan] Falha ao persistir schedules recalculados:", scheduleErr);
+          }
+        }
+      }
+    }
+
     if (!isOnline()) {
       await enqueueMutation({ table: "loans", op: "update", recordId: id, payload: updateData });
       return;
@@ -1783,7 +1887,7 @@ export function useLoans() {
         await fetchLoans();
       }
     }
-  }, [loans, fetchLoans]);
+  }, [loans, payments, installmentSchedules, dataOwnerId, fetchLoans]);
 
   const deleteLoan = useCallback(async (id: string) => {
     assertWritable();
