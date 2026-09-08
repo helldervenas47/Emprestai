@@ -6,9 +6,10 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Copy, CheckCircle2, Unlink, Clock, Zap, CalendarDays, CalendarRange, ChevronDown, ChevronUp } from "lucide-react";
+import { Copy, CheckCircle2, Unlink, Clock, Zap, CalendarDays, CalendarRange, ChevronDown, ChevronUp, HelpCircle } from "lucide-react";
 import { generateTelegramLinkCode, invokeUserFunction } from "@/features/telegram/lib/telegramLinkCode";
 import { fetchExpensesBotId, fetchReportsBotId } from "@/features/telegram/lib/telegramReportsBot";
+import { TelegramSetupGuideDialog } from "@/features/telegram/components/TelegramSetupGuideDialog";
 
 const TelegramIcon = ({ className }: { className?: string }) => (
   <span className={className} aria-hidden="true">
@@ -32,6 +33,7 @@ export function TelegramConnectCard() {
   const [sendingWeekly, setSendingWeekly] = useState(false);
   const [sendingMonthly, setSendingMonthly] = useState(false);
   const [showReports, setShowReports] = useState(false);
+  const [openGuide, setOpenGuide] = useState(false);
   const syncingTelegramRef = useRef(false);
   const botUsername = (typeof window !== "undefined" && localStorage.getItem(BOT_USERNAME_KEY)) || "";
   const { pref: summaryPref, update: updateSummary } = useTelegramSummaryPref();
@@ -216,7 +218,7 @@ export function TelegramConnectCard() {
   return (
     <Card no3d>
       <CardContent className="p-4 sm:p-5 space-y-3">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
               <TelegramIcon className="h-4 w-4 text-primary" />
@@ -228,11 +230,23 @@ export function TelegramConnectCard() {
               </p>
             </div>
           </div>
-          {linked && (
-            <span className="inline-flex items-center gap-1 text-xs text-success font-medium">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Conectado
-            </span>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setOpenGuide(true)}
+              className="text-xs h-7 gap-1 px-2.5 text-muted-foreground hover:text-foreground"
+            >
+              <HelpCircle className="h-3.5 w-3.5 text-primary" />
+              Como configurar
+            </Button>
+            {linked && (
+              <span className="inline-flex items-center gap-1 text-xs text-success font-medium">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Conectado
+              </span>
+            )}
+          </div>
         </div>
 
         {linked ? (
@@ -456,6 +470,12 @@ export function TelegramConnectCard() {
             </p>
           </div>
         )}
+
+        <TelegramSetupGuideDialog
+          open={openGuide}
+          onOpenChange={setOpenGuide}
+          botType="expenses"
+        />
       </CardContent>
     </Card>
   );

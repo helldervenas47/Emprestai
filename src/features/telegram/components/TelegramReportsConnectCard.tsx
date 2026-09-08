@@ -1,11 +1,12 @@
 import { forwardRef, useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Send, Copy, CheckCircle2, Unlink, RefreshCw } from "lucide-react";
+import { Send, Copy, CheckCircle2, Unlink, RefreshCw, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useTelegramReportsLink } from "@/features/telegram/hooks/useTelegramReportsLink";
 import { generateTelegramLinkCode, invokeUserFunction } from "@/features/telegram/lib/telegramLinkCode";
+import { TelegramSetupGuideDialog } from "@/features/telegram/components/TelegramSetupGuideDialog";
 
 
 export const TelegramReportsConnectCard = forwardRef<HTMLDivElement, Record<string, never>>(function TelegramReportsConnectCard(_, ref) {
@@ -15,6 +16,7 @@ export const TelegramReportsConnectCard = forwardRef<HTMLDivElement, Record<stri
   const [code, setCode] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [syncingCommands, setSyncingCommands] = useState(false);
+  const [openGuide, setOpenGuide] = useState(false);
   const syncingTelegramRef = useRef(false);
 
   useEffect(() => {
@@ -90,7 +92,7 @@ export const TelegramReportsConnectCard = forwardRef<HTMLDivElement, Record<stri
   return (
     <Card ref={ref} no3d>
       <CardContent className="p-4 space-y-3">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <Send className="h-4 w-4 text-primary" />
@@ -102,11 +104,23 @@ export const TelegramReportsConnectCard = forwardRef<HTMLDivElement, Record<stri
               </p>
             </div>
           </div>
-          {linked && (
-            <span className="inline-flex items-center gap-1 text-xs text-success font-medium shrink-0">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Conectado
-            </span>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setOpenGuide(true)}
+              className="text-xs h-7 gap-1 px-2.5 text-muted-foreground hover:text-foreground"
+            >
+              <HelpCircle className="h-3.5 w-3.5 text-primary" />
+              Como configurar
+            </Button>
+            {linked && (
+              <span className="inline-flex items-center gap-1 text-xs text-success font-medium">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Conectado
+              </span>
+            )}
+          </div>
         </div>
 
         {linked ? (
@@ -156,9 +170,11 @@ export const TelegramReportsConnectCard = forwardRef<HTMLDivElement, Record<stri
           </div>
         )}
 
-
-
-
+        <TelegramSetupGuideDialog
+          open={openGuide}
+          onOpenChange={setOpenGuide}
+          botType="reports"
+        />
       </CardContent>
     </Card>
   );
