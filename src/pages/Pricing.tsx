@@ -30,6 +30,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
 import { PixPaymentView } from "@/components/billing/PixPaymentView";
 import { syncSubscriptionState } from "@/lib/billing/subscriptionSync";
+import { CouponInputSection } from "@/components/billing/CouponInputSection";
+import type { CouponValidationResult } from "@/hooks/useCouponValidation";
 import logoIcon from "@/assets/logo-icon.png";
 
 interface Plan {
@@ -128,6 +130,7 @@ const Pricing = () => {
   const [checkoutPlan, setCheckoutPlan] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [checkingPayment, setCheckingPayment] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResult | null>(null);
 
   useEffect(() => {
     supabase
@@ -208,8 +211,8 @@ const Pricing = () => {
     }
 
     setCheckoutPlan(plan.name);
-    // O preço é resolvido no servidor a partir de planId + cycle.
-    mutate({ planId: plan.id, cycle });
+    // O preço é resolvido no servidor a partir de planId + cycle + couponCode.
+    mutate({ planId: plan.id, cycle, couponCode: appliedCoupon?.code });
   };
 
   const handlePayWithCard = async (
@@ -224,6 +227,7 @@ const Pricing = () => {
       paymentMethod: "CREDIT_CARD",
       creditCard: cardData,
       creditCardHolderInfo: holderInfo,
+      couponCode: appliedCoupon?.code,
     });
   };
 
@@ -389,7 +393,7 @@ const Pricing = () => {
                 const targetPlan = plans.find((p) => p.name === checkoutPlan);
                 if (targetPlan) {
                   reset();
-                  mutate({ planId: targetPlan.id, cycle });
+                  mutate({ planId: targetPlan.id, cycle, couponCode: appliedCoupon?.code });
                 } else {
                   handleBackToPlans();
                 }
@@ -409,7 +413,7 @@ const Pricing = () => {
                 Comece hoje mesmo. Sem contratos, cancele quando quiser.
               </p>
               {/* Cycle toggle */}
-              <div className="flex justify-center mb-10">
+              <div className="flex justify-center mb-6">
                 <div className="inline-flex rounded-full border border-border/40 bg-card p-1">
                   {(["monthly", "semestral", "annual"] as Cycle[]).map((c) => (
                     <button
@@ -422,6 +426,19 @@ const Pricing = () => {
                       {CYCLE_LABEL[c]}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Coupon Input */}
+              <div className="max-w-sm mx-auto mb-10 px-4">
+                <div className="p-3 rounded-2xl bg-card border border-border/50 shadow-xs">
+                  <CouponInputSection
+                    planId={plans[0]?.id || ""}
+                    cycle={cycle}
+                    userId={user?.id}
+                    appliedCoupon={appliedCoupon}
+                    onCouponApplied={setAppliedCoupon}
+                  />
                 </div>
               </div>
 
@@ -460,9 +477,28 @@ const Pricing = () => {
                       : cycle === "annual" ? (plan.discount_anual ?? 0) : 0;
                     const override = cycle === "semestral" ? plan.price_semestral
                       : cycle === "annual" ? plan.price_anual : null;
-                    const totalPrice = override && override > 0
+                    const basePrice = override && override > 0
                       ? override
                       : plan.price * months * (1 - discount / 100);
+
+                    // Verifica se o cupom se aplica a este plano específico
+                    const isCouponApplicable = Boolean(
+                      appliedCoupon?.valid &&
+                      (!appliedCoupon.applicable_plan_ids ||
+                        appliedCoupon.applicable_plan_ids.length === 0 ||
+                        appliedCoupon.applicable_plan_ids.includes(plan.id))
+                    );
+
+                    let couponDiscount = 0;
+                    if (isCouponApplicable && appliedCoupon) {
+                      if (appliedCoupon.discount_type === "percentage") {
+                        couponDiscount = Math.round((basePrice * Number(appliedCoupon.discount_value)) / 100 * 100) / 100;
+                      } else {
+                        couponDiscount = Math.min(Number(appliedCoupon.discount_value), basePrice);
+                      }
+                    }
+
+                    const totalPrice = Math.max(0, basePrice - couponDiscount);
                     const originalTotal = plan.price * months;
                     const saved = Math.max(originalTotal - totalPrice, 0);
                     const equivMonthly = totalPrice / months;
@@ -495,7 +531,7 @@ const Pricing = () => {
                             <p className="text-xs text-muted-foreground mt-1">{plan.description}</p>
                           )}
                           <div className="mt-4">
-                            {months > 1 && saved > 0 && (
+                            {(months > 1 || couponDiscount > 0) && saved > 0 && (
                               <div className="text-xs text-muted-foreground line-through">
                                 {formatBRL(originalTotal)}
                               </div>
@@ -507,7 +543,12 @@ const Pricing = () => {
                                 equivale a {formatBRL(equivMonthly)}/mês
                               </div>
                             )}
-                            {saved > 0 && (
+                            {couponDiscount > 0 && (
+                              <div className="text-xs font-semibold mt-1 text-emerald-600 dark:text-emerald-400">
+                                Cupom {appliedCoupon?.code}: -{formatBRL(couponDiscount)}
+                              </div>
+                            )}
+                            {saved > 0 && couponDiscount === 0 && (
                               <div className="text-xs font-semibold mt-1" style={accent ? { color: accent } : { color: "hsl(var(--primary))" }}>
                                 Economize {formatBRL(saved)} ({((saved / originalTotal) * 100).toFixed(0)}%)
                               </div>

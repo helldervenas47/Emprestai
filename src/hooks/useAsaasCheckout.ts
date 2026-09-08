@@ -49,6 +49,7 @@ export interface AsaasCheckoutParams {
   planId: string;
   cycle: AsaasCycle;
   cpfCnpj?: string;
+  couponCode?: string;
   paymentMethod?: "PIX" | "CREDIT_CARD";
   creditCard?: AsaasCreditCardData;
   creditCardHolderInfo?: AsaasCreditCardHolderInfo;

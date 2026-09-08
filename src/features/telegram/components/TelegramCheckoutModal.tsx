@@ -28,6 +28,7 @@ import { useAccountProfile } from "@/hooks/useAccountProfile";
 import { useAsaasCheckout, AsaasCreditCardData, AsaasCreditCardHolderInfo } from "@/hooks/useAsaasCheckout";
 import { supabase } from "@/integrations/supabase/userClient";
 import { CreditCardPaymentForm } from "@/components/billing/CreditCardPaymentForm";
+import { CouponInputSection } from "@/components/billing/CouponInputSection";
 
 interface TelegramCheckoutModalProps {
   open: boolean;
@@ -52,6 +53,12 @@ export function TelegramCheckoutModal({
   const [copied, setCopied] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isCardProcessing, setIsCardProcessing] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+
+  const basePriceNumber = 14.90;
+  const finalPriceNumber = appliedCoupon?.final_cents
+    ? appliedCoupon.final_cents / 100
+    : basePriceNumber;
 
   useEffect(() => {
     if (profile?.cpf_cnpj) {
@@ -63,6 +70,7 @@ export function TelegramCheckoutModal({
     if (!open) {
       reset();
       setIsSuccess(false);
+      setAppliedCoupon(null);
     }
   }, [open, reset]);
 
@@ -104,6 +112,7 @@ export function TelegramCheckoutModal({
         planId: TELEGRAM_ADDON_PLAN_ID,
         cycle: "monthly",
         cpfCnpj: cleanCpf,
+        couponCode: appliedCoupon?.code,
         paymentMethod: "PIX",
       },
       {
@@ -126,6 +135,7 @@ export function TelegramCheckoutModal({
         planId: TELEGRAM_ADDON_PLAN_ID,
         cycle: "monthly",
         paymentMethod: "CREDIT_CARD",
+        couponCode: appliedCoupon?.code,
         creditCard: cardData,
         creditCardHolderInfo: holderInfo,
       },
@@ -238,10 +248,32 @@ export function TelegramCheckoutModal({
                 <span className="font-semibold text-primary">Plano Add-on Premium</span>
                 <p className="text-muted-foreground text-[11px]">Relatórios automáticos + Despesas por mensagem</p>
               </div>
-              <Badge variant="outline" className="text-sm font-bold text-primary">
-                {ADDON_PRICE}/mês
-              </Badge>
+              <div className="text-right">
+                {appliedCoupon?.valid && appliedCoupon.discount_cents ? (
+                  <div>
+                    <span className="text-[11px] text-muted-foreground line-through mr-1.5">
+                      R$ 14,90
+                    </span>
+                    <Badge variant="outline" className="text-sm font-bold text-emerald-500 bg-emerald-500/10 border-emerald-500/30">
+                      R$ {finalPriceNumber.toFixed(2)}/mês
+                    </Badge>
+                  </div>
+                ) : (
+                  <Badge variant="outline" className="text-sm font-bold text-primary">
+                    {ADDON_PRICE}/mês
+                  </Badge>
+                )}
+              </div>
             </div>
+
+            {/* Seção de Cupom */}
+            <CouponInputSection
+              planId={TELEGRAM_ADDON_PLAN_ID}
+              cycle="monthly"
+              userId={user?.id}
+              appliedCoupon={appliedCoupon}
+              onCouponApplied={setAppliedCoupon}
+            />
 
             <Tabs defaultValue="pix" className="w-full" onValueChange={(v) => setPaymentMethod(v as any)}>
               <TabsList className="grid w-full grid-cols-2">
@@ -285,7 +317,7 @@ export function TelegramCheckoutModal({
                   ) : (
                     <>
                       <QrCode className="h-4 w-4 mr-2" />
-                      Gerar PIX de {ADDON_PRICE}
+                      Gerar PIX de R$ {finalPriceNumber.toFixed(2)}
                     </>
                   )}
                 </Button>
@@ -293,9 +325,9 @@ export function TelegramCheckoutModal({
 
               <TabsContent value="card" className="pt-2">
                 <CreditCardPaymentForm
-                  planName="👑 EmprestAI Telegram"
+                  planName="EmprestAI Telegram"
                   cycleLabel="Mensal"
-                  totalPrice={14.90}
+                  totalPrice={finalPriceNumber}
                   isProcessing={isCardProcessing || isPending}
                   onPayWithCard={handlePayWithCard}
                   initialCpf={profile?.cpf_cnpj || ""}

@@ -14,11 +14,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MoneyInput } from "@/components/ui/money-input";
-import { Pencil, Plus, Trash2, Star, Loader2, Check } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Pencil, Plus, Trash2, Star, Loader2, Check, Tag, Layers } from "lucide-react";
 import { usePlans, PlanRecord } from "@/features/admin/hooks/usePlans";
 import { calcCyclePrice, calcSavings, equivalentMonthly, formatBRL } from "@/features/admin/lib/planPricing";
 import { LIMIT_KEYS, PERMISSION_GROUPS, PlanLimits, PlanPermissions } from "@/features/admin/lib/planEntitlements";
 import { confirmWithScroll } from "@/lib/confirmWithScroll";
+import { CouponManagement } from "./CouponManagement";
 
 const BADGE_OPTIONS = [
   { value: "__none__", label: "Nenhum" },
@@ -182,7 +184,19 @@ export function PlanManagement() {
   };
 
   return (
-    <div className="space-y-4">
+    <Tabs defaultValue="plans" className="space-y-4">
+      <TabsList className="bg-muted/60 p-1 rounded-xl border border-border/50 w-full sm:w-auto grid grid-cols-2 sm:inline-flex">
+        <TabsTrigger value="plans" className="gap-2 text-xs sm:text-sm font-semibold">
+          <Layers className="h-4 w-4" />
+          Planos de assinatura
+        </TabsTrigger>
+        <TabsTrigger value="coupons" className="gap-2 text-xs sm:text-sm font-semibold">
+          <Tag className="h-4 w-4 text-primary" />
+          Cupons de desconto
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="plans" className="space-y-4 mt-0">
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-2">
           <div>
@@ -577,7 +591,12 @@ export function PlanManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </TabsContent>
+
+      <TabsContent value="coupons" className="space-y-4 mt-0">
+        <CouponManagement />
+      </TabsContent>
+    </Tabs>
   );
 }
 

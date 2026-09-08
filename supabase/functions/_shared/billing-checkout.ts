@@ -32,7 +32,33 @@ export async function handleCheckout(req: Request, recurring = false) {
     }
     const isCreditCard = body.paymentMethod === "CREDIT_CARD" || Boolean(body.creditCard);
     const checkoutKind = isCreditCard ? "credit_card" : recurring ? "recurring" : "pix";
-    const cents = planPriceCents(plan, body.cycle);
+    let cents = planPriceCents(plan, body.cycle);
+    let appliedCoupon: any = null;
+
+    if (body.couponCode && typeof body.couponCode === "string" && body.couponCode.trim()) {
+      const couponRes = await admin.rpc("validate_coupon", {
+        _code: body.couponCode.trim(),
+        _plan_id: plan.id,
+        _cycle: body.cycle,
+        _user_id: user.id,
+      });
+
+      if (couponRes.error) {
+        console.error("[checkout coupon validation error]", couponRes.error);
+        return billingJson({ error: "coupon_validation_failed", message: "Erro ao validar o cupom de desconto." }, 400);
+      }
+
+      const couponData = couponRes.data;
+      if (!couponData?.valid) {
+        return billingJson({
+          error: "invalid_coupon",
+          message: couponData?.message || "Cupom inválido ou não disponível para este plano.",
+        }, 400);
+      }
+
+      appliedCoupon = couponData;
+      cents = Number(couponData.final_cents);
+    }
 
     let prepared: any;
     try {
@@ -53,6 +79,32 @@ export async function handleCheckout(req: Request, recurring = false) {
     if (prepared.error) throw new Error(prepared.error.message);
     const order = prepared.data.order;
     if (prepared.data.created) newOrderId = order.id;
+
+    // Se um cupom foi aplicado e a ordem foi criada/preparada, registra o uso
+    if (appliedCoupon && order?.id) {
+      try {
+        await admin.from("coupon_usages").insert({
+          coupon_id: appliedCoupon.coupon_id,
+          user_id: user.id,
+          plan_id: plan.id,
+          cycle: body.cycle,
+          original_amount_cents: appliedCoupon.original_cents,
+          discount_amount_cents: appliedCoupon.discount_cents,
+          final_amount_cents: appliedCoupon.final_cents,
+          order_id: order.id,
+        });
+
+        // Incrementa used_count no cupom
+        await admin.rpc("increment_coupon_uses", { _coupon_id: appliedCoupon.coupon_id }).catch(async () => {
+          const { data: c } = await admin.from("coupons").select("used_count").eq("id", appliedCoupon.coupon_id).single();
+          if (c) {
+            await admin.from("coupons").update({ used_count: (c.used_count || 0) + 1, updated_at: new Date().toISOString() }).eq("id", appliedCoupon.coupon_id);
+          }
+        });
+      } catch (couponErr) {
+        console.warn("[checkout coupon usage recording warning]", couponErr);
+      }
+    }
 
     let payment: any;
     if (order.payment_id) {
