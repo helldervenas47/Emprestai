@@ -163,11 +163,11 @@ export function TelegramCheckoutModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md p-6 bg-card text-card-foreground border-border">
         <DialogHeader className="space-y-1 text-center">
-          <div className="mx-auto w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center mb-1">
-            <Crown className="h-5 w-5 text-amber-500" />
+          <div className="mx-auto w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-1">
+            <Send className="h-5 w-5 text-primary" />
           </div>
-          <DialogTitle className="text-xl font-bold flex items-center justify-center gap-1.5">
-            <span>👑 Assinar EmprestAI Telegram</span>
+          <DialogTitle className="text-xl font-bold flex items-center justify-center gap-2">
+            <span>Assinar EmprestAI Telegram</span>
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
             Adicional independente de <strong className="text-foreground">{ADDON_PRICE}/mês</strong>

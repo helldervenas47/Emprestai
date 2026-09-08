@@ -59,8 +59,8 @@ export function TelegramBotsHub() {
         <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <Crown className="h-4 w-4 text-amber-500" />
-              <h3 className="text-sm font-semibold">👑 EmprestAI Telegram</h3>
+              <Send className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold">EmprestAI Telegram</h3>
               <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px] py-0">
                 🟢 Premium Ativo
               </Badge>

@@ -3,7 +3,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Crown,
   BarChart3,
   MessageSquarePlus,
   Tags,
@@ -11,7 +10,6 @@ import {
   CheckCircle2,
   Sparkles,
   ArrowRight,
-  ShieldCheck,
   Send,
   Bot,
 } from "lucide-react";
@@ -25,22 +23,18 @@ export function TelegramPaywallCard({ onSuccess }: TelegramPaywallCardProps) {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto py-2">
-      {/* Header com Visual Premium */}
-      <Card className="relative overflow-hidden border-amber-500/30 bg-gradient-to-br from-card via-card to-amber-500/5 shadow-lg">
-        <div className="absolute top-0 right-0 p-6 pointer-events-none opacity-10">
-          <Crown className="w-64 h-64 text-amber-500" />
-        </div>
-
+    <div className="space-y-6 w-full py-1">
+      {/* Header com Visual Integrado ao App */}
+      <Card className="relative overflow-hidden border-border/80 bg-gradient-to-br from-card via-card to-primary/5 shadow-sm w-full">
         <CardContent className="p-6 md:p-8 space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Badge
                   variant="outline"
-                  className="bg-amber-500/10 text-amber-500 border-amber-500/30 px-2.5 py-0.5 text-xs font-semibold flex items-center gap-1"
+                  className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 px-2.5 py-0.5 text-xs font-semibold flex items-center gap-1.5"
                 >
-                  <Crown className="h-3.5 w-3.5" />
+                  <Sparkles className="h-3.5 w-3.5" />
                   RECURSO PREMIUM
                 </Badge>
                 <Badge variant="secondary" className="text-xs">
@@ -48,14 +42,15 @@ export function TelegramPaywallCard({ onSuccess }: TelegramPaywallCardProps) {
                 </Badge>
               </div>
 
-              <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
-                👑 EmprestAI Telegram
+              <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2.5">
+                <Send className="h-7 w-7 text-primary shrink-0" />
+                <span>EmprestAI Telegram</span>
               </h2>
 
-              <p className="text-base font-medium text-foreground/90 max-w-2xl">
+              <p className="text-base font-medium text-foreground/90 max-w-3xl">
                 Tenha o seu EmprestAI direto no Telegram.
               </p>
-              <p className="text-sm text-muted-foreground max-w-2xl">
+              <p className="text-sm text-muted-foreground max-w-3xl">
                 Receba seus relatórios automaticamente e registre suas despesas simplesmente enviando uma mensagem.
               </p>
             </div>
@@ -64,7 +59,7 @@ export function TelegramPaywallCard({ onSuccess }: TelegramPaywallCardProps) {
               <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Investimento
               </div>
-              <div className="text-3xl font-black text-amber-500">
+              <div className="text-3xl font-black text-primary">
                 + R$ 14,90<span className="text-xs font-normal text-muted-foreground">/mês</span>
               </div>
               <div className="text-[11px] text-muted-foreground">
@@ -73,9 +68,9 @@ export function TelegramPaywallCard({ onSuccess }: TelegramPaywallCardProps) {
             </div>
           </div>
 
-          {/* Grid de Benefícios */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-            <div className="p-4 rounded-xl bg-background/60 border border-border/60 flex items-start gap-3.5 shadow-sm hover:border-amber-500/30 transition-colors">
+          {/* Grid de Benefícios em largura total */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 w-full">
+            <div className="p-4 rounded-xl bg-background/60 border border-border/60 flex items-start gap-3.5 shadow-sm hover:border-primary/30 transition-colors">
               <div className="p-2.5 rounded-lg bg-blue-500/10 text-blue-500 shrink-0">
                 <BarChart3 className="h-5 w-5" />
               </div>
@@ -87,7 +82,7 @@ export function TelegramPaywallCard({ onSuccess }: TelegramPaywallCardProps) {
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-background/60 border border-border/60 flex items-start gap-3.5 shadow-sm hover:border-amber-500/30 transition-colors">
+            <div className="p-4 rounded-xl bg-background/60 border border-border/60 flex items-start gap-3.5 shadow-sm hover:border-primary/30 transition-colors">
               <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-500 shrink-0">
                 <MessageSquarePlus className="h-5 w-5" />
               </div>
@@ -99,7 +94,7 @@ export function TelegramPaywallCard({ onSuccess }: TelegramPaywallCardProps) {
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-background/60 border border-border/60 flex items-start gap-3.5 shadow-sm hover:border-amber-500/30 transition-colors">
+            <div className="p-4 rounded-xl bg-background/60 border border-border/60 flex items-start gap-3.5 shadow-sm hover:border-primary/30 transition-colors">
               <div className="p-2.5 rounded-lg bg-purple-500/10 text-purple-500 shrink-0">
                 <Tags className="h-5 w-5" />
               </div>
@@ -111,7 +106,7 @@ export function TelegramPaywallCard({ onSuccess }: TelegramPaywallCardProps) {
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-background/60 border border-border/60 flex items-start gap-3.5 shadow-sm hover:border-amber-500/30 transition-colors">
+            <div className="p-4 rounded-xl bg-background/60 border border-border/60 flex items-start gap-3.5 shadow-sm hover:border-primary/30 transition-colors">
               <div className="p-2.5 rounded-lg bg-amber-500/10 text-amber-500 shrink-0">
                 <Zap className="h-5 w-5" />
               </div>
@@ -125,13 +120,13 @@ export function TelegramPaywallCard({ onSuccess }: TelegramPaywallCardProps) {
           </div>
 
           {/* Demonstração Visual da Experiência no Telegram */}
-          <div className="pt-2">
+          <div className="pt-2 w-full">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
               Exemplo da Funcionalidade no Telegram
             </h4>
 
-            <div className="bg-slate-950/80 rounded-xl p-4 border border-slate-800 space-y-3 font-sans text-xs">
+            <div className="bg-slate-950/80 rounded-xl p-4 border border-slate-800 space-y-3 font-sans text-xs w-full">
               {/* Mensagem do Usuário */}
               <div className="flex justify-end">
                 <div className="bg-[#2b5278] text-white px-3.5 py-2 rounded-2xl rounded-tr-sm max-w-[80%] shadow-sm flex items-center gap-2">
@@ -162,27 +157,15 @@ export function TelegramPaywallCard({ onSuccess }: TelegramPaywallCardProps) {
             </div>
           </div>
 
-          {/* Comparativo de Preço & CTA */}
-          <div className="pt-2 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">Composição da sua assinatura:</div>
-              <div className="text-xs font-medium space-x-2">
-                <span>EmprestAI: <strong className="text-foreground">R$ 37,90/mês</strong></span>
-                <span className="text-muted-foreground">+</span>
-                <span>👑 EmprestAI Telegram: <strong className="text-amber-500">R$ 14,90/mês</strong></span>
-              </div>
-              <div className="text-xs font-bold text-foreground">
-                Total: <span className="text-emerald-500">R$ 52,80/mês</span>
-              </div>
-            </div>
-
+          {/* CTA Direto */}
+          <div className="pt-2 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-end gap-4 w-full">
             <Button
               size="lg"
               onClick={() => setCheckoutOpen(true)}
-              className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold shadow-md shadow-amber-500/20 px-6 h-11"
+              className="w-full sm:w-auto font-bold shadow-md px-8 h-12 text-sm"
             >
-              <Crown className="h-4 w-4 mr-2" />
-              Assinar EmprestAI Telegram
+              <Send className="h-4 w-4 mr-2" />
+              Assinar EmprestAI Telegram (+ R$ 14,90/mês)
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </div>
