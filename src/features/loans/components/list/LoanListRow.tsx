@@ -270,7 +270,7 @@ function LoanRowView({
     setExpanded(true);
   };
   const cancelEdit = () => setEditing(false);
-  const saveEdit = () => {
+  const saveEdit = async () => {
     const parsedTags = form.tags.split(",").map((t) => t.trim()).filter(Boolean);
     const manualInterest = parseFloat(form.interestValue) || 0;
     const calcInterest = (parseFloat(form.amount) || 0) * ((parseFloat(form.interestRate) || 0) / 100);
@@ -302,26 +302,32 @@ function LoanRowView({
     const matchedClient = clients.find(
       (c) => normalizeClientKey(c.name) === normalizeClientKey(form.borrowerName)
     );
-    onUpdate({
-      borrowerName: form.borrowerName,
-      borrowerId: matchedClient ? matchedClient.id : undefined,
-      amount: parseFloat(form.amount) || loan.amount,
-      interestRate: form.interestRate.trim() === "" || isNaN(parseFloat(form.interestRate)) ? loan.interestRate : Math.max(0, parseFloat(form.interestRate)),
-      installments: parseInt(form.installments) || loan.installments,
-      paidInstallments: parseInt(form.paidInstallments) || 0,
-      startDate: form.startDate || loan.startDate,
-      dueDate: form.dueDate || loan.dueDate,
-      interestType: form.interestType,
-      notes: form.notes,
-      tags: parsedTags,
-      remainingAmount: parseFloat(form.remainingAmount) || 0,
-      customInterestValue: hasCustomInterest ? manualInterest : null,
-      hasManager: editHasManager,
-      managerId: editHasManager && editManagerId ? editManagerId : null,
-      managerCommissionRate: editHasManager ? parseFloat(editCommissionRate) || 10 : null,
-      isSale: editIsSale,
-    });
-    setEditing(false);
+    try {
+      await Promise.resolve(onUpdate({
+        borrowerName: form.borrowerName,
+        borrowerId: matchedClient ? matchedClient.id : undefined,
+        amount: parseFloat(form.amount) || loan.amount,
+        interestRate: form.interestRate.trim() === "" || isNaN(parseFloat(form.interestRate)) ? loan.interestRate : Math.max(0, parseFloat(form.interestRate)),
+        installments: parseInt(form.installments) || loan.installments,
+        paidInstallments: parseInt(form.paidInstallments) || 0,
+        startDate: form.startDate || loan.startDate,
+        dueDate: form.dueDate || loan.dueDate,
+        interestType: form.interestType,
+        notes: form.notes,
+        tags: parsedTags,
+        remainingAmount: parseFloat(form.remainingAmount) || 0,
+        customInterestValue: hasCustomInterest ? manualInterest : null,
+        hasManager: editHasManager,
+        managerId: editHasManager && editManagerId ? editManagerId : null,
+        managerCommissionRate: editHasManager ? parseFloat(editCommissionRate) || 10 : null,
+        isSale: editIsSale,
+      }));
+      setEditing(false);
+      toast.success("Alterações salvas com sucesso");
+    } catch (err: any) {
+      console.error("[saveEdit] Erro ao salvar:", err);
+      toast.error("Erro ao salvar alterações: " + (err?.message || "Tente novamente"));
+    }
   };
 
   const saveQuickNote = () => {

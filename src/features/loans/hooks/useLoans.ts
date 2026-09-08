@@ -1897,7 +1897,9 @@ export function useLoans() {
         console.warn("[updateLoan] Falha ao sincronizar loan_installments:", instErr);
       }
     }
-  }, [loans, dataOwnerId, user, fetchLoans]);
+    await fetchLoans();
+    await fetchSchedules();
+  }, [loans, dataOwnerId, user, fetchLoans, fetchSchedules]);
 
   const deleteLoan = useCallback(async (id: string) => {
     assertWritable();
