@@ -1862,9 +1862,10 @@ export function useLoans() {
         if (isOnline()) {
           try {
             await supabase.from("loan_installments").delete().eq("loan_id", id);
-            if (updatedScheduleRows.length > 0 && dataOwnerId) {
+            const targetOwnerId = dataOwnerId || user?.id;
+            if (updatedScheduleRows.length > 0 && targetOwnerId) {
               const insertPayload = updatedScheduleRows.map((r) => ({
-                user_id: dataOwnerId,
+                user_id: targetOwnerId,
                 loan_id: id,
                 installment_number: r.installmentNumber,
                 due_date: r.dueDate,

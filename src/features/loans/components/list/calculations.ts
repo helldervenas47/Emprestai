@@ -10,14 +10,18 @@ export function getNextDate(base: Date, frequency: string, periods: number): Dat
   return new Date(`${advancedIso}T00:00:00`);
 }
 
-export function getFirstPendingDate(loan: Loan, schedules: InstallmentSchedule[]): Date {
-  const loanSchedules = schedules
-    .filter((s) => s.loanId === loan.id)
+export function getFirstPendingDate(loan: Loan, schedules: InstallmentSchedule[] = []): Date {
+  if (!loan) return new Date();
+  if (loan.dueDate) {
+    return new Date(`${loan.dueDate.slice(0, 10)}T00:00:00`);
+  }
+  const loanSchedules = (schedules || [])
+    .filter((s) => s && s.loanId === loan.id)
     .sort((a, b) => a.installmentNumber - b.installmentNumber);
-  const nextNum = loan.paidInstallments + 1;
+  const nextNum = (loan.paidInstallments || 0) + 1;
   const saved = loanSchedules.find((s) => s.installmentNumber === nextNum);
-  if (saved) return new Date(saved.dueDate + "T00:00:00");
-  return new Date(loan.dueDate + "T00:00:00");
+  if (saved?.dueDate) return new Date(`${saved.dueDate.slice(0, 10)}T00:00:00`);
+  return new Date();
 }
 
 export function getDaysOverdue(loan: Loan, schedules: InstallmentSchedule[] = []): number {

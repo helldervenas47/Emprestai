@@ -304,8 +304,8 @@ export function LoanCardView({
       return;
     }
     const parsedTags = form.tags.split(",").map((t) => t.trim()).filter(Boolean);
+    const dueDate = form.dueDate || loan.dueDate;
     const firstRow = editScheduleRows[0];
-    const dueDate = (showEditSchedule && firstRow) ? firstRow.date.toISOString().split("T")[0] : form.dueDate || loan.dueDate;
     const firstVal = firstRow ? parseFloat(firstRow.value) || 0 : 0;
     const remInst = Math.max(1, (parseInt(form.installments) || loan.installments) - (parseInt(form.paidInstallments) || 0));
     const defaultCalc = (parseFloat(form.remainingAmount) || 0) / remInst;
@@ -364,11 +364,15 @@ export function LoanCardView({
 
       // Save schedule rows explicitly only if manual schedule editing was active
       if (showEditSchedule && editScheduleRows.length > 0) {
-        await onSaveSchedule(loan.id, editScheduleRows.map((row, idx) => ({
-          installmentNumber: idx + 1,
-          dueDate: row.date.toISOString().split("T")[0],
-          amount: parseFloat(row.value) || 0,
-        })));
+        await onSaveSchedule(loan.id, editScheduleRows.map((row, idx) => {
+          const d = row.date;
+          const dateIso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          return {
+            installmentNumber: idx + 1,
+            dueDate: dateIso,
+            amount: parseFloat(row.value) || 0,
+          };
+        }));
       }
 
       setEditing(false);
@@ -1137,13 +1141,9 @@ export function LoanCardView({
                 onChange={async (e) => {
                   const v = e.target.value;
                   if (!v) return;
-                  const d = new Date(`${v}T00:00:00`);
-                  const newDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-                  const newDateStr = v;
+                  const newDateStr = v.slice(0, 10);
                   const nextNum = loan.paidInstallments + 1;
-                  if (nextNum === 1) {
-                    onUpdate({ dueDate: newDateStr });
-                  }
+                  await Promise.resolve(onUpdate({ dueDate: newDateStr }));
                   const freq = loan.interestType || "Mensal";
                   const loanSchedules = installmentSchedules
                     .filter((s) => s.loanId === loan.id)
@@ -1155,12 +1155,11 @@ export function LoanCardView({
                     const existing = loanSchedules.find((s) => s.installmentNumber === num);
                     const amount = existing?.amount ?? defaultAmount;
                     if (num < nextNum) {
-                      const firstDue = new Date(loan.dueDate + "T00:00:00");
-                      const fallback = getNextDate(firstDue, freq, num - 1).toISOString().split("T")[0];
+                      const fallback = advanceLoanDueDate(loan.dueDate, freq, num - 1);
                       return { installmentNumber: num, dueDate: existing?.dueDate ?? fallback, amount };
                     }
                     const offset = num - nextNum;
-                    const computed = getNextDate(newDate, freq, offset).toISOString().split("T")[0];
+                    const computed = advanceLoanDueDate(newDateStr, freq, offset);
                     return { installmentNumber: num, dueDate: computed, amount };
                   });
                   await onSaveSchedule(loan.id, updatedRows);
