@@ -1858,12 +1858,21 @@ const Index = () => {
                           );
                         })}
                       </nav>
-                      {overdueSubTab === "bot-telegram" && <TelegramBotsHub />}
-                      {overdueSubTab === "whatsapp-cobranca" && (
-                        <div className="space-y-4">
-                          <WhatsappBillingCard />
-                        </div>
-                      )}
+                      <Suspense
+                        fallback={
+                          <div className="py-12 flex flex-col items-center justify-center space-y-2">
+                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                            <span className="text-xs text-muted-foreground">Carregando…</span>
+                          </div>
+                        }
+                      >
+                        {overdueSubTab === "bot-telegram" && <TelegramBotsHub />}
+                        {overdueSubTab === "whatsapp-cobranca" && (
+                          <div className="space-y-4">
+                            <WhatsappBillingCard />
+                          </div>
+                        )}
+                      </Suspense>
                     </div>
                   </SubscriptionGate>
                 )}
