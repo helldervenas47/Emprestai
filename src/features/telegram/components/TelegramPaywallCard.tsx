@@ -54,18 +54,6 @@ export function TelegramPaywallCard({ onSuccess }: TelegramPaywallCardProps) {
                 Receba seus relatórios automaticamente e registre suas despesas simplesmente enviando uma mensagem.
               </p>
             </div>
-
-            <div className="bg-background/80 border border-border/80 rounded-xl p-4 shadow-sm text-center md:text-right shrink-0 backdrop-blur-sm space-y-1">
-              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Investimento
-              </div>
-              <div className="text-3xl font-black text-primary">
-                + R$ 14,90<span className="text-xs font-normal text-muted-foreground">/mês</span>
-              </div>
-              <div className="text-[11px] text-muted-foreground">
-                Adicional à assinatura principal
-              </div>
-            </div>
           </div>
 
           {/* Grid de Benefícios em largura total */}
