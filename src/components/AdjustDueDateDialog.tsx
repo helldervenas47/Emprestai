@@ -11,13 +11,14 @@ import { calculateInstallment } from "@/features/loans/hooks/useLoans";
 import { advanceLoanDueDate } from "@/features/loans/lib/advanceDueDate";
 
 function getFirstPendingDate(loan: Loan, schedules: InstallmentSchedule[]): string {
-  if (loan.dueDate) return loan.dueDate.slice(0, 10);
-  const loanSchedules = schedules
+  const nextNum = loan.paidInstallments + 1;
+  const loanSchedules = (schedules || [])
     .filter((s) => s.loanId === loan.id)
     .sort((a, b) => a.installmentNumber - b.installmentNumber);
-  const nextNum = loan.paidInstallments + 1;
   const saved = loanSchedules.find((s) => s.installmentNumber === nextNum);
-  return saved?.dueDate ? saved.dueDate.slice(0, 10) : loan.dueDate;
+  if (saved?.dueDate) return saved.dueDate.slice(0, 10);
+  if (loan.dueDate) return loan.dueDate.slice(0, 10);
+  return new Date().toISOString().split("T")[0];
 }
 
 interface DueDateChangeLog {

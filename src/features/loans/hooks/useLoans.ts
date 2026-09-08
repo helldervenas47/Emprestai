@@ -381,9 +381,23 @@ export function useLoans() {
         console.error("[saveSchedule] insert error", insErr);
         throw insErr;
       }
+
+      // Sincroniza a data do contrato (loans.due_date) com a parcela ativa do cronograma
+      const currentLoan = loans.find((l) => l.id === loanId);
+      const nextNum = (currentLoan?.paidInstallments ?? 0) + 1;
+      const pendingRow = rows.find((r) => r.installmentNumber === nextNum) || rows[0];
+      if (pendingRow?.dueDate) {
+        setLoans((prev) =>
+          prev.map((l) => (l.id === loanId ? { ...l, dueDate: pendingRow.dueDate } : l))
+        );
+        await supabase
+          .from("loans")
+          .update({ due_date: pendingRow.dueDate })
+          .eq("id", loanId);
+      }
     }
     await fetchSchedules();
-  }, [user, dataOwnerId, fetchSchedules]);
+  }, [user, dataOwnerId, loans, fetchSchedules]);
 
   const addLoan = useCallback(async (loan: Omit<Loan, "id"> & { status?: string; paidInstallments?: number; paymentMethodId?: string | null; paymentSplit?: PaymentSplit | null }): Promise<string | null> => {
     assertWritable();
@@ -1795,12 +1809,14 @@ export function useLoans() {
     if (data.dueDate !== undefined) {
       const currentLoan = loans.find((l) => l.id === id);
       const targetNum = Math.max(1, (currentLoan?.paidInstallments ?? 0) + 1);
+      const freq = data.interestType || currentLoan?.interestType || "Mensal";
       setInstallmentSchedules((prev) =>
-        prev.map((s) =>
-          s.loanId === id && (s.installmentNumber === targetNum || s.installmentNumber === 1)
-            ? { ...s, dueDate: data.dueDate! }
-            : s
-        )
+        prev.map((s) => {
+          if (s.loanId !== id) return s;
+          if (s.installmentNumber < targetNum) return s;
+          const offset = s.installmentNumber - targetNum;
+          return { ...s, dueDate: advanceLoanDueDate(data.dueDate!, freq, offset) };
+        })
       );
     }
 
@@ -1855,15 +1871,28 @@ export function useLoans() {
         await fetchLoans();
       }
     } else if (data.dueDate !== undefined) {
-      // Sincroniza a parcela correspondente no Supabase de forma segura e com await
+      // Sincroniza todas as parcelas pendentes no Supabase
       const currentLoan = loans.find((l) => l.id === id);
       const targetNum = Math.max(1, (currentLoan?.paidInstallments ?? 0) + 1);
+      const freq = data.interestType || currentLoan?.interestType || "Mensal";
       try {
-        await supabase
+        const { data: existingSchedules } = await supabase
           .from("loan_installments")
-          .update({ due_date: data.dueDate })
-          .eq("loan_id", id)
-          .eq("installment_number", targetNum);
+          .select("id, installment_number")
+          .eq("loan_id", id);
+
+        if (existingSchedules && existingSchedules.length > 0) {
+          for (const s of existingSchedules) {
+            if (s.installment_number >= targetNum) {
+              const offset = s.installment_number - targetNum;
+              const newDue = advanceLoanDueDate(data.dueDate!, freq, offset);
+              await supabase
+                .from("loan_installments")
+                .update({ due_date: newDue })
+                .eq("id", s.id);
+            }
+          }
+        }
       } catch (instErr) {
         console.warn("[updateLoan] Falha ao sincronizar loan_installments:", instErr);
       }

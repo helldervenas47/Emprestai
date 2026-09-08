@@ -249,7 +249,7 @@ export function LoanCardView({
     if (loan.status === "paid") return null;
     if (loan.paidInstallments >= loan.installments) return null;
     return getFirstPendingDate(loan, installmentSchedules).toLocaleDateString("pt-BR");
-  }, [loan]);
+  }, [loan, installmentSchedules]);
 
   const startEdit = () => {
     setForm(loanToForm(loan));

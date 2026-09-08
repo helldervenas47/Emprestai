@@ -56,7 +56,6 @@ function getNextDate(base: Date, frequency: string, periods: number) {
 
 export function getFirstPendingDate(loan: Loan, schedules: InstallmentSchedule[] = []): Date {
   if (!loan) return new Date();
-  if (loan.dueDate) return new Date(loan.dueDate.slice(0, 10) + "T00:00:00");
   const safeSchedules = Array.isArray(schedules) ? schedules : [];
   const loanSchedules = safeSchedules
     .filter((s) => s && s.loanId === loan.id)
@@ -64,6 +63,7 @@ export function getFirstPendingDate(loan: Loan, schedules: InstallmentSchedule[]
   const nextNum = (loan.paidInstallments || 0) + 1;
   const saved = loanSchedules.find((s) => s.installmentNumber === nextNum);
   if (saved?.dueDate) return new Date(saved.dueDate.slice(0, 10) + "T00:00:00");
+  if (loan.dueDate) return new Date(loan.dueDate.slice(0, 10) + "T00:00:00");
   return new Date();
 }
 
