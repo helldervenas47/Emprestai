@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, BarChart3, CalendarCheck, FileSpreadsheet, Sun, RefreshCw, Crown, Loader2 } from "lucide-react";
+import { AlertTriangle, BarChart3, CalendarCheck, FileSpreadsheet, Sun, RefreshCw, Send, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { invokeUserFunction } from "@/features/telegram/lib/telegramLinkCode";
 import { TelegramReportsConnectCard } from "@/features/telegram/components/TelegramReportsConnectCard";
