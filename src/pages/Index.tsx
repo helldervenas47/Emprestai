@@ -1870,11 +1870,17 @@ const Index = () => {
                           </div>
                         }
                       >
-                        {overdueSubTab === "bot-telegram" && <TelegramBotsHub />}
+                        {overdueSubTab === "bot-telegram" && (
+                          <ModuleErrorBoundary name="EmprestAI Telegram">
+                            <TelegramBotsHub />
+                          </ModuleErrorBoundary>
+                        )}
                         {overdueSubTab === "whatsapp-cobranca" && (
-                          <div className="space-y-4">
-                            <WhatsappBillingCard />
-                          </div>
+                          <ModuleErrorBoundary name="Cobrança WhatsApp">
+                            <div className="space-y-4">
+                              <WhatsappBillingCard />
+                            </div>
+                          </ModuleErrorBoundary>
                         )}
                       </Suspense>
                     </div>
