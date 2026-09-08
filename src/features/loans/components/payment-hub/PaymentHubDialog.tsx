@@ -178,10 +178,13 @@ export function PaymentHubDialog({
   // vencimento pendente atual.
   const nextCycleDueLabel = useMemo(() => {
     if (loan.status === "paid") return null;
-    if (!loan.dueDate) return null;
-    const nextDueDate = advanceLoanDueDateAfter(loan.dueDate, loan.interestType || "Mensal");
+    const baseIso = (firstPending && !Number.isNaN(firstPending.getTime()))
+      ? `${firstPending.getFullYear()}-${String(firstPending.getMonth() + 1).padStart(2, "0")}-${String(firstPending.getDate()).padStart(2, "0")}`
+      : loan.dueDate;
+    if (!baseIso) return null;
+    const nextDueDate = advanceLoanDueDateAfter(baseIso, loan.interestType || "Mensal");
     return format(new Date(`${nextDueDate}T00:00:00`), "dd/MM/yyyy");
-  }, [loan.status, loan.dueDate, loan.interestType]);
+  }, [loan.status, loan.dueDate, loan.interestType, firstPending]);
 
 
   // -------- state --------

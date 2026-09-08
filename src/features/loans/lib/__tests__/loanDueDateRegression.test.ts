@@ -196,5 +196,31 @@ describe("Regressão de Lógica de Datas e Vencimentos Futuros", () => {
       currentDueDate = advanceLoanDueDateAfter(currentDueDate, frequency);
       expect(currentDueDate).toBe("2027-01-10");
     });
+
+    it("deve calcular o próximo vencimento no PaymentHubDialog como 15/10 quando o vencimento atual for 15/09", () => {
+      const loan = {
+        id: "loan-antonio",
+        borrowerName: "Antonio Carlos",
+        dueDate: "2026-09-08", // se loan.dueDate estiver defasado
+        installments: 1,
+        paidInstallments: 0,
+        interestType: "Mensal",
+      };
+
+      const schedules = [
+        { loanId: "loan-antonio", installmentNumber: 1, dueDate: "2026-09-15" },
+      ];
+
+      const currentPendingDueIso = (() => {
+        const schedule = schedules.find(
+          (s) => s.loanId === loan.id && s.installmentNumber === (loan.paidInstallments + 1),
+        );
+        return schedule?.dueDate ?? loan.dueDate;
+      })();
+
+      const nextDueDate = advanceLoanDueDateAfter(currentPendingDueIso, loan.interestType || "Mensal");
+      expect(nextDueDate).toBe("2026-10-15");
+      expect(nextDueDate).not.toBe("2026-10-08");
+    });
   });
 });

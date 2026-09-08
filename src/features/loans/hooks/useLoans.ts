@@ -1238,9 +1238,15 @@ export function useLoans() {
     const cycleHadFees = priorCycleFeesTarget > 0 || feesExtra > 0;
     // O ciclo sempre avança a partir do vencimento pendente atual. A data
     // original do contrato é histórica e nunca participa deste cálculo.
+    const currentPendingDueIso = (() => {
+      const schedule = installmentSchedules.find(
+        (s) => s.loanId === loanId && s.installmentNumber === (loan.paidInstallments + 1),
+      );
+      return schedule?.dueDate ?? loan.dueDate;
+    })();
     const newDueDate = advanceCycle
-      ? advanceLoanDueDateAfter(loan.dueDate, loan.interestType || "Mensal")
-      : loan.dueDate;
+      ? advanceLoanDueDateAfter(currentPendingDueIso, loan.interestType || "Mensal")
+      : currentPendingDueIso;
     const online = isOnline();
 
     const tempPaymentId = crypto.randomUUID();
