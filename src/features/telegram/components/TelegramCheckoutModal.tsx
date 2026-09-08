@@ -21,6 +21,7 @@ import {
   Copy,
   Loader2,
   Sparkles,
+  Send,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
