@@ -135,16 +135,7 @@ export function AdjustDueDateDialog({
       return { installmentNumber: num, dueDate: existing?.dueDate ?? fallback, amount };
     });
 
-    try {
-      await onSaveSchedule(loan.id, updatedRows);
-    } catch (err: any) {
-      console.error("[AdjustDueDate] Failed to save schedule", err);
-      toast.error("Erro ao salvar", { description: err?.message ?? "Tente novamente." });
-      return;
-    }
-
-    // Sync the active due date. originalDueDate remains an immutable historical
-    // record and must not influence the next operational due date.
+    // 1. Sync the active due date on the loan contract
     try {
       const updates: Partial<Omit<Loan, "id">> = { dueDate: newDate };
       if (newDate >= todayStr && (loan.status === "overdue" || loan.status === "late" || loan.status === "defaulted")) {
@@ -153,6 +144,15 @@ export function AdjustDueDateDialog({
       await Promise.resolve(onUpdate(updates));
     } catch (err) {
       console.error("[AdjustDueDate] Failed to update loan", err);
+    }
+
+    // 2. Save schedule rows
+    try {
+      await onSaveSchedule(loan.id, updatedRows);
+    } catch (err: any) {
+      console.error("[AdjustDueDate] Failed to save schedule", err);
+      toast.error("Erro ao salvar", { description: err?.message ?? "Tente novamente." });
+      return;
     }
 
     appendLog({

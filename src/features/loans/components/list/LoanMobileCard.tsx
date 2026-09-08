@@ -651,15 +651,6 @@ export function LoanCardView({
             </div>
           </div>
 
-          <AdjustDueDateDialog
-            open={showAdjustDueDate}
-            onOpenChange={setShowAdjustDueDate}
-            loan={loan}
-            installmentSchedules={installmentSchedules}
-            onSaveSchedule={onSaveSchedule}
-            onUpdate={onUpdate}
-          />
-
 
 
           {/* Manager edit block */}

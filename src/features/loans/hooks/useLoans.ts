@@ -1798,6 +1798,43 @@ export function useLoans() {
       );
     }
 
+    const currentLoan = loans.find((l) => l.id === id);
+    if (currentLoan) {
+      const mergedLoan = { ...currentLoan, ...data };
+      await upsertCachedRow("loans", {
+        id: mergedLoan.id,
+        user_id: dataOwnerId || user?.id,
+        borrower_name: mergedLoan.borrowerName,
+        borrower_id: mergedLoan.borrowerId,
+        amount: mergedLoan.amount,
+        original_amount: mergedLoan.originalAmount,
+        interest_rate: mergedLoan.interestRate,
+        interest_type: mergedLoan.interestType,
+        payment_type: mergedLoan.paymentType,
+        start_date: mergedLoan.startDate,
+        due_date: mergedLoan.dueDate,
+        original_due_date: mergedLoan.originalDueDate,
+        installments: mergedLoan.installments,
+        paid_installments: mergedLoan.paidInstallments,
+        status: mergedLoan.status,
+        remaining_amount: mergedLoan.remainingAmount,
+        custom_installment_value: mergedLoan.customInstallmentValue,
+        custom_interest_value: mergedLoan.customInterestValue,
+        tags: mergedLoan.tags,
+        notes: mergedLoan.notes,
+        late_interest_type: mergedLoan.lateInterestType,
+        late_interest_value: mergedLoan.lateInterestValue,
+        penalty_value: mergedLoan.penaltyValue,
+        has_manager: mergedLoan.hasManager,
+        manager_id: mergedLoan.managerId,
+        manager_commission_rate: mergedLoan.managerCommissionRate,
+        auto_billing_enabled: mergedLoan.autoBillingEnabled,
+        renegotiation_penalty_total: mergedLoan.renegotiationPenaltyTotal,
+        is_sale: mergedLoan.isSale,
+        created_at: mergedLoan.createdAt || new Date().toISOString(),
+      });
+    }
+
     if (!isOnline()) {
       await enqueueMutation({ table: "loans", op: "update", recordId: id, payload: updateData });
       return;
@@ -1821,7 +1858,7 @@ export function useLoans() {
         .then(() => {})
         .catch(() => {});
     }
-  }, [loans, fetchLoans]);
+  }, [loans, dataOwnerId, user, fetchLoans]);
 
   const deleteLoan = useCallback(async (id: string) => {
     assertWritable();
