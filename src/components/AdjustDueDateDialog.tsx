@@ -149,7 +149,7 @@ export function AdjustDueDateDialog({
       if (newDate >= todayStr && (loan.status === "overdue" || loan.status === "late" || loan.status === "defaulted")) {
         updates.status = "active";
       }
-      onUpdate(updates);
+      await Promise.resolve(onUpdate(updates));
     } catch (err) {
       console.error("[AdjustDueDate] Failed to update loan", err);
     }

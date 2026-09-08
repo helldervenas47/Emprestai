@@ -305,7 +305,7 @@ export function LoanCardView({
     }
     const parsedTags = form.tags.split(",").map((t) => t.trim()).filter(Boolean);
     const firstRow = editScheduleRows[0];
-    const dueDate = firstRow ? firstRow.date.toISOString().split("T")[0] : form.dueDate || loan.dueDate;
+    const dueDate = (showEditSchedule && firstRow) ? firstRow.date.toISOString().split("T")[0] : form.dueDate || loan.dueDate;
     const firstVal = firstRow ? parseFloat(firstRow.value) || 0 : 0;
     const remInst = Math.max(1, (parseInt(form.installments) || loan.installments) - (parseInt(form.paidInstallments) || 0));
     const defaultCalc = (parseFloat(form.remainingAmount) || 0) / remInst;
@@ -362,9 +362,8 @@ export function LoanCardView({
         isSale: editIsSale,
       }));
 
-      // Save all installment rows before closing so the contract and its
-      // schedule remain consistent.
-      if (editScheduleRows.length > 0) {
+      // Save schedule rows explicitly only if manual schedule editing was active
+      if (showEditSchedule && editScheduleRows.length > 0) {
         await onSaveSchedule(loan.id, editScheduleRows.map((row, idx) => ({
           installmentNumber: idx + 1,
           dueDate: row.date.toISOString().split("T")[0],
