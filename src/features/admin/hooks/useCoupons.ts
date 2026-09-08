@@ -242,6 +242,33 @@ export function useCoupons() {
     return updateCoupon(coupon.id, { is_active: nextStatus });
   };
 
+  const deleteCoupon = async (id: string, code?: string): Promise<boolean> => {
+    try {
+      // 1. Remove vínculos relacionais com planos
+      await supabase.from("coupon_plans" as any).delete().eq("coupon_id", id);
+
+      // 2. Remove o cupom
+      const { error } = await supabase.from("coupons" as any).delete().eq("id", id);
+      if (error) {
+        if (error.code === "23503") {
+          toast.error("Este cupom possui histórico de utilizações e não pode ser excluído.", {
+            description: "Você pode inativá-lo para impedir novos usos mantendo o histórico intacto.",
+          });
+        } else {
+          toast.error("Erro ao excluir cupom", { description: error.message });
+        }
+        return false;
+      }
+
+      toast.success(code ? `Cupom ${code} excluído com sucesso!` : "Cupom excluído com sucesso!");
+      await fetchCoupons();
+      return true;
+    } catch (e: any) {
+      toast.error("Erro ao excluir cupom", { description: e?.message || "Tente novamente." });
+      return false;
+    }
+  };
+
   const metrics: CouponMetrics = {
     totalCoupons: coupons.length,
     activeCoupons: coupons.filter((c) => c.is_active).length,
@@ -257,6 +284,7 @@ export function useCoupons() {
     refetch: fetchCoupons,
     createCoupon,
     updateCoupon,
+    deleteCoupon,
     toggleStatus,
   };
 }

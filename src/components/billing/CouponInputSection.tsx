@@ -89,11 +89,11 @@ export function CouponInputSection({
               <Check className="h-3.5 w-3.5" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono tracking-wider">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono tracking-wider whitespace-nowrap">
                   {appliedCoupon.code}
                 </span>
-                <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-500 border-emerald-500/20 py-0 px-1.5">
+                <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-500 border-emerald-500/20 py-0 px-1.5 whitespace-nowrap">
                   {appliedCoupon.discount_type === "percentage"
                     ? `${appliedCoupon.discount_value}% OFF`
                     : `R$ ${Number(appliedCoupon.discount_value).toFixed(2)} OFF`}
