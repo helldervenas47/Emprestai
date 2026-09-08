@@ -52,14 +52,15 @@ describe("👑 EmprestAI Telegram Premium Add-on", () => {
     expect(hasPremium).toBe(false);
   });
 
-  it("4. Usuário master/admin sempre possui acesso liberado", () => {
+  it("4. Usuário com perfil 'admin' possui acesso 100% liberado sem necessidade de pagamento", () => {
     const addon = null;
-    const isMaster = true;
+    const role = "admin";
+    const isAdmin = role === "admin";
     const hasPremium = Boolean(
-      isMaster ||
+      isAdmin ||
       (addon &&
-        (addon.status === "active" || addon.status === "trialing") &&
-        (!addon.current_period_end || new Date(addon.current_period_end).getTime() > Date.now()))
+        ((addon as any).status === "active" || (addon as any).status === "trialing") &&
+        (!(addon as any).current_period_end || new Date((addon as any).current_period_end).getTime() > Date.now()))
     );
 
     expect(hasPremium).toBe(true);

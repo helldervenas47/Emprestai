@@ -22,9 +22,10 @@ export interface UserAddon {
 }
 
 export function useTelegramPremium() {
-  const { user, dataOwnerId, loading: authLoading, isMaster } = useAuth();
+  const { user, dataOwnerId, loading: authLoading, role } = useAuth();
   const environment = BILLING_ENVIRONMENT;
   const effectiveUserId = dataOwnerId ?? user?.id ?? null;
+  const isAdmin = role === "admin";
 
   const [addon, setAddon] = useState<UserAddon | null>(null);
   const [loading, setLoading] = useState(true);
@@ -127,7 +128,7 @@ export function useTelegramPremium() {
   }, [authLoading, effectiveUserId, fetchAddon]);
 
   const isActive = Boolean(
-    isMaster ||
+    isAdmin ||
     (addon &&
       (addon.status === "active" || addon.status === "trialing") &&
       (!addon.current_period_end || new Date(addon.current_period_end).getTime() > Date.now()))
