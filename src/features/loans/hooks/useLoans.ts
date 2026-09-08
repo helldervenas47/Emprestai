@@ -1793,8 +1793,14 @@ export function useLoans() {
     }
     // Sincroniza a memória local de installmentSchedules se dueDate foi alterado
     if (data.dueDate !== undefined) {
+      const currentLoan = loans.find((l) => l.id === id);
+      const targetNum = Math.max(1, (currentLoan?.paidInstallments ?? 0) + 1);
       setInstallmentSchedules((prev) =>
-        prev.map((s) => (s.loanId === id && s.installmentNumber === 1 ? { ...s, dueDate: data.dueDate! } : s))
+        prev.map((s) =>
+          s.loanId === id && (s.installmentNumber === targetNum || s.installmentNumber === 1)
+            ? { ...s, dueDate: data.dueDate! }
+            : s
+        )
       );
     }
 
@@ -1849,14 +1855,18 @@ export function useLoans() {
         await fetchLoans();
       }
     } else if (data.dueDate !== undefined) {
-      // Sincroniza a parcela correspondente no Supabase de forma segura e não destrutiva
-      supabase
-        .from("loan_installments")
-        .update({ due_date: data.dueDate })
-        .eq("loan_id", id)
-        .eq("installment_number", 1)
-        .then(() => {})
-        .catch(() => {});
+      // Sincroniza a parcela correspondente no Supabase de forma segura e com await
+      const currentLoan = loans.find((l) => l.id === id);
+      const targetNum = Math.max(1, (currentLoan?.paidInstallments ?? 0) + 1);
+      try {
+        await supabase
+          .from("loan_installments")
+          .update({ due_date: data.dueDate })
+          .eq("loan_id", id)
+          .eq("installment_number", targetNum);
+      } catch (instErr) {
+        console.warn("[updateLoan] Falha ao sincronizar loan_installments:", instErr);
+      }
     }
   }, [loans, dataOwnerId, user, fetchLoans]);
 

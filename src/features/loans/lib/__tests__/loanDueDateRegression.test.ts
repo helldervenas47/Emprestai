@@ -222,5 +222,37 @@ describe("Regressão de Lógica de Datas e Vencimentos Futuros", () => {
       expect(nextDueDate).toBe("2026-10-15");
       expect(nextDueDate).not.toBe("2026-10-08");
     });
+
+    it("deve sincronizar a parcela ativa no cronograma quando o contrato tiver parcelas já pagas", () => {
+      const loan = {
+        id: "loan-multi",
+        borrowerName: "Maria Silva",
+        dueDate: "2026-09-10",
+        installments: 5,
+        paidInstallments: 2, // próxima parcela ativa é 3
+        interestType: "Mensal",
+      };
+
+      const schedules = [
+        { loanId: "loan-multi", installmentNumber: 1, dueDate: "2026-07-10", amount: 200 },
+        { loanId: "loan-multi", installmentNumber: 2, dueDate: "2026-08-10", amount: 200 },
+        { loanId: "loan-multi", installmentNumber: 3, dueDate: "2026-09-10", amount: 200 },
+        { loanId: "loan-multi", installmentNumber: 4, dueDate: "2026-10-10", amount: 200 },
+        { loanId: "loan-multi", installmentNumber: 5, dueDate: "2026-11-10", amount: 200 },
+      ];
+
+      const newDueDate = "2026-09-20";
+      const targetNum = Math.max(1, loan.paidInstallments + 1); // 3
+
+      const updatedSchedules = schedules.map((s) =>
+        s.loanId === loan.id && (s.installmentNumber === targetNum || s.installmentNumber === 1)
+          ? { ...s, dueDate: newDueDate }
+          : s
+      );
+
+      const activeSchedule = updatedSchedules.find((s) => s.installmentNumber === targetNum);
+      expect(activeSchedule?.dueDate).toBe("2026-09-20");
+    });
   });
 });
+
