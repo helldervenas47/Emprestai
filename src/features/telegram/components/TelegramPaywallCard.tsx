@@ -15,6 +15,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { TelegramCheckoutModal } from "./TelegramCheckoutModal";
+import { useTelegramPlan } from "@/features/telegram/hooks/useTelegramPlan";
 
 interface TelegramPaywallCardProps {
   onSuccess?: () => void;
@@ -22,6 +23,7 @@ interface TelegramPaywallCardProps {
 
 export function TelegramPaywallCard({ onSuccess }: TelegramPaywallCardProps) {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const { formattedPrice } = useTelegramPlan();
 
   return (
     <div className="w-full space-y-6">
@@ -186,7 +188,7 @@ export function TelegramPaywallCard({ onSuccess }: TelegramPaywallCardProps) {
               className="w-full sm:w-auto font-bold shadow-md px-8 h-12 text-sm sm:text-base transition-all hover:scale-[1.01] active:scale-[0.99]"
             >
               <Send className="h-4 w-4 mr-2" />
-              Assinar EmprestAI Telegram (+ R$ 14,90/mês)
+              Assinar EmprestAI Telegram (+ {formattedPrice}/mês)
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </div>

@@ -29,15 +29,13 @@ import { useAsaasCheckout, AsaasCreditCardData, AsaasCreditCardHolderInfo } from
 import { supabase } from "@/integrations/supabase/userClient";
 import { CreditCardPaymentForm } from "@/components/billing/CreditCardPaymentForm";
 import { CouponInputSection } from "@/components/billing/CouponInputSection";
+import { useTelegramPlan } from "@/features/telegram/hooks/useTelegramPlan";
 
 interface TelegramCheckoutModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
 }
-
-const TELEGRAM_ADDON_PLAN_ID = "b4e60000-0000-0000-0000-000000000001";
-const ADDON_PRICE = "R$ 14,90";
 
 export function TelegramCheckoutModal({
   open,
@@ -46,6 +44,7 @@ export function TelegramCheckoutModal({
 }: TelegramCheckoutModalProps) {
   const { user } = useAuth();
   const { profile } = useAccountProfile();
+  const { plan: telegramPlan, formattedPrice } = useTelegramPlan();
   const { mutate, isPending, data: checkoutData, reset } = useAsaasCheckout();
 
   const [paymentMethod, setPaymentMethod] = useState<"PIX" | "CREDIT_CARD">("PIX");
@@ -55,10 +54,15 @@ export function TelegramCheckoutModal({
   const [isCardProcessing, setIsCardProcessing] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
 
-  const basePriceNumber = 14.90;
+  const basePriceNumber = telegramPlan.price || 14.90;
   const finalPriceNumber = appliedCoupon?.final_cents
     ? appliedCoupon.final_cents / 100
     : basePriceNumber;
+
+  const finalFormattedPrice = finalPriceNumber.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
 
   useEffect(() => {
     if (profile?.cpf_cnpj) {
@@ -109,7 +113,7 @@ export function TelegramCheckoutModal({
 
     mutate(
       {
-        planId: TELEGRAM_ADDON_PLAN_ID,
+        planId: telegramPlan.id,
         cycle: "monthly",
         cpfCnpj: cleanCpf,
         couponCode: appliedCoupon?.code,
@@ -132,7 +136,7 @@ export function TelegramCheckoutModal({
     setIsCardProcessing(true);
     mutate(
       {
-        planId: TELEGRAM_ADDON_PLAN_ID,
+        planId: telegramPlan.id,
         cycle: "monthly",
         paymentMethod: "CREDIT_CARD",
         couponCode: appliedCoupon?.code,
@@ -181,7 +185,7 @@ export function TelegramCheckoutModal({
             <span>Assinar EmprestAI Telegram</span>
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            Adicional independente de <strong className="text-foreground">{ADDON_PRICE}/mês</strong>
+            Adicional independente de <strong className="text-foreground">{formattedPrice}/mês</strong>
           </DialogDescription>
         </DialogHeader>
 
@@ -197,7 +201,7 @@ export function TelegramCheckoutModal({
           <div className="space-y-4 pt-2">
             <div className="bg-muted/40 p-3 rounded-lg text-center space-y-1 border border-border/50">
               <div className="text-xs text-muted-foreground">Valor a pagar</div>
-              <div className="text-2xl font-bold text-emerald-500">{ADDON_PRICE}</div>
+              <div className="text-2xl font-bold text-emerald-500">{finalFormattedPrice}</div>
               <div className="text-[11px] text-muted-foreground">Cobrança mensal avulsa e independente</div>
             </div>
 
@@ -252,15 +256,15 @@ export function TelegramCheckoutModal({
                 {appliedCoupon?.valid && appliedCoupon.discount_cents ? (
                   <div>
                     <span className="text-[11px] text-muted-foreground line-through mr-1.5">
-                      R$ 14,90
+                      {formattedPrice}
                     </span>
                     <Badge variant="outline" className="text-sm font-bold text-emerald-500 bg-emerald-500/10 border-emerald-500/30">
-                      R$ {finalPriceNumber.toFixed(2)}/mês
+                      {finalFormattedPrice}/mês
                     </Badge>
                   </div>
                 ) : (
                   <Badge variant="outline" className="text-sm font-bold text-primary">
-                    {ADDON_PRICE}/mês
+                    {formattedPrice}/mês
                   </Badge>
                 )}
               </div>
@@ -268,7 +272,7 @@ export function TelegramCheckoutModal({
 
             {/* Seção de Cupom */}
             <CouponInputSection
-              planId={TELEGRAM_ADDON_PLAN_ID}
+              planId={telegramPlan.id}
               cycle="monthly"
               userId={user?.id}
               appliedCoupon={appliedCoupon}
@@ -317,7 +321,7 @@ export function TelegramCheckoutModal({
                   ) : (
                     <>
                       <QrCode className="h-4 w-4 mr-2" />
-                      Gerar PIX de R$ {finalPriceNumber.toFixed(2)}
+                      Gerar PIX de {finalFormattedPrice}
                     </>
                   )}
                 </Button>
@@ -325,7 +329,7 @@ export function TelegramCheckoutModal({
 
               <TabsContent value="card" className="pt-2">
                 <CreditCardPaymentForm
-                  planName="EmprestAI Telegram"
+                  planName={telegramPlan.name || "EmprestAI Telegram"}
                   cycleLabel="Mensal"
                   totalPrice={finalPriceNumber}
                   isProcessing={isCardProcessing || isPending}
