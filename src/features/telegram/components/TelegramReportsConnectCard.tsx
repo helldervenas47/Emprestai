@@ -3,11 +3,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Send, Copy, CheckCircle2, Unlink, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 import { useTelegramReportsLink } from "@/features/telegram/hooks/useTelegramReportsLink";
 import { generateTelegramLinkCode, invokeUserFunction } from "@/features/telegram/lib/telegramLinkCode";
 
 
 export const TelegramReportsConnectCard = forwardRef<HTMLDivElement, Record<string, never>>(function TelegramReportsConnectCard(_, ref) {
+  const { role } = useAuth();
+  const isAdmin = role === "admin";
   const { linked, loading, disconnect, refresh } = useTelegramReportsLink();
   const [code, setCode] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -107,19 +110,21 @@ export const TelegramReportsConnectCard = forwardRef<HTMLDivElement, Record<stri
         </div>
 
         {linked ? (
-          <div className="grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-2 pt-2 border-t border-border/40 w-full">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleSyncCommands}
-              disabled={syncingCommands}
-              title="Atualizar comandos e botão de menu no Telegram"
-              className="text-xs w-full sm:w-auto"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncingCommands ? "animate-spin" : ""}`} />
-              Sincronizar Comandos
-            </Button>
-            <Button size="sm" variant="outline" onClick={handleDisconnect} className="text-xs w-full sm:w-auto">
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40 w-full">
+            {isAdmin && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSyncCommands}
+                disabled={syncingCommands}
+                title="Atualizar comandos e botão de menu no Telegram"
+                className="text-xs"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncingCommands ? "animate-spin" : ""}`} />
+                Sincronizar Comandos
+              </Button>
+            )}
+            <Button size="sm" variant="outline" onClick={handleDisconnect} className="text-xs">
               <Unlink className="h-3.5 w-3.5 mr-1.5" /> Desvincular
             </Button>
           </div>

@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Copy, CheckCircle2, Unlink, Clock, Zap, CalendarDays, CalendarRange } from "lucide-react";
+import { Copy, CheckCircle2, Unlink, Clock, Zap, CalendarDays, CalendarRange, ChevronDown, ChevronUp } from "lucide-react";
 import { generateTelegramLinkCode, invokeUserFunction } from "@/features/telegram/lib/telegramLinkCode";
 import { fetchExpensesBotId, fetchReportsBotId } from "@/features/telegram/lib/telegramReportsBot";
 
@@ -31,6 +31,7 @@ export function TelegramConnectCard() {
   const [sendingNow, setSendingNow] = useState(false);
   const [sendingWeekly, setSendingWeekly] = useState(false);
   const [sendingMonthly, setSendingMonthly] = useState(false);
+  const [showReports, setShowReports] = useState(false);
   const syncingTelegramRef = useRef(false);
   const botUsername = (typeof window !== "undefined" && localStorage.getItem(BOT_USERNAME_KEY)) || "";
   const { pref: summaryPref, update: updateSummary } = useTelegramSummaryPref();
@@ -236,176 +237,197 @@ export function TelegramConnectCard() {
 
         {linked ? (
           <div className="space-y-3 pt-1">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground">
-                Chat vinculado: <span className="font-mono">{linked.chat_id}</span>
-              </p>
-              <Button size="sm" variant="outline" onClick={disconnect}>
-                <Unlink className="h-3.5 w-3.5 mr-1" /> Desvincular
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowReports((prev) => !prev)}
+                className="text-xs h-8"
+              >
+                {showReports ? (
+                  <>
+                    <ChevronUp className="h-3.5 w-3.5 mr-1.5" />
+                    Ocultar resumos automáticos
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-3.5 w-3.5 mr-1.5" />
+                    Configurar resumos automáticos
+                  </>
+                )}
+              </Button>
+
+              <Button size="sm" variant="outline" onClick={disconnect} className="text-xs h-8">
+                <Unlink className="h-3.5 w-3.5 mr-1.5" /> Desvincular
               </Button>
             </div>
 
-            <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-primary" />
-                  <Label htmlFor="tg-summary" className="text-sm cursor-pointer">
-                    Resumo diário
-                  </Label>
+            {showReports && (
+              <div className="space-y-3 pt-1">
+                <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-primary" />
+                      <Label htmlFor="tg-summary" className="text-sm cursor-pointer">
+                        Resumo diário
+                      </Label>
+                    </div>
+                    <Switch
+                      id="tg-summary"
+                      checked={summaryPref.enabled}
+                      onCheckedChange={(v) => updateSummary({ enabled: v })}
+                    />
+                  </div>
+                  {summaryPref.enabled && (
+                    <div className="flex items-center gap-2 pt-1">
+                      <Label htmlFor="tg-summary-time" className="text-xs text-muted-foreground">
+                        Horário:
+                      </Label>
+                      <Input
+                        id="tg-summary-time"
+                        type="time"
+                        value={summaryPref.send_time}
+                        onChange={(e) => updateSummary({ send_time: e.target.value })}
+                        className="h-8 w-28 text-xs"
+                      />
+                    </div>
+                  )}
+                  <p className="text-[10px] text-muted-foreground">
+                    Total gasto no dia + saldo dos orçamentos por categoria.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <Button size="sm" variant="outline" onClick={sendSummaryNow} disabled={sendingNow}>
+                      <Zap className="h-3.5 w-3.5 mr-1" />
+                      {sendingNow ? "…" : "Hoje"}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={sendWeeklySummaryNow} disabled={sendingWeekly}>
+                      <CalendarDays className="h-3.5 w-3.5 mr-1" />
+                      {sendingWeekly ? "…" : "Semana"}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={sendMonthlySummaryNow} disabled={sendingMonthly}>
+                      <CalendarRange className="h-3.5 w-3.5 mr-1" />
+                      {sendingMonthly ? "…" : "Mês"}
+                    </Button>
+                  </div>
                 </div>
-                <Switch
-                  id="tg-summary"
-                  checked={summaryPref.enabled}
-                  onCheckedChange={(v) => updateSummary({ enabled: v })}
-                />
-              </div>
-              {summaryPref.enabled && (
-                <div className="flex items-center gap-2 pt-1">
-                  <Label htmlFor="tg-summary-time" className="text-xs text-muted-foreground">
-                    Horário:
-                  </Label>
-                  <Input
-                    id="tg-summary-time"
-                    type="time"
-                    value={summaryPref.send_time}
-                    onChange={(e) => updateSummary({ send_time: e.target.value })}
-                    className="h-8 w-28 text-xs"
-                  />
-                </div>
-              )}
-              <p className="text-[10px] text-muted-foreground">
-                Total gasto no dia + saldo dos orçamentos por categoria.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <Button size="sm" variant="outline" onClick={sendSummaryNow} disabled={sendingNow}>
-                  <Zap className="h-3.5 w-3.5 mr-1" />
-                  {sendingNow ? "…" : "Hoje"}
-                </Button>
-                <Button size="sm" variant="outline" onClick={sendWeeklySummaryNow} disabled={sendingWeekly}>
-                  <CalendarDays className="h-3.5 w-3.5 mr-1" />
-                  {sendingWeekly ? "…" : "Semana"}
-                </Button>
-                <Button size="sm" variant="outline" onClick={sendMonthlySummaryNow} disabled={sendingMonthly}>
-                  <CalendarRange className="h-3.5 w-3.5 mr-1" />
-                  {sendingMonthly ? "…" : "Mês"}
-                </Button>
-              </div>
-            </div>
 
-            <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <CalendarDays className="h-4 w-4 text-primary" />
-                  <Label htmlFor="tg-weekly" className="text-sm cursor-pointer">
-                    Resumo semanal automático
-                  </Label>
+                <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <CalendarDays className="h-4 w-4 text-primary" />
+                      <Label htmlFor="tg-weekly" className="text-sm cursor-pointer">
+                        Resumo semanal automático
+                      </Label>
+                    </div>
+                    <Switch
+                      id="tg-weekly"
+                      checked={summaryPref.weekly_enabled}
+                      onCheckedChange={(v) => updateSummary({ weekly_enabled: v })}
+                    />
+                  </div>
+                  {summaryPref.weekly_enabled && (
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <Label className="text-xs text-muted-foreground">Dia:</Label>
+                      <Select
+                        value={String(summaryPref.weekly_send_weekday)}
+                        onValueChange={(v) => updateSummary({ weekly_send_weekday: Number(v) })}
+                      >
+                        <SelectTrigger className="h-8 w-32 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">Segunda</SelectItem>
+                          <SelectItem value="2">Terça</SelectItem>
+                          <SelectItem value="3">Quarta</SelectItem>
+                          <SelectItem value="4">Quinta</SelectItem>
+                          <SelectItem value="5">Sexta</SelectItem>
+                          <SelectItem value="6">Sábado</SelectItem>
+                          <SelectItem value="0">Domingo</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Label htmlFor="tg-weekly-time" className="text-xs text-muted-foreground">
+                        Horário:
+                      </Label>
+                      <Input
+                        id="tg-weekly-time"
+                        type="time"
+                        value={summaryPref.weekly_send_time}
+                        onChange={(e) => updateSummary({ weekly_send_time: e.target.value })}
+                        className="h-8 w-28 text-xs"
+                      />
+                    </div>
+                  )}
+                  <p className="text-[10px] text-muted-foreground">
+                    Total dos últimos 7 dias por dia e por categoria.
+                  </p>
                 </div>
-                <Switch
-                  id="tg-weekly"
-                  checked={summaryPref.weekly_enabled}
-                  onCheckedChange={(v) => updateSummary({ weekly_enabled: v })}
-                />
-              </div>
-              {summaryPref.weekly_enabled && (
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <Label className="text-xs text-muted-foreground">Dia:</Label>
-                  <Select
-                    value={String(summaryPref.weekly_send_weekday)}
-                    onValueChange={(v) => updateSummary({ weekly_send_weekday: Number(v) })}
-                  >
-                    <SelectTrigger className="h-8 w-32 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">Segunda</SelectItem>
-                      <SelectItem value="2">Terça</SelectItem>
-                      <SelectItem value="3">Quarta</SelectItem>
-                      <SelectItem value="4">Quinta</SelectItem>
-                      <SelectItem value="5">Sexta</SelectItem>
-                      <SelectItem value="6">Sábado</SelectItem>
-                      <SelectItem value="0">Domingo</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Label htmlFor="tg-weekly-time" className="text-xs text-muted-foreground">
-                    Horário:
-                  </Label>
-                  <Input
-                    id="tg-weekly-time"
-                    type="time"
-                    value={summaryPref.weekly_send_time}
-                    onChange={(e) => updateSummary({ weekly_send_time: e.target.value })}
-                    className="h-8 w-28 text-xs"
-                  />
-                </div>
-              )}
-              <p className="text-[10px] text-muted-foreground">
-                Total dos últimos 7 dias por dia e por categoria.
-              </p>
-            </div>
 
-            <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <CalendarRange className="h-4 w-4 text-primary" />
-                  <Label htmlFor="tg-monthly" className="text-sm cursor-pointer">
-                    Resumo mensal automático
-                  </Label>
+                <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <CalendarRange className="h-4 w-4 text-primary" />
+                      <Label htmlFor="tg-monthly" className="text-sm cursor-pointer">
+                        Resumo mensal automático
+                      </Label>
+                    </div>
+                    <Switch
+                      id="tg-monthly"
+                      checked={summaryPref.monthly_enabled}
+                      onCheckedChange={(v) => updateSummary({ monthly_enabled: v })}
+                    />
+                  </div>
+                  {summaryPref.monthly_enabled && (
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <Label className="text-xs text-muted-foreground">Dia:</Label>
+                      <Select
+                        value={String(summaryPref.monthly_send_day)}
+                        onValueChange={(v) => updateSummary({ monthly_send_day: Number(v) })}
+                      >
+                        <SelectTrigger className="h-8 w-20 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-60">
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                            <SelectItem key={d} value={String(d)}>{d}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Label htmlFor="tg-monthly-time" className="text-xs text-muted-foreground">
+                        Horário:
+                      </Label>
+                      <Input
+                        id="tg-monthly-time"
+                        type="time"
+                        value={summaryPref.monthly_send_time}
+                        onChange={(e) => updateSummary({ monthly_send_time: e.target.value })}
+                        className="h-8 w-28 text-xs"
+                      />
+                    </div>
+                  )}
+                  {summaryPref.monthly_enabled && (
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <Label className="text-xs text-muted-foreground">Formato:</Label>
+                      <Select
+                        value={summaryPref.monthly_format}
+                        onValueChange={(v) => updateSummary({ monthly_format: v as "text" | "image" })}
+                      >
+                        <SelectTrigger className="h-8 w-32 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="text">📝 Texto</SelectItem>
+                          <SelectItem value="image">🖼️ Imagem</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <p className="text-[10px] text-muted-foreground">
+                    Total do mês com comparação ao mês anterior, top categorias, média diária e orçamentos. Se o dia escolhido não existir no mês (ex: 31 em fevereiro), envia no último dia.
+                  </p>
                 </div>
-                <Switch
-                  id="tg-monthly"
-                  checked={summaryPref.monthly_enabled}
-                  onCheckedChange={(v) => updateSummary({ monthly_enabled: v })}
-                />
               </div>
-              {summaryPref.monthly_enabled && (
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <Label className="text-xs text-muted-foreground">Dia:</Label>
-                  <Select
-                    value={String(summaryPref.monthly_send_day)}
-                    onValueChange={(v) => updateSummary({ monthly_send_day: Number(v) })}
-                  >
-                    <SelectTrigger className="h-8 w-20 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-60">
-                      {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                        <SelectItem key={d} value={String(d)}>{d}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Label htmlFor="tg-monthly-time" className="text-xs text-muted-foreground">
-                    Horário:
-                  </Label>
-                  <Input
-                    id="tg-monthly-time"
-                    type="time"
-                    value={summaryPref.monthly_send_time}
-                    onChange={(e) => updateSummary({ monthly_send_time: e.target.value })}
-                    className="h-8 w-28 text-xs"
-                  />
-                </div>
-              )}
-              {summaryPref.monthly_enabled && (
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <Label className="text-xs text-muted-foreground">Formato:</Label>
-                  <Select
-                    value={summaryPref.monthly_format}
-                    onValueChange={(v) => updateSummary({ monthly_format: v as "text" | "image" })}
-                  >
-                    <SelectTrigger className="h-8 w-32 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="text">📝 Texto</SelectItem>
-                      <SelectItem value="image">🖼️ Imagem</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              <p className="text-[10px] text-muted-foreground">
-                Total do mês com comparação ao mês anterior, top categorias, média diária e orçamentos. Se o dia escolhido não existir no mês (ex: 31 em fevereiro), envia no último dia.
-              </p>
-            </div>
+            )}
           </div>
         ) : code ? (
           <div className="space-y-2 pt-1">

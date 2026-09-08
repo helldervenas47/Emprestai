@@ -16,11 +16,14 @@ import { TelegramPersonalInsightsCard } from "@/features/telegram/components/Tel
 import { TelegramFinancialSummariesCard } from "@/features/telegram/components/TelegramFinancialSummariesCard";
 import { TelegramPaywallCard } from "@/features/telegram/components/TelegramPaywallCard";
 import { useTelegramPremium } from "@/features/telegram/hooks/useTelegramPremium";
+import { useAuth } from "@/hooks/useAuth";
 import { ScheduledReportCard } from "@/components/ScheduledReportCard";
 import { ReadOnlyOverlay } from "@/features/admin/components/upgrade/ReadOnlyOverlay";
 
 export function TelegramBotsHub() {
   const { hasPremium, loading: loadingPremium, refetch } = useTelegramPremium();
+  const { role } = useAuth();
+  const isAdmin = role === "admin";
   const [syncing, setSyncing] = useState(false);
 
   const handleSyncCommands = async () => {
@@ -69,16 +72,18 @@ export function TelegramBotsHub() {
               Configure o bot de relatórios, o bot de despesas e os horários de envio automático.
             </p>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleSyncCommands}
-            disabled={syncing}
-            className="shrink-0"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? "Sincronizando…" : "Sincronizar Comandos no Telegram"}
-          </Button>
+          {isAdmin && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleSyncCommands}
+              disabled={syncing}
+              className="shrink-0"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Sincronizando…" : "Sincronizar Comandos no Telegram"}
+            </Button>
+          )}
         </CardContent>
       </Card>
 
