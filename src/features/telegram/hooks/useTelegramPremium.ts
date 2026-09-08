@@ -65,38 +65,63 @@ export function useTelegramPremium() {
       return;
     }
 
-    fetchAddon();
+    let isMounted = true;
+    const safetyTimeout = setTimeout(() => {
+      if (isMounted) {
+        setLoading(false);
+      }
+    }, 2500);
 
-    if (!effectiveUserId) return;
+    fetchAddon().finally(() => {
+      if (isMounted) {
+        setLoading(false);
+      }
+    });
+
+    if (!effectiveUserId) {
+      return () => {
+        isMounted = false;
+        clearTimeout(safetyTimeout);
+      };
+    }
 
     // Escuta alterações em tempo real na tabela user_addons
-    const channel = supabase
-      .channel(`user-addons-telegram-${effectiveUserId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "user_addons",
-          filter: `user_id=eq.${effectiveUserId}`,
-        },
-        () => {
-          fetchAddon();
-        }
-      )
-      .subscribe();
+    let channel: any = null;
+    try {
+      channel = supabase
+        .channel(`user-addons-telegram-${effectiveUserId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "user_addons",
+            filter: `user_id=eq.${effectiveUserId}`,
+          },
+          () => {
+            fetchAddon();
+          }
+        )
+        .subscribe();
+    } catch {
+      /* noop */
+    }
 
     const onFocus = () => fetchAddon();
     window.addEventListener("focus", onFocus);
     window.addEventListener("subscription:changed", onFocus);
 
     return () => {
+      isMounted = false;
+      clearTimeout(safetyTimeout);
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("subscription:changed", onFocus);
-      try {
-        supabase.removeChannel(channel);
-      } catch {
-        /* noop */
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {
+          /* noop */
+        }
       }
     };
   }, [authLoading, effectiveUserId, fetchAddon]);
