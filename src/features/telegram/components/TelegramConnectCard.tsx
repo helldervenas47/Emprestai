@@ -218,20 +218,20 @@ export function TelegramConnectCard() {
   return (
     <Card no3d>
       <CardContent className="p-4 sm:p-5 space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+        <div className="flex items-start justify-between gap-2.5">
+          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
               <TelegramIcon className="h-4 w-4 text-primary" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="font-semibold text-sm">Bot de Despesas (Telegram)</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground leading-snug">
                 Cadastre despesas e receitas diretamente por mensagem no Telegram
               </p>
             </div>
           </div>
           {linked && (
-            <span className="inline-flex items-center gap-1 text-xs text-success font-medium">
+            <span className="inline-flex items-center gap-1 text-xs text-success font-medium shrink-0 whitespace-nowrap pt-0.5">
               <CheckCircle2 className="h-3.5 w-3.5" /> Conectado
             </span>
           )}
@@ -239,13 +239,13 @@ export function TelegramConnectCard() {
 
         {linked ? (
           <div className="space-y-3 pt-1">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => setShowReports((prev) => !prev)}
-                className="text-xs h-8"
+                className="text-xs h-8 w-full sm:w-auto"
               >
                 {showReports ? (
                   <>
@@ -260,18 +260,18 @@ export function TelegramConnectCard() {
                 )}
               </Button>
 
-              <div className="flex items-center gap-2">
+              <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => setOpenGuide(true)}
-                  className="text-xs h-8"
+                  className="text-xs h-8 w-full sm:w-auto"
                 >
                   <HelpCircle className="h-3.5 w-3.5 mr-1.5 text-primary" />
                   Como configurar
                 </Button>
-                <Button size="sm" variant="outline" onClick={disconnect} className="text-xs h-8">
+                <Button size="sm" variant="outline" onClick={disconnect} className="text-xs h-8 w-full sm:w-auto">
                   <Unlink className="h-3.5 w-3.5 mr-1.5" /> Desvincular
                 </Button>
               </div>
@@ -445,7 +445,7 @@ export function TelegramConnectCard() {
           </div>
         ) : code ? (
           <div className="space-y-2 pt-1">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <p className="text-xs text-muted-foreground">
                 1. Abra seu bot no Telegram (<span className="font-mono font-semibold text-foreground">@EmprestAIIDespesas_bot</span>)<br />
                 2. Envie o comando abaixo (válido por 10 min):
@@ -455,15 +455,15 @@ export function TelegramConnectCard() {
                 variant="outline"
                 size="sm"
                 onClick={() => setOpenGuide(true)}
-                className="text-xs h-7 gap-1"
+                className="text-xs h-7 gap-1 w-full sm:w-auto shrink-0"
               >
                 <HelpCircle className="h-3.5 w-3.5 text-primary" />
                 Como configurar
               </Button>
             </div>
             <div className="flex items-center gap-2">
-              <code className="flex-1 px-3 py-2 rounded-md bg-muted font-mono text-sm">/start {code}</code>
-              <Button size="sm" variant="outline" onClick={copyCommand}>
+              <code className="flex-1 px-3 py-2 rounded-md bg-muted font-mono text-sm break-all">/start {code}</code>
+              <Button size="sm" variant="outline" onClick={copyCommand} className="shrink-0">
                 <Copy className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -473,7 +473,7 @@ export function TelegramConnectCard() {
           </div>
         ) : (
           <div className="space-y-3 pt-1">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="grid grid-cols-1 sm:flex sm:items-center gap-2">
               <Button size="sm" onClick={generateCode} disabled={generating} className="w-full sm:w-auto">
                 <TelegramIcon className="h-3.5 w-3.5 mr-1" />
                 {generating ? "Gerando…" : "Conectar Telegram"}
