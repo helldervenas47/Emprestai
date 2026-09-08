@@ -92,7 +92,7 @@ export const TelegramReportsConnectCard = forwardRef<HTMLDivElement, Record<stri
   return (
     <Card ref={ref} no3d>
       <CardContent className="p-4 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <Send className="h-4 w-4 text-primary" />
@@ -104,27 +104,15 @@ export const TelegramReportsConnectCard = forwardRef<HTMLDivElement, Record<stri
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setOpenGuide(true)}
-              className="text-xs h-7 gap-1 px-2.5 text-muted-foreground hover:text-foreground"
-            >
-              <HelpCircle className="h-3.5 w-3.5 text-primary" />
-              Como configurar
-            </Button>
-            {linked && (
-              <span className="inline-flex items-center gap-1 text-xs text-success font-medium">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Conectado
-              </span>
-            )}
-          </div>
+          {linked && (
+            <span className="inline-flex items-center gap-1 text-xs text-success font-medium shrink-0">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Conectado
+            </span>
+          )}
         </div>
 
         {linked ? (
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40 w-full">
+          <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-border/40 w-full">
             {isAdmin && (
               <Button
                 size="sm"
@@ -138,16 +126,38 @@ export const TelegramReportsConnectCard = forwardRef<HTMLDivElement, Record<stri
                 Sincronizar Comandos
               </Button>
             )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setOpenGuide(true)}
+              className="text-xs"
+            >
+              <HelpCircle className="h-3.5 w-3.5 mr-1.5 text-primary" />
+              Como configurar
+            </Button>
             <Button size="sm" variant="outline" onClick={handleDisconnect} className="text-xs">
               <Unlink className="h-3.5 w-3.5 mr-1.5" /> Desvincular
             </Button>
           </div>
         ) : code ? (
           <div className="space-y-2 pt-1">
-            <p className="text-xs text-muted-foreground">
-              1. Abra o bot de relatórios no Telegram<br />
-              2. Envie o comando abaixo (válido por 10 min):
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                1. Abra o bot de relatórios no Telegram (<span className="font-mono font-semibold text-foreground">@EmprestAIIRelatorios_bot</span>)<br />
+                2. Envie o comando abaixo (válido por 10 min):
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setOpenGuide(true)}
+                className="text-xs h-7 gap-1"
+              >
+                <HelpCircle className="h-3.5 w-3.5 text-primary" />
+                Como configurar
+              </Button>
+            </div>
             <div className="flex items-center gap-2">
               <code className="flex-1 px-3 py-2 rounded-md bg-muted font-mono text-sm">/start {code}</code>
               <Button size="sm" variant="outline" onClick={copyCommand}>
@@ -160,12 +170,24 @@ export const TelegramReportsConnectCard = forwardRef<HTMLDivElement, Record<stri
           </div>
         ) : (
           <div className="space-y-3 pt-1">
-            <Button size="sm" onClick={generateCode} disabled={generating} className="w-full sm:w-auto">
-              <Send className="h-3.5 w-3.5 mr-1" />
-              {generating ? "Gerando…" : "Conectar bot de relatórios"}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" onClick={generateCode} disabled={generating} className="w-full sm:w-auto">
+                <Send className="h-3.5 w-3.5 mr-1" />
+                {generating ? "Gerando…" : "Conectar bot de relatórios"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setOpenGuide(true)}
+                className="text-xs w-full sm:w-auto"
+              >
+                <HelpCircle className="h-3.5 w-3.5 mr-1.5 text-primary" />
+                Como configurar
+              </Button>
+            </div>
             <p className="text-[11px] text-muted-foreground">
-              Clique acima para gerar o comando <code className="font-mono">/start</code> e enviá-lo ao bot de relatórios.
+              Clique acima para gerar o comando <code className="font-mono">/start</code> e enviá-lo ao bot de relatórios (<code className="font-mono">@EmprestAIIRelatorios_bot</code>).
             </p>
           </div>
         )}

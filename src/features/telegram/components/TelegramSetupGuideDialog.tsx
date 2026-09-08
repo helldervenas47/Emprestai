@@ -89,9 +89,12 @@ export function TelegramSetupGuideDialog({
                   </Badge>
                 )}
               </div>
-              <p className="text-[11px] leading-tight">
+              <p className="text-[11px] leading-tight mb-2">
                 Envia relatórios operacionais, cobranças, vencimentos do dia e empréstimos em atraso.
               </p>
+              <div className="flex items-center gap-1 text-[11px] font-mono bg-background/80 px-2 py-1 rounded border border-border/60">
+                <span className="text-primary font-semibold">@EmprestAIIRelatorios_bot</span>
+              </div>
             </div>
 
             <div
@@ -110,15 +113,48 @@ export function TelegramSetupGuideDialog({
                   </Badge>
                 )}
               </div>
-              <p className="text-[11px] leading-tight">
+              <p className="text-[11px] leading-tight mb-2">
                 Cadastra despesas e receitas no seu financeiro através de mensagens de texto ou áudios.
               </p>
+              <div className="flex items-center gap-1 text-[11px] font-mono bg-background/80 px-2 py-1 rounded border border-border/60">
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">@EmprestAIIDespesas_bot</span>
+              </div>
             </div>
           </div>
         </div>
 
+        {/* Bot em destaque com link direto */}
+        <div className="rounded-lg border border-border bg-card p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="space-y-0.5">
+            <p className="text-xs text-muted-foreground">Bot para este card no Telegram:</p>
+            <p className="text-sm font-bold font-mono text-primary flex items-center gap-1.5">
+              {isReports ? "@EmprestAIIRelatorios_bot" : "@EmprestAIIDespesas_bot"}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            asChild
+            className="text-xs gap-1.5 h-8 w-full sm:w-auto"
+          >
+            <a
+              href={
+                isReports
+                  ? "https://t.me/EmprestAIIRelatorios_bot"
+                  : "https://t.me/EmprestAIIDespesas_bot"
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Abrir no Telegram
+            </a>
+          </Button>
+        </div>
+
         {/* Passo a Passo */}
-        <div className="space-y-3 pt-2">
+        <div className="space-y-3 pt-1">
           <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Passo a passo de conexão
           </h4>
@@ -155,9 +191,9 @@ export function TelegramSetupGuideDialog({
                     3
                   </div>
                   <div>
-                    <p className="font-semibold">Enviar mensagem no Telegram</p>
+                    <p className="font-semibold">Localizar e abrir o bot de relatórios</p>
                     <p className="text-muted-foreground mt-0.5">
-                      Abra a conversa com o <strong>Bot de Relatórios</strong> no Telegram e envie o comando copiado.
+                      Procure por <code className="font-mono bg-muted px-1.5 py-0.5 rounded font-bold text-primary">@EmprestAIIRelatorios_bot</code> no Telegram e envie o comando copiado.
                     </p>
                   </div>
                 </div>
@@ -217,9 +253,9 @@ export function TelegramSetupGuideDialog({
                     3
                   </div>
                   <div>
-                    <p className="font-semibold">Enviar ao Bot de Despesas</p>
+                    <p className="font-semibold">Localizar e abrir o bot de despesas</p>
                     <p className="text-muted-foreground mt-0.5">
-                      Abra o <strong>Bot de Despesas</strong> no Telegram e envie o comando copiado.
+                      Procure por <code className="font-mono bg-muted px-1.5 py-0.5 rounded font-bold text-emerald-600 dark:text-emerald-400">@EmprestAIIDespesas_bot</code> no Telegram e envie o comando copiado.
                     </p>
                   </div>
                 </div>
