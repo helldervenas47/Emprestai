@@ -22,6 +22,7 @@ import { calculateInstallment, calculateTotalWithInterest } from "@/features/loa
 import { getInstallmentAmount, getOverdueAmount } from "@/features/loans/lib/loanInstallmentAmount";
 import { normalizeClientKey } from "@/features/loans/lib/clientRiskUtils";
 import { getLoanLateFees, getBaseRemainingAmount, getLoanReceivable } from "@/features/loans/lib/loanLateFees";
+import { advanceLoanDueDate } from "@/features/loans/lib/advanceDueDate";
 import { cn } from "@/lib/utils";
 import {
   CheckCircle, CheckCircle2, Trash2, DollarSign, User, Calendar as CalendarIcon, LayoutGrid, List,
