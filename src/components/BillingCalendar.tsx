@@ -1427,35 +1427,34 @@ export function BillingCalendar({
                 <>
                   {/* Cabeçalho do dia com mini-resumo */}
                   <div className="rounded-xl bg-muted/40 p-3 border border-border/50 space-y-2">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 text-xs text-primary font-medium">
-                          <CalendarDays className="h-3.5 w-3.5" />
+                          <CalendarDays className="h-3.5 w-3.5 shrink-0" />
                           <span>{selectedDate === todayStr ? "Hoje" : selectedDate === tomorrowStr ? "Amanhã" : "Data selecionada"}</span>
                         </div>
-                        <h3 className="text-sm md:text-base font-semibold text-foreground capitalize truncate">
-                          {new Date(selectedDate + "T00:00:00").toLocaleDateString("pt-BR", {
-                            weekday: "long",
-                            day: "2-digit",
-                            month: "long",
-                            year: "numeric",
-                          })}
-                        </h3>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        {(sortedSelectedItems.length > 0 || selectedSaleItems.length > 0) && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-[11px] px-2 gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
-                            onClick={handleCopyDaySchedule}
-                            title="Copiar pauta do dia para o WhatsApp"
-                          >
-                            <Copy className="h-3 w-3" />
-                            <span>Pauta WhatsApp</span>
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <h3 className="text-sm md:text-base font-semibold text-foreground capitalize truncate flex-1">
+                            {new Date(selectedDate + "T00:00:00").toLocaleDateString("pt-BR", {
+                              weekday: "long",
+                              day: "2-digit",
+                              month: "long",
+                              year: "numeric",
+                            })}
+                          </h3>
+                          {(sortedSelectedItems.length > 0 || selectedSaleItems.length > 0) && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 shrink-0 px-2 gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
+                              onClick={handleCopyDaySchedule}
+                              title="Copiar pauta do dia para o WhatsApp"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                              <span className="hidden sm:inline text-[11px]">Pauta WhatsApp</span>
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
 
