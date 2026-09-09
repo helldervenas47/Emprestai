@@ -29,6 +29,8 @@ import {
   TrendingUp,
   RotateCcw,
   Sparkles,
+  AlertTriangle,
+  Clock,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { getDueStatusBadge } from "@/features/financial/lib/dueStatus";
