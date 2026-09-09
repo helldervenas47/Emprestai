@@ -148,8 +148,8 @@ export function AllCategoriesSheet({
 
   // 1. Despesas diretas do mês selecionado localmente
   const baseExpenses = useMemo(() => {
-    return withoutInstallmentReceipts(expenses).filter((e) => isExpenseOccurringInMonth(e, selectedMonth));
-  }, [expenses, selectedMonth]);
+    return withoutInstallmentReceipts(expenses, allExpenses).filter((e) => isExpenseOccurringInMonth(e, selectedMonth));
+  }, [expenses, allExpenses, selectedMonth]);
 
   const spendingMonth = useMemo(() => {
     return baseExpenses
@@ -289,7 +289,7 @@ export function AllCategoriesSheet({
     const map = new Map<string, number>();
 
     // 4.1 Despesas diretas do mês anterior
-    const prevBase = withoutInstallmentReceipts(expenses).filter((e) =>
+    const prevBase = withoutInstallmentReceipts(expenses, allExpenses).filter((e) =>
       isExpenseOccurringInMonth(e, prevMonthKey)
     );
 

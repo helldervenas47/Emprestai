@@ -138,22 +138,41 @@ export function deserializeCustomInstallments(notes: string | undefined): Indivi
  * exibir o filho no mesmo mês gera DUPLICIDADE na lista e nos totais.
  * Estes registros continuam existindo no banco (histórico/extrato), mas não
  * devem ser renderizados como uma despesa própria.
+ *
+ * @param allRecords - Array completo de despesas (sem filtros de scope/tipo).
+ *   Necessário para localizar o pai quando ele foi excluído do array `all`
+ *   filtrado. Se não fornecido, usa `all` como fallback.
  */
 export function isInstallmentReceipt(
   e: Pick<Expense, "id" | "parentExpenseId">,
   all: Pick<Expense, "id" | "installments" | "type">[],
+  allRecords?: Pick<Expense, "id" | "installments" | "type">[],
 ): boolean {
   if (!e.parentExpenseId) return false;
-  const parent = all.find((p) => p.id === e.parentExpenseId);
-  if (!parent) return false;
+  // Busca o pai primeiro no array filtrado, depois no array completo (se fornecido).
+  // Isso garante que filhos cujo pai foi excluído do array por scope/tipo
+  // ainda sejam corretamente identificados como recibos e filtrados.
+  const pool = allRecords ?? all;
+  const parent = all.find((p) => p.id === e.parentExpenseId) ?? pool.find((p) => p.id === e.parentExpenseId);
+  if (!parent) {
+    // Pai não encontrado em nenhum array: se o registro tem parentExpenseId
+    // definido, é seguro assumir que é um filho orfão — tratar como recibo.
+    return true;
+  }
   return (parent.installments ?? 1) > 1;
 }
 
-/** Remove os recibos de parcelas da lista exibida. */
+/**
+ * Remove os recibos de parcelas da lista exibida.
+ *
+ * @param allRecords - Array completo de despesas (sem filtros de scope/tipo)
+ *   para identificar o pai mesmo quando ele foi excluído de `list`.
+ */
 export function withoutInstallmentReceipts<T extends Pick<Expense, "id" | "parentExpenseId" | "installments" | "type">>(
   list: T[],
+  allRecords?: Pick<Expense, "id" | "installments" | "type">[],
 ): T[] {
-  return list.filter((e) => !isInstallmentReceipt(e, list));
+  return list.filter((e) => !isInstallmentReceipt(e, list, allRecords));
 }
 
 /**

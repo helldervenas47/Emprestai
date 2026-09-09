@@ -311,9 +311,11 @@ export function PersonalExpenseList({ expenses: expensesInput, onPay, onUnpay, o
     // Fonte única: `expenses` já aplica o escopo (business/personal) e remove
     // despesas de cartão de crédito. Recibos de parcelas pagas (filhos) não
     // entram: o pai já representa cada competência.
-    let base = withoutInstallmentReceipts(expenses);
+    // allExpenses é passado como referência completa para que o pai seja
+    // encontrado mesmo quando filtrado do array `expenses` (ex: scope diferente).
+    let base = withoutInstallmentReceipts(expenses, allExpenses);
     return base.filter((e) => occursInMonth(e, selectedMonth));
-  }, [expenses, selectedMonth, occursInMonth]);
+  }, [expenses, allExpenses, selectedMonth, occursInMonth]);
 
 
 
