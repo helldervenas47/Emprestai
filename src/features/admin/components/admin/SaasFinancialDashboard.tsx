@@ -639,35 +639,35 @@ export function SaasFinancialDashboard() {
             <CardContent>
               {data?.plans_distribution && data.plans_distribution.length > 0 ? (
                 <div className="overflow-x-auto">
-                  <Table>
+                  <Table className="min-w-[480px]">
                     <TableHeader>
                       <TableRow className="text-xs">
-                        <TableHead>Plano</TableHead>
-                        <TableHead className="text-right">Bruto</TableHead>
-                        <TableHead className="text-right">Descontos</TableHead>
-                        <TableHead className="text-right">Líquido</TableHead>
-                        <TableHead className="text-right">% Total</TableHead>
+                        <TableHead className="whitespace-nowrap">Plano</TableHead>
+                        <TableHead className="text-right whitespace-nowrap">Bruto</TableHead>
+                        <TableHead className="text-right whitespace-nowrap">Descontos</TableHead>
+                        <TableHead className="text-right whitespace-nowrap">Líquido</TableHead>
+                        <TableHead className="text-right whitespace-nowrap">% Total</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {data.plans_distribution.map((p, idx) => (
                         <TableRow key={idx} className="text-xs">
-                          <TableCell className="font-semibold text-foreground">
+                          <TableCell className="font-semibold text-foreground whitespace-nowrap">
                             {p.plan_name}
-                            <span className="block text-[10px] text-muted-foreground font-normal">
+                            <span className="block text-[10px] text-muted-foreground font-normal whitespace-nowrap">
                               {p.count} assinaturas
                             </span>
                           </TableCell>
-                          <TableCell className="text-right font-medium text-foreground">
+                          <TableCell className="text-right font-medium text-foreground whitespace-nowrap">
                             {fmtCurrency(p.gross)}
                           </TableCell>
-                          <TableCell className="text-right text-amber-600 dark:text-amber-400">
+                          <TableCell className="text-right text-amber-600 dark:text-amber-400 whitespace-nowrap">
                             {p.discounts > 0 ? `− ${fmtCurrency(p.discounts)}` : "R$ 0,00"}
                           </TableCell>
-                          <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400">
+                          <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                             {fmtCurrency(p.net)}
                           </TableCell>
-                          <TableCell className="text-right text-muted-foreground">
+                          <TableCell className="text-right text-muted-foreground whitespace-nowrap">
                             {p.percentage}%
                           </TableCell>
                         </TableRow>
@@ -752,56 +752,56 @@ export function SaasFinancialDashboard() {
           <CardContent>
             {paginatedTransactions.length > 0 ? (
               <div className="overflow-x-auto">
-                <Table>
+                <Table className="min-w-[640px]">
                   <TableHeader>
                     <TableRow className="text-xs">
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Plano / Ciclo</TableHead>
-                      <TableHead>Valor Original</TableHead>
-                      <TableHead>Desconto</TableHead>
-                      <TableHead>Valor Pago</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Data Efetiva</TableHead>
-                      <TableHead className="text-right">Fatura</TableHead>
+                      <TableHead className="whitespace-nowrap">Cliente</TableHead>
+                      <TableHead className="whitespace-nowrap">Plano / Ciclo</TableHead>
+                      <TableHead className="whitespace-nowrap">Valor Original</TableHead>
+                      <TableHead className="whitespace-nowrap">Desconto</TableHead>
+                      <TableHead className="whitespace-nowrap">Valor Pago</TableHead>
+                      <TableHead className="whitespace-nowrap">Status</TableHead>
+                      <TableHead className="whitespace-nowrap">Data Efetiva</TableHead>
+                      <TableHead className="text-right whitespace-nowrap">Fatura</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paginatedTransactions.map((t) => (
                       <TableRow key={t.id} className="text-xs">
-                        <TableCell className="font-semibold text-foreground">
+                        <TableCell className="font-semibold text-foreground whitespace-nowrap">
                           {t.user_name}
                           {t.payment_id && (
-                            <span className="block text-[10px] text-muted-foreground font-mono">
+                            <span className="block text-[10px] text-muted-foreground font-mono whitespace-nowrap">
                               {t.payment_id}
                             </span>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="whitespace-nowrap">
                           <span className="font-medium text-foreground">{t.plan_name}</span>
-                          <span className="block text-[10px] text-muted-foreground capitalize">
+                          <span className="block text-[10px] text-muted-foreground capitalize whitespace-nowrap">
                             {t.cycle === "annual" ? "Anual" : t.cycle === "semestral" ? "Semestral" : "Mensal"} • {t.checkout_kind.toUpperCase()}
                           </span>
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
+                        <TableCell className="text-muted-foreground whitespace-nowrap">
                           {fmtCurrency(t.original_amount || t.amount)}
                         </TableCell>
-                        <TableCell className="text-amber-600 dark:text-amber-400">
+                        <TableCell className="text-amber-600 dark:text-amber-400 whitespace-nowrap">
                           {t.discount_amount > 0 ? `− ${fmtCurrency(t.discount_amount)}` : "—"}
                         </TableCell>
-                        <TableCell className="font-bold text-foreground">
+                        <TableCell className="font-bold text-foreground whitespace-nowrap">
                           {fmtCurrency(t.amount)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="whitespace-nowrap">
                           {t.status === "paid" ? (
-                            <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px]">
+                            <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] whitespace-nowrap">
                               Confirmado
                             </Badge>
                           ) : t.status === "pending" ? (
-                            <Badge variant="secondary" className="text-amber-600 dark:text-amber-400 text-[10px]">
+                            <Badge variant="secondary" className="text-amber-600 dark:text-amber-400 text-[10px] whitespace-nowrap">
                               Pendente
                             </Badge>
                           ) : (
-                            <Badge variant="destructive" className="text-[10px]">
+                            <Badge variant="destructive" className="text-[10px] whitespace-nowrap">
                               Estornado
                             </Badge>
                           )}
@@ -809,13 +809,13 @@ export function SaasFinancialDashboard() {
                         <TableCell className="text-muted-foreground whitespace-nowrap">
                           {fmtDateBR(t.credited_at || t.revoked_at || t.created_at)}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right whitespace-nowrap">
                           {t.invoice_url ? (
                             <a
                               href={t.invoice_url}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-1 text-primary hover:underline text-[11px]"
+                              className="inline-flex items-center gap-1 text-primary hover:underline text-[11px] whitespace-nowrap"
                             >
                               Ver <ExternalLink className="h-3 w-3" />
                             </a>
