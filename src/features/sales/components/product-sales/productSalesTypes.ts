@@ -11,7 +11,7 @@ export interface SaleClientGroup {
   hasOverdue: boolean;
 }
 
-export type SummaryBreakdownCard = "overdue" | "paid" | "receivable" | "ontrack";
+export type SummaryBreakdownCard = "overdue" | "due_today" | "ontrack" | "receivable" | "paid";
 
 export const saleCategoryFilters: {
   id: SaleCategory;

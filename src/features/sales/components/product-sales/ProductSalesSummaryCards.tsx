@@ -1,5 +1,8 @@
-import { AlertTriangle, Clock, CheckCircle, DollarSign, Calendar, RefreshCw, Info, CircleCheck } from "lucide-react";
+import { useMemo } from "react";
+import { AlertTriangle, Clock, CheckCircle, DollarSign, Calendar, RefreshCw, Info } from "lucide-react";
 import { SummaryBreakdownCard } from "./productSalesTypes";
+import { Sale } from "@/types/loan";
+import { getNextDueDateHelper, getNextInstallmentValueHelper, getSaleCategory } from "./productSalesUtils";
 
 interface Props {
   hideOnTrackCard?: boolean;
@@ -7,80 +10,57 @@ interface Props {
   totalOverdue: number;
   totalOnTrack: number;
   totalDueToday: number;
-  totalPaid: number;
+  totalPaid?: number;
   totalAReceber: number;
   overdueCount: number;
   onTrackCount: number;
   dueTodayCount: number;
-  paidContractsCount: number;
+  paidContractsCount?: number;
   onSelect: (card: SummaryBreakdownCard) => void;
+  selectedCard?: SummaryBreakdownCard | null;
+  sales?: Sale[];
 }
 
-type Tone = "destructive" | "warning" | "success" | "primary" | "purple";
+type Tone = "destructive" | "warning" | "sky" | "indigo";
 
 const TONE = {
   destructive: {
     text: "text-destructive",
-    iconBg: "bg-destructive/10",
-    badgeBg: "bg-destructive/10",
-    badgeText: "text-destructive",
-    stroke: "hsl(var(--destructive))",
-    ring: "ring-destructive/40",
-    activeBorder: "border-destructive/40",
+    bgGradient: "bg-gradient-to-br from-destructive/10 via-destructive/[0.04] to-transparent",
+    iconBg: "bg-destructive/15 text-destructive",
+    badgeBg: "bg-destructive/15 text-destructive border-destructive/30",
+    dot: "bg-destructive",
+    activeRing: "ring-2 ring-destructive/40 border-destructive/50",
+    border: "border-destructive/20 hover:border-destructive/40",
   },
   warning: {
-    text: "text-warning",
-    iconBg: "bg-warning/10",
-    badgeBg: "bg-warning/10",
-    badgeText: "text-warning",
-    stroke: "hsl(var(--warning))",
-    ring: "ring-warning/40",
-    activeBorder: "border-warning/40",
+    text: "text-amber-600 dark:text-amber-400",
+    bgGradient: "bg-gradient-to-br from-amber-500/10 via-amber-500/[0.04] to-transparent",
+    iconBg: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+    badgeBg: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+    dot: "bg-amber-500",
+    activeRing: "ring-2 ring-amber-500/40 border-amber-500/50",
+    border: "border-amber-500/20 hover:border-amber-500/40",
   },
-  success: {
-    text: "text-success",
-    iconBg: "bg-success/10",
-    badgeBg: "bg-success/10",
-    badgeText: "text-success",
-    stroke: "hsl(var(--success))",
-    ring: "ring-success/40",
-    activeBorder: "border-success/40",
+  sky: {
+    text: "text-sky-600 dark:text-sky-400",
+    bgGradient: "bg-gradient-to-br from-sky-500/10 via-sky-500/[0.04] to-transparent",
+    iconBg: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
+    badgeBg: "bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30",
+    dot: "bg-sky-500",
+    activeRing: "ring-2 ring-sky-500/40 border-sky-500/50",
+    border: "border-sky-500/20 hover:border-sky-500/40",
   },
-  primary: {
-    text: "text-primary",
-    iconBg: "bg-primary/10",
-    badgeBg: "bg-primary/10",
-    badgeText: "text-primary",
-    stroke: "hsl(var(--primary))",
-    ring: "ring-primary/40",
-    activeBorder: "border-primary/40",
-  },
-  purple: {
-    text: "text-primary",
-    iconBg: "bg-primary/10",
-    badgeBg: "bg-primary/10",
-    badgeText: "text-primary",
-    stroke: "hsl(var(--primary))",
-    ring: "ring-primary/50",
-    activeBorder: "border-primary/60",
+  indigo: {
+    text: "text-indigo-600 dark:text-indigo-400",
+    bgGradient: "bg-gradient-to-br from-indigo-500/15 via-indigo-500/[0.05] to-transparent",
+    iconBg: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400",
+    badgeBg: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30",
+    dot: "bg-indigo-500",
+    activeRing: "ring-2 ring-indigo-500/40 border-indigo-500/50",
+    border: "border-indigo-500/30 hover:border-indigo-500/50",
   },
 } as const;
-
-function Sparkline({ stroke }: { stroke: string }) {
-  return (
-    <svg width="70" height="22" viewBox="0 0 70 22" fill="none" className="opacity-70 group-hover:opacity-100 transition-opacity" aria-hidden>
-      <polyline
-        points="0,10 10,10 20,10 30,10 40,10 50,10 60,10 70,10"
-        stroke={stroke}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-        strokeDasharray="3 3"
-      />
-    </svg>
-  );
-}
 
 export function ProductSalesSummaryCards({
   hideOnTrackCard = false,
@@ -88,31 +68,70 @@ export function ProductSalesSummaryCards({
   totalOverdue,
   totalOnTrack,
   totalDueToday,
-  totalPaid,
   totalAReceber,
   overdueCount,
   onTrackCount,
   dueTodayCount,
-  paidContractsCount,
   onSelect,
+  selectedCard,
+  sales = [],
 }: Props) {
-  const noPrazoCount = onTrackCount + dueTodayCount;
-  const noPrazoValue = totalOnTrack + totalDueToday;
-  const totalActive = overdueCount + noPrazoCount;
+  const totalActive = overdueCount + onTrackCount + dueTodayCount;
 
-  const ticketOverdue = overdueCount > 0 ? totalOverdue / overdueCount : 0;
-  const ticketNoPrazo = noPrazoCount > 0 ? noPrazoValue / noPrazoCount : 0;
-  const ticketPago = paidContractsCount > 0 ? totalPaid / paidContractsCount : 0;
-  const ticketMedio = totalActive > 0 ? totalAReceber / totalActive : 0;
+  const footer = useMemo(() => {
+    // 1. Maior atraso entre as vendas vencidas
+    let biggestOverdue = 0;
+    const overdueList = sales.filter((s) => getSaleCategory(s) === "overdue");
+    for (const s of overdueList) {
+      const v = getNextInstallmentValueHelper(s);
+      if (v > biggestOverdue) biggestOverdue = v;
+    }
+
+    // 2. Próximo vencimento entre as vendas ativas
+    const today = new Date();
+    const todayNorm = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const pendingByDate = new Map<number, number>();
+
+    const activeList = sales.filter((s) => getSaleCategory(s) !== "paid");
+    for (const s of activeList) {
+      const due = getNextDueDateHelper(s).getTime();
+      if (due > todayNorm) {
+        const val = getNextInstallmentValueHelper(s);
+        pendingByDate.set(due, (pendingByDate.get(due) || 0) + val);
+      }
+    }
+
+    let nextDueValue: number | null = null;
+    if (pendingByDate.size > 0) {
+      const minTs = Math.min(...pendingByDate.keys());
+      nextDueValue = pendingByDate.get(minTs) || null;
+    }
+
+    // 3. Parcela média das vendas em dia
+    const onTrackList = sales.filter((s) => getSaleCategory(s) === "on_track");
+    const parcelas = onTrackList
+      .map((s) => getNextInstallmentValueHelper(s))
+      .filter((v) => v > 0);
+    const parcelaMedia = parcelas.length > 0 ? parcelas.reduce((a, b) => a + b, 0) / parcelas.length : 0;
+
+    // 4. Ticket médio geral
+    const ticketMedio = totalActive > 0 ? totalAReceber / totalActive : 0;
+
+    return {
+      biggestOverdue,
+      nextDueValue,
+      parcelaMedia,
+      ticketMedio,
+    };
+  }, [sales, totalActive, totalAReceber]);
 
   type CardConfig = {
     id: SummaryBreakdownCard;
     label: string;
+    sublabel: string;
     value: number;
     count: number;
-    countLabel: string;
     icon: typeof AlertTriangle;
-    secondaryIcon: typeof AlertTriangle;
     tone: Tone;
     footerLabel: string;
     footerValue: string;
@@ -123,121 +142,131 @@ export function ProductSalesSummaryCards({
   const cards: CardConfig[] = [
     {
       id: "overdue",
-      label: "Vencidos",
+      label: "Atrasados",
+      sublabel: "Em atraso",
       value: totalOverdue,
       count: overdueCount,
-      countLabel: "contratos",
       icon: AlertTriangle,
-      secondaryIcon: Clock,
       tone: "destructive",
-      footerLabel: "Ticket médio",
-      footerValue: ticketOverdue > 0 ? formatCurrency(ticketOverdue) : "—",
+      footerLabel: "Maior atraso",
+      footerValue: footer.biggestOverdue > 0 ? formatCurrency(footer.biggestOverdue) : "—",
+    },
+    {
+      id: "due_today",
+      label: "Vence Hoje",
+      sublabel: "Para receber hoje",
+      value: totalDueToday,
+      count: dueTodayCount,
+      icon: Calendar,
+      tone: "warning",
+      footerLabel: "Próx. vencimento",
+      footerValue: footer.nextDueValue != null && footer.nextDueValue > 0 ? formatCurrency(footer.nextDueValue) : "—",
     },
     {
       id: "ontrack",
-      label: "No Prazo",
-      value: noPrazoValue,
-      count: noPrazoCount,
-      countLabel: "contratos",
+      label: "Em Dia",
+      sublabel: "Contratos regulares",
+      value: totalOnTrack,
+      count: onTrackCount,
       icon: CheckCircle,
-      secondaryIcon: RefreshCw,
-      tone: "primary",
-      footerLabel: "Ticket médio",
-      footerValue: ticketNoPrazo > 0 ? formatCurrency(ticketNoPrazo) : "—",
+      tone: "sky",
+      footerLabel: "Parcela média",
+      footerValue: footer.parcelaMedia > 0 ? formatCurrency(footer.parcelaMedia) : "—",
       hidden: hideOnTrackCard,
-    },
-    {
-      id: "paid",
-      label: "Pagos",
-      value: totalPaid,
-      count: paidContractsCount,
-      countLabel: "quitados",
-      icon: CircleCheck,
-      secondaryIcon: Calendar,
-      tone: "success",
-      footerLabel: "Ticket médio",
-      footerValue: ticketPago > 0 ? formatCurrency(ticketPago) : "—",
     },
     {
       id: "receivable",
       label: "Total a Receber",
+      sublabel: "Carteira ativa",
       value: totalAReceber,
       count: totalActive,
-      countLabel: "contratos",
       icon: DollarSign,
-      secondaryIcon: Info,
-      tone: "purple",
+      tone: "indigo",
       footerLabel: "Ticket médio",
-      footerValue: ticketMedio > 0 ? formatCurrency(ticketMedio) : "—",
+      footerValue: footer.ticketMedio > 0 ? formatCurrency(footer.ticketMedio) : "—",
       emphasized: true,
     },
   ];
 
   const visible = cards.filter((c) => !c.hidden);
-  const gridCols = visible.length === 3 ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4";
+  const gridCols = visible.length === 3 ? "grid-cols-3" : "grid-cols-2 lg:grid-cols-4";
 
   return (
-    <div className={`grid ${gridCols} gap-1.5 sm:gap-2 lg:gap-3`}>
+    <div className={`grid ${gridCols} gap-2 sm:gap-3`}>
       {visible.map((c, idx) => {
         const Icon = c.icon;
-        const Secondary = c.secondaryIcon;
         const t = TONE[c.tone];
+        const isActive = selectedCard === c.id;
         return (
           <button
             key={c.id}
             type="button"
-            aria-label={`${c.label}: ${formatCurrency(c.value)} — ${c.count} ${c.countLabel}`}
+            aria-label={`${c.label}: ${formatCurrency(c.value)} — ${c.count} contratos`}
             onClick={() => onSelect(c.id)}
             className={[
-              "group relative text-left rounded-[12px] sm:rounded-[13px] lg:rounded-[14px] p-2.5 sm:p-3 lg:p-4",
-              "bg-card border border-border/60 dark:border-white/5",
-              "shadow-[0_1px_2px_hsl(220_40%_2%/0.04)] dark:shadow-none",
-              "transition-all duration-200 hover:-translate-y-[2px]",
-              "hover:shadow-[0_8px_24px_-10px_hsl(220_40%_2%/0.16)]",
+              "group relative text-left rounded-2xl p-3 sm:p-4",
+              "bg-card border transition-all duration-200",
+              t.bgGradient,
+              isActive ? t.activeRing : `${t.border} shadow-xs hover:shadow-md hover:-translate-y-0.5`,
               "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60",
-              "animate-fade-in flex flex-col",
-              c.emphasized ? `${t.activeBorder}` : "",
+              "flex flex-col justify-between overflow-hidden",
             ].join(" ")}
-            style={{ animationDelay: `${idx * 60}ms`, animationFillMode: "backwards" }}
+            style={{ animationDelay: `${idx * 50}ms` }}
           >
-            {/* Top row */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                <span className={`h-7 w-7 lg:h-8 lg:w-8 rounded-lg ${t.iconBg} flex items-center justify-center shrink-0`}>
-                  <Icon className={`h-3.5 w-3.5 lg:h-4 lg:w-4 ${t.text}`} aria-hidden />
+            {/* Top Row: Icon + Title & Sublabel (badge on right for sm+) */}
+            <div>
+              <div className="flex items-center justify-between gap-1.5 sm:gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className={`h-7 w-7 sm:h-9 sm:w-9 rounded-xl ${t.iconBg} flex items-center justify-center shrink-0 shadow-xs`}
+                  >
+                    <Icon className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5" aria-hidden />
+                  </span>
+                  <div className="min-w-0">
+                    <span className="text-xs sm:text-sm font-bold text-foreground block leading-tight truncate">
+                      {c.label}
+                    </span>
+                    <span className="text-[10px] sm:text-[11px] text-muted-foreground block leading-tight mt-0.5 truncate">
+                      {c.sublabel}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Badge visível no desktop/tablet */}
+                <span
+                  className={`hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold border shrink-0 ${t.badgeBg}`}
+                >
+                  <span className={`h-1.5 w-1.5 rounded-full ${t.dot}`} aria-hidden />
+                  {c.count} {c.count === 1 ? "contrato" : "contratos"}
                 </span>
-                <span className="text-[13px] lg:text-sm font-medium text-foreground truncate">{c.label}</span>
               </div>
-              <Secondary className={`h-3 w-3 lg:h-3.5 lg:w-3.5 shrink-0 ${t.text} opacity-70`} aria-hidden />
+
+              {/* Main Financial Value */}
+              <div className="mt-2.5 sm:mt-3">
+                <p
+                  className={`text-base sm:text-2xl lg:text-[26px] font-bold tabular-nums tracking-tight leading-tight ${t.text}`}
+                >
+                  {formatCurrency(c.value)}
+                </p>
+
+                {/* Quantidade de contratos abaixo do valor na versão mobile */}
+                <div className="sm:hidden mt-1.5">
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${t.badgeBg}`}
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${t.dot}`} aria-hidden />
+                    {c.count} {c.count === 1 ? "contrato" : "contratos"}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            {/* Main value */}
-            <p className={`mt-2 lg:mt-3 text-[17px] sm:text-[20px] lg:text-[26px] font-bold tabular-nums leading-none whitespace-nowrap ${t.text}`}>
-              {formatCurrency(c.value)}
-            </p>
-
-            {/* Contracts */}
-            <p className="mt-1 lg:mt-1.5 text-[11px] lg:text-[12px] text-muted-foreground">
-              {c.count} {c.count === 1 ? c.countLabel.replace(/s$/, "") : c.countLabel}
-            </p>
-
-            {/* Badge + sparkline */}
-            <div className="mt-2 lg:mt-3 flex items-end justify-between gap-2">
-              <span className={`inline-flex items-center gap-1 rounded-full px-1.5 lg:px-2 py-0.5 text-[10px] lg:text-[11px] font-medium ${t.badgeBg} ${t.badgeText}`}>
-                <span className="opacity-70">—</span>
-                sem histórico
+            {/* Footer metric */}
+            <div className="mt-2.5 sm:mt-3 pt-2 sm:pt-2.5 border-t border-border/40 dark:border-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-1 text-[10px] sm:text-xs">
+              <span className="text-muted-foreground leading-tight text-[10px] sm:text-xs">{c.footerLabel}</span>
+              <span className={`font-semibold tabular-nums leading-tight text-[10px] sm:text-xs ${t.text}`}>
+                {c.footerValue}
               </span>
-              <Sparkline stroke={t.stroke} />
-            </div>
-
-            {/* Footer */}
-            <div className="mt-2 lg:mt-3 pt-2 lg:pt-2.5 border-t border-border/50">
-              <div className="flex items-center justify-between gap-2 min-w-0">
-                <span className="text-[11px] lg:text-[12px] text-muted-foreground truncate">{c.footerLabel}</span>
-                <span className={`text-[11px] lg:text-[12px] font-semibold tabular-nums whitespace-nowrap ${t.text}`}>
-                  {c.footerValue}
-                </span>
-              </div>
             </div>
           </button>
         );

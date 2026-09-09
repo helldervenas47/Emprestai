@@ -20,7 +20,7 @@ import {
 } from "./productSalesUtils";
 
 export type SalesViewMode = "cards" | "folders";
-export type BreakdownCard = null | "overdue" | "paid" | "receivable" | "ontrack";
+export type BreakdownCard = null | "overdue" | "due_today" | "ontrack" | "receivable" | "paid";
 
 /**
  * Mantém os filtros avançados enquanto o usuário permanece no app/aba,

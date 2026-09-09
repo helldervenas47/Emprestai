@@ -96,30 +96,35 @@ export function SalesList({
         dueTodayCount={dueTodaySales.length}
         paidContractsCount={paidContractsCount}
         onSelect={setBreakdownCard}
+        selectedCard={breakdownCard}
+        sales={sales}
       />
 
 
       {/* Breakdown dialog for clicked summary card */}
       {breakdownCard && (() => {
         const cfg = breakdownCard === "overdue"
-          ? { title: "Vencidos", color: "text-destructive", total: totalOverdue,
+          ? { title: "Atrasados", color: "text-destructive", total: totalOverdue,
               items: overdueSales.map((s) => ({ sale: s, value: getOverdueInstallmentsValue(s) })).filter((x) => x.value > 0) }
-          : breakdownCard === "paid"
-          ? { title: "Pagos", color: "text-success", total: totalPaid,
-              items: sales.map((s) => ({ sale: s, value: getSalePaidAmount(s) })).filter((x) => x.value > 0) }
+          : breakdownCard === "due_today"
+          ? { title: "Vence Hoje", color: "text-amber-600 dark:text-amber-400", total: totalDueToday,
+              items: dueTodaySales.map((s) => ({ sale: s, value: getDueTodayInstallmentValue(s) })).filter((x) => x.value > 0) }
           : breakdownCard === "ontrack"
-          ? { title: "No Prazo", color: "text-primary", total: totalOnTrack + totalDueToday,
+          ? { title: "Em Dia", color: "text-sky-600 dark:text-sky-400", total: totalOnTrack,
               items: sales
-                .filter((s) => getSaleCategory(s) !== "paid")
+                .filter((s) => getSaleCategory(s) === "on_track")
                 .map((s) => {
                   const isRecorrente = s.paymentMode === "recorrente" && s.installments > 1;
                   const value = isRecorrente
-                    ? getFutureInstallmentsValue(s) + getDueTodayInstallmentValue(s)
-                    : (getSaleCategory(s) === "on_track" || getSaleCategory(s) === "due_today" ? getRemaining(s) : 0);
+                    ? getFutureInstallmentsValue(s)
+                    : getRemaining(s);
                   return { sale: s, value };
                 })
                 .filter((x) => x.value > 0) }
-          : { title: "Total a Receber", color: "text-warning", total: totalAReceber,
+          : breakdownCard === "paid"
+          ? { title: "Pagos", color: "text-success", total: totalPaid,
+              items: sales.map((s) => ({ sale: s, value: getSalePaidAmount(s) })).filter((x) => x.value > 0) }
+          : { title: "Total a Receber", color: "text-indigo-600 dark:text-indigo-400", total: totalAReceber,
               items: sales.filter((s) => getSaleCategory(s) !== "paid").map((s) => ({ sale: s, value: getRemaining(s) })).filter((x) => x.value > 0) };
         const sorted = [...cfg.items].sort((a, b) => b.value - a.value);
         return (
