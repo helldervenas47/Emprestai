@@ -10,11 +10,10 @@ export interface RoleTabRow { role: string; tab_id: string; }
 // configurada para o papel (nenhuma linha jamais criada). Se o admin
 // desmarcar todas as abas explicitamente, respeitamos o bloqueio total.
 const DEFAULT_ROLE_TABS: Record<string, string[]> = {
-  cliente: ["overview", "dashboard", "products", "vehicles", "calendar", "clients", "expenses", "boletos", "salary", "accountant", "overdue", "metas", "video_lessons", "settings"],
-  gerente: ["overview", "dashboard", "products", "vehicles", "calendar", "clients", "expenses", "boletos", "salary", "accountant", "overdue", "metas", "video_lessons", "settings"],
-  visualizador: ["overview", "dashboard", "clients", "calendar", "overdue", "video_lessons"],
+  cliente: ["overview", "dashboard", "products", "vehicles", "calendar", "clients", "expenses", "boletos", "salary", "accountant", "overdue", "metas", "video_lessons", "settings", "help"],
+  gerente: ["overview", "dashboard", "products", "vehicles", "calendar", "clients", "expenses", "boletos", "salary", "accountant", "overdue", "metas", "video_lessons", "settings", "help"],
+  visualizador: ["overview", "dashboard", "clients", "calendar", "overdue", "video_lessons", "help"],
 };
-
 
 export function useRoleTabPermissions() {
   const [rows, setRows] = useState<RoleTabRow[]>([]);
@@ -30,32 +29,56 @@ export function useRoleTabPermissions() {
 
   useEffect(() => {
     refresh();
-    // Realtime removido (P0-02 egress): abas mudam raramente; escuta evento local.
     const handler = () => refresh();
     window.addEventListener("role-tab-permissions:changed", handler);
     return () => window.removeEventListener("role-tab-permissions:changed", handler);
   }, [refresh]);
 
   const setAllowed = useCallback(async (role: string, tabId: string, allowed: boolean) => {
-    if (allowed) {
-      const { error } = await (supabase as any)
-        .from("role_tab_permissions")
-        .upsert({ role, tab_id: tabId }, { onConflict: "role,tab_id" });
-      if (error) throw error;
+    const existingForRole = rows.filter((r) => r.role === role);
+
+    if (existingForRole.length === 0) {
+      // Se ainda não existiam linhas salvas para esse papel no banco, inicializamos com os defaults
+      const baseDefaults = DEFAULT_ROLE_TABS[role] || [];
+      const tabsToSave = allowed
+        ? Array.from(new Set([...baseDefaults, tabId]))
+        : baseDefaults.filter((id) => id !== tabId);
+
+      const items = tabsToSave.map((id) => ({ role, tab_id: id }));
+      if (items.length > 0) {
+        const { error } = await (supabase as any)
+          .from("role_tab_permissions")
+          .upsert(items, { onConflict: "role,tab_id" });
+        if (error) throw error;
+      }
     } else {
-      const { error } = await (supabase as any)
-        .from("role_tab_permissions")
-        .delete()
-        .eq("role", role)
-        .eq("tab_id", tabId);
-      if (error) throw error;
+      if (allowed) {
+        const { error } = await (supabase as any)
+          .from("role_tab_permissions")
+          .upsert({ role, tab_id: tabId }, { onConflict: "role,tab_id" });
+        if (error) throw error;
+      } else {
+        const { error } = await (supabase as any)
+          .from("role_tab_permissions")
+          .delete()
+          .eq("role", role)
+          .eq("tab_id", tabId);
+        if (error) throw error;
+      }
     }
+
     await refresh();
     window.dispatchEvent(new CustomEvent("role-tab-permissions:changed"));
-  }, [refresh]);
+  }, [rows, refresh]);
 
   const allowedFor = useCallback(
-    (role: string) => new Set(rows.filter((r) => r.role === role).map((r) => r.tab_id)),
+    (role: string) => {
+      const roleRows = rows.filter((r) => r.role === role);
+      if (roleRows.length > 0) {
+        return new Set(roleRows.map((r) => r.tab_id));
+      }
+      return new Set(DEFAULT_ROLE_TABS[role] || []);
+    },
     [rows],
   );
 

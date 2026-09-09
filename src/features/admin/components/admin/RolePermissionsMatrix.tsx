@@ -12,7 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Save, History, ShieldCheck } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Loader2, Save, History, ShieldCheck, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import {
   PERMISSION_ACTIONS,
@@ -47,6 +48,7 @@ export function RolePermissionsMatrix() {
   const [activeRole, setActiveRole] = useState<string>(PERMISSION_ROLES[0].key);
   const [draft, setDraft] = useState<DraftMap>({});
   const [saving, setSaving] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   // Reset drafts ao trocar de aba ou quando dados externos mudam.
   useEffect(() => {
@@ -102,41 +104,54 @@ export function RolePermissionsMatrix() {
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <ShieldCheck className="h-4 w-4 text-primary" /> Papéis &amp; Permissões
-            </CardTitle>
-            <CardDescription>
-              Defina quais ações cada papel pode realizar em cada módulo. As alterações
-              valem imediatamente para todos os usuários atuais e futuros do papel.
-            </CardDescription>
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <ShieldCheck className="h-4 w-4 text-primary" /> Papéis &amp; Permissões
+              </CardTitle>
+              <CardDescription>
+                Defina quais ações cada papel pode realizar em cada módulo e quais abas ficam visíveis.
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              {dirtyCount > 0 && (
+                <Badge variant="secondary">{dirtyCount} alteração(ões) pendentes</Badge>
+              )}
+              {isOpen && (
+                <Button onClick={save} disabled={saving || dirtyCount === 0} size="sm">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  <span className="ml-2">Salvar</span>
+                </Button>
+              )}
+              <CollapsibleTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <span>{isOpen ? "Recolher" : "Expandir"}</span>
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform duration-200 ${
+                      isOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </Button>
+              </CollapsibleTrigger>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            {dirtyCount > 0 && (
-              <Badge variant="secondary">{dirtyCount} alteração(ões) pendentes</Badge>
-            )}
-            <Button onClick={save} disabled={saving || dirtyCount === 0} size="sm">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              <span className="ml-2">Salvar</span>
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="matrix" className="w-full">
-          <TabsList>
-            <TabsTrigger value="matrix">Ações</TabsTrigger>
-            <TabsTrigger value="tabs">Abas visíveis</TabsTrigger>
-            <TabsTrigger value="history">
-              <History className="h-3.5 w-3.5 mr-1" /> Histórico
-            </TabsTrigger>
-          </TabsList>
+        </CardHeader>
+        <CollapsibleContent>
+          <CardContent className="pt-0">
+            <Tabs defaultValue="matrix" className="w-full">
+              <TabsList>
+                <TabsTrigger value="matrix">Ações</TabsTrigger>
+                <TabsTrigger value="tabs">Abas visíveis</TabsTrigger>
+                <TabsTrigger value="history">
+                  <History className="h-3.5 w-3.5 mr-1" /> Histórico
+                </TabsTrigger>
+              </TabsList>
 
-          <TabsContent value="tabs" className="mt-4">
-            <RoleTabsMatrix />
-          </TabsContent>
+              <TabsContent value="tabs" className="mt-4">
+                <RoleTabsMatrix />
+              </TabsContent>
 
 
           <TabsContent value="matrix" className="mt-4">
@@ -240,7 +255,9 @@ export function RolePermissionsMatrix() {
           </TabsContent>
         </Tabs>
       </CardContent>
-    </Card>
+    </CollapsibleContent>
+  </Collapsible>
+</Card>
   );
 }
 

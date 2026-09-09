@@ -1191,16 +1191,15 @@ const Index = () => {
   const { allowedTabs: planAllowedTabs, loading: planAccessLoading } = usePlanEntitlements();
   const visibleTabs = React.useMemo(() => tabConfig.filter((t) => {
     if (loading) return false;
-    // "Ajuda" e "Vídeo Aulas" são sempre visíveis para qualquer usuário logado.
-    if (t.id === "help" || t.id === "video_lessons") return !!user;
-    // Tabs marcadas como adminOnly são exclusivas para administradores
-    if ((t as any).adminOnly && role !== "admin") return false;
-    // Visualizador: aba de Configurações é ocultada por completo (apenas leitura
-    // não tem nada acionável aqui; backups, telegram, branding, etc. exigem escrita).
-    if (t.id === "settings" && role === "visualizador") return false;
     // Admin sempre vê todas as abas (ignora plano e demais restrições).
     if (role === "admin") return true;
     if (!user) return false;
+
+    // Tabs marcadas como adminOnly são exclusivas para administradores
+    if ((t as any).adminOnly && role !== "admin") return false;
+
+    // Visualizador: aba de Configurações é ocultada por completo se for visualizador
+    if (t.id === "settings" && role === "visualizador") return false;
 
     // Se o plano possuir a lista legada (8 abas antigas), não bloqueia as novas abas padrão (metas, boletos, etc.)
     const isLegacyPlanTabs =
@@ -1223,7 +1222,7 @@ const Index = () => {
 
     // Permissão por papel (role_tab_permissions): se a aba não está liberada
     // para o papel do usuário, esconde.
-    if (Array.isArray(roleAllowedTabs) && roleAllowedTabs.length > 0 && !roleAllowedTabs.includes(t.id)) return false;
+    if (Array.isArray(roleAllowedTabs) && !roleAllowedTabs.includes(t.id)) return false;
 
     // Permissão por usuário (user_tab_permissions): se houver lista customizada, exigir presença.
     const isLegacyClientPlanTabs =

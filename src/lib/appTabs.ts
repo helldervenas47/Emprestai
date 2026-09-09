@@ -20,9 +20,10 @@ export const APP_TABS = [
   { id: "accountant", label: "Contador" },
   { id: "overdue", label: "Relatório" },
   { id: "metas", label: "Metas" },
+  { id: "video_lessons", label: "Vídeo Aulas" },
   { id: "settings", label: "Configurações" },
   { id: "system", label: "Sistema" },
-  { id: "ajuda", label: "Ajuda" },
+  { id: "help", label: "Ajuda" },
 ] as const;
 
 export type AppTabId = (typeof APP_TABS)[number]["id"];
