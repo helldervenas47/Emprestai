@@ -976,7 +976,7 @@ export function BillingCalendar({
       </div>
 
       {/* Summary cards com design idêntico ao da aba Empréstimos */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
         {(() => {
           // Maior atraso entre os itens atrasados do mês
           let biggestOverdueVal = 0;
@@ -1103,7 +1103,7 @@ export function BillingCalendar({
                 type="button"
                 onClick={c.onClick}
                 className={[
-                  "group relative text-left rounded-2xl p-3.5 sm:p-4",
+                  "group relative text-left rounded-2xl p-3 sm:p-4",
                   "bg-card border transition-all duration-200",
                   t.bgGradient,
                   t.border,
@@ -1113,38 +1113,39 @@ export function BillingCalendar({
                 ].join(" ")}
                 aria-label={`${c.label}: ${formatCurrency(c.value)} — ${c.count} contratos`}
               >
-                {/* Linha do Topo: Ícone + Título/Subtítulo + Badge à direita */}
+                {/* Linha do Topo: Ícone + Título/Subtítulo + Badge */}
                 <div>
-                  <div className="flex items-center justify-between gap-1.5 sm:gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-start justify-between gap-1 sm:gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                       <span
-                        className={`h-7 w-7 sm:h-9 sm:w-9 rounded-xl ${t.iconBg} flex items-center justify-center shrink-0 shadow-xs`}
+                        className={`h-6 w-6 sm:h-9 sm:w-9 rounded-lg sm:rounded-xl ${t.iconBg} flex items-center justify-center shrink-0 shadow-xs`}
                       >
-                        <Icon className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5" aria-hidden />
+                        <Icon className="h-3 w-3 sm:h-4.5 sm:w-4.5" aria-hidden />
                       </span>
                       <div className="min-w-0">
-                        <span className="text-xs sm:text-sm font-bold text-foreground block leading-tight truncate">
+                        <span className="text-[11px] sm:text-sm font-bold text-foreground block leading-tight truncate">
                           {c.label}
                         </span>
-                        <span className="text-[10px] sm:text-[11px] text-muted-foreground block leading-tight mt-0.5 truncate">
+                        <span className="text-[9px] sm:text-[11px] text-muted-foreground block leading-tight mt-0.5 truncate">
                           {c.sublabel}
                         </span>
                       </div>
                     </div>
 
-                    {/* Badge em estilo pílula */}
+                    {/* Badge compacto no mobile */}
                     <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold border shrink-0 ${t.badgeBg}`}
+                      className={`inline-flex items-center gap-0.5 sm:gap-1 rounded-full px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold border shrink-0 ${t.badgeBg}`}
                     >
                       <span className={`h-1.5 w-1.5 rounded-full ${t.dot}`} aria-hidden />
-                      {c.count} {c.count === 1 ? "contrato" : "contratos"}
+                      <span className="sm:hidden">{c.count}</span>
+                      <span className="hidden sm:inline">{c.count} {c.count === 1 ? "contrato" : "contratos"}</span>
                     </span>
                   </div>
 
                   {/* Valor Principal em Destaque */}
-                  <div className="mt-2.5 sm:mt-3">
+                  <div className="mt-2 sm:mt-3">
                     <p
-                      className={`text-xl sm:text-2xl lg:text-[26px] font-bold tabular-nums tracking-tight leading-tight ${t.text}`}
+                      className={`text-base sm:text-2xl lg:text-[26px] font-bold tabular-nums tracking-tight leading-tight ${t.text}`}
                     >
                       {formatCurrency(c.value)}
                     </p>
@@ -1152,9 +1153,9 @@ export function BillingCalendar({
                 </div>
 
                 {/* Rodapé com métrica adicional */}
-                <div className="mt-2.5 sm:mt-3 pt-2 sm:pt-2.5 border-t border-border/40 dark:border-white/5 flex items-center justify-between gap-1 text-[10px] sm:text-xs">
-                  <span className="text-muted-foreground leading-tight">{c.footerLabel}</span>
-                  <span className={`font-semibold tabular-nums leading-tight ${t.text}`}>
+                <div className="mt-2 sm:mt-3 pt-1.5 sm:pt-2.5 border-t border-border/40 dark:border-white/5 flex items-center justify-between gap-1 text-[9px] sm:text-xs">
+                  <span className="text-muted-foreground leading-tight truncate">{c.footerLabel}</span>
+                  <span className={`font-semibold tabular-nums leading-tight shrink-0 ${t.text}`}>
                     {c.footerValue}
                   </span>
                 </div>
