@@ -145,6 +145,8 @@ export function AdjustDueDateDialog({
       await Promise.resolve(onUpdate(updates));
     } catch (err) {
       console.error("[AdjustDueDate] Failed to update loan", err);
+      toast.error("Erro ao salvar o vencimento");
+      return;
     }
 
     // 2. Save schedule rows

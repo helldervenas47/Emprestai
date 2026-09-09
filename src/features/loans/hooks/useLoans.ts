@@ -24,6 +24,7 @@ import { assertWritable } from "@/lib/readOnlyState";
 import { computeInstallmentInterest, allocateInterestByPayment, allocatePartialProrata, ALLOCATION_VERSION_REMAINING_PRORATA } from "@/features/financial/lib/interestAllocation";
 import { buildPaymentAllocationMetadata, withAllocation, lateFeeAllocationMetadata, interestCycleAllocationMetadata, amortizationAllocationMetadata } from "@/features/loans/lib/paymentAllocationMetadata";
 import { buildPaymentLedgerRows } from "@/features/loans/lib/paymentLedgerRows";
+import { getPendingScheduleRow } from "@/features/loans/lib/pendingSchedule";
 import { advanceLoanDueDate, advanceLoanDueDateAfter } from "@/features/loans/lib/advanceDueDate";
 import { BILLING_ENVIRONMENT } from "@/lib/billing/subscriptionState";
 
@@ -383,17 +384,24 @@ export function useLoans() {
       }
 
       // Sincroniza a data do contrato (loans.due_date) com a parcela ativa do cronograma
-      const currentLoan = loans.find((l) => l.id === loanId);
-      const nextNum = (currentLoan?.paidInstallments ?? 0) + 1;
-      const pendingRow = rows.find((r) => r.installmentNumber === nextNum) || rows[0];
+      // A edição do contrato pode ter alterado paid_installments antes desta chamada.
+      // Consulte o valor persistido, pois o callback pode ainda conter o estado anterior.
+      const { data: currentLoan, error: loanErr } = await supabase
+        .from("loans")
+        .select("paid_installments")
+        .eq("id", loanId)
+        .single();
+      if (loanErr) throw loanErr;
+      const pendingRow = getPendingScheduleRow(rows, currentLoan.paid_installments);
       if (pendingRow?.dueDate) {
-        setLoans((prev) =>
-          prev.map((l) => (l.id === loanId ? { ...l, dueDate: pendingRow.dueDate } : l))
-        );
-        await supabase
+        const { error: dueDateErr } = await supabase
           .from("loans")
           .update({ due_date: pendingRow.dueDate })
           .eq("id", loanId);
+        if (dueDateErr) throw dueDateErr;
+        setLoans((prev) =>
+          prev.map((l) => (l.id === loanId ? { ...l, dueDate: pendingRow.dueDate } : l))
+        );
       }
     }
     await fetchSchedules();
@@ -1809,7 +1817,7 @@ export function useLoans() {
     // Sincroniza a memória local de installmentSchedules se dueDate foi alterado
     if (data.dueDate !== undefined) {
       const currentLoan = loans.find((l) => l.id === id);
-      const targetNum = Math.max(1, (currentLoan?.paidInstallments ?? 0) + 1);
+      const targetNum = Math.max(1, (data.paidInstallments ?? currentLoan?.paidInstallments ?? 0) + 1);
       const freq = data.interestType || currentLoan?.interestType || "Mensal";
       setInstallmentSchedules((prev) =>
         prev.map((s) => {
@@ -1862,7 +1870,11 @@ export function useLoans() {
       await enqueueMutation({ table: "loans", op: "update", recordId: id, payload: updateData });
       return;
     }
-    const { error: updateErr } = await supabase.from("loans").update(updateData).eq("id", id);
+    const { data: savedLoan, error: writeErr } = await supabase.from("loans")
+      .update(updateData).eq("id", id).select("id, due_date").single();
+    const updateErr = writeErr || (data.dueDate !== undefined && savedLoan?.due_date !== data.dueDate
+      ? new Error("O banco não confirmou o novo vencimento. A alteração não foi concluída.")
+      : null);
     if (updateErr) {
       console.error("[updateLoan] Falha ao salvar no Supabase:", updateErr);
       toast.error("Falha ao salvar alterações: " + updateErr.message);
@@ -1871,28 +1883,33 @@ export function useLoans() {
     } else if (data.dueDate !== undefined) {
       // Sincroniza todas as parcelas pendentes no Supabase
       const currentLoan = loans.find((l) => l.id === id);
-      const targetNum = Math.max(1, (currentLoan?.paidInstallments ?? 0) + 1);
+      const targetNum = Math.max(1, (data.paidInstallments ?? currentLoan?.paidInstallments ?? 0) + 1);
       const freq = data.interestType || currentLoan?.interestType || "Mensal";
       try {
-        const { data: existingSchedules } = await supabase
+        const { data: existingSchedules, error: schedulesErr } = await supabase
           .from("loan_installments")
           .select("id, installment_number")
           .eq("loan_id", id);
 
+        if (schedulesErr) throw schedulesErr;
         if (existingSchedules && existingSchedules.length > 0) {
           for (const s of existingSchedules) {
             if (s.installment_number >= targetNum) {
               const offset = s.installment_number - targetNum;
               const newDue = advanceLoanDueDate(data.dueDate!, freq, offset);
-              await supabase
+              const { error: scheduleErr } = await supabase
                 .from("loan_installments")
                 .update({ due_date: newDue })
                 .eq("id", s.id);
+              if (scheduleErr) throw scheduleErr;
             }
           }
         }
       } catch (instErr) {
         console.warn("[updateLoan] Falha ao sincronizar loan_installments:", instErr);
+        await fetchLoans();
+        await fetchSchedules();
+        throw instErr;
       }
     }
     await fetchLoans();

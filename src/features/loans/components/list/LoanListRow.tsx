@@ -137,6 +137,11 @@ function LoanRowView({
   React.useEffect(() => {
     if (!editing) setForm(loanToForm(loan));
   }, [loan, editing]);
+  // O ajuste de vencimento salva separadamente enquanto este formulário está aberto.
+  // Atualize só a data para não reenviar o valor antigo nem apagar outras edições.
+  React.useEffect(() => {
+    setForm((prev) => ({ ...prev, dueDate: loan.dueDate }));
+  }, [loan.dueDate]);
   const { mask } = useHideValues();
   const formatCurrency = useCallback((v: number) => mask(rawFormatCurrency(v)), [mask]);
   const [showPartial, setShowPartial] = useState(false);
@@ -710,7 +715,7 @@ function LoanRowView({
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-foreground">Editar Empréstimo</h3>
                 <div className="flex gap-1">
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={saveEdit}><Check className="h-4 w-4 text-success" /></Button>
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={saveEdit} aria-label="Salvar alterações"><Check className="h-4 w-4 text-success" /></Button>
                   <Button size="icon" variant="ghost" className="h-8 w-8" onClick={cancelEdit}><X className="w-[25px] h-[25px] text-destructive" /></Button>
                 </div>
               </div>
