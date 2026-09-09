@@ -973,97 +973,189 @@ export function BillingCalendar({
         ))}
       </div>
 
-      {/* Summary cards com ações rápidas e progresso */}
-      <div className="space-y-2">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
-          {(
-            [
-              {
-                key: "hoje",
-                label: "Receber hoje",
-                tone: "text-warning",
-                bar: "bg-warning",
-                data: summary.hoje,
-                action: () => {
-                  setSelectedDate(todayStr);
-                  setViewMode("mes");
-                },
-              },
-              {
-                key: "amanha",
-                label: "Receber amanhã",
-                tone: "text-primary",
-                bar: "bg-primary",
-                data: summary.amanha,
-                action: () => {
-                  setSelectedDate(tomorrowStr);
-                  setViewMode("mes");
-                },
-              },
-              {
-                key: "atrasados",
-                label: "Atrasados",
-                tone: "text-destructive",
-                bar: "bg-destructive",
-                data: summary.overdue,
-                action: () => setBreakdownCard("atrasados"),
-              },
-              {
-                key: "mes",
-                label: "Este mês",
-                tone: "text-foreground",
-                bar: "bg-muted-foreground",
-                data: summary.month,
-                action: () => setBreakdownCard("mes"),
-              },
-            ] as const
-          ).map((c) => (
-            <button
-              key={c.key}
-              type="button"
-              onClick={c.action}
-              className="text-left focus:outline-none focus:ring-2 focus:ring-primary rounded-lg group"
-              aria-label={`Ver contratos: ${c.label}`}
-            >
-              <Card no3d className="overflow-hidden hover:shadow-md transition-all border group-hover:border-primary/40 cursor-pointer">
-                <CardContent className="p-3">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className={`h-1.5 w-8 rounded-full ${c.bar}`} />
-                    <span className="text-[10px] text-muted-foreground group-hover:text-primary transition-colors">Ver</span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground truncate">{c.label}</p>
-                  <p className={`text-sm md:text-base font-bold ${c.tone} truncate`}>
-                    {formatCurrency(c.data.total)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {c.data.count} {c.data.count === 1 ? "contrato" : "contratos"}
-                  </p>
-                </CardContent>
-              </Card>
-            </button>
-          ))}
-        </div>
+      {/* Summary cards com design idêntico ao da aba Empréstimos */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {(() => {
+          // Maior atraso entre os itens atrasados do mês
+          let biggestOverdueVal = 0;
+          Object.entries(filteredDueMap).forEach(([d, arr]) => {
+            if (d < todayStr && d.startsWith(monthPrefix)) {
+              arr.forEach((i) => {
+                if (i.amount > biggestOverdueVal) biggestOverdueVal = i.amount;
+              });
+            }
+          });
+          Object.entries(filteredSalesDueMap).forEach(([d, arr]) => {
+            if (d < todayStr && d.startsWith(monthPrefix)) {
+              arr.forEach((i) => {
+                if (i.amount > biggestOverdueVal) biggestOverdueVal = i.amount;
+              });
+            }
+          });
 
-        {/* Barra de progresso de arrecadação do mês */}
-        {monthExpectedTotal > 0 && (
-          <div className="px-3 py-2 rounded-lg bg-muted/30 border border-border/50 flex items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2 text-muted-foreground min-w-0 truncate">
-              <TrendingUp className="h-4 w-4 text-emerald-500 shrink-0" />
-              <span className="truncate">
-                Arrecadado no mês: <strong className="text-foreground">{formatCurrency(monthReceivedTotal)}</strong> de {formatCurrency(monthExpectedTotal)}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="w-24 h-2 rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500 transition-all duration-500"
-                  style={{ width: `${monthProgressPct}%` }}
-                />
-              </div>
-              <span className="font-bold text-foreground text-[11px]">{monthProgressPct}%</span>
-            </div>
-          </div>
-        )}
+          // Recebido hoje
+          const receivedTodayVal = receivedByDate[todayStr]?.total || 0;
+
+          const cardsConfig = [
+            {
+              id: "atrasados",
+              label: "Atrasados",
+              sublabel: "Em atraso",
+              value: summary.overdue.total,
+              count: summary.overdue.count,
+              icon: AlertTriangle,
+              tone: "destructive" as const,
+              footerLabel: "Maior atraso",
+              footerValue: biggestOverdueVal > 0 ? formatCurrency(biggestOverdueVal) : "—",
+              onClick: () => setBreakdownCard("atrasados"),
+            },
+            {
+              id: "hoje",
+              label: "Vence Hoje",
+              sublabel: "Para receber hoje",
+              value: summary.hoje.total,
+              count: summary.hoje.count,
+              icon: Clock,
+              tone: "warning" as const,
+              footerLabel: "Recebido hoje",
+              footerValue: receivedTodayVal > 0 ? formatCurrency(receivedTodayVal) : "—",
+              onClick: () => {
+                setSelectedDate(todayStr);
+                setViewMode("mes");
+              },
+            },
+            {
+              id: "amanha",
+              label: "Receber Amanhã",
+              sublabel: "Próximo vencimento",
+              value: summary.amanha.total,
+              count: summary.amanha.count,
+              icon: CalendarDays,
+              tone: "sky" as const,
+              footerLabel: "Data",
+              footerValue: tomorrow.toLocaleDateString("pt-BR"),
+              onClick: () => {
+                setSelectedDate(tomorrowStr);
+                setViewMode("mes");
+              },
+            },
+            {
+              id: "mes",
+              label: "Este Mês",
+              sublabel: "Carteira do mês",
+              value: summary.month.total,
+              count: summary.month.count,
+              icon: DollarSign,
+              tone: "indigo" as const,
+              footerLabel: "Já arrecadado",
+              footerValue: `${formatCurrency(monthReceivedTotal)} (${monthProgressPct}%)`,
+              onClick: () => setBreakdownCard("mes"),
+            },
+          ];
+
+          const TONE = {
+            destructive: {
+              text: "text-destructive",
+              bgGradient: "bg-gradient-to-br from-destructive/10 via-destructive/[0.04] to-transparent",
+              iconBg: "bg-destructive/15 text-destructive",
+              badgeBg: "bg-destructive/15 text-destructive border-destructive/30",
+              dot: "bg-destructive",
+              border: "border-destructive/20 hover:border-destructive/40",
+            },
+            warning: {
+              text: "text-amber-600 dark:text-amber-400",
+              bgGradient: "bg-gradient-to-br from-amber-500/10 via-amber-500/[0.04] to-transparent",
+              iconBg: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+              badgeBg: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+              dot: "bg-amber-500",
+              border: "border-amber-500/20 hover:border-amber-500/40",
+            },
+            sky: {
+              text: "text-sky-600 dark:text-sky-400",
+              bgGradient: "bg-gradient-to-br from-sky-500/10 via-sky-500/[0.04] to-transparent",
+              iconBg: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
+              badgeBg: "bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30",
+              dot: "bg-sky-500",
+              border: "border-sky-500/20 hover:border-sky-500/40",
+            },
+            indigo: {
+              text: "text-indigo-600 dark:text-indigo-400",
+              bgGradient: "bg-gradient-to-br from-indigo-500/15 via-indigo-500/[0.05] to-transparent",
+              iconBg: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400",
+              badgeBg: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30",
+              dot: "bg-indigo-500",
+              border: "border-indigo-500/30 hover:border-indigo-500/50",
+            },
+          } as const;
+
+          return cardsConfig.map((c) => {
+            const Icon = c.icon;
+            const t = TONE[c.tone];
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={c.onClick}
+                className={[
+                  "group relative text-left rounded-2xl p-3.5 sm:p-4",
+                  "bg-card border transition-all duration-200",
+                  t.bgGradient,
+                  t.border,
+                  "shadow-xs hover:shadow-md hover:-translate-y-0.5",
+                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60",
+                  "flex flex-col justify-between overflow-hidden cursor-pointer",
+                ].join(" ")}
+                aria-label={`${c.label}: ${formatCurrency(c.value)} — ${c.count} contratos`}
+              >
+                {/* Linha do Topo: Ícone + Título/Subtítulo + Badge à direita */}
+                <div>
+                  <div className="flex items-center justify-between gap-1.5 sm:gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className={`h-7 w-7 sm:h-9 sm:w-9 rounded-xl ${t.iconBg} flex items-center justify-center shrink-0 shadow-xs`}
+                      >
+                        <Icon className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5" aria-hidden />
+                      </span>
+                      <div className="min-w-0">
+                        <span className="text-xs sm:text-sm font-bold text-foreground block leading-tight truncate">
+                          {c.label}
+                        </span>
+                        <span className="text-[10px] sm:text-[11px] text-muted-foreground block leading-tight mt-0.5 truncate">
+                          {c.sublabel}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Badge em estilo pílula */}
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold border shrink-0 ${t.badgeBg}`}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${t.dot}`} aria-hidden />
+                      {c.count} {c.count === 1 ? "contrato" : "contratos"}
+                    </span>
+                  </div>
+
+                  {/* Valor Principal em Destaque */}
+                  <div className="mt-2.5 sm:mt-3">
+                    <p
+                      className={`text-xl sm:text-2xl lg:text-[26px] font-bold tabular-nums tracking-tight leading-tight ${t.text}`}
+                    >
+                      {formatCurrency(c.value)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Rodapé com métrica adicional */}
+                <div className="mt-2.5 sm:mt-3 pt-2 sm:pt-2.5 border-t border-border/40 dark:border-white/5 flex items-center justify-between gap-1 text-[10px] sm:text-xs">
+                  <span className="text-muted-foreground leading-tight">{c.footerLabel}</span>
+                  <span className={`font-semibold tabular-nums leading-tight ${t.text}`}>
+                    {c.footerValue}
+                  </span>
+                </div>
+              </button>
+            );
+          });
+        })()}
       </div>
 
       {/* View selector + Month filter com botão Hoje */}
