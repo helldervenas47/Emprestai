@@ -3,9 +3,8 @@ import { useState } from "react";
 import { lazy, Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Switch } from "@/components/ui/switch";
-import { Bell, Send, Webhook, MessageSquare, CreditCard, Users as UsersIcon, DatabaseBackup, User as UserIcon, Sun, Moon, Eye, EyeOff, Trash2, Loader2, BarChart3, Sparkles, Image as ImageIcon, LogOut } from "lucide-react";
+import { MessageSquare, CreditCard, Users as UsersIcon, DatabaseBackup, User as UserIcon, Sun, Moon, Eye, EyeOff, Trash2, Loader2, Sparkles, Image as ImageIcon, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/userClient";
 import { useHideValues } from "@/contexts/HideValuesContext";
@@ -15,20 +14,11 @@ import { toast } from "sonner";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { PendingSyncCard } from "@/components/PendingSyncCard";
 import { TimezoneSettingsCard } from "@/components/TimezoneSettingsCard";
-import { AIVoiceSettingsCard } from "@/components/AIVoiceSettingsCard";
 import { ThemeSettingsCard } from "@/components/ThemeSettingsCard";
 import { ChangePasswordCard } from "@/components/ChangePasswordCard";
 import { ProfilePhoneCard } from "@/components/ProfilePhoneCard";
 import { PlanStatusCard } from "@/features/admin/components/PlanStatusCard";
 
-const NotificationSettings = lazy(() => import("@/components/NotificationSettings").then(m => ({ default: m.NotificationSettings })));
-const PaymentFeedbackSettings = lazy(() => import("@/components/PaymentFeedbackSettings").then(m => ({ default: m.PaymentFeedbackSettings })));
-const WebhookSettings = lazy(() => import("@/components/WebhookSettings").then(m => ({ default: m.WebhookSettings })));
-const TelegramConnectCard = lazy(() => import("@/features/telegram/components/TelegramConnectCard").then(m => ({ default: m.TelegramConnectCard })));
-const TelegramReportsConnectCard = lazy(() => import("@/features/telegram/components/TelegramReportsConnectCard").then(m => ({ default: m.TelegramReportsConnectCard })));
-const TelegramBillingScheduleCard = lazy(() => import("@/features/telegram/components/TelegramBillingScheduleCard").then(m => ({ default: m.TelegramBillingScheduleCard })));
-const TelegramBotsManager = lazy(() => import("@/features/telegram/components/TelegramBotsManager").then(m => ({ default: m.TelegramBotsManager })));
-const PushNotificationToggle = lazy(() => import("@/components/PushNotificationToggle").then(m => ({ default: m.PushNotificationToggle })));
 const UserManagement = lazy(() => import("@/features/admin/components/UserManagement").then(m => ({ default: m.UserManagement })));
 const BackupExport = lazy(() => import("@/components/BackupExport").then(m => ({ default: m.BackupExport })));
 const LocadorList = lazy(() => import("@/features/vehicles/components/LocadorList").then(m => ({ default: m.LocadorList })));
@@ -138,96 +128,6 @@ export function Settings({ backup, locadores, onSaveLocador, onRemoveLocador, is
 
       {/* Fuso horário */}
       <TimezoneSettingsCard disabled={isReadOnly} />
-
-      {/* Voz dos relatórios por IA */}
-      <AIVoiceSettingsCard />
-
-      {/* Notificações e integrações */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Bell className="h-4 w-4 text-primary" /> Notificações e integrações
-          </CardTitle>
-          <CardDescription>Configure todos os canais de envio de alertas e relatórios.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Accordion type="multiple" className="w-full">
-            <AccordionItem value="push">
-              <AccordionTrigger className="text-sm">
-                <span className="flex items-center gap-2"><Bell className="h-4 w-4" /> Notificações Push</span>
-              </AccordionTrigger>
-              <AccordionContent>
-                <Suspense fallback={<SectionLoader />}>
-                  <div className="py-2">
-                    <PushNotificationToggle />
-                  </div>
-                </Suspense>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="email">
-              <AccordionTrigger className="text-sm">
-                <span className="flex items-center gap-2"><Bell className="h-4 w-4" /> Preferências de notificação</span>
-              </AccordionTrigger>
-              <AccordionContent>
-                <Suspense fallback={<SectionLoader />}>
-                  <NotificationSettings />
-                  <div className="mt-4">
-                    <PaymentFeedbackSettings />
-                  </div>
-                </Suspense>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="telegram-bots">
-              <AccordionTrigger className="text-sm">
-                <span className="flex items-center gap-2"><Send className="h-4 w-4" /> Bots do Telegram</span>
-              </AccordionTrigger>
-              <AccordionContent>
-                <Suspense fallback={<SectionLoader />}>
-                  <TelegramBotsManager />
-                </Suspense>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="telegram-billing">
-              <AccordionTrigger className="text-sm">
-                <span className="flex items-center gap-2"><Send className="h-4 w-4" /> Telegram — Cobrança</span>
-              </AccordionTrigger>
-              <AccordionContent>
-                <Suspense fallback={<SectionLoader />}>
-                  <div className="space-y-4">
-                    <TelegramConnectCard />
-                    <TelegramBillingScheduleCard />
-                  </div>
-                </Suspense>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="telegram-reports">
-              <AccordionTrigger className="text-sm">
-                <span className="flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Telegram — Relatórios</span>
-              </AccordionTrigger>
-              <AccordionContent>
-                <Suspense fallback={<SectionLoader />}>
-                  <TelegramReportsConnectCard />
-                </Suspense>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="webhook">
-              <AccordionTrigger className="text-sm">
-                <span className="flex items-center gap-2"><Webhook className="h-4 w-4" /> Webhook personalizado</span>
-              </AccordionTrigger>
-              <AccordionContent>
-                <Suspense fallback={<SectionLoader />}>
-                  <WebhookSettings />
-                </Suspense>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </CardContent>
-      </Card>
 
       {/* Dados do locador movidos para a aba Cadastro > Veículos > Dados do Locador */}
 
