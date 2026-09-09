@@ -484,9 +484,9 @@ export function PersonalExpenseList({ expenses: expensesInput, onPay, onUnpay, o
 
     const expanded = expandCreditCardExpenses(allExpenses.filter((e) => e.scope === "personal"));
     const purchases: MonthCardPurchaseItem[] = [];
-    const matchedExpenseIds = new Set<string>();
     let unclassifiedTotal = 0;
 
+    // 1. Compras vinculadas a cartões de crédito (faturas que vencem no mês selecionado)
     for (const card of cards) {
       if (card.active === false) continue;
       const cycle = getCycleForDueMonth(selectedMonth, card.closingDay, card.dueDay);
@@ -496,7 +496,6 @@ export function PersonalExpenseList({ expenses: expensesInput, onPay, onUnpay, o
       const cardLabel = card.nickname || card.bank || "Cartão";
 
       items.forEach((item) => {
-        matchedExpenseIds.add(item.id);
         const val = invoiceItemValue(item);
         if (val <= 0) return;
         purchases.push({
@@ -523,27 +522,30 @@ export function PersonalExpenseList({ expenses: expensesInput, onPay, onUnpay, o
       }
     }
 
-    // Despesas de cartão órfãs (sem cartão vinculado) cujo vencimento ocorre no mês selecionado
-    const orphanItems = expanded.filter(
-      (e) => isCreditCardExpense(e) && !matchedExpenseIds.has(e.id) && e.dueDate.startsWith(selectedMonth),
-    );
-    orphanItems.forEach((item) => {
-      const val = invoiceItemValue(item);
-      if (val <= 0) return;
-      purchases.push({
-        id: item.id,
-        description: item.description || "Compra no cartão",
-        amount: val,
-        category: (item.category || "Outros").trim() || "Outros",
-        dueDate: item.dueDate,
-        paidDate: item.paidDate,
-        paid: !!item.paid,
-        cardName: "Cartão de Crédito",
+    // 2. Despesas de cartão órfãs (quando não há cartões ativos cadastrados)
+    const activeCards = cards.filter((c) => c.active !== false);
+    if (activeCards.length === 0) {
+      const orphanItems = expanded.filter(
+        (e) => isCreditCardExpense(e) && e.dueDate.startsWith(selectedMonth),
+      );
+      orphanItems.forEach((item) => {
+        const val = invoiceItemValue(item);
+        if (val <= 0) return;
+        purchases.push({
+          id: item.id,
+          description: item.description || "Compra no cartão",
+          amount: val,
+          category: (item.category || "Outros").trim() || "Outros",
+          dueDate: item.dueDate,
+          paidDate: item.paidDate,
+          paid: !!item.paid,
+          cardName: "Cartão de Crédito",
+        });
       });
-    });
+    }
 
     return { monthCardPurchases: purchases, monthCardUnclassifiedTotal: unclassifiedTotal };
-  }, [isBusiness, allExpenses, cards, selectedMonth, openings, occursInMonth]);
+  }, [isBusiness, allExpenses, cards, selectedMonth, openings]);
 
   // Category breakdown — includes all expenses of the selected month (paid + pending),
   // ensuring consistency with monthly totals and accurate display for past months.
@@ -584,10 +586,10 @@ export function PersonalExpenseList({ expenses: expensesInput, onPay, onUnpay, o
     return [...top, { name: "Outras categorias", value: rest, cat: resolveCategory("Outros") }];
   }, [spendingMonth, getInstallmentAmount, resolveCategory, monthCardPurchases, monthCardUnclassifiedTotal]);
 
-  // Ranking por descrição — Top 5 despesas por descrição (agrupadas por texto),
-  // considerando despesas diretas do mês + compras individuais no cartão de crédito.
+  // Ranking por descrição — Top 5 despesas por descrição,
+  // considerando despesas diretas do mês + compras individuais no cartão de crédito no seu respectivo mês.
   const descriptionData = useMemo(() => {
-    const map = new Map<string, { value: number; category: string }>();
+    const map = new Map<string, { value: number; category: string; displayName: string }>();
 
     // 1. Despesas diretas
     spendingMonth.forEach((e) => {
@@ -595,7 +597,11 @@ export function PersonalExpenseList({ expenses: expensesInput, onPay, onUnpay, o
       if (v <= 0) return;
       const key = (e.description || "Sem descrição").trim() || "Sem descrição";
       const prev = map.get(key);
-      map.set(key, { value: (prev?.value || 0) + v, category: prev?.category || e.category || "Outros" });
+      map.set(key, {
+        value: (prev?.value || 0) + v,
+        category: prev?.category || e.category || "Outros",
+        displayName: prev?.displayName || key,
+      });
     });
 
     // 2. Compras no cartão de crédito
@@ -603,7 +609,11 @@ export function PersonalExpenseList({ expenses: expensesInput, onPay, onUnpay, o
       if (p.amount <= 0) return;
       const key = (p.description || "Compra no cartão").trim() || "Compra no cartão";
       const prev = map.get(key);
-      map.set(key, { value: (prev?.value || 0) + p.amount, category: prev?.category || p.category || "Outros" });
+      map.set(key, {
+        value: (prev?.value || 0) + p.amount,
+        category: prev?.category || p.category || "Outros",
+        displayName: prev?.displayName || key,
+      });
     });
 
     // 3. Saldo inicial não discriminado
@@ -613,12 +623,13 @@ export function PersonalExpenseList({ expenses: expensesInput, onPay, onUnpay, o
       map.set(key, {
         value: (prev?.value || 0) + monthCardUnclassifiedTotal,
         category: prev?.category || CREDIT_CARD_INVOICE_CATEGORY,
+        displayName: key,
       });
     }
 
     return [...map.entries()]
       .filter(([, v]) => v.value > 0)
-      .map(([name, v]) => ({ name, value: v.value, cat: resolveCategory(v.category) }))
+      .map(([, v]) => ({ name: v.displayName, value: v.value, cat: resolveCategory(v.category) }))
       .sort((a, b) => b.value - a.value);
   }, [spendingMonth, getInstallmentAmount, resolveCategory, monthCardPurchases, monthCardUnclassifiedTotal]);
 

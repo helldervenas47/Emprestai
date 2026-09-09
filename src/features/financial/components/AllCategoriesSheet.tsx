@@ -30,6 +30,7 @@ import { InvoiceOpening } from "@/features/creditCards/hooks/useCreditCardOpenin
 import { CategoryEntry } from "@/features/financial/components/CategoryDetailsSheet";
 import {
   belongsToCardInvoice,
+  getCycleForDueMonth,
   invoiceItemValue,
   isCreditCardExpense,
 } from "@/features/creditCards/lib/creditCardInvoiceTotals";
@@ -178,7 +179,7 @@ export function AllCategoriesSheet({
       });
   }, [baseExpenses, selectedMonth]);
 
-  // 2. Compras no cartão de crédito alocadas ESTRITAMENTE POR DATA DE COMPRA
+  // 2. Compras no cartão de crédito pertencentes às faturas que vencem no mês selecionado
   const monthCardPurchases = useMemo(() => {
     if (isBusiness) return [];
     const expanded = expandCreditCardExpenses(allExpenses.filter((e) => e.scope === "personal"));
@@ -193,32 +194,52 @@ export function AllCategoriesSheet({
       cardName: string;
     }> = [];
 
-    expanded.forEach((item) => {
-      if (!isCreditCardExpense(item)) return;
-      if (!item.dueDate || !item.dueDate.startsWith(selectedMonth)) return;
+    // 1. Compras vinculadas a cartões de crédito
+    for (const card of cards) {
+      if (card.active === false) continue;
+      const cycle = getCycleForDueMonth(selectedMonth, card.closingDay, card.dueDay);
+      if (!cycle) continue;
 
-      const val = invoiceItemValue(item);
-      if (val <= 0) return;
+      const items = expanded.filter((e) => belongsToCardInvoice(e, card, cycle.from, cycle.to));
+      const cardLabel = card.nickname || card.bank || "Cartão";
 
-      let cardLabel = "Cartão de Crédito";
-      for (const card of cards) {
-        if (belongsToCardInvoice(item, card, new Date(0), new Date(8640000000000000))) {
-          cardLabel = card.nickname || card.bank || "Cartão";
-          break;
-        }
-      }
-
-      purchases.push({
-        id: item.id,
-        description: item.description || "Compra no cartão",
-        amount: val,
-        category: (item.category || "Outros").trim() || "Outros",
-        dueDate: item.dueDate,
-        paidDate: item.paidDate,
-        paid: !!item.paid,
-        cardName: cardLabel,
+      items.forEach((item) => {
+        const val = invoiceItemValue(item);
+        if (val <= 0) return;
+        purchases.push({
+          id: item.id,
+          description: item.description || "Compra no cartão",
+          amount: val,
+          category: (item.category || "Outros").trim() || "Outros",
+          dueDate: item.dueDate,
+          paidDate: item.paidDate,
+          paid: !!item.paid,
+          cardName: cardLabel,
+        });
       });
-    });
+    }
+
+    // 2. Despesas de cartão órfãs (quando não há cartões ativos cadastrados)
+    const activeCards = cards.filter((c) => c.active !== false);
+    if (activeCards.length === 0) {
+      const orphanItems = expanded.filter(
+        (e) => isCreditCardExpense(e) && e.dueDate.startsWith(selectedMonth),
+      );
+      orphanItems.forEach((item) => {
+        const val = invoiceItemValue(item);
+        if (val <= 0) return;
+        purchases.push({
+          id: item.id,
+          description: item.description || "Compra no cartão",
+          amount: val,
+          category: (item.category || "Outros").trim() || "Outros",
+          dueDate: item.dueDate,
+          paidDate: item.paidDate,
+          paid: !!item.paid,
+          cardName: "Cartão de Crédito",
+        });
+      });
+    }
 
     return purchases;
   }, [isBusiness, allExpenses, cards, selectedMonth]);

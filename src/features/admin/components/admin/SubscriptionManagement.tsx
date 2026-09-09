@@ -5,16 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, RefreshCw, History, Ban, PlayCircle, Pause, RotateCw, CalendarClock, Gift, PencilLine, ShieldAlert, CalendarDays, ChevronDown, Unlock, ShieldOff, ShieldCheck } from "lucide-react";
-import { RowActions } from "@/components/ui/row-actions";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+import { Loader2, RefreshCw, ShieldAlert, ChevronRight, ShieldOff } from "lucide-react";
 import { toast } from "sonner";
-import { confirmWithScroll } from "@/lib/confirmWithScroll";
 
 type ActionKind = "grant_plan" | "set_dates" | "start_trial" | "extend_trial" | "renew" | "suspend" | "reactivate" | "cancel" | "update_note" | "clear_override" | "set_days_remaining" | "block_user" | "unblock_user";
 
@@ -145,54 +140,70 @@ function getActions(
   ];
 }
 
-function renderActions(
-  u: AdminSubRow,
-  st: string,
-  setDialog: (d: { kind: ActionKind; user: AdminSubRow } | null) => void,
-  runAction: (payload: Record<string, unknown>) => Promise<unknown>,
-  openAudit: (u: AdminSubRow) => void,
-) {
-  return <RowActions size="md" actions={getActions(u, st, setDialog, runAction, openAudit)} />;
-}
-
-function LiberarButton({ actions }: { actions: ReturnType<typeof getActions> }) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" variant="default" size="sm" className="w-full h-11 gap-2 font-medium">
-          <Unlock className="h-4 w-4" />
-          Liberar
-          <ChevronDown className="h-4 w-4 ml-auto opacity-80" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[calc(100vw-3rem)] max-w-xs">
-        {actions.map((a, i) => {
-          const prev = actions[i - 1];
-          const showSep = a.destructive && prev && !prev.destructive;
-          return (
-            <div key={i}>
-              {showSep && <DropdownMenuSeparator />}
-              <DropdownMenuItem
-                className={cn("py-2.5", a.destructive && "text-destructive focus:text-destructive")}
-                onSelect={(e) => { e.preventDefault(); a.onClick(); }}
-              >
-                <span className="mr-2 inline-flex items-center">{a.icon}</span>
-                {a.label}
-              </DropdownMenuItem>
-            </div>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 import { BillingHealthCard } from "./BillingHealthCard";
+import {
+  SubscriptionCustomerDetailsSheet,
+  type ActionKind,
+} from "./SubscriptionCustomerDetailsSheet";
+
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; variant: "default" | "secondary" | "destructive" | "outline"; dot: string; dotColor: string }
+> = {
+  active: { label: "Ativa", variant: "default", dot: "🟢", dotColor: "bg-emerald-500" },
+  trialing: { label: "Em teste", variant: "secondary", dot: "🟡", dotColor: "bg-amber-500" },
+  suspended: { label: "Suspensa", variant: "destructive", dot: "🔴", dotColor: "bg-rose-500" },
+  canceled: { label: "Cancelada", variant: "destructive", dot: "🔴", dotColor: "bg-rose-500" },
+  past_due: { label: "Em atraso", variant: "secondary", dot: "🟠", dotColor: "bg-orange-500" },
+  expired: { label: "Expirada", variant: "destructive", dot: "🔴", dotColor: "bg-rose-500" },
+  none: { label: "Sem plano", variant: "outline", dot: "⚪", dotColor: "bg-muted-foreground" },
+};
+
+function getDaysRemainingText(iso: string | null | undefined, status: string): string {
+  if (status === "expired" || status === "canceled" || status === "suspended") {
+    return "0 dias restantes";
+  }
+  if (!iso) return "0 dias restantes";
+  const ms = new Date(iso).getTime() - Date.now();
+  if (Number.isNaN(ms) || ms <= 0) return "0 dias restantes";
+  const days = Math.ceil(ms / 86400_000);
+  if (days > 1) return `${days} dias restantes`;
+  if (days === 1) return "1 dia restante";
+  const hours = Math.max(1, Math.ceil(ms / 3600_000));
+  return `${hours}h restantes`;
+}
 
 export function SubscriptionManagement() {
-  const { page, setPage, total, rows, plans, loading, search, setSearch, statusFilter, setStatusFilter, fetchRows, runAction, fetchAudit } = useAdminSubscriptions();
+  const {
+    page,
+    setPage,
+    total,
+    rows,
+    plans,
+    loading,
+    search,
+    setSearch,
+    statusFilter,
+    setStatusFilter,
+    fetchRows,
+    runAction,
+    fetchAudit,
+  } = useAdminSubscriptions();
+
   const [dialog, setDialog] = useState<{ kind: ActionKind; user: AdminSubRow } | null>(null);
   const [audit, setAudit] = useState<{ user: AdminSubRow; rows: AuditRow[]; loading: boolean } | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+
+  // Mantém o usuário selecionado sincronizado com a lista atual
+  const selectedUser = useMemo(
+    () => rows.find((r) => r.user_id === selectedUserId) ?? null,
+    [rows, selectedUserId],
+  );
+
+  const selectedResolved = useMemo(
+    () => (selectedUser ? resolveSubscriberState(selectedUser) : null),
+    [selectedUser],
+  );
 
   const openAudit = async (u: AdminSubRow) => {
     setAudit({ user: u, rows: [], loading: true });
@@ -200,175 +211,168 @@ export function SubscriptionManagement() {
     setAudit({ user: u, rows: r, loading: false });
   };
 
+  const handleAction = (kind: ActionKind) => {
+    if (!selectedUser) return;
+    setDialog({ kind, user: selectedUser });
+  };
+
+  const handleQuickAction = async (payload: Record<string, unknown>) => {
+    await runAction(payload);
+    await fetchRows();
+  };
+
   return (
     <div className="space-y-4">
       <BillingHealthCard />
-      <Card className="border-border/60">
+      <Card className="border-border/60 shadow-sm">
         <CardHeader className="pb-3">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <CardTitle className="text-xl font-bold flex items-center gap-2">
+              <CardTitle className="text-lg sm:text-xl font-bold flex items-center gap-2">
                 <ShieldAlert className="h-5 w-5 text-primary" /> Assinaturas e Acesso (Admin)
               </CardTitle>
-              <CardDescription>
-                Libere planos, controle testes e gerencie o ciclo de vida das assinaturas manualmente. Todas as ações são auditadas.
+              <CardDescription className="text-xs">
+                Clique no cliente para abrir a ficha completa e gerenciar plano, testes, datas e ações manuais.
               </CardDescription>
             </div>
-            <Button variant="outline" size="sm" onClick={fetchRows} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-              <span className="ml-1.5">Atualizar</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchRows}
+              disabled={loading}
+              className="rounded-xl h-8 text-xs gap-1.5 self-start sm:self-auto shrink-0"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin text-primary" : ""}`} />
+              <span>Atualizar</span>
             </Button>
           </div>
         </CardHeader>
+
         <CardContent className="space-y-3">
           <div className="flex flex-col sm:flex-row gap-2">
             <Input
-              placeholder="Buscar por nome ou e-mail"
+              placeholder="Buscar cliente por nome ou e-mail"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="sm:max-w-sm"
+              className="sm:max-w-sm h-9 text-xs rounded-xl"
             />
-          <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}>
-            <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os status</SelectItem>
-              <SelectItem value="active">Ativa</SelectItem>
-              <SelectItem value="trialing">Em teste</SelectItem>
-              <SelectItem value="suspended">Suspensa</SelectItem>
-              <SelectItem value="canceled">Cancelada</SelectItem>
-              <SelectItem value="past_due">Em atraso</SelectItem>
-              <SelectItem value="none">Sem plano</SelectItem>
-            </SelectContent>
-          </Select>
+            <Select
+              value={statusFilter || "all"}
+              onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}
+            >
+              <SelectTrigger className="w-full sm:w-[180px] h-9 text-xs rounded-xl">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os status</SelectItem>
+                <SelectItem value="active">Ativa</SelectItem>
+                <SelectItem value="trialing">Em teste</SelectItem>
+                <SelectItem value="suspended">Suspensa</SelectItem>
+                <SelectItem value="canceled">Cancelada</SelectItem>
+                <SelectItem value="past_due">Em atraso</SelectItem>
+                <SelectItem value="none">Sem plano</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {loading && (
+            <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" /> Carregando assinaturas…
+            </div>
+          )}
+
+          {!loading && rows.length === 0 && (
+            <div className="text-center py-10 text-xs text-muted-foreground border border-dashed rounded-2xl bg-muted/20">
+              Nenhum cliente encontrado com os filtros aplicados.
+            </div>
+          )}
+
+          {/* Lista Simplificada e Escaneável de Clientes (Todas as Resoluções) */}
+          {!loading && rows.length > 0 && (
+            <div className="space-y-2">
+              {rows.map((u) => {
+                const { planId, end, st } = resolveSubscriberState(u);
+                const meta = STATUS_CONFIG[st] ?? STATUS_CONFIG.none;
+                const daysRemaining = getDaysRemainingText(end, st);
+
+                return (
+                  <div
+                    key={u.user_id}
+                    onClick={() => setSelectedUserId(u.user_id)}
+                    className="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl border border-border/50 bg-card hover:bg-muted/40 hover:border-border transition-all cursor-pointer group shadow-sm active:scale-[0.99]"
+                  >
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="font-bold text-sm sm:text-base text-foreground truncate group-hover:text-primary transition-colors">
+                        {u.display_name || u.email || "Cliente sem nome"}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
+                        <span className="text-xs">{meta.dot}</span>
+                        <span className="font-medium text-foreground/80">{meta.label}</span>
+                        <span className="text-muted-foreground/60">·</span>
+                        <span className="tabular-nums text-muted-foreground font-medium">{daysRemaining}</span>
+                        {u.is_blocked && (
+                          <>
+                            <span className="text-muted-foreground/60">·</span>
+                            <Badge variant="destructive" className="h-4 px-1.5 text-[9px] gap-0.5 font-bold">
+                              <ShieldOff className="h-2.5 w-2.5" /> Bloqueado
+                            </Badge>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pl-3 shrink-0 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all">
+                      <ChevronRight className="h-4 w-4" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+
+        <div className="flex items-center justify-between gap-3 p-4 border-t border-border/40">
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-xl h-8 text-xs"
+            disabled={loading || page === 0}
+            onClick={() => setPage(page - 1)}
+          >
+            Anterior
+          </Button>
+          <span className="text-xs text-muted-foreground tabular-nums font-medium" aria-live="polite">
+            Página {page + 1} · {total} clientes
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-xl h-8 text-xs"
+            disabled={loading || (page + 1) * 100 >= total}
+            onClick={() => setPage(page + 1)}
+          >
+            Próxima
+          </Button>
         </div>
 
-        {loading && (
-          <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin mr-2" /> Carregando…
-          </div>
+        {/* Sheet Lateral / Gaveta de Detalhes do Cliente */}
+        {selectedUser && selectedResolved && (
+          <SubscriptionCustomerDetailsSheet
+            user={selectedUser}
+            open={Boolean(selectedUserId)}
+            onOpenChange={(open) => {
+              if (!open) setSelectedUserId(null);
+            }}
+            onAction={handleAction}
+            onQuickAction={handleQuickAction}
+            onOpenAudit={() => openAudit(selectedUser)}
+            resolvedState={selectedResolved}
+            statusMeta={STATUS_CONFIG[selectedResolved.st] ?? STATUS_CONFIG.none}
+            planLabel={planLabel(selectedResolved.planId)}
+            planVariant={planBadgeVariant(selectedResolved.planId)}
+            daysLeftText={getDaysRemainingText(selectedResolved.end, selectedResolved.st)}
+          />
         )}
-        {!loading && rows.length === 0 && (
-          <div className="text-center py-8 text-sm text-muted-foreground border rounded-md">
-            Nenhum usuário encontrado
-          </div>
-        )}
-
-        {/* Mobile + Tablet: cards */}
-        {!loading && rows.length > 0 && (
-          <div className="lg:hidden space-y-2">
-            {rows.map((u) => {
-              const { planId, end, st } = resolveSubscriberState(u);
-              const meta = STATUS_LABEL[st] ?? STATUS_LABEL.none;
-
-              return (
-                <div key={u.user_id} className="rounded-lg border bg-card p-3 space-y-3">
-                  <div className="flex items-start justify-between gap-2.5">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-bold text-sm text-foreground truncate max-w-full">
-                          {u.display_name || "—"}
-                        </span>
-                        <Badge variant={planBadgeVariant(planId)} className="text-[10px] px-2 py-0.5 shrink-0 whitespace-nowrap font-semibold">
-                          {planLabel(planId)}
-                        </Badge>
-                      </div>
-                      <div className="text-xs text-muted-foreground truncate mt-0.5">{u.email}</div>
-                    </div>
-                    <div className="flex flex-col items-end gap-0.5 shrink-0">
-                      <Badge variant={meta.variant as "default" | "secondary" | "destructive" | "outline"} className="font-semibold">{meta.label}</Badge>
-                      <span className="text-[10px] text-muted-foreground whitespace-nowrap">{daysLeftLabel(end)}</span>
-                      {u.is_blocked && (
-                        <Badge variant="destructive" className="gap-1 mt-1 text-[10px]"><ShieldOff className="h-3 w-3" />Bloqueado</Badge>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                    <div>
-                      <div className="text-muted-foreground">Expira em</div>
-                      <div className="font-medium text-foreground tabular-nums whitespace-nowrap">{fmtDate(end)}</div>
-                      {u.subscription?.cancel_at_period_end && <div className="text-[10px] text-warning mt-0.5">Cancela ao expirar</div>}
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground">Origem</div>
-                      <div className="font-medium text-foreground">
-                        {u.subscription?.manual_override ? "Manual" : "Automático"}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-1 border-t border-border/40">
-                    <LiberarButton actions={getActions(u, st, setDialog, runAction, openAudit)} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Desktop: table */}
-        {!loading && rows.length > 0 && (
-          <div className="hidden lg:block rounded-md border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Usuário</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Expira em</TableHead>
-                  <TableHead>Override</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((u) => {
-                  const { planId, end, st } = resolveSubscriberState(u);
-                  const meta = STATUS_LABEL[st] ?? STATUS_LABEL.none;
-
-                  return (
-                    <TableRow key={u.user_id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2 font-medium text-sm">
-                          {u.display_name || "—"}
-                          <Badge variant={planBadgeVariant(planId)} className="text-[10px] px-1.5 py-0">
-                            {planLabel(planId)}
-                          </Badge>
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{u.email}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-1 items-start">
-                          <Badge variant={meta.variant as "default" | "secondary" | "destructive" | "outline"}>{meta.label}</Badge>
-                          <span className="text-[11px] text-muted-foreground">{daysLeftLabel(end)}</span>
-                          {u.is_blocked && (
-                            <Badge variant="destructive" className="gap-1 text-[10px]"><ShieldOff className="h-3 w-3" />Bloqueado</Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm tabular-nums whitespace-nowrap">
-                        {fmtDate(end)}
-                        {u.subscription?.cancel_at_period_end && <div className="text-[10px] text-warning mt-0.5">Cancela ao expirar</div>}
-                      </TableCell>
-                      <TableCell>
-                        {u.subscription?.manual_override ? <Badge variant="secondary">Manual</Badge> : <span className="text-xs text-muted-foreground">Automático</span>}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {renderActions(u, st, setDialog, runAction, openAudit)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
-
-
-      <div className="flex items-center justify-between gap-3 p-4">
-        <Button variant="outline" disabled={loading || page === 0} onClick={() => setPage(page - 1)}>Anterior</Button>
-        <span className="text-sm" aria-live="polite">Página {page + 1} · {total} usuários</span>
-        <Button variant="outline" disabled={loading || (page + 1) * 100 >= total} onClick={() => setPage(page + 1)}>Próxima</Button>
-      </div>
       {dialog && (
         <ActionDialog
           key={dialog.kind + dialog.user.user_id}

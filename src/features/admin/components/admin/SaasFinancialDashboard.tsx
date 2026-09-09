@@ -163,56 +163,56 @@ export function SaasFinancialDashboard() {
     <TooltipProvider>
       <div className="space-y-6">
         {/* 1. Header com Título e Filtros Globais */}
-        <div className="relative z-20 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card/60 p-4 rounded-2xl border border-border/50 backdrop-blur-sm shadow-sm">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-primary" /> Faturamento do SaaS
-                </h2>
-                {environment === "live" ? (
-                  <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-semibold">
-                    Produção (Live)
-                  </Badge>
-                ) : (
-                  <Badge variant="destructive" className="text-[10px] font-semibold animate-pulse">
-                    Sandbox (Testes)
-                  </Badge>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Métricas de faturamento e assinaturas do EmprestAI via Asaas ({data?.timezone || "America/Sao_Paulo"}).
-              </p>
+        <div className="relative z-20 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 bg-card/60 p-3.5 sm:p-4 rounded-2xl border border-border/50 backdrop-blur-sm shadow-sm">
+          <div className="flex flex-col gap-1 w-full md:w-auto">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary shrink-0" />
+                <span className="whitespace-nowrap">Faturamento do SaaS</span>
+              </h2>
+              {environment === "live" ? (
+                <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-semibold shrink-0">
+                  Produção (Live)
+                </Badge>
+              ) : (
+                <Badge variant="destructive" className="text-[10px] font-semibold animate-pulse shrink-0">
+                  Sandbox (Testes)
+                </Badge>
+              )}
             </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Métricas de faturamento e assinaturas do EmprestAI via Asaas ({data?.timezone || "America/Sao_Paulo"}).
+            </p>
+          </div>
 
-            {/* Ações Mobile (Botão Filtros + Refresh) */}
-            <div className="flex items-center gap-1.5 md:hidden shrink-0 mt-0.5">
-              <Button
-                variant={mobileFiltersOpen || activeFiltersCount > 0 ? "default" : "outline"}
-                size="sm"
-                className="h-8 px-2.5 text-xs gap-1.5 rounded-xl font-medium"
-                onClick={() => setMobileFiltersOpen((prev) => !prev)}
-              >
-                <Filter className="h-3.5 w-3.5" />
-                <span>Filtros</span>
-                {activeFiltersCount > 0 && (
-                  <Badge variant="secondary" className="h-4 px-1 text-[10px] ml-0.5 font-bold">
-                    {activeFiltersCount}
-                  </Badge>
-                )}
-                {mobileFiltersOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => { refetch(); refetchBalance(); }}
-                disabled={loading || balanceLoading}
-                className="h-8 w-8 rounded-xl shrink-0"
-                title="Atualizar dados"
-              >
-                <RefreshCw className={cn("h-3.5 w-3.5", (loading || balanceLoading) && "animate-spin text-primary")} />
-              </Button>
-            </div>
+          {/* Ações Mobile (Botão Filtros + Refresh) */}
+          <div className="flex items-center gap-2 md:hidden w-full pt-2 border-t border-border/30">
+            <Button
+              variant={mobileFiltersOpen || activeFiltersCount > 0 ? "default" : "outline"}
+              size="sm"
+              className="h-8 px-3 text-xs gap-1.5 rounded-xl font-medium flex-1 justify-center"
+              onClick={() => setMobileFiltersOpen((prev) => !prev)}
+            >
+              <Filter className="h-3.5 w-3.5" />
+              <span>Filtros</span>
+              {activeFiltersCount > 0 && (
+                <Badge variant="secondary" className="h-4 px-1 text-[10px] ml-0.5 font-bold">
+                  {activeFiltersCount}
+                </Badge>
+              )}
+              {mobileFiltersOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { refetch(); refetchBalance(); }}
+              disabled={loading || balanceLoading}
+              className="h-8 px-3 rounded-xl shrink-0 gap-1.5 text-xs font-medium"
+              title="Atualizar dados"
+            >
+              <RefreshCw className={cn("h-3.5 w-3.5", (loading || balanceLoading) && "animate-spin text-primary")} />
+              <span>Atualizar</span>
+            </Button>
           </div>
 
           {/* Filtros Mobile (Ocultos por padrão) */}
@@ -397,60 +397,62 @@ export function SaasFinancialDashboard() {
 
         {/* 2. Card de Destaque: Saldo em Conta Asaas */}
         <Card className="rounded-2xl border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-card shadow-sm overflow-hidden relative">
-          <CardContent className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="p-3 bg-primary/15 text-primary rounded-2xl">
-                <Wallet className="h-6 w-6" />
+          <CardContent className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3 sm:gap-3.5">
+              <div className="p-2.5 sm:p-3 bg-primary/15 text-primary rounded-2xl shrink-0 mt-0.5 sm:mt-0">
+                <Wallet className="h-5 w-5 sm:h-6 sm:w-6" />
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider truncate">
                     Saldo em Conta Asaas (Tempo Real)
                   </span>
                   <button
                     type="button"
                     onClick={toggleBalanceVisibility}
-                    className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
+                    className="text-muted-foreground hover:text-foreground transition-colors p-0.5 shrink-0"
                     title={balanceVisible ? "Ocultar valores" : "Mostrar valores"}
                   >
                     {balanceVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                   </button>
                 </div>
-                <div className="flex items-baseline gap-2 mt-0.5">
-                  <p className="text-3xl font-extrabold tracking-tight text-foreground">
+                <div className="flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-2 mt-0.5">
+                  <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
                     {balanceLoading ? "..." : balanceVisible ? fmtCurrency(asaasBalance) : "R$ ••••••••"}
                   </p>
-                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                  <span className="text-[11px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-medium">
                     Disponível para saque / TED
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 text-xs pt-3 md:pt-0 border-t md:border-t-0 border-border/40">
-              <div className="bg-background/80 px-3.5 py-2 rounded-xl border border-border/50">
-                <span className="text-muted-foreground block text-[11px]">A Receber / Futuro</span>
-                <span className="font-bold text-foreground">
-                  {balanceLoading ? "..." : balanceVisible ? fmtCurrency(asaasPendingBalance) : "R$ ••••"}
-                </span>
-              </div>
-              {asaasRetainedBalance > 0 && (
-                <div className="bg-background/80 px-3.5 py-2 rounded-xl border border-border/50">
-                  <span className="text-muted-foreground block text-[11px]">Retido / Bloqueado</span>
-                  <span className="font-bold text-rose-500">
-                    {balanceLoading ? "..." : balanceVisible ? fmtCurrency(asaasRetainedBalance) : "R$ ••••"}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 text-xs pt-3 md:pt-0 border-t md:border-t-0 border-border/40">
+              <div className="flex items-center gap-2 flex-1 sm:flex-none">
+                <div className="bg-background/80 px-3.5 py-2 rounded-xl border border-border/50 flex-1 sm:flex-none">
+                  <span className="text-muted-foreground block text-[10px] sm:text-[11px]">A Receber / Futuro</span>
+                  <span className="font-bold text-foreground text-xs sm:text-sm">
+                    {balanceLoading ? "..." : balanceVisible ? fmtCurrency(asaasPendingBalance) : "R$ ••••"}
                   </span>
                 </div>
-              )}
+                {asaasRetainedBalance > 0 && (
+                  <div className="bg-background/80 px-3.5 py-2 rounded-xl border border-border/50 flex-1 sm:flex-none">
+                    <span className="text-muted-foreground block text-[10px] sm:text-[11px]">Retido / Bloqueado</span>
+                    <span className="font-bold text-rose-500 text-xs sm:text-sm">
+                      {balanceLoading ? "..." : balanceVisible ? fmtCurrency(asaasRetainedBalance) : "R$ ••••"}
+                    </span>
+                  </div>
+                )}
+              </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={refetchBalance}
                 disabled={balanceLoading}
-                className="h-8 text-xs gap-1.5 rounded-xl"
+                className="h-9 sm:h-8 text-xs gap-1.5 rounded-xl font-medium justify-center"
               >
-                <RefreshCw className={cn("h-3.5 w-3.5", balanceLoading && "animate-spin")} />
-                Atualizar Saldo
+                <RefreshCw className={cn("h-3.5 w-3.5", balanceLoading && "animate-spin text-primary")} />
+                <span>Atualizar Saldo</span>
               </Button>
             </div>
           </CardContent>

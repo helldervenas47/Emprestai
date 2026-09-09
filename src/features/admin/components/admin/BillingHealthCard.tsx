@@ -80,20 +80,28 @@ export function BillingHealthCard() {
 
   return (
     <Card className="border-border/60 shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between pb-3">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Activity className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg font-semibold">Monitoramento & Saúde do Billing</CardTitle>
+      <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3">
+        <div className="space-y-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Activity className="h-5 w-5 text-primary shrink-0" />
+            <CardTitle className="text-base sm:text-lg font-semibold tracking-tight">
+              Monitoramento & Saúde do Billing
+            </CardTitle>
             {data && getHealthBadge(data.overall_health)}
           </div>
-          <CardDescription>
+          <CardDescription className="text-xs">
             Diagnóstico em tempo real da integração Asaas, conciliação e integridade de assinaturas.
           </CardDescription>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchHealth} disabled={loading} className="gap-1.5">
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          Atualizar Diagnóstico
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={fetchHealth}
+          disabled={loading}
+          className="gap-1.5 shrink-0 self-start sm:self-auto rounded-xl text-xs h-8"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          <span>Atualizar Diagnóstico</span>
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
