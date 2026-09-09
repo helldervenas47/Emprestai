@@ -303,6 +303,7 @@ function LoanRowView({
       (c) => normalizeClientKey(c.name) === normalizeClientKey(form.borrowerName)
     );
     try {
+      const newDueDate = form.dueDate || loan.dueDate;
       await Promise.resolve(onUpdate({
         borrowerName: form.borrowerName,
         borrowerId: matchedClient ? matchedClient.id : undefined,
@@ -311,7 +312,7 @@ function LoanRowView({
         installments: parseInt(form.installments) || loan.installments,
         paidInstallments: parseInt(form.paidInstallments) || 0,
         startDate: form.startDate || loan.startDate,
-        dueDate: form.dueDate || loan.dueDate,
+        dueDate: newDueDate,
         interestType: form.interestType,
         notes: form.notes,
         tags: parsedTags,
@@ -322,6 +323,27 @@ function LoanRowView({
         managerCommissionRate: editHasManager ? parseFloat(editCommissionRate) || 10 : null,
         isSale: editIsSale,
       }));
+
+      if (onSaveSchedule && newDueDate !== loan.dueDate) {
+        const totalInst = parseInt(form.installments) || loan.installments;
+        const paidInst = parseInt(form.paidInstallments) || 0;
+        const nextNum = paidInst + 1;
+        const freq = form.interestType || loan.interestType || "Mensal";
+        const rem = parseFloat(form.remainingAmount) || loan.amount;
+        const remInst = Math.max(1, totalInst - paidInst);
+        const instVal = rem / remInst;
+        const rows = Array.from({ length: totalInst }, (_, i) => {
+          const num = i + 1;
+          const existing = installmentSchedules.find((s) => s.loanId === loan.id && s.installmentNumber === num);
+          if (num < nextNum) {
+            return { installmentNumber: num, dueDate: existing?.dueDate || advanceLoanDueDate(loan.dueDate, freq, num - 1), amount: existing?.amount ?? instVal };
+          }
+          const offset = num - nextNum;
+          return { installmentNumber: num, dueDate: advanceLoanDueDate(newDueDate, freq, offset), amount: existing?.amount ?? instVal };
+        });
+        await onSaveSchedule(loan.id, rows);
+      }
+
       setEditing(false);
       toast.success("Alterações salvas com sucesso");
     } catch (err: any) {

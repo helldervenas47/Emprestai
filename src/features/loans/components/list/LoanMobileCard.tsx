@@ -362,8 +362,8 @@ export function LoanCardView({
         isSale: editIsSale,
       }));
 
-      // Save schedule rows explicitly only if manual schedule editing was active
-      if (showEditSchedule && editScheduleRows.length > 0) {
+      // Save schedule rows if manual editing was active or if due date was modified
+      if (editScheduleRows.length > 0 && (showEditSchedule || dueDate !== loan.dueDate)) {
         await onSaveSchedule(loan.id, editScheduleRows.map((row, idx) => {
           const d = row.date;
           const dateIso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

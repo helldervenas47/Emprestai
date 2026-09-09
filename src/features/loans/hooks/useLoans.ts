@@ -397,7 +397,8 @@ export function useLoans() {
       }
     }
     await fetchSchedules();
-  }, [user, dataOwnerId, loans, fetchSchedules]);
+    await fetchLoans();
+  }, [user, dataOwnerId, loans, fetchSchedules, fetchLoans]);
 
   const addLoan = useCallback(async (loan: Omit<Loan, "id"> & { status?: string; paidInstallments?: number; paymentMethodId?: string | null; paymentSplit?: PaymentSplit | null }): Promise<string | null> => {
     assertWritable();
@@ -1863,13 +1864,10 @@ export function useLoans() {
     }
     const { error: updateErr } = await supabase.from("loans").update(updateData).eq("id", id);
     if (updateErr) {
-      if (!updateErr.message.toLowerCase().includes("row-level")) {
-        await enqueueMutation({ table: "loans", op: "update", recordId: id, payload: updateData });
-      } else {
-        console.error("[updateLoan] Falha ao salvar:", updateErr);
-        toast.error("Falha ao salvar alterações: " + updateErr.message);
-        await fetchLoans();
-      }
+      console.error("[updateLoan] Falha ao salvar no Supabase:", updateErr);
+      toast.error("Falha ao salvar alterações: " + updateErr.message);
+      await fetchLoans();
+      throw updateErr;
     } else if (data.dueDate !== undefined) {
       // Sincroniza todas as parcelas pendentes no Supabase
       const currentLoan = loans.find((l) => l.id === id);
