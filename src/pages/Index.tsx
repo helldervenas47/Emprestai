@@ -1906,6 +1906,7 @@ const Index = () => {
                       payments={filteredPayments}
                       installmentSchedules={filteredInstallments}
                       sales={filteredSales}
+                      clients={filteredClients}
                       onPayment={addPayment}
                       onPartialPayment={addPartialPayment}
                       onFullPayment={payOffLoan}
