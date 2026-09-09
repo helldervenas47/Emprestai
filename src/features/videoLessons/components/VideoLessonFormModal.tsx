@@ -146,7 +146,7 @@ export function VideoLessonFormModal({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validações
+    // Validações (limite máximo de 500 MB, suportando tranquilamente vídeos de 100 MB)
     const maxSizeBytes = 500 * 1024 * 1024; // 500 MB
     if (file.size > maxSizeBytes) {
       toast({
@@ -157,8 +157,9 @@ export function VideoLessonFormModal({
       return;
     }
 
+    const sizeInMB = (file.size / (1024 * 1024)).toFixed(1);
     setIsUploadingVideo(true);
-    setVideoFileName(file.name);
+    setVideoFileName(`${file.name} (${sizeInMB} MB)`);
 
     try {
       const sanitizedName = file.name
@@ -186,7 +187,7 @@ export function VideoLessonFormModal({
       setVideoUrl(publicUrlData.publicUrl);
       toast({
         title: "Vídeo carregado com sucesso!",
-        description: `Arquivo "${file.name}" importado para a plataforma.`,
+        description: `Arquivo "${file.name}" (${sizeInMB} MB) importado para a plataforma.`,
       });
     } catch (err: any) {
       console.error("Erro no upload do vídeo:", err);
@@ -442,7 +443,7 @@ export function VideoLessonFormModal({
                             Clique para selecionar o vídeo do seu dispositivo
                           </p>
                           <p className="text-[11px] text-muted-foreground">
-                            Formatos: MP4, WebM, MOV, OGG (Até 500 MB)
+                            Formatos: MP4, WebM, MOV, OGG (Suporta 100 MB+ • Limite de até 500 MB)
                           </p>
                         </div>
                       </>
