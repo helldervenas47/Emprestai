@@ -113,6 +113,8 @@ export function NativeDatePicker({
       <PopoverContent
         className="w-auto p-2.5 sm:p-3 rounded-2xl shadow-xl border border-border/60 bg-popover/95 backdrop-blur-xl z-50 animate-in fade-in-50 zoom-in-95"
         align="start"
+        side="bottom"
+        sideOffset={6}
       >
         <div className="space-y-2">
           <Calendar

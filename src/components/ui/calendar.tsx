@@ -8,7 +8,7 @@ import { buttonVariants } from "@/components/ui/button";
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
-function Calendar({ className, classNames, showOutsideDays = true, ...props }: CalendarProps) {
+function Calendar({ className, classNames, showOutsideDays = true, fixedWeeks = true, ...props }: CalendarProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const touchStartX = React.useRef<number | null>(null);
   const touchStartY = React.useRef<number | null>(null);
@@ -115,6 +115,7 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }: C
     >
       <DayPicker
         showOutsideDays={showOutsideDays}
+        fixedWeeks={fixedWeeks}
         month={displayMonth}
         onMonthChange={(m) => {
           setDisplayMonth(m);
