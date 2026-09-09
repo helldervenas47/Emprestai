@@ -28,7 +28,11 @@ import {
   CheckCircle2,
   TrendingUp,
   RotateCcw,
-  Sparkles,
+  AlertTriangle,
+  Clock,
+  Tag,
+  Wallet,
+  Calendar as CalendarIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { getDueStatusBadge } from "@/features/financial/lib/dueStatus";
@@ -113,7 +117,6 @@ export function BillingCalendar({
 
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
-  // Inicializa o dia de hoje selecionado por padrão para que o painel lateral abra preenchido
   const [selectedDate, setSelectedDate] = useState<string | null>(todayStr);
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"mes" | "semana" | "agenda" | "lista" | "geral">("mes");
@@ -141,7 +144,7 @@ export function BillingCalendar({
     return null;
   }, [paymentDialog, activeMethods, selectedMethodId]);
 
-  // Mapa de telefone de clientes para cobrança rápida
+  // Mapa de telefone de clientes para cobrança rápida via WhatsApp
   const clientPhoneMap = useMemo(() => {
     const map: Record<string, string> = {};
     clients.forEach((c) => {
@@ -345,7 +348,7 @@ export function BillingCalendar({
     [filteredDueMap, filteredSalesDueMap],
   );
 
-  // Resumo financeiro e progresso do mês
+  // Resumo financeiro do mês
   const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}`;
   const monthReceivedTotal = useMemo(() => {
     return payments
@@ -381,10 +384,6 @@ export function BillingCalendar({
       month: { total: monthTotal, count: monthCount },
     };
   }, [filteredDueMap, filteredSalesDueMap, todayStr, tomorrowStr, monthPrefix, pendingForDate]);
-
-  const monthExpectedTotal = summary.month.total + monthReceivedTotal;
-  const monthProgressPct =
-    monthExpectedTotal > 0 ? Math.min(100, Math.round((monthReceivedTotal / monthExpectedTotal) * 100)) : 0;
 
   const goToToday = () => {
     setYear(today.getFullYear());
@@ -581,7 +580,8 @@ export function BillingCalendar({
     toast.success("Pauta de cobrança do dia copiada para a área de transferência!");
   };
 
-  const renderItemWithActions = (item: DueItem, isOverdue: boolean) => {
+  // Render do Card de Empréstimo no mesmo padrão da aba Empréstimos
+  const renderLoanDecisionCard = (item: DueItem, isOverdue: boolean) => {
     const itemKey = `${item.loanId}-${item.installmentNumber}`;
     const isExpanded = expandedItem === itemKey;
     const loan = item.loan;
@@ -612,91 +612,169 @@ export function BillingCalendar({
         ? loan.customInterestValue
         : loan.amount * (loan.interestRate / 100);
 
-    const bgClass = isOverdue ? "bg-destructive/5 border-destructive/20" : "bg-warning/5 border-warning/20";
-    const avatarBg = isOverdue ? "bg-destructive/10" : "bg-warning/10";
-    const avatarText = isOverdue ? "text-destructive" : "text-warning";
-    const amountColor = isOverdue ? "text-destructive" : "text-warning";
+    const expectedProfit = remaining + totalPaid - loan.amount;
+    const realizedProfit = Math.max(0, totalPaid - loan.amount);
+    const realizedProfitPct = expectedProfit > 0 ? Math.round((realizedProfit / expectedProfit) * 100) : 0;
+
+    const accentColor = isOverdue
+      ? "hsl(var(--destructive))"
+      : item.date === todayStr
+      ? "hsl(var(--warning))"
+      : "hsl(var(--primary))";
+
+    const cardBorder = isOverdue
+      ? "border-destructive/30"
+      : item.date === todayStr
+      ? "border-warning/30"
+      : "border-border/60";
+
+    const headerBg = isOverdue
+      ? "from-destructive/10 to-transparent border-destructive/15"
+      : item.date === todayStr
+      ? "from-warning/10 to-transparent border-warning/15"
+      : "from-primary/[0.06] to-transparent border-border/50";
+
+    const initials = item.borrowerName
+      .split(" ")
+      .map((w) => w[0])
+      .join("")
+      .substring(0, 2)
+      .toUpperCase();
 
     return (
-      <div key={itemKey} className="overflow-hidden rounded-lg border transition-all hover:border-primary/40">
-        <button
-          type="button"
-          onClick={() => toggleExpand(itemKey)}
-          className={`flex items-center justify-between p-3 w-full text-left ${bgClass} transition-colors hover:opacity-90`}
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className={`h-8 w-8 rounded-full ${avatarBg} flex items-center justify-center shrink-0`}>
-              <User className={`h-4 w-4 ${avatarText}`} />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <p className="text-sm font-medium text-foreground truncate">{item.borrowerName}</p>
-                {loan.tags && loan.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-0.5">
-                    {loan.tags.filter(Boolean).map((tag) => (
-                      <Badge
-                        key={tag}
-                        className="bg-primary text-primary-foreground text-[8px] px-1 py-0 max-w-[120px] truncate"
-                      >
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
+      <Card
+        key={itemKey}
+        no3d
+        className={`relative overflow-hidden rounded-2xl transition-all duration-200 border ${cardBorder} bg-card hover:shadow-md`}
+      >
+        {/* Faixa lateral colorida de status */}
+        <span aria-hidden className="absolute left-0 top-0 bottom-0 w-1" style={{ background: accentColor }} />
+
+        {/* Cabeçalho do Card */}
+        <div className={`border-b px-4 py-3 bg-gradient-to-b ${headerBg} relative flex items-center justify-between gap-2`}>
+          <div className="flex items-center gap-2 min-w-0">
+            <span
+              aria-hidden
+              className="h-2 w-2 rounded-full shrink-0"
+              style={{ background: accentColor, boxShadow: `0 0 0 3px ${accentColor}22` }}
+            />
+            <h3 className="font-semibold text-foreground text-sm leading-tight truncate">
+              {item.borrowerName}
+            </h3>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {loan.tags && loan.tags.length > 0 && (
+              <div className="flex flex-wrap gap-0.5">
+                {loan.tags.filter(Boolean).map((tag) => (
+                  <Badge key={tag} className="bg-primary text-primary-foreground text-[9px] px-1.5 py-0 max-w-[100px] truncate">
+                    {tag}
+                  </Badge>
+                ))}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Parcela {item.installmentNumber}/{item.totalInstallments}
+            )}
+          </div>
+        </div>
+
+        <CardContent className="p-4 space-y-3.5">
+          {/* Avatar + Badges de Status */}
+          <div className="flex items-center gap-3">
+            <div
+              className={`h-11 w-11 rounded-full flex items-center justify-center text-primary-foreground font-bold text-xs shrink-0 ${
+                isOverdue
+                  ? "bg-destructive"
+                  : item.date === todayStr
+                  ? "bg-warning"
+                  : "bg-primary"
+              }`}
+            >
+              {initials}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-[10px] font-semibold uppercase",
+                  isOverdue
+                    ? "bg-destructive/10 text-destructive border-destructive/30"
+                    : item.date === todayStr
+                    ? "bg-warning/10 text-warning border-warning/30"
+                    : "bg-primary/10 text-primary border-primary/20",
+                )}
+              >
+                {isOverdue ? "Atrasado" : item.date === todayStr ? "Vence hoje" : "A vencer"}
+              </Badge>
+              <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20 uppercase">
+                {loan.interestType || "Mensal"}
+              </Badge>
+              {daysOverdue > 0 && loan.status !== "paid" && (
+                <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 text-[10px]">
+                  {daysOverdue}d atraso
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          {/* Valor Principal em Destaque no Centro */}
+          <div className="text-center py-3 rounded-xl bg-gradient-to-b from-muted/30 to-transparent border border-border/30">
+            <p
+              className={cn(
+                "text-[28px] md:text-[32px] leading-none font-bold tracking-tight tabular-nums",
+                isOverdue ? "text-destructive" : "text-foreground",
+              )}
+            >
+              {formatCurrency(installment)}
+            </p>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-1.5 font-medium">
+              Parcela do dia ({item.installmentNumber}ª de {item.totalInstallments})
+            </p>
+            {lateFees > 0 && (
+              <div className="text-[11px] text-destructive mt-1.5 space-y-0.5">
+                {lateInterestTotal > 0 && (
+                  <p>+ Juros de atraso ({daysOverdue}d): {rawFormatCurrency(lateInterestTotal)}</p>
+                )}
+                {penaltyTotal > 0 && <p>+ Multa: {rawFormatCurrency(penaltyTotal)}</p>}
+              </div>
+            )}
+          </div>
+
+          {/* Grid de Informações Claras para Tomada de Decisão */}
+          <div className="grid grid-cols-2 gap-2.5 border border-border/40 rounded-xl p-2.5 bg-muted/20 text-xs">
+            <div>
+              <p className="text-[10px] text-muted-foreground">Emprestado</p>
+              <p className="font-bold text-foreground text-sm">{formatCurrency(loan.amount)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground">Total do Contrato</p>
+              <p className="font-bold text-foreground text-sm">
+                {formatCurrency(Math.round((totalPaid + remaining) * 100) / 100)}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {(() => {
-              const badge = getDueStatusBadge(item.date, item.paid, { overdue: "Atrasado" });
-              return (
-                <div className="text-right">
-                  <p className={`text-sm font-bold ${amountColor}`}>{formatCurrency(installment)}</p>
-                  <Badge variant={badge.variant} className={`text-[10px] ${badge.className}`}>
-                    {badge.label}
-                  </Badge>
-                </div>
-              );
-            })()}
-            {isExpanded ? (
-              <ChevronUp className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            )}
-          </div>
-        </button>
 
-        {isExpanded && (
-          <div className="p-3 space-y-3 bg-card border-t">
-            {/* Loan info */}
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-2 rounded bg-muted/50">
-                <p className="text-muted-foreground">Valor empréstimo</p>
-                <p className="font-semibold text-foreground">{formatCurrency(loan.amount)}</p>
-              </div>
-              <div className="p-2 rounded bg-muted/50">
-                <p className="text-muted-foreground">Juros</p>
-                <p className="font-semibold text-foreground">
-                  {loan.interestRate}% ({loan.interestType})
-                </p>
-              </div>
-              <div className="p-2 rounded bg-muted/50">
-                <p className="text-muted-foreground">Parcelas pagas</p>
-                <p className="font-semibold text-foreground">
-                  {loan.paidInstallments}/{loan.installments}
-                </p>
-              </div>
-              <div className="p-2 rounded bg-muted/50">
-                <p className="text-muted-foreground">Restante</p>
-                <p className="font-semibold text-foreground">{formatCurrency(remaining)}</p>
-              </div>
+          {/* Lucro Previsto vs Lucro Realizado */}
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-2">
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1 font-medium">
+                💰 Lucro Previsto
+              </p>
+              <p className="text-xs md:text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                {formatCurrency(expectedProfit)}
+              </p>
             </div>
+            <div className="bg-muted/30 border border-border/50 rounded-lg p-2">
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1 font-medium">
+                ✅ Já Realizado
+              </p>
+              <p className="text-xs md:text-sm font-bold text-foreground">
+                {formatCurrency(realizedProfit)}{" "}
+                <span className="text-[10px] text-muted-foreground font-normal">({realizedProfitPct}%)</span>
+              </p>
+            </div>
+          </div>
 
-            {/* Ação rápida de Cobrança WhatsApp */}
-            <div className="flex items-center gap-2 pt-1">
+          {/* Barra de Ações Decisórias Rápidas */}
+          <div className="pt-1 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -710,96 +788,89 @@ export function BillingCalendar({
                     loan,
                   )
                 }
-                className="w-full text-xs font-medium border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-300 gap-1.5"
+                className="h-9 text-xs font-medium border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 gap-1.5"
               >
-                <MessageCircle className="h-3.5 w-3.5" />
-                <span>Cobrar no WhatsApp</span>
+                <MessageCircle className="h-4 w-4" />
+                <span>WhatsApp</span>
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => openPaymentDialog(item.loanId, item.borrowerName, "installment")}
+                className="h-9 text-xs font-medium gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                <CheckCircle className="h-4 w-4" />
+                <span>Receber Parcela</span>
               </Button>
             </div>
 
-            {/* Payment buttons */}
-            {!readOnly && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground">Formas de recebimento</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => openPaymentDialog(item.loanId, item.borrowerName, "installment")}
-                    className="flex items-center gap-2 p-2.5 rounded-lg border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
-                  >
-                    <div className="h-7 w-7 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-                      <CheckCircle className="h-3.5 w-3.5 text-primary" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-xs font-medium text-foreground">Parcela</p>
-                      <p className="text-[10px] text-primary font-semibold">{formatCurrency(installment)}</p>
-                    </div>
-                  </button>
+            {/* Alternar opções avançadas de pagamento */}
+            <button
+              type="button"
+              onClick={() => toggleExpand(itemKey)}
+              className="w-full text-center text-[11px] text-muted-foreground hover:text-foreground py-1 flex items-center justify-center gap-1 transition-colors"
+            >
+              <span>{isExpanded ? "Ocultar outras opções de quitação" : "Ver opções de juros, parcial e quitação total"}</span>
+              {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
 
+            {isExpanded && !readOnly && (
+              <div className="p-3 space-y-2.5 rounded-xl border border-border/50 bg-muted/20 animate-fade-in text-xs">
+                <p className="text-[11px] font-semibold text-muted-foreground">Outras formas de recebimento</p>
+                <div className="grid grid-cols-2 gap-2">
                   {loan.installments < 2 && (
-                    <button
+                    <Button
                       type="button"
+                      variant="outline"
+                      size="sm"
                       onClick={() => openPaymentDialog(item.loanId, item.borrowerName, "interest")}
-                      className="flex items-center gap-2 p-2.5 rounded-lg border border-purple/20 bg-purple/5 hover:bg-purple/10 transition-colors"
+                      className="h-8 text-[11px] justify-start text-purple-600 dark:text-purple-400 border-purple-500/30 hover:bg-purple-500/10"
                     >
-                      <div className="h-7 w-7 rounded-full bg-purple/15 flex items-center justify-center shrink-0">
-                        <Percent className="h-3.5 w-3.5 text-purple" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-xs font-medium text-foreground">Juros</p>
-                        <p className="text-[10px] text-purple font-semibold">{formatCurrency(interestOnly)}</p>
-                      </div>
-                    </button>
+                      <Percent className="h-3 w-3 mr-1" />
+                      Juros ({formatCurrency(interestOnly)})
+                    </Button>
                   )}
 
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => {
                       setShowPartial(showPartial === itemKey ? null : itemKey);
                       setPartialAmount("");
                     }}
-                    className="flex items-center gap-2 p-2.5 rounded-lg border border-warning/20 bg-warning/5 hover:bg-warning/10 transition-colors"
+                    className="h-8 text-[11px] justify-start text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
                   >
-                    <div className="h-7 w-7 rounded-full bg-warning/15 flex items-center justify-center shrink-0">
-                      <HandCoins className="h-3.5 w-3.5 text-warning" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-xs font-medium text-foreground">Parcial</p>
-                      <p className="text-[10px] text-warning font-semibold">Definir valor</p>
-                    </div>
-                  </button>
+                    <HandCoins className="h-3 w-3 mr-1" />
+                    Valor Parcial
+                  </Button>
 
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => openPaymentDialog(item.loanId, item.borrowerName, "full")}
-                    className="flex items-center gap-2 p-2.5 rounded-lg border border-success/20 bg-success/5 hover:bg-success/10 transition-colors"
+                    className="h-8 text-[11px] justify-start text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
                   >
-                    <div className="h-7 w-7 rounded-full bg-success/15 flex items-center justify-center shrink-0">
-                      <DollarSign className="h-3.5 w-3.5 text-success" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-xs font-medium text-foreground">Total</p>
-                      <p className="text-[10px] text-success font-semibold">{formatCurrency(remaining)}</p>
-                    </div>
-                  </button>
+                    <DollarSign className="h-3 w-3 mr-1" />
+                    Total ({formatCurrency(remaining)})
+                  </Button>
 
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => openPaymentDialog(item.loanId, item.borrowerName, "payoff")}
-                    className="flex items-center gap-2 p-2.5 rounded-lg border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors col-span-2"
+                    className="h-8 text-[11px] justify-start text-primary border-primary/30 hover:bg-primary/10"
                   >
-                    <div className="h-7 w-7 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-                      <DollarSign className="h-3.5 w-3.5 text-primary" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-xs font-medium text-foreground">Quitar Contrato</p>
-                      <p className="text-[10px] text-primary font-semibold">Definir valor de quitação</p>
-                    </div>
-                  </button>
+                    <Wallet className="h-3 w-3 mr-1" />
+                    Quitar Contrato
+                  </Button>
                 </div>
 
                 {showPartial === itemKey && (
-                  <div className="flex gap-2 mt-2">
+                  <div className="flex gap-2 pt-1">
                     <Input
                       type="number"
                       step="0.01"
@@ -807,23 +878,96 @@ export function BillingCalendar({
                       placeholder="Valor parcial (R$)"
                       value={partialAmount}
                       onChange={(e) => setPartialAmount(e.target.value)}
-                      className="h-8 text-sm flex-1"
+                      className="h-8 text-xs flex-1"
                       autoFocus
                     />
                     <Button
                       size="sm"
-                      className="h-8"
+                      className="h-8 text-xs"
                       onClick={() => handlePartialSubmit(item.loanId, item.borrowerName)}
                     >
-                      Pagar
+                      Confirmar
                     </Button>
                   </div>
                 )}
               </div>
             )}
           </div>
-        )}
-      </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // Render do Card de Venda / Veículo com padrão consistente
+  const renderSaleDecisionCard = (s: SaleDueItem) => {
+    const isOverdue = s.date < todayStr;
+    const Icon = s.kind === "vehicle" ? Car : ShoppingBag;
+    const label = s.kind === "vehicle" ? "Veículos" : "Vendas";
+
+    return (
+      <Card
+        key={`${s.kind}-${s.saleId}-${s.installmentNumber}`}
+        no3d
+        className={`relative overflow-hidden rounded-2xl transition-all duration-200 border ${
+          isOverdue ? "border-destructive/30" : "border-border/60"
+        } bg-card hover:shadow-md`}
+      >
+        <span
+          aria-hidden
+          className="absolute left-0 top-0 bottom-0 w-1"
+          style={{ background: isOverdue ? "hsl(var(--destructive))" : "hsl(var(--primary))" }}
+        />
+
+        <div className="border-b px-4 py-3 bg-gradient-to-b from-primary/[0.04] to-transparent flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Icon className="h-3.5 w-3.5" />
+            </div>
+            <h3 className="font-semibold text-foreground text-sm leading-tight truncate">
+              {s.customerName}
+            </h3>
+          </div>
+          <Badge variant="outline" className="text-[10px]">
+            {label}
+          </Badge>
+        </div>
+
+        <CardContent className="p-4 space-y-3">
+          <div className="text-center py-2.5 rounded-xl bg-gradient-to-b from-muted/30 to-transparent border border-border/30">
+            <p
+              className={cn(
+                "text-[26px] leading-none font-bold tracking-tight tabular-nums",
+                isOverdue ? "text-destructive" : "text-foreground",
+              )}
+            >
+              {formatCurrency(s.amount)}
+            </p>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-1 font-medium">
+              {s.description} · Parcela {s.installmentNumber} de {s.totalInstallments}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                handleSendWhatsAppBilling(
+                  s.customerName,
+                  s.amount,
+                  `Parcela ${s.installmentNumber}/${s.totalInstallments}`,
+                  s.date,
+                )
+              }
+              className="w-full h-8 text-xs font-medium border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 gap-1.5"
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              <span>Cobrar WhatsApp</span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     );
   };
 
@@ -962,7 +1106,7 @@ export function BillingCalendar({
             type="button"
             onClick={() => setOriginFilter(opt.v)}
             className={cn(
-              "px-2 py-1.5 rounded-md text-[11px] md:text-xs font-medium border transition-colors whitespace-nowrap truncate",
+              "px-2 py-1.5 rounded-lg text-[11px] md:text-xs font-medium border transition-colors whitespace-nowrap truncate",
               originFilter === opt.v
                 ? "bg-primary text-primary-foreground border-primary shadow-sm"
                 : "bg-muted/30 text-muted-foreground border-border/60 hover:text-foreground hover:bg-background/60",
@@ -973,100 +1117,98 @@ export function BillingCalendar({
         ))}
       </div>
 
-      {/* Summary cards com ações rápidas e progresso */}
-      <div className="space-y-2">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
-          {(
-            [
-              {
-                key: "hoje",
-                label: "Receber hoje",
-                tone: "text-warning",
-                bar: "bg-warning",
-                data: summary.hoje,
-                action: () => {
-                  setSelectedDate(todayStr);
-                  setViewMode("mes");
-                },
+      {/* Summary cards seguindo o design refinado de empréstimos */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+        {(
+          [
+            {
+              key: "hoje",
+              label: "Receber hoje",
+              tone: "text-amber-600 dark:text-amber-400",
+              badgeBg: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+              bgGradient: "bg-gradient-to-br from-amber-500/10 via-amber-500/[0.04] to-transparent",
+              iconBg: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+              icon: Clock,
+              data: summary.hoje,
+              action: () => {
+                setSelectedDate(todayStr);
+                setViewMode("mes");
               },
-              {
-                key: "amanha",
-                label: "Receber amanhã",
-                tone: "text-primary",
-                bar: "bg-primary",
-                data: summary.amanha,
-                action: () => {
-                  setSelectedDate(tomorrowStr);
-                  setViewMode("mes");
-                },
+            },
+            {
+              key: "amanha",
+              label: "Receber amanhã",
+              tone: "text-primary",
+              badgeBg: "bg-primary/15 text-primary border-primary/30",
+              bgGradient: "bg-gradient-to-br from-primary/10 via-primary/[0.04] to-transparent",
+              iconBg: "bg-primary/15 text-primary",
+              icon: CalendarIcon,
+              data: summary.amanha,
+              action: () => {
+                setSelectedDate(tomorrowStr);
+                setViewMode("mes");
               },
-              {
-                key: "atrasados",
-                label: "Atrasados",
-                tone: "text-destructive",
-                bar: "bg-destructive",
-                data: summary.overdue,
-                action: () => setBreakdownCard("atrasados"),
-              },
-              {
-                key: "mes",
-                label: "Este mês",
-                tone: "text-foreground",
-                bar: "bg-muted-foreground",
-                data: summary.month,
-                action: () => setBreakdownCard("mes"),
-              },
-            ] as const
-          ).map((c) => (
+            },
+            {
+              key: "atrasados",
+              label: "Atrasados",
+              tone: "text-destructive",
+              badgeBg: "bg-destructive/15 text-destructive border-destructive/30",
+              bgGradient: "bg-gradient-to-br from-destructive/10 via-destructive/[0.04] to-transparent",
+              iconBg: "bg-destructive/15 text-destructive",
+              icon: AlertTriangle,
+              data: summary.overdue,
+              action: () => setBreakdownCard("atrasados"),
+            },
+            {
+              key: "mes",
+              label: "Este mês",
+              tone: "text-foreground",
+              badgeBg: "bg-muted text-muted-foreground border-border",
+              bgGradient: "bg-gradient-to-br from-muted/30 to-transparent",
+              iconBg: "bg-muted text-foreground",
+              icon: DollarSign,
+              data: summary.month,
+              action: () => setBreakdownCard("mes"),
+            },
+          ] as const
+        ).map((c) => {
+          const Icon = c.icon;
+          return (
             <button
               key={c.key}
               type="button"
               onClick={c.action}
-              className="text-left focus:outline-none focus:ring-2 focus:ring-primary rounded-lg group"
+              className="text-left focus:outline-none focus:ring-2 focus:ring-primary rounded-2xl group"
               aria-label={`Ver contratos: ${c.label}`}
             >
-              <Card no3d className="overflow-hidden hover:shadow-md transition-all border group-hover:border-primary/40 cursor-pointer">
-                <CardContent className="p-3">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className={`h-1.5 w-8 rounded-full ${c.bar}`} />
-                    <span className="text-[10px] text-muted-foreground group-hover:text-primary transition-colors">Ver</span>
+              <Card
+                no3d
+                className={`relative overflow-hidden rounded-2xl border border-border/60 hover:shadow-md transition-all duration-200 ${c.bgGradient} cursor-pointer h-full`}
+              >
+                <CardContent className="p-3.5 flex flex-col justify-between h-full gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground">{c.label}</span>
+                    <div className={`h-7 w-7 rounded-lg ${c.iconBg} flex items-center justify-center shrink-0`}>
+                      <Icon className="h-3.5 w-3.5" />
+                    </div>
                   </div>
-                  <p className="text-[11px] text-muted-foreground truncate">{c.label}</p>
-                  <p className={`text-sm md:text-base font-bold ${c.tone} truncate`}>
-                    {formatCurrency(c.data.total)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {c.data.count} {c.data.count === 1 ? "contrato" : "contratos"}
-                  </p>
+                  <div>
+                    <p className={`text-base md:text-xl font-bold tracking-tight tabular-nums ${c.tone}`}>
+                      {formatCurrency(c.data.total)}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {c.data.count} {c.data.count === 1 ? "contrato" : "contratos"}
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
             </button>
-          ))}
-        </div>
-
-        {/* Barra de progresso de arrecadação do mês */}
-        {monthExpectedTotal > 0 && (
-          <div className="px-3 py-2 rounded-lg bg-muted/30 border border-border/50 flex items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2 text-muted-foreground min-w-0 truncate">
-              <TrendingUp className="h-4 w-4 text-emerald-500 shrink-0" />
-              <span className="truncate">
-                Arrecadado no mês: <strong className="text-foreground">{formatCurrency(monthReceivedTotal)}</strong> de {formatCurrency(monthExpectedTotal)}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="w-24 h-2 rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500 transition-all duration-500"
-                  style={{ width: `${monthProgressPct}%` }}
-                />
-              </div>
-              <span className="font-bold text-foreground text-[11px]">{monthProgressPct}%</span>
-            </div>
-          </div>
-        )}
+          );
+        })}
       </div>
 
-      {/* View selector + Month filter com botão Hoje */}
+      {/* View selector + Navegação de Mês */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div className="inline-flex rounded-lg border border-border/60 bg-muted/30 p-1 gap-1 w-full md:w-auto overflow-x-auto order-2 md:order-1">
           {(
@@ -1135,11 +1277,11 @@ export function BillingCalendar({
       <div
         className={cn(
           "grid gap-4",
-          viewMode === "mes" && "md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]",
+          viewMode === "mes" && "md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]",
         )}
       >
         {viewMode === "mes" && (
-          <Card no3d className="md:sticky md:top-4 md:self-start border shadow-sm">
+          <Card no3d className="md:sticky md:top-4 md:self-start border shadow-sm rounded-2xl">
             <CardContent className="p-3 md:p-4">
               {/* Day headers */}
               <div className="grid grid-cols-7 gap-1 mb-1">
@@ -1172,9 +1314,9 @@ export function BillingCalendar({
                       key={day}
                       onClick={() => handleDayClick(day)}
                       className={cn(
-                        "relative flex flex-col items-stretch rounded-md md:rounded-lg p-1 md:p-1.5 min-h-[56px] md:min-h-[66px] text-left transition-all border",
+                        "relative flex flex-col items-stretch rounded-xl p-1 md:p-1.5 min-h-[58px] md:min-h-[68px] text-left transition-all border",
                         isSelected
-                          ? "bg-primary text-primary-foreground border-primary shadow-sm ring-2 ring-primary/30"
+                          ? "bg-primary text-primary-foreground border-primary shadow-sm ring-2 ring-primary/40"
                           : isToday
                           ? "bg-primary/5 border-primary/40 ring-1 ring-primary/40"
                           : isOverdue
@@ -1287,237 +1429,88 @@ export function BillingCalendar({
                   <span className="h-2 w-2 rounded-full bg-muted-foreground/30" /> Sem contratos
                 </div>
               </div>
-
-              {selectedDate && (sortedSelectedItems.length > 0 || selectedSaleItems.length > 0) && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full mt-3 text-xs"
-                  onClick={() => setShowFullDay(true)}
-                >
-                  Ver tela cheia do dia
-                </Button>
-              )}
             </CardContent>
           </Card>
         )}
 
-        {/* Painel lateral: Detalhes do dia selecionado */}
+        {/* Painel lateral: Lista de Cards Decisórios do dia selecionado */}
         {viewMode === "mes" && (
-          <Card no3d className="md:max-h-[calc(100vh-8rem)] md:flex md:flex-col animate-fade-in border shadow-sm">
-            <CardContent className="p-3 md:p-4 md:flex-1 md:overflow-y-auto space-y-3">
-              {!selectedDate ? (
-                <div className="flex h-full min-h-[220px] flex-col items-center justify-center text-center p-4">
-                  <CalendarDays className="h-8 w-8 text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    Selecione uma data no calendário para ver os contratos a receber.
+          <div className="space-y-3">
+            {/* Header de Ações e Informações do Dia */}
+            <div className="flex items-center justify-between gap-2 flex-wrap bg-card border rounded-2xl p-3 shadow-sm">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 text-xs text-primary font-medium">
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  <span>{selectedDate === todayStr ? "Hoje" : selectedDate === tomorrowStr ? "Amanhã" : "Data selecionada"}</span>
+                </div>
+                <h3 className="text-sm md:text-base font-semibold text-foreground capitalize truncate">
+                  {selectedDate
+                    ? new Date(selectedDate + "T00:00:00").toLocaleDateString("pt-BR", {
+                        weekday: "long",
+                        day: "2-digit",
+                        month: "long",
+                        year: "numeric",
+                      })
+                    : "Nenhuma data selecionada"}
+                </h3>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {(sortedSelectedItems.length > 0 || selectedSaleItems.length > 0) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs px-2.5 gap-1.5 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
+                    onClick={handleCopyDaySchedule}
+                    title="Copiar pauta do dia para o WhatsApp"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    <span>Pauta WhatsApp</span>
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Campo de pesquisa dentro do dia */}
+            {(rawSelectedItems.length > 2 || rawSelectedSaleItems.length > 2) && (
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Filtrar contratos do dia..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="h-9 pl-9 text-xs rounded-xl"
+                />
+              </div>
+            )}
+
+            {/* Listagem com os Cards Completos no Padrão da Aba Empréstimos */}
+            <div className="space-y-3">
+              {sortedSelectedItems.length === 0 && selectedSaleItems.length === 0 ? (
+                <div className="text-center py-10 px-4 bg-muted/20 rounded-2xl border border-dashed text-muted-foreground text-sm space-y-1">
+                  <CalendarDays className="h-8 w-8 mx-auto text-muted-foreground/60 mb-2" />
+                  <p className="font-medium text-foreground">Nenhuma cobrança para esta data</p>
+                  <p className="text-xs">
+                    {searchTerm
+                      ? "Nenhum contrato encontrado com o termo digitado."
+                      : "Selecione outro dia no calendário para ver os contratos."}
                   </p>
                 </div>
               ) : (
                 <>
-                  {/* Cabeçalho do dia com mini-resumo */}
-                  <div className="rounded-xl bg-muted/40 p-3 border border-border/50 space-y-2">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 text-xs text-primary font-medium">
-                          <CalendarDays className="h-3.5 w-3.5" />
-                          <span>{selectedDate === todayStr ? "Hoje" : selectedDate === tomorrowStr ? "Amanhã" : "Data selecionada"}</span>
-                        </div>
-                        <h3 className="text-sm md:text-base font-semibold text-foreground capitalize truncate">
-                          {new Date(selectedDate + "T00:00:00").toLocaleDateString("pt-BR", {
-                            weekday: "long",
-                            day: "2-digit",
-                            month: "long",
-                            year: "numeric",
-                          })}
-                        </h3>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        {(sortedSelectedItems.length > 0 || selectedSaleItems.length > 0) && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-[11px] px-2 gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
-                            onClick={handleCopyDaySchedule}
-                            title="Copiar pauta do dia para o WhatsApp"
-                          >
-                            <Copy className="h-3 w-3" />
-                            <span>Pauta WhatsApp</span>
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Mini cards de métricas do dia */}
-                    <div className="grid grid-cols-3 gap-1.5 pt-1">
-                      <div className="p-2 rounded-lg bg-background/80 border text-center">
-                        <span className="text-[10px] text-muted-foreground block truncate">Pendente</span>
-                        <span className="text-xs font-bold text-warning block truncate">
-                          {formatCurrency(selectedDayPending)}
-                        </span>
-                      </div>
-                      <div className="p-2 rounded-lg bg-background/80 border text-center">
-                        <span className="text-[10px] text-muted-foreground block truncate">Recebido</span>
-                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 block truncate">
-                          {formatCurrency(selectedDayReceived)}
-                        </span>
-                      </div>
-                      <div className="p-2 rounded-lg bg-background/80 border text-center">
-                        <span className="text-[10px] text-muted-foreground block truncate">Contratos</span>
-                        <span className="text-xs font-bold text-foreground block truncate">
-                          {rawSelectedItems.length + rawSelectedSaleItems.length}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Campo de pesquisa rápida dentro do dia */}
-                  {(rawSelectedItems.length > 2 || rawSelectedSaleItems.length > 2) && (
-                    <div className="relative">
-                      <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                      <Input
-                        placeholder="Buscar cliente neste dia..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="h-8 pl-8 text-xs"
-                      />
-                    </div>
-                  )}
-
-                  {/* Lista de cobranças */}
-                  {sortedSelectedItems.length === 0 && selectedSaleItems.length === 0 ? (
-                    <div className="text-center py-6 px-3 bg-muted/20 rounded-lg border border-dashed text-muted-foreground text-xs">
-                      {searchTerm
-                        ? "Nenhum contrato encontrado para o filtro digitado."
-                        : "Nenhuma parcela a receber nesta data."}
-                    </div>
-                  ) : (
-                    <div className="space-y-4 animate-fade-in">
-                      {sortedSelectedItems.length > 0 && (
-                        <div className="space-y-2">
-                          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            Empréstimos ({sortedSelectedItems.length})
-                          </p>
-                          {sortedSelectedItems.map((item) => renderItemWithActions(item, item.date < todayStr))}
-                          <div className="flex items-center justify-between pt-1.5 border-t border-border/40">
-                            <span className="text-xs font-medium text-muted-foreground">Subtotal Empréstimos</span>
-                            <span className="text-xs font-bold text-foreground">
-                              {formatCurrency(sortedSelectedItems.reduce((s, i) => s + i.amount, 0))}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-
-                      {(["sale", "vehicle"] as const).map((kind) => {
-                        const list = selectedSaleItems.filter((s) => s.kind === kind);
-                        if (list.length === 0) return null;
-                        const label = kind === "vehicle" ? "Veículos" : "Vendas";
-                        const Icon = kind === "vehicle" ? Car : ShoppingBag;
-                        const subtotal = list.reduce((s, i) => s + i.amount, 0);
-                        return (
-                          <div key={kind} className="space-y-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                              {label} ({list.length})
-                            </p>
-                            {list
-                              .slice()
-                              .sort((a, b) => b.amount - a.amount)
-                              .map((s) => {
-                                const isOverdue = s.date < todayStr;
-                                return (
-                                  <div
-                                    key={`${s.kind}-${s.saleId}-${s.installmentNumber}`}
-                                    className={`flex items-center justify-between gap-2 rounded-lg border p-3 transition-colors ${
-                                      isOverdue
-                                        ? "bg-destructive/5 border-destructive/20"
-                                        : "bg-muted/30 border-border/40 hover:border-primary/40"
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-3 min-w-0">
-                                      <div
-                                        className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${
-                                          isOverdue
-                                            ? "bg-destructive/10 text-destructive"
-                                            : "bg-primary/10 text-primary"
-                                        }`}
-                                      >
-                                        <Icon className="h-4 w-4" />
-                                      </div>
-                                      <div className="min-w-0">
-                                        <p className="text-sm font-medium text-foreground truncate">{s.customerName}</p>
-                                        <p className="text-xs text-muted-foreground truncate">
-                                          {s.description} · Parcela {s.installmentNumber}/{s.totalInstallments}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-2 shrink-0">
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
-                                        onClick={() =>
-                                          handleSendWhatsAppBilling(
-                                            s.customerName,
-                                            s.amount,
-                                            `Parcela ${s.installmentNumber}/${s.totalInstallments}`,
-                                            s.date,
-                                          )
-                                        }
-                                        title="Cobrar no WhatsApp"
-                                      >
-                                        <MessageCircle className="h-4 w-4" />
-                                      </Button>
-                                      <div className="text-right">
-                                        <p
-                                          className={`text-sm font-bold ${
-                                            isOverdue ? "text-destructive" : "text-foreground"
-                                          }`}
-                                        >
-                                          {formatCurrency(s.amount)}
-                                        </p>
-                                        <Badge variant="outline" className="text-[10px]">
-                                          {label}
-                                        </Badge>
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            <div className="flex items-center justify-between pt-1.5 border-t border-border/40">
-                              <span className="text-xs font-medium text-muted-foreground">Subtotal {label}</span>
-                              <span className="text-xs font-bold text-foreground">{formatCurrency(subtotal)}</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      {/* Total geral da data selecionada */}
-                      <div className="flex items-center justify-between pt-2 border-t mt-2">
-                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                          <DollarSign className="h-4 w-4 text-primary" /> Total a Receber
-                        </div>
-                        <p className="text-sm font-bold text-foreground">
-                          {formatCurrency(
-                            sortedSelectedItems.reduce((s, i) => s + i.amount, 0) +
-                              selectedSaleItems.reduce((s, i) => s + i.amount, 0),
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                  {sortedSelectedItems.map((item) => renderLoanDecisionCard(item, item.date < todayStr))}
+                  {selectedSaleItems.map((s) => renderSaleDecisionCard(s))}
                 </>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
       </div>
 
       {/* Semana / Agenda / Lista / Geral */}
       {viewMode !== "mes" && (
-        <Card no3d className="border shadow-sm">
-          <CardContent className="p-3 md:p-4 space-y-2">
+        <Card no3d className="border shadow-sm rounded-2xl">
+          <CardContent className="p-3 md:p-4 space-y-3">
             {(() => {
               const startOfWeek = new Date(today);
               startOfWeek.setDate(today.getDate() - today.getDay());
@@ -1624,15 +1617,15 @@ export function BillingCalendar({
                     return (
                       <div
                         key={`${d}-${idx}`}
-                        className={cn("flex items-center justify-between gap-2 rounded-lg border p-2.5", tone)}
+                        className={cn("flex items-center justify-between gap-2 rounded-xl border p-3", tone)}
                       >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="h-7 w-7 rounded-full bg-background/60 flex items-center justify-center shrink-0">
-                            <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="h-8 w-8 rounded-full bg-background/60 flex items-center justify-center shrink-0">
+                            <Icon className="h-4 w-4 text-muted-foreground" />
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                              <p className="text-xs font-medium text-foreground truncate">{i.name}</p>
+                              <p className="text-xs font-semibold text-foreground truncate">{i.name}</p>
                               {i.kind === "loan" && i.tags && i.tags.length > 0 && (
                                 <span className="text-[10px] font-medium text-blue-500 truncate">
                                   {i.tags.join(", ")}
@@ -1668,79 +1661,9 @@ export function BillingCalendar({
         </Card>
       )}
 
-      {/* Full day contracts dialog */}
-      <Dialog open={showFullDay} onOpenChange={setShowFullDay}>
-        <DialogContent className="sm:max-w-[560px] max-h-[85svh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="capitalize">
-              {selectedDate &&
-                new Date(selectedDate + "T00:00:00").toLocaleDateString("pt-BR", {
-                  weekday: "long",
-                  day: "2-digit",
-                  month: "long",
-                  year: "numeric",
-                })}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto space-y-2 -mx-2 px-2">
-            {sortedSelectedItems.map((item) => (
-              <div
-                key={`fd-l-${item.loanId}-${item.installmentNumber}`}
-                className={cn(
-                  "flex items-center justify-between gap-2 rounded-lg border p-3",
-                  item.date < todayStr ? "bg-destructive/5 border-destructive/20" : "bg-muted/30 border-border/40",
-                )}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    <User className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{item.borrowerName}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      Empréstimo · Parcela {item.installmentNumber}/{item.totalInstallments}
-                    </p>
-                  </div>
-                </div>
-                <p className="text-sm font-bold shrink-0 text-success">{formatCurrency(item.amount)}</p>
-              </div>
-            ))}
-            {selectedSaleItems.map((s) => {
-              const Icon = s.kind === "vehicle" ? Car : ShoppingBag;
-              return (
-                <div
-                  key={`fd-s-${s.kind}-${s.saleId}-${s.installmentNumber}`}
-                  className={cn(
-                    "flex items-center justify-between gap-2 rounded-lg border p-3",
-                    s.date < todayStr ? "bg-destructive/5 border-destructive/20" : "bg-muted/30 border-border/40",
-                  )}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{s.customerName}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {s.kind === "vehicle" ? "Veículo" : "Venda"} · {s.description} · Parcela {s.installmentNumber}/
-                        {s.totalInstallments}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-sm font-bold shrink-0 text-success">{formatCurrency(s.amount)}</p>
-                </div>
-              );
-            })}
-            {sortedSelectedItems.length === 0 && selectedSaleItems.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-6">Nenhum contrato nesta data.</p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Payment confirmation dialog */}
       <Dialog open={!!paymentDialog} onOpenChange={(open) => !open && setPaymentDialog(null)}>
-        <DialogContent className="sm:max-w-[420px] md:max-w-[720px] sm:max-h-[92svh] overflow-hidden flex flex-col p-0">
+        <DialogContent className="sm:max-w-[420px] md:max-w-[720px] sm:max-h-[92svh] overflow-hidden flex flex-col p-0 rounded-2xl">
           <DialogHeader className="px-6 pt-6 shrink-0">
             <DialogTitle>
               {paymentDialog?.type === "full"
@@ -1774,7 +1697,7 @@ export function BillingCalendar({
                         ? loan.remainingAmount
                         : Math.max(0, total - totalPaid);
                     return (
-                      <div className="text-center p-3 bg-muted/50 rounded-lg w-full">
+                      <div className="text-center p-3.5 bg-muted/50 rounded-xl w-full border">
                         <p className="text-xs text-muted-foreground">Total restante a receber</p>
                         <p className="text-2xl font-bold text-primary">{formatCurrency(remaining)}</p>
                       </div>
@@ -1793,7 +1716,7 @@ export function BillingCalendar({
                         : Math.max(0, total - totalPaid);
                     return (
                       <div className="w-full space-y-2">
-                        <div className="text-center p-3 bg-muted/50 rounded-lg w-full">
+                        <div className="text-center p-3.5 bg-muted/50 rounded-xl w-full border">
                           <p className="text-xs text-muted-foreground">Total restante a receber</p>
                           <p className="text-2xl font-bold text-primary">{formatCurrency(remaining)}</p>
                         </div>
@@ -1811,6 +1734,7 @@ export function BillingCalendar({
                             onChange={(e) => setPayoffAmount(e.target.value)}
                             placeholder={`Ex: ${remaining.toFixed(2)}`}
                             autoFocus
+                            className="rounded-xl"
                           />
                           <p className="text-[10px] text-muted-foreground">
                             Informe o valor de quitação. O contrato será marcado como pago.
@@ -1820,7 +1744,7 @@ export function BillingCalendar({
                     );
                   })()}
                 {paymentDialog?.type === "partial" && paymentDialog.amount && (
-                  <div className="text-center p-3 bg-muted/50 rounded-lg w-full">
+                  <div className="text-center p-3.5 bg-muted/50 rounded-xl w-full border">
                     <p className="text-xs text-muted-foreground">Valor parcial</p>
                     <p className="text-2xl font-bold text-warning">{formatCurrency(paymentDialog.amount)}</p>
                   </div>
@@ -1831,7 +1755,7 @@ export function BillingCalendar({
                   <div className="w-full space-y-1">
                     <Label className="text-sm text-muted-foreground">Forma de pagamento</Label>
                     <Select value={selectedMethodId} onValueChange={setSelectedMethodId}>
-                      <SelectTrigger>
+                      <SelectTrigger className="rounded-xl">
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1849,17 +1773,18 @@ export function BillingCalendar({
                   mode="single"
                   selected={paymentDate}
                   onSelect={(d) => d && setPaymentDate(d)}
-                  className="rounded-md border pointer-events-auto"
+                  className="rounded-xl border pointer-events-auto"
                 />
               </div>
             </div>
           </div>
 
           <DialogFooter className="px-6 pb-6 pt-2 shrink-0 border-t border-border/40 md:border-0 md:bg-transparent">
-            <Button variant="outline" onClick={() => setPaymentDialog(null)}>
+            <Button variant="outline" className="rounded-xl" onClick={() => setPaymentDialog(null)}>
               Cancelar
             </Button>
             <Button
+              className="rounded-xl"
               onClick={confirmPayment}
               disabled={
                 paymentDialog?.type === "payoff" && !(parseFloat(payoffAmount.replace(",", ".")) > 0)
@@ -1873,7 +1798,7 @@ export function BillingCalendar({
 
       {/* Breakdown do card */}
       <Dialog open={breakdownCard !== null} onOpenChange={(o) => !o && setBreakdownCard(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 gap-0 rounded-2xl">
           <DialogHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3 border-b border-border/40">
             <DialogTitle className="text-base md:text-lg">
               {breakdownCard ? breakdownLabels[breakdownCard] : ""}
@@ -1938,7 +1863,7 @@ export function BillingCalendar({
             )}
           </div>
           <DialogFooter className="px-4 md:px-6 py-3 border-t border-border/40">
-            <Button variant="outline" onClick={() => setBreakdownCard(null)}>
+            <Button variant="outline" className="rounded-xl" onClick={() => setBreakdownCard(null)}>
               Fechar
             </Button>
           </DialogFooter>
