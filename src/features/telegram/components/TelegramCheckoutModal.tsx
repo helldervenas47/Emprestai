@@ -198,40 +198,95 @@ export function TelegramCheckoutModal({
             </p>
           </div>
         ) : checkoutData?.pix ? (
-          <div className="space-y-4 pt-2">
-            <div className="bg-muted/40 p-3 rounded-lg text-center space-y-1 border border-border/50">
-              <div className="text-xs text-muted-foreground">Valor a pagar</div>
-              <div className="text-2xl font-bold text-emerald-500">{finalFormattedPrice}</div>
-              <div className="text-[11px] text-muted-foreground">Cobrança mensal avulsa e independente</div>
+          <div className="space-y-4 pt-1">
+            {/* Box de Valor */}
+            <div className="bg-emerald-500/10 dark:bg-emerald-500/15 p-3 rounded-xl text-center space-y-0.5 border border-emerald-500/30">
+              <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">Valor a pagar</span>
+              <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 tracking-tight tabular-nums">
+                {finalFormattedPrice}
+              </div>
+              <p className="text-[10px] text-muted-foreground">Cobrança mensal avulsa e independente via Pix</p>
             </div>
 
+            {/* Container do QR Code */}
             {checkoutData.pix.encodedImage && (
-              <div className="flex justify-center p-3 bg-white rounded-lg border">
-                <img
-                  src={`data:image/png;base64,${checkoutData.pix.encodedImage}`}
-                  alt="QR Code PIX"
-                  className="w-48 h-48 object-contain"
-                />
+              <div className="flex flex-col items-center space-y-2 pt-1">
+                <div className="relative p-3.5 bg-white rounded-2xl border border-slate-200/90 shadow-lg shadow-black/5 ring-1 ring-black/5">
+                  {/* Guias visuais nos cantos estilo scanner */}
+                  <div className="absolute top-2 left-2 w-3.5 h-3.5 border-t-2 border-l-2 border-emerald-500 rounded-tl" />
+                  <div className="absolute top-2 right-2 w-3.5 h-3.5 border-t-2 border-r-2 border-emerald-500 rounded-tr" />
+                  <div className="absolute bottom-2 left-2 w-3.5 h-3.5 border-b-2 border-l-2 border-emerald-500 rounded-bl" />
+                  <div className="absolute bottom-2 right-2 w-3.5 h-3.5 border-b-2 border-r-2 border-emerald-500 rounded-br" />
+
+                  <img
+                    src={`data:image/png;base64,${checkoutData.pix.encodedImage}`}
+                    alt="QR Code PIX"
+                    className="w-44 h-44 sm:w-48 sm:h-48 object-contain rounded-lg"
+                  />
+                </div>
+                <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5 pt-0.5">
+                  <QrCode className="h-3.5 w-3.5 text-primary" />
+                  Aponte a câmera do aplicativo do seu banco
+                </span>
               </div>
             )}
 
+            {/* Código Pix Copia e Cola */}
             {checkoutData.pix.payload && (
-              <div className="space-y-2">
-                <Label className="text-xs">Código Pix Copia e Cola:</Label>
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                  <span>Código Pix Copia e Cola:</span>
+                  <button
+                    type="button"
+                    onClick={copyPixCode}
+                    className="text-primary hover:underline text-[11px] font-semibold flex items-center gap-1"
+                  >
+                    {copied ? (
+                      <span className="text-emerald-500 flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" /> Copiado!
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1">
+                        <Copy className="h-3 w-3" /> Copiar código
+                      </span>
+                    )}
+                  </button>
+                </div>
                 <div className="flex gap-2">
                   <Input
                     readOnly
                     value={checkoutData.pix.payload}
-                    className="text-xs font-mono bg-muted/60"
+                    onClick={copyPixCode}
+                    className="text-xs font-mono bg-muted/50 border-border/70 select-all cursor-pointer h-9 truncate"
                   />
-                  <Button size="sm" onClick={copyPixCode} variant="outline">
-                    {copied ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                  <Button
+                    size="sm"
+                    onClick={copyPixCode}
+                    variant={copied ? "default" : "secondary"}
+                    className="shrink-0 h-9 px-3 gap-1.5 font-semibold transition-all"
+                  >
+                    {copied ? (
+                      <>
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        <span className="text-xs">Copiado</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4" />
+                        <span className="text-xs">Copiar</span>
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
             )}
 
+            {/* Status em tempo real */}
             <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground py-1">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
               <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
               <span>Aguardando confirmação do pagamento...</span>
             </div>
@@ -239,7 +294,7 @@ export function TelegramCheckoutModal({
             <Button
               variant="ghost"
               size="sm"
-              className="w-full text-xs text-muted-foreground"
+              className="w-full text-xs text-muted-foreground hover:text-foreground"
               onClick={() => reset()}
             >
               Escolher outra forma de pagamento
