@@ -1051,7 +1051,11 @@ export function BillingCalendar({
               tone: "indigo" as const,
               footerLabel: "Já arrecadado",
               footerValue: `${formatCurrency(monthReceivedTotal)} (${monthProgressPct}%)`,
-              onClick: () => setBreakdownCard("mes"),
+              onClick: () => {
+                setYear(today.getFullYear());
+                setMonth(today.getMonth());
+                setBreakdownCard("mes");
+              },
             },
           ];
 
@@ -1175,7 +1179,13 @@ export function BillingCalendar({
             <button
               type="button"
               key={opt.v}
-              onClick={() => setViewMode(opt.v)}
+              onClick={() => {
+                if (opt.v === "mes") {
+                  setYear(today.getFullYear());
+                  setMonth(today.getMonth());
+                }
+                setViewMode(opt.v);
+              }}
               className={cn(
                 "flex-1 md:flex-none px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
                 viewMode === opt.v
@@ -1210,9 +1220,14 @@ export function BillingCalendar({
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-xs md:text-sm font-semibold text-foreground capitalize px-2 min-w-[130px] text-center">
+            <button
+              type="button"
+              onClick={goToToday}
+              className="text-xs md:text-sm font-semibold text-foreground capitalize px-2 min-w-[130px] text-center hover:text-primary transition-colors cursor-pointer"
+              title="Clique para voltar ao mês atual"
+            >
               {monthNames[month]} {year}
-            </span>
+            </button>
             <Button
               variant="ghost"
               size="icon"
