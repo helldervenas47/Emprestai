@@ -191,13 +191,28 @@ export function VideoLessonFormModal({
       });
     } catch (err: any) {
       console.error("Erro no upload do vídeo:", err);
-      toast({
-        title: "Erro ao enviar vídeo",
-        description:
-          err.message ||
-          "Não foi possível enviar o vídeo. Verifique se o bucket 'video-lessons' está configurado no Supabase Storage.",
-        variant: "destructive",
-      });
+      const errMsg = err?.message || "";
+      const isSizeLimitError =
+        errMsg.toLowerCase().includes("exceeded the maximum") ||
+        errMsg.toLowerCase().includes("payload too large") ||
+        errMsg.toLowerCase().includes("size limit");
+
+      if (isSizeLimitError) {
+        toast({
+          title: "Limite do Storage no Supabase",
+          description:
+            `O arquivo (${sizeInMB} MB) excedeu o limite configurado no bucket 'video-lessons' do Supabase (padrão de 50 MB). Para liberar, aumente o 'File size limit' do bucket no Supabase ou utilize a opção 'Link Externo' (YouTube/Loom/Drive).`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Erro ao enviar vídeo",
+          description:
+            errMsg ||
+            "Não foi possível enviar o vídeo. Verifique se o bucket 'video-lessons' está configurado no Supabase Storage.",
+          variant: "destructive",
+        });
+      }
       setVideoFileName("");
     } finally {
       setIsUploadingVideo(false);
