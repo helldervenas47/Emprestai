@@ -2,7 +2,28 @@ import { lazy, Suspense, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CreditCard, Users as UsersIcon, Image as ImageIcon, Loader2, ShieldCheck, Palette, Wallet, Activity, KeyRound, Package, BadgeCheck, Sparkles, TrendingUp } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  CreditCard,
+  Users as UsersIcon,
+  Image as ImageIcon,
+  Loader2,
+  ShieldCheck,
+  Palette,
+  Wallet,
+  Activity,
+  KeyRound,
+  Package,
+  BadgeCheck,
+  Sparkles,
+  TrendingUp,
+  ChevronDown,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -34,6 +55,7 @@ export function SystemSettings() {
   const { resetOnboarding } = useOnboardingProgress();
   const isAdmin = role === "admin";
   const [subTab, setSubTab] = useState<string>(isAdmin ? "admin" : "billing");
+  const [usersExpanded, setUsersExpanded] = useState(false);
 
   const planLabel = isActive && subscription
     ? subscription.product_id === "basico_plan" ? "Básico"
@@ -88,17 +110,43 @@ export function SystemSettings() {
         {isAdmin && (
           <TabsContent value="admin" className="space-y-4 mt-4">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <UsersIcon className="h-4 w-4 text-primary" /> Gerenciamento de usuários
-                </CardTitle>
-                <CardDescription>Crie e gerencie usuários, papéis e permissões.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Suspense fallback={<SectionLoader />}>
-                  <UserManagement />
-                </Suspense>
-              </CardContent>
+              <Collapsible open={usersExpanded} onOpenChange={setUsersExpanded}>
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 rounded-xl"
+                  >
+                    <CardHeader className="flex-row items-center justify-between space-y-0 p-4 sm:p-6 cursor-pointer hover:bg-muted/30 transition-colors rounded-xl">
+                      <div className="space-y-1">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          <UsersIcon className="h-4 w-4 text-primary" /> Gerenciamento de usuários
+                        </CardTitle>
+                        <CardDescription>Crie e gerencie usuários, papéis e permissões.</CardDescription>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs text-muted-foreground hidden sm:inline font-medium">
+                          {usersExpanded ? "Recolher" : "Expandir"}
+                        </span>
+                        <div className="h-8 w-8 rounded-lg bg-muted/60 flex items-center justify-center border border-border/50">
+                          <ChevronDown
+                            className={cn(
+                              "h-4 w-4 text-muted-foreground transition-transform duration-300",
+                              usersExpanded && "rotate-180"
+                            )}
+                          />
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="pt-0 sm:pt-0">
+                    <Suspense fallback={<SectionLoader />}>
+                      {usersExpanded && <UserManagement />}
+                    </Suspense>
+                  </CardContent>
+                </CollapsibleContent>
+              </Collapsible>
             </Card>
 
             <Suspense fallback={<SectionLoader />}>
