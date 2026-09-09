@@ -1203,7 +1203,7 @@ export function BillingCalendar({
           <Button
             variant="outline"
             size="sm"
-            className="h-8 px-2.5 text-xs gap-1"
+            className="h-8 px-2.5 text-xs gap-1 shrink-0"
             onClick={goToToday}
             title="Ir para a data de hoje"
           >
@@ -1211,11 +1211,11 @@ export function BillingCalendar({
             <span>Hoje</span>
           </Button>
 
-          <div className="flex items-center gap-1 border border-border/60 rounded-lg p-0.5 bg-background">
+          <div className="flex items-center gap-1 border border-border/60 rounded-lg p-0.5 bg-background flex-1 md:flex-none">
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 rounded-md"
+              className="h-7 w-7 rounded-md shrink-0"
               onClick={prevMonth}
               aria-label="Mês anterior"
             >
@@ -1224,7 +1224,7 @@ export function BillingCalendar({
             <button
               type="button"
               onClick={goToToday}
-              className="text-xs md:text-sm font-semibold text-foreground capitalize px-2 min-w-[130px] text-center hover:text-primary transition-colors cursor-pointer"
+              className="text-xs md:text-sm font-semibold text-foreground capitalize flex-1 text-center hover:text-primary transition-colors cursor-pointer"
               title="Clique para voltar ao mês atual"
             >
               {monthNames[month]} {year}
@@ -1232,7 +1232,7 @@ export function BillingCalendar({
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 rounded-md"
+              className="h-7 w-7 rounded-md shrink-0"
               onClick={nextMonth}
               aria-label="Próximo mês"
             >
