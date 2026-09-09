@@ -110,7 +110,18 @@ export function SaasFinancialDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const [transactionsExpanded, setTransactionsExpanded] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const itemsPerPage = 10;
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (periodKey !== "this_month") count++;
+    if (selectedPlanId !== "all") count++;
+    if (selectedCycle !== "all") count++;
+    if (selectedStatus !== "all") count++;
+    if (environment !== "live") count++;
+    return count;
+  }, [periodKey, selectedPlanId, selectedCycle, selectedStatus, environment]);
 
   const summary = data?.summary;
 
@@ -153,27 +164,133 @@ export function SaasFinancialDashboard() {
       <div className="space-y-6">
         {/* 1. Header com Título e Filtros Globais */}
         <div className="relative z-20 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card/60 p-4 rounded-2xl border border-border/50 backdrop-blur-sm shadow-sm">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-primary" /> Faturamento do SaaS
-              </h2>
-              {environment === "live" ? (
-                <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-semibold">
-                  Produção (Live)
-                </Badge>
-              ) : (
-                <Badge variant="destructive" className="text-[10px] font-semibold animate-pulse">
-                  Sandbox (Testes)
-                </Badge>
-              )}
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-primary" /> Faturamento do SaaS
+                </h2>
+                {environment === "live" ? (
+                  <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-semibold">
+                    Produção (Live)
+                  </Badge>
+                ) : (
+                  <Badge variant="destructive" className="text-[10px] font-semibold animate-pulse">
+                    Sandbox (Testes)
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Métricas de faturamento e assinaturas do EmprestAI via Asaas ({data?.timezone || "America/Sao_Paulo"}).
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Métricas de faturamento e assinaturas do EmprestAI via Asaas ({data?.timezone || "America/Sao_Paulo"}).
-            </p>
+
+            {/* Ações Mobile (Botão Filtros + Refresh) */}
+            <div className="flex items-center gap-1.5 md:hidden shrink-0 mt-0.5">
+              <Button
+                variant={mobileFiltersOpen || activeFiltersCount > 0 ? "default" : "outline"}
+                size="sm"
+                className="h-8 px-2.5 text-xs gap-1.5 rounded-xl font-medium"
+                onClick={() => setMobileFiltersOpen((prev) => !prev)}
+              >
+                <Filter className="h-3.5 w-3.5" />
+                <span>Filtros</span>
+                {activeFiltersCount > 0 && (
+                  <Badge variant="secondary" className="h-4 px-1 text-[10px] ml-0.5 font-bold">
+                    {activeFiltersCount}
+                  </Badge>
+                )}
+                {mobileFiltersOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => { refetch(); refetchBalance(); }}
+                disabled={loading || balanceLoading}
+                className="h-8 w-8 rounded-xl shrink-0"
+                title="Atualizar dados"
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", (loading || balanceLoading) && "animate-spin text-primary")} />
+              </Button>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Filtros Mobile (Ocultos por padrão) */}
+          {mobileFiltersOpen && (
+            <div className="grid grid-cols-2 gap-2 pt-3 border-t border-border/40 md:hidden animate-in fade-in-50 slide-in-from-top-1 duration-200">
+              {/* Seletor de Período */}
+              <div className="col-span-2 sm:col-span-1">
+                <Select value={periodKey} onValueChange={(v) => { setPeriodKey(v as PeriodFilterKey); setPage(1); }}>
+                  <SelectTrigger className="w-full h-9 text-xs">
+                    <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                    <SelectValue placeholder="Período" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">Hoje</SelectItem>
+                    <SelectItem value="7d">Últimos 7 dias</SelectItem>
+                    <SelectItem value="30d">Últimos 30 dias</SelectItem>
+                    <SelectItem value="this_month">Este mês</SelectItem>
+                    <SelectItem value="last_month">Mês anterior</SelectItem>
+                    <SelectItem value="last_12_months">Últimos 12 meses</SelectItem>
+                    <SelectItem value="custom">Personalizado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Seletor de Plano */}
+              <Select value={selectedPlanId} onValueChange={(v) => { setSelectedPlanId(v); setPage(1); }}>
+                <SelectTrigger className="w-full h-9 text-xs">
+                  <SelectValue placeholder="Todos os Planos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os Planos</SelectItem>
+                  <SelectItem value="basico_plan">Básico</SelectItem>
+                  <SelectItem value="profissional_plan">Profissional</SelectItem>
+                  <SelectItem value="empresarial_plan">Empresarial</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Seletor de Ciclo */}
+              <Select value={selectedCycle} onValueChange={(v) => { setSelectedCycle(v); setPage(1); }}>
+                <SelectTrigger className="w-full h-9 text-xs">
+                  <SelectValue placeholder="Todos os Ciclos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos Ciclos</SelectItem>
+                  <SelectItem value="monthly">Mensal</SelectItem>
+                  <SelectItem value="semestral">Semestral</SelectItem>
+                  <SelectItem value="annual">Anual</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Seletor de Status */}
+              <Select value={selectedStatus} onValueChange={(v) => { setSelectedStatus(v); setPage(1); }}>
+                <SelectTrigger className="w-full h-9 text-xs">
+                  <SelectValue placeholder="Todos Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos Status</SelectItem>
+                  <SelectItem value="paid">Confirmados</SelectItem>
+                  <SelectItem value="pending">Pendentes</SelectItem>
+                  <SelectItem value="revoked">Estornados</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Seletor de Ambiente */}
+              <Select value={environment} onValueChange={(v) => { setEnvironment(v as any); setPage(1); }}>
+                <SelectTrigger className="w-full h-9 text-xs">
+                  <SelectValue placeholder="Ambiente" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="live">Live</SelectItem>
+                  <SelectItem value="sandbox">Sandbox</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Filtros Desktop */}
+          <div className="hidden md:flex flex-wrap items-center gap-2">
             {/* Seletor de Período */}
             <Select value={periodKey} onValueChange={(v) => { setPeriodKey(v as PeriodFilterKey); setPage(1); }}>
               <SelectTrigger className="w-[140px] h-9 text-xs">
