@@ -7,6 +7,7 @@ export interface VideoLesson {
   video_url: string;
   thumbnail_url: string | null;
   category: string;
+  duration?: string | null;
   display_order: number;
   status: VideoLessonStatus;
   created_by?: string | null;
@@ -20,6 +21,7 @@ export interface VideoLessonFormData {
   video_url: string;
   thumbnail_url?: string;
   category?: string;
+  duration?: string;
   display_order?: number;
   status?: VideoLessonStatus;
 }

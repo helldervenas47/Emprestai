@@ -72,7 +72,7 @@ export function VideoLessonFormModal({
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [category, setCategory] = useState("Primeiros Passos");
   const [customCategory, setCustomCategory] = useState("");
-  const [displayOrder, setDisplayOrder] = useState(0);
+  const [duration, setDuration] = useState("");
   const [status, setStatus] = useState<VideoLessonStatus>("published");
 
   // Modos de entrada (upload ou link externo)
@@ -117,7 +117,7 @@ export function VideoLessonFormModal({
         setCategory("outro");
         setCustomCategory(lessonToEdit.category || "");
       }
-      setDisplayOrder(lessonToEdit.display_order || 0);
+      setDuration(lessonToEdit.duration || "");
       setStatus(lessonToEdit.status || "published");
       setVideoFileName("");
       setThumbFileName("");
@@ -128,7 +128,7 @@ export function VideoLessonFormModal({
       setThumbnailUrl("");
       setCategory("Primeiros Passos");
       setCustomCategory("");
-      setDisplayOrder(0);
+      setDuration("");
       setStatus("published");
       setVideoSourceMode("upload");
       setThumbSourceMode("upload");
@@ -301,7 +301,7 @@ export function VideoLessonFormModal({
       video_url: videoUrl.trim(),
       thumbnail_url: thumbnailUrl.trim() || undefined,
       category: finalCategory,
-      display_order: Number(displayOrder) || 0,
+      duration: duration.trim() || undefined,
       status,
     });
 
@@ -522,16 +522,14 @@ export function VideoLessonFormModal({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="lesson-order" className="text-xs font-semibold">
-                Ordem de Exibição
+              <Label htmlFor="lesson-duration" className="text-xs font-semibold">
+                Duração da Aula
               </Label>
               <Input
-                id="lesson-order"
-                type="number"
-                min={0}
-                placeholder="0"
-                value={displayOrder}
-                onChange={(e) => setDisplayOrder(Number(e.target.value))}
+                id="lesson-duration"
+                placeholder="Ex: 08:30 ou 15 min"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
                 className="h-10 text-sm bg-muted/20 w-full"
               />
             </div>

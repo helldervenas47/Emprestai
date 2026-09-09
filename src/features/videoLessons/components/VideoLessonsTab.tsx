@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -7,12 +7,9 @@ import {
   GraduationCap,
   Search,
   Settings,
-  Sparkles,
   Loader2,
   Clock,
-  Video,
   Play,
-  Layers,
 } from "lucide-react";
 import { useVideoLessons } from "../hooks/useVideoLessons";
 import { VideoLessonCard } from "./VideoLessonCard";
@@ -38,17 +35,17 @@ export function VideoLessonsTab() {
 
   const [activeView, setActiveView] = useState<"catalog" | "admin">("catalog");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [watchingLesson, setWatchingLesson] = useState<VideoLesson | null>(null);
 
-  // Filtra as aulas publicadas pelo termo de busca e categoria
+  // Filtra as aulas publicadas pelo termo de busca (descrição ou título)
   const filteredLessons = publishedLessons.filter((lesson) => {
-    const matchesSearch =
-      lesson.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (lesson.description || "").toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "all" || lesson.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return true;
+    return (
+      lesson.title.toLowerCase().includes(term) ||
+      (lesson.description || "").toLowerCase().includes(term) ||
+      (lesson.category || "").toLowerCase().includes(term)
+    );
   });
 
   if (isLoading) {
@@ -61,25 +58,11 @@ export function VideoLessonsTab() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in-50 duration-300">
-      {/* Header Principal da Aba */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-border/40">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">
-            <GraduationCap className="h-4 w-4" />
-            Central de Treinamento
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight flex items-center gap-2">
-            Vídeo Aulas
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl">
-            Aprenda a utilizar todos os recursos e funcionalidades do aplicativo com tutoriais práticos em vídeo.
-          </p>
-        </div>
-
-        {/* Botão de Alternância para Administradores */}
-        {isAdmin && (
-          <div className="inline-flex rounded-xl bg-muted/60 p-1 border border-border/50 self-stretch sm:self-auto shrink-0">
+    <div className="space-y-4 animate-in fade-in-50 duration-300">
+      {/* Botões de Alternância de Visão para Administradores */}
+      {isAdmin && (
+        <div className="flex items-center justify-between gap-3 pb-1">
+          <div className="inline-flex rounded-xl bg-muted/60 p-1 border border-border/50 w-full sm:w-auto">
             <Button
               size="sm"
               variant={activeView === "catalog" ? "default" : "ghost"}
@@ -99,8 +82,8 @@ export function VideoLessonsTab() {
               Gerenciar Vídeo Aulas
             </Button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Visualização: Painel de Administração do Admin */}
       {isAdmin && activeView === "admin" ? (
@@ -157,54 +140,29 @@ export function VideoLessonsTab() {
         </div>
       ) : (
         /* Visualização do Catálogo: Quando EXISTEM vídeos publicados */
-        <div className="space-y-6">
-          {/* Barra de Filtros e Busca */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <div className="relative flex-1 max-w-md">
+        <div className="space-y-4">
+          {/* Campo Único de Pesquisa por Descrição/Título */}
+          <div className="bg-card p-3 sm:p-4 rounded-2xl border border-border/60 shadow-xs">
+            <div className="relative w-full">
               <Input
-                placeholder="Buscar aula por título ou assunto..."
+                placeholder="Pesquisar por descrição ou assunto da aula..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="h-10 pl-9 text-xs bg-muted/20 rounded-xl"
+                className="h-10 pl-9 text-xs sm:text-sm bg-muted/20 rounded-xl w-full"
               />
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             </div>
-
-            {/* Chips de Categorias */}
-            {categories.length > 1 && (
-              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide py-1">
-                <Button
-                  size="sm"
-                  variant={selectedCategory === "all" ? "default" : "outline"}
-                  onClick={() => setSelectedCategory("all")}
-                  className="h-9 text-xs rounded-xl whitespace-nowrap"
-                >
-                  Todas ({publishedLessons.length})
-                </Button>
-                {categories.map((cat) => (
-                  <Button
-                    key={cat}
-                    size="sm"
-                    variant={selectedCategory === cat ? "default" : "outline"}
-                    onClick={() => setSelectedCategory(cat)}
-                    className="h-9 text-xs rounded-xl whitespace-nowrap"
-                  >
-                    {cat}
-                  </Button>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Grid Responsivo de Vídeos */}
           {filteredLessons.length === 0 ? (
             <Card className="border-border/60 bg-card text-center p-8 rounded-2xl">
-              <p className="text-xs text-muted-foreground">
-                Nenhuma aula encontrada para o termo ou categoria selecionada.
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Nenhuma aula encontrada para o termo pesquisado.
               </p>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
               {filteredLessons.map((lesson) => (
                 <VideoLessonCard
                   key={lesson.id}

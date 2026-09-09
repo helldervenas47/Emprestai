@@ -72,4 +72,39 @@ describe("Video Lessons URL Parser & Utilities", () => {
     expect(sorted[1].title).toBe("Aula 2");
     expect(sorted[2].title).toBe("Aula 3");
   });
+
+  it("filters video lessons by description and title correctly", () => {
+    const lessons: Partial<VideoLesson>[] = [
+      { id: "1", title: "Cadastro de Clientes", description: "Como cadastrar novos tomadores de empréstimo", category: "Clientes" },
+      { id: "2", title: "Configuração do Telegram", description: "Ativação do bot de cobranças automáticas", category: "Telegram" },
+      { id: "3", title: "Relatórios Financeiros", description: "DRE, extratos e fluxo de caixa mensal", category: "Financeiro" },
+    ];
+
+    const search1 = "cobranças";
+    const filtered1 = lessons.filter(l => 
+      (l.title || "").toLowerCase().includes(search1) || 
+      (l.description || "").toLowerCase().includes(search1)
+    );
+    expect(filtered1).toHaveLength(1);
+    expect(filtered1[0].title).toBe("Configuração do Telegram");
+
+    const search2 = "cadastro";
+    const filtered2 = lessons.filter(l => 
+      (l.title || "").toLowerCase().includes(search2) || 
+      (l.description || "").toLowerCase().includes(search2)
+    );
+    expect(filtered2).toHaveLength(1);
+    expect(filtered2[0].title).toBe("Cadastro de Clientes");
+  });
+
+  it("supports duration field on VideoLesson structure", () => {
+    const lesson: Partial<VideoLesson> = {
+      id: "1",
+      title: "Aula Completa",
+      duration: "12:45",
+      status: "published",
+    };
+
+    expect(lesson.duration).toBe("12:45");
+  });
 });

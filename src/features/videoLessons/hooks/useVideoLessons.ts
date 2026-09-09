@@ -40,7 +40,7 @@ export function useVideoLessons() {
   // Mutação: Criar nova vídeo aula
   const createMutation = useMutation({
     mutationFn: async (formData: VideoLessonFormData) => {
-      const payload = {
+      const payload: Record<string, any> = {
         title: formData.title.trim(),
         description: formData.description?.trim() || null,
         video_url: formData.video_url.trim(),
@@ -50,6 +50,10 @@ export function useVideoLessons() {
         status: formData.status || "published",
         created_by: user?.id || null,
       };
+
+      if (formData.duration !== undefined) {
+        payload.duration = formData.duration?.trim() || null;
+      }
 
       const { data, error } = await supabase
         .from("video_lessons" as any)
@@ -87,6 +91,7 @@ export function useVideoLessons() {
       if (formData.video_url !== undefined) payload.video_url = formData.video_url.trim();
       if (formData.thumbnail_url !== undefined) payload.thumbnail_url = formData.thumbnail_url.trim() || null;
       if (formData.category !== undefined) payload.category = formData.category.trim() || "Geral";
+      if (formData.duration !== undefined) payload.duration = formData.duration.trim() || null;
       if (formData.display_order !== undefined) payload.display_order = Number(formData.display_order) || 0;
       if (formData.status !== undefined) payload.status = formData.status;
 

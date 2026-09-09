@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Calendar, Tag, Video, Edit2, Trash2 } from "lucide-react";
+import { Play, Calendar, Tag, Video, Edit2, Trash2, Clock } from "lucide-react";
 import type { VideoLesson } from "../types/videoLesson";
 import { parseVideoUrl } from "../lib/videoUrlParser";
 
@@ -95,9 +95,10 @@ export function VideoLessonCard({
               <Calendar className="h-3 w-3" />
               {formatDate(lesson.created_at)}
             </span>
-            {lesson.display_order > 0 && (
-              <span className="text-[10px] bg-muted/60 px-1.5 py-0.5 rounded font-mono">
-                #{lesson.display_order}
+            {lesson.duration && (
+              <span className="text-[11px] bg-primary/10 text-primary font-medium px-2 py-0.5 rounded-md flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {lesson.duration}
               </span>
             )}
           </div>
