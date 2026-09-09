@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, BarChart3, CalendarCheck, FileSpreadsheet, Sun, RefreshCw, Send, Loader2 } from "lucide-react";
+import { AlertTriangle, BarChart3, CalendarCheck, FileSpreadsheet, Sun, RefreshCw, Send, Loader2, Clock } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { invokeUserFunction } from "@/features/telegram/lib/telegramLinkCode";
 import { TelegramReportsConnectCard } from "@/features/telegram/components/TelegramReportsConnectCard";
 import { TelegramConnectCard } from "@/features/telegram/components/TelegramConnectCard";
@@ -16,15 +17,29 @@ import { TelegramPersonalInsightsCard } from "@/features/telegram/components/Tel
 import { TelegramFinancialSummariesCard } from "@/features/telegram/components/TelegramFinancialSummariesCard";
 import { TelegramPaywallCard } from "@/features/telegram/components/TelegramPaywallCard";
 import { useTelegramPremium } from "@/features/telegram/hooks/useTelegramPremium";
+import { useSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { ScheduledReportCard } from "@/components/ScheduledReportCard";
 import { ReadOnlyOverlay } from "@/features/admin/components/upgrade/ReadOnlyOverlay";
 
 export function TelegramBotsHub() {
-  const { hasPremium, loading: loadingPremium, refetch } = useTelegramPremium();
+  const { hasPremium, addon, loading: loadingPremium, refetch } = useTelegramPremium();
+  const { subscription } = useSubscription();
   const { role } = useAuth();
   const isAdmin = role === "admin";
   const [syncing, setSyncing] = useState(false);
+
+  const expirationDate = useMemo(() => {
+    const raw = addon?.current_period_end || subscription?.current_period_end;
+    if (!raw) return null;
+    const d = new Date(raw);
+    return isNaN(d.getTime()) ? null : d;
+  }, [addon?.current_period_end, subscription?.current_period_end]);
+
+  const daysRemaining = useMemo(() => {
+    if (!expirationDate) return null;
+    return Math.ceil((expirationDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  }, [expirationDate]);
 
   const handleSyncCommands = async () => {
     setSyncing(true);
@@ -61,12 +76,37 @@ export function TelegramBotsHub() {
       <Card no3d className="border-amber-500/20 bg-gradient-to-r from-card via-card to-amber-500/5">
         <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2">
-              <Send className="h-4 w-4 text-primary" />
+            <div className="flex flex-wrap items-center gap-2">
+              <Send className="h-4 w-4 text-primary shrink-0" />
               <h3 className="text-sm font-semibold">EmprestAI Telegram</h3>
-              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px] py-0">
+              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px] py-0.5 font-medium">
                 🟢 Premium Ativo
               </Badge>
+              {isAdmin ? (
+                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[10px] py-0.5 font-medium">
+                  Acesso Ilimitado (Admin)
+                </Badge>
+              ) : expirationDate ? (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-[10px] py-0.5 flex items-center gap-1 font-semibold",
+                    daysRemaining != null && daysRemaining <= 3
+                      ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                      : "bg-primary/10 text-primary border-primary/30"
+                  )}
+                >
+                  <Clock className="h-3 w-3 shrink-0" />
+                  {daysRemaining != null
+                    ? daysRemaining > 1
+                      ? `${daysRemaining} dias restantes`
+                      : daysRemaining === 1
+                      ? "1 dia restante"
+                      : "Expira hoje"
+                    : "Ativo"}
+                  {expirationDate && ` (até ${expirationDate.toLocaleDateString("pt-BR")})`}
+                </Badge>
+              ) : null}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Configure o bot de relatórios, o bot de despesas e os horários de envio automático.
