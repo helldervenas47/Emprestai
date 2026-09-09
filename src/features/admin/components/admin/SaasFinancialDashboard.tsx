@@ -36,6 +36,8 @@ import {
   Info,
   Tag,
   Wallet,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -107,6 +109,7 @@ export function SaasFinancialDashboard() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
+  const [transactionsExpanded, setTransactionsExpanded] = useState(false);
   const itemsPerPage = 10;
 
   const summary = data?.summary;
@@ -730,139 +733,204 @@ export function SaasFinancialDashboard() {
           </Card>
         </div>
 
-        {/* 7. Tabela de Transações com Busca e Paginação */}
-        <Card className="rounded-2xl border-border/50 shadow-sm">
-          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <CardTitle className="text-sm font-semibold">Transações do Período</CardTitle>
-              <CardDescription className="text-xs">
-                Histórico detalhado das ordens e cobranças processadas pelo Asaas.
-              </CardDescription>
+        {/* 7. Tabela de Transações com Busca e Paginação (Colapsável) */}
+        <Card className="rounded-2xl border-border/50 shadow-sm transition-all overflow-hidden">
+          <CardHeader
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer select-none hover:bg-muted/20 transition-colors"
+            onClick={() => setTransactionsExpanded((prev) => !prev)}
+          >
+            <div className="flex items-center justify-between w-full sm:w-auto">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
+                  <CreditCard className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-sm font-semibold">Transações do Período</CardTitle>
+                    {filteredTransactions.length > 0 && (
+                      <Badge variant="outline" className="text-[10px] font-normal">
+                        {filteredTransactions.length}
+                      </Badge>
+                    )}
+                  </div>
+                  <CardDescription className="text-xs">
+                    Histórico detalhado das ordens e cobranças processadas pelo Asaas.
+                  </CardDescription>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground shrink-0 sm:hidden"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setTransactionsExpanded((prev) => !prev);
+                }}
+              >
+                {transactionsExpanded ? (
+                  <span className="flex items-center gap-1 font-medium text-xs">
+                    Recolher <ChevronUp className="h-4 w-4" />
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 font-medium text-xs">
+                    Expandir <ChevronDown className="h-4 w-4" />
+                  </span>
+                )}
+              </Button>
             </div>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por cliente, plano..."
-                value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-                className="pl-8 h-8 text-xs rounded-xl"
-              />
+
+            <div className="hidden sm:flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-3 text-xs gap-1.5"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setTransactionsExpanded((prev) => !prev);
+                }}
+              >
+                {transactionsExpanded ? (
+                  <>
+                    <span>Recolher</span>
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  </>
+                ) : (
+                  <>
+                    <span>Expandir</span>
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </>
+                )}
+              </Button>
             </div>
           </CardHeader>
-          <CardContent>
-            {paginatedTransactions.length > 0 ? (
-              <div className="overflow-x-auto">
-                <Table className="min-w-[640px]">
-                  <TableHeader>
-                    <TableRow className="text-xs">
-                      <TableHead className="whitespace-nowrap">Cliente</TableHead>
-                      <TableHead className="whitespace-nowrap">Plano / Ciclo</TableHead>
-                      <TableHead className="whitespace-nowrap">Valor Original</TableHead>
-                      <TableHead className="whitespace-nowrap">Desconto</TableHead>
-                      <TableHead className="whitespace-nowrap">Valor Pago</TableHead>
-                      <TableHead className="whitespace-nowrap">Status</TableHead>
-                      <TableHead className="whitespace-nowrap">Data Efetiva</TableHead>
-                      <TableHead className="text-right whitespace-nowrap">Fatura</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paginatedTransactions.map((t) => (
-                      <TableRow key={t.id} className="text-xs">
-                        <TableCell className="font-semibold text-foreground whitespace-nowrap">
-                          {t.user_name}
-                          {t.payment_id && (
-                            <span className="block text-[10px] text-muted-foreground font-mono whitespace-nowrap">
-                              {t.payment_id}
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          <span className="font-medium text-foreground">{t.plan_name}</span>
-                          <span className="block text-[10px] text-muted-foreground capitalize whitespace-nowrap">
-                            {t.cycle === "annual" ? "Anual" : t.cycle === "semestral" ? "Semestral" : "Mensal"} • {t.checkout_kind.toUpperCase()}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground whitespace-nowrap">
-                          {fmtCurrency(t.original_amount || t.amount)}
-                        </TableCell>
-                        <TableCell className="text-amber-600 dark:text-amber-400 whitespace-nowrap">
-                          {t.discount_amount > 0 ? `− ${fmtCurrency(t.discount_amount)}` : "—"}
-                        </TableCell>
-                        <TableCell className="font-bold text-foreground whitespace-nowrap">
-                          {fmtCurrency(t.amount)}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          {t.status === "paid" ? (
-                            <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] whitespace-nowrap">
-                              Confirmado
-                            </Badge>
-                          ) : t.status === "pending" ? (
-                            <Badge variant="secondary" className="text-amber-600 dark:text-amber-400 text-[10px] whitespace-nowrap">
-                              Pendente
-                            </Badge>
-                          ) : (
-                            <Badge variant="destructive" className="text-[10px] whitespace-nowrap">
-                              Estornado
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground whitespace-nowrap">
-                          {fmtDateBR(t.credited_at || t.revoked_at || t.created_at)}
-                        </TableCell>
-                        <TableCell className="text-right whitespace-nowrap">
-                          {t.invoice_url ? (
-                            <a
-                              href={t.invoice_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 text-primary hover:underline text-[11px] whitespace-nowrap"
-                            >
-                              Ver <ExternalLink className="h-3 w-3" />
-                            </a>
-                          ) : (
-                            <span className="text-muted-foreground text-[10px]">—</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
 
-                {/* Paginação */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between pt-4 text-xs text-muted-foreground border-t border-border/40 mt-4">
-                    <span>
-                      Página {page} de {totalPages} ({filteredTransactions.length} transações)
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                        disabled={page === 1}
-                        className="h-8 text-xs"
-                      >
-                        Anterior
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-                        disabled={page === totalPages}
-                        className="h-8 text-xs"
-                      >
-                        Próxima
-                      </Button>
+          {transactionsExpanded && (
+            <CardContent className="space-y-4 pt-0">
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por cliente, plano..."
+                  value={searchTerm}
+                  onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                  className="pl-8 h-8 text-xs rounded-xl"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+
+              {paginatedTransactions.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table className="min-w-[640px]">
+                    <TableHeader>
+                      <TableRow className="text-xs">
+                        <TableHead className="whitespace-nowrap">Cliente</TableHead>
+                        <TableHead className="whitespace-nowrap">Plano / Ciclo</TableHead>
+                        <TableHead className="whitespace-nowrap">Valor Original</TableHead>
+                        <TableHead className="whitespace-nowrap">Desconto</TableHead>
+                        <TableHead className="whitespace-nowrap">Valor Pago</TableHead>
+                        <TableHead className="whitespace-nowrap">Status</TableHead>
+                        <TableHead className="whitespace-nowrap">Data Efetiva</TableHead>
+                        <TableHead className="text-right whitespace-nowrap">Fatura</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedTransactions.map((t) => (
+                        <TableRow key={t.id} className="text-xs">
+                          <TableCell className="font-semibold text-foreground whitespace-nowrap">
+                            {t.user_name}
+                            {t.payment_id && (
+                              <span className="block text-[10px] text-muted-foreground font-mono whitespace-nowrap">
+                                {t.payment_id}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <span className="font-medium text-foreground">{t.plan_name}</span>
+                            <span className="block text-[10px] text-muted-foreground capitalize whitespace-nowrap">
+                              {t.cycle === "annual" ? "Anual" : t.cycle === "semestral" ? "Semestral" : "Mensal"} • {t.checkout_kind.toUpperCase()}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground whitespace-nowrap">
+                            {fmtCurrency(t.original_amount || t.amount)}
+                          </TableCell>
+                          <TableCell className="text-amber-600 dark:text-amber-400 whitespace-nowrap">
+                            {t.discount_amount > 0 ? `− ${fmtCurrency(t.discount_amount)}` : "—"}
+                          </TableCell>
+                          <TableCell className="font-bold text-foreground whitespace-nowrap">
+                            {fmtCurrency(t.amount)}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {t.status === "paid" ? (
+                              <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] whitespace-nowrap">
+                                Confirmado
+                              </Badge>
+                            ) : t.status === "pending" ? (
+                              <Badge variant="secondary" className="text-amber-600 dark:text-amber-400 text-[10px] whitespace-nowrap">
+                                Pendente
+                              </Badge>
+                            ) : (
+                              <Badge variant="destructive" className="text-[10px] whitespace-nowrap">
+                                Estornado
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground whitespace-nowrap">
+                            {fmtDateBR(t.credited_at || t.revoked_at || t.created_at)}
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap">
+                            {t.invoice_url ? (
+                              <a
+                                href={t.invoice_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-primary hover:underline text-[11px] whitespace-nowrap"
+                              >
+                                Ver <ExternalLink className="h-3 w-3" />
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground text-[10px]">—</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+
+                  {/* Paginação */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-4 text-xs text-muted-foreground border-t border-border/40 mt-4">
+                      <span>
+                        Página {page} de {totalPages} ({filteredTransactions.length} transações)
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                          disabled={page === 1}
+                          className="h-8 text-xs"
+                        >
+                          Anterior
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+                          disabled={page === totalPages}
+                          className="h-8 text-xs"
+                        >
+                          Próxima
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="py-8 text-center text-xs text-muted-foreground">
-                Nenhuma transação encontrada para os filtros aplicados.
-              </div>
-            )}
-          </CardContent>
+                  )}
+                </div>
+              ) : (
+                <div className="py-8 text-center text-xs text-muted-foreground">
+                  Nenhuma transação encontrada para os filtros aplicados.
+                </div>
+              )}
+            </CardContent>
+          )}
         </Card>
       </div>
     </TooltipProvider>
