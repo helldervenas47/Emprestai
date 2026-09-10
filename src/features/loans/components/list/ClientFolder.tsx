@@ -301,15 +301,15 @@ export function ClientFolder({
         <CardContent className="pt-0 pb-4 px-3 sm:px-4 space-y-3">
           <div ref={captureRef} className="space-y-3 bg-muted/30 dark:bg-white/[0.02] p-3 sm:p-4 rounded-2xl border border-border/40">
             {/* Header Interno do Extrato */}
-            <div className="flex items-center justify-between gap-3 pb-3 border-b border-border/40">
-              <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
+            <div className="flex items-center justify-between gap-2.5 pb-3 border-b border-border/40">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
                   <FolderOpen className="h-4 w-4" />
                 </div>
-                <div>
-                  <h4 className="font-bold text-foreground text-sm leading-tight">{group.name}</h4>
-                  <p className="text-[11px] text-muted-foreground">
-                    {group.loans.length} contrato(s) vinculados · Atualizado em {new Date().toLocaleDateString("pt-BR")}
+                <div className="min-w-0">
+                  <h4 className="font-bold text-foreground text-sm leading-tight truncate">{group.name}</h4>
+                  <p className="text-[11px] text-muted-foreground truncate whitespace-nowrap">
+                    {group.loans.length} {group.loans.length === 1 ? "contrato" : "contratos"} · {new Date().toLocaleDateString("pt-BR")}
                   </p>
                 </div>
               </div>
@@ -320,7 +320,7 @@ export function ClientFolder({
                 data-whatsapp-export-hidden="true"
                 onClick={handleShareWhatsApp}
                 disabled={sharing}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-600 dark:text-emerald-400 font-semibold text-xs transition-colors shrink-0 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-600 dark:text-emerald-400 font-semibold text-xs transition-colors shrink-0 disabled:opacity-50 whitespace-nowrap"
               >
                 <MessageCircle className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Compartilhar WhatsApp</span>
@@ -328,24 +328,30 @@ export function ClientFolder({
               </button>
             </div>
 
-            {/* Painel com Métricas Consolidadas */}
-            <div className="grid grid-cols-3 gap-2 py-1">
-              <div className="p-2.5 rounded-xl bg-card border border-border/40 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase font-medium">Emprestado</p>
-                <p className="font-bold text-foreground text-xs sm:text-sm tabular-nums mt-0.5">
+            {/* Painel com Métricas Consolidadas (sem quebras de texto) */}
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2 py-1">
+              <div className="p-2 sm:p-2.5 rounded-xl bg-card border border-border/40 text-center flex flex-col justify-center min-w-0">
+                <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase font-medium whitespace-nowrap truncate tracking-tight">
+                  Emprestado
+                </p>
+                <p className="font-bold text-foreground text-xs sm:text-sm tabular-nums mt-0.5 whitespace-nowrap truncate">
                   {formatCurrency(group.totalAmount)}
                 </p>
               </div>
-              <div className="p-2.5 rounded-xl bg-card border border-border/40 text-center" data-whatsapp-export-hidden="true">
-                <p className="text-[10px] text-muted-foreground uppercase font-medium">Juros a Receber</p>
-                <p className="font-bold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm tabular-nums mt-0.5">
+              <div className="p-2 sm:p-2.5 rounded-xl bg-card border border-border/40 text-center flex flex-col justify-center min-w-0" data-whatsapp-export-hidden="true">
+                <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase font-medium whitespace-nowrap truncate tracking-tight">
+                  Juros a Receber
+                </p>
+                <p className="font-bold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm tabular-nums mt-0.5 whitespace-nowrap truncate">
                   {formatCurrency(group.totalPaid)}
                 </p>
               </div>
-              <div className="p-2.5 rounded-xl bg-card border border-border/40 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase font-semibold">A Receber</p>
+              <div className="p-2 sm:p-2.5 rounded-xl bg-card border border-border/40 text-center flex flex-col justify-center min-w-0">
+                <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase font-semibold whitespace-nowrap truncate tracking-tight">
+                  A Receber
+                </p>
                 <p
-                  className={`font-bold text-xs sm:text-sm tabular-nums mt-0.5 ${
+                  className={`font-bold text-xs sm:text-sm tabular-nums mt-0.5 whitespace-nowrap truncate ${
                     group.hasOverdue ? "text-destructive" : "text-amber-600 dark:text-amber-400"
                   }`}
                 >
