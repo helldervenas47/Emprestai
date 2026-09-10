@@ -286,20 +286,20 @@ export function MonthlyClosingView({
 
       {/* 3. SEÇÃO DE METAS INTEGRADAS */}
       <Card className="rounded-2xl border-border/70 shadow-sm overflow-hidden">
-        <CardHeader className="p-4 sm:p-5 bg-muted/30 border-b border-border/50">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="space-y-0.5">
-              <CardTitle className="text-base sm:text-lg font-bold flex items-center gap-2">
+        <CardHeader className="p-4 sm:p-5 bg-muted/30 border-b border-border/50 text-center">
+          <div className="flex flex-col items-center justify-center text-center gap-2.5">
+            <div className="space-y-0.5 text-center">
+              <CardTitle className="text-base sm:text-lg font-bold flex items-center justify-center gap-2 text-center">
                 <Target className="h-5 w-5 text-primary" />
                 Suas Metas em {closingData.monthLabel}
               </CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
+              <CardDescription className="text-xs sm:text-sm text-center">
                 Planejado vs. Realizado com base nas regras oficiais do sistema
               </CardDescription>
             </div>
 
             {goalsSummary.hasGoals && (
-              <div className="flex items-center gap-2 bg-background/80 px-3 py-1.5 rounded-xl border border-border/50 text-xs font-semibold">
+              <div className="inline-flex items-center justify-center gap-2 bg-background/80 px-3.5 py-1.5 rounded-xl border border-border/50 text-xs font-semibold">
                 <span className="text-muted-foreground">{goalsSummary.totalGoals} metas:</span>
                 <span className="text-emerald-600 dark:text-emerald-400">🟢 {goalsSummary.reachedCount}</span>
                 <span className="text-amber-600 dark:text-amber-400">🟡 {goalsSummary.closeCount}</span>
@@ -310,12 +310,12 @@ export function MonthlyClosingView({
 
           {/* Barra de Progresso Geral de Metas */}
           {goalsSummary.hasGoals && (
-            <div className="mt-4 pt-3 border-t border-border/40 space-y-2">
-              <div className="flex justify-between items-center text-xs font-medium">
-                <span className="text-foreground">
+            <div className="mt-4 pt-3 border-t border-border/40 space-y-2 text-center">
+              <div className="flex flex-col sm:flex-row justify-between items-center text-xs font-medium gap-1 text-center">
+                <span className="text-foreground text-center">
                   Você atingiu <strong>{(goalsSummary.overallAchievementPct ?? 0).toFixed(0)}%</strong> das suas metas neste mês.
                 </span>
-                <span className="text-muted-foreground">
+                <span className="text-muted-foreground text-center">
                   {goalsSummary.reachedCount ?? 0} de {goalsSummary.totalGoals ?? 0} metas atingidas
                 </span>
               </div>
@@ -563,10 +563,13 @@ function MetricCard({
       }`}
     >
       <div className="space-y-2">
-        {/* Cabeçalho centralizado com ícone */}
-        <div className="flex items-center justify-between gap-1 w-full">
-          <div className="flex-1 flex items-center justify-center gap-1 min-w-0 pl-5">
-            <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground truncate" title={title}>
+        {/* Cabeçalho com ícone ao lado esquerdo e título */}
+        <div className="flex items-center gap-1.5 w-full min-w-0">
+          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
+            <Icon className="h-3.5 w-3.5 text-primary" />
+          </div>
+          <div className="flex-1 flex items-center gap-1 min-w-0">
+            <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground truncate text-left" title={title}>
               {title}
             </span>
             {tooltip && (
@@ -585,9 +588,6 @@ function MetricCard({
                 </TooltipContent>
               </Tooltip>
             )}
-          </div>
-          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
-            <Icon className="h-3.5 w-3.5 text-primary" />
           </div>
         </div>
 
