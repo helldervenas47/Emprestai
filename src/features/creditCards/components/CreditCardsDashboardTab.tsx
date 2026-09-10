@@ -28,6 +28,7 @@ import {
   invoiceItemValue,
   readPaidOverride,
   readTotalOverride,
+  cycleKeyForDate,
 } from "@/features/creditCards/lib/creditCardInvoiceTotals";
 import { expandCreditCardExpenses } from "@/features/creditCards/lib/creditCardInstallments";
 import { useHideValues } from "@/contexts/HideValuesContext";
@@ -113,9 +114,66 @@ export function CreditCardsDashboardTab({
   // Expansão das despesas de cartão (incluindo parceladas)
   const expandedAll = useMemo(() => expandCreditCardExpenses(expenses), [expenses]);
 
-  // Cálculo das faturas para cada cartão no mês selecionado
+  // Cálculo do Limite Disponível Atual (Global e por Cartão) - Valor fixo neste momento
+  const cardGlobalLimits = useMemo(() => {
+    const map = new Map<string, { currentPending: number; currentAvailable: number }>();
+
+    cards.forEach((card) => {
+      const paidCycleKeys = new Set(
+        openings
+          .filter((o) => o.cardId === card.id && /\[PAGA\]/i.test(o.notes ?? ""))
+          .map((o) => o.cycleKey)
+      );
+
+      const cardExpenses = expandedAll
+        .filter((e) => e.scope === "personal")
+        .filter((e) => belongsToCardInvoice(e, card, new Date(0), new Date(8640000000000000)));
+
+      const expensesPending = cardExpenses
+        .filter((e) => !e.paid && !paidCycleKeys.has(cycleKeyForDate(e.dueDate, card.closingDay)))
+        .reduce((s, e) => s + invoiceItemValue(e), 0);
+
+      const openingsPending = openings
+        .filter((o) => o.cardId === card.id)
+        .reduce((s, o) => {
+          const openingAmount = Number(o.openingAmount ?? 0);
+          const paid = readPaidOverride(o.notes) ?? (/\[PAGA\]/i.test(o.notes ?? "") ? openingAmount : 0);
+          return s + Math.max(0, openingAmount - Math.min(openingAmount, paid));
+        }, 0);
+
+      const totalCardPending = expensesPending + openingsPending;
+      const currentLimit = Number(card.creditLimit ?? 0);
+      const currentAvailable = Math.max(0, currentLimit - totalCardPending);
+
+      map.set(card.id, {
+        currentPending: totalCardPending,
+        currentAvailable,
+      });
+    });
+
+    return map;
+  }, [cards, expandedAll, openings]);
+
+  // Limite Global Total e Disponível neste momento
+  const globalLimitsSummary = useMemo(() => {
+    let totalLimits = 0;
+    let totalAvailable = 0;
+    let totalPendingAllCards = 0;
+
+    cards.forEach((card) => {
+      const currentLimit = Number(card.creditLimit ?? 0);
+      const cardData = cardGlobalLimits.get(card.id) ?? { currentPending: 0, currentAvailable: currentLimit };
+      totalLimits += currentLimit;
+      totalAvailable += cardData.currentAvailable;
+      totalPendingAllCards += cardData.currentPending;
+    });
+
+    return { totalLimits, totalAvailable, totalPendingAllCards };
+  }, [cards, cardGlobalLimits]);
+
+  // Cálculo das faturas para cada cartão no mês selecionado (ordenado por vencimento)
   const cardDataForSelectedMonth = useMemo(() => {
-    return cards.map((card) => {
+    const list = cards.map((card) => {
       const cycle =
         getCycleForDueMonth(selectedMonth, card.closingDay, card.dueDay) || {
           from: new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, card.closingDay),
@@ -145,7 +203,7 @@ export function CreditCardsDashboardTab({
       const pendingTotal = Math.max(0, invoiceTotal - paidTotal);
 
       const limit = Number(card.creditLimit ?? 0);
-      const available = Math.max(0, limit - pendingTotal);
+      const globalInfo = cardGlobalLimits.get(card.id) ?? { currentPending: 0, currentAvailable: limit };
 
       // Status da fatura
       const isPaid = invoiceTotal > 0 && pendingTotal === 0;
@@ -168,22 +226,24 @@ export function CreditCardsDashboardTab({
         paidTotal,
         pendingTotal,
         limit,
-        available,
+        currentAvailable: globalInfo.currentAvailable,
+        currentPending: globalInfo.currentPending,
         isPaid,
         isOverdue,
         isDueToday,
         cycleKey,
       };
     });
-  }, [cards, selectedMonth, selectedDate, expandedAll, getOpening]);
+
+    // Ordena por data de vencimento da fatura (mais próximos primeiro)
+    return list.sort((a, b) => a.cycle.dueDate.getTime() - b.cycle.dueDate.getTime());
+  }, [cards, selectedMonth, selectedDate, expandedAll, getOpening, cardGlobalLimits]);
 
   // Métricas Consolidadas do Mês Selecionado
   const consolidatedMetrics = useMemo(() => {
     let totalInvoices = 0;
     let totalPaid = 0;
     let totalPending = 0;
-    let totalLimits = 0;
-    let totalAvailable = 0;
     let paidCount = 0;
     let overdueCount = 0;
 
@@ -191,26 +251,20 @@ export function CreditCardsDashboardTab({
       totalInvoices += c.invoiceTotal;
       totalPaid += c.paidTotal;
       totalPending += c.pendingTotal;
-      totalLimits += c.limit;
-      totalAvailable += c.available;
       if (c.isPaid) paidCount++;
       if (c.isOverdue) overdueCount++;
     });
-
-    const usedPercentage =
-      totalLimits > 0 ? Math.min(100, Math.round((totalPending / totalLimits) * 100)) : 0;
 
     return {
       totalInvoices,
       totalPaid,
       totalPending,
-      totalLimits,
-      totalAvailable,
+      totalLimits: globalLimitsSummary.totalLimits,
+      totalAvailable: globalLimitsSummary.totalAvailable,
       paidCount,
       overdueCount,
-      usedPercentage,
     };
-  }, [cardDataForSelectedMonth]);
+  }, [cardDataForSelectedMonth, globalLimitsSummary]);
 
   // Projeção futura dos próximos 6 meses consolidada
   const futureProjections = useMemo(() => {
@@ -612,17 +666,17 @@ export function CreditCardsDashboardTab({
                       </div>
                     </div>
 
-                    {/* Limite Total e Disponível */}
+                    {/* Limite Total e Disponível (fixo no momento atual) */}
                     {limit > 0 && (
                       <div className="space-y-1.5 pt-1">
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="text-muted-foreground">Limite: {mask(fmt(limit))}</span>
                           <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                            Disponível: {mask(fmt(item.available))}
+                            Disponível: {mask(fmt(item.currentAvailable))}
                           </span>
                         </div>
                         <Progress
-                          value={Math.min(100, Math.round((pendingTotal / limit) * 100))}
+                          value={Math.min(100, Math.round((item.currentPending / limit) * 100))}
                           className="h-1.5 bg-muted"
                         />
                       </div>
