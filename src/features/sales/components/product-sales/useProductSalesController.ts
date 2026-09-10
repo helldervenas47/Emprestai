@@ -114,25 +114,22 @@ export function useProductSalesController(sales: Sale[], scopeKey = "sales") {
 
   const total = useMemo(() => filtered.reduce((acc, s) => acc + s.total, 0), [filtered]);
 
-  const folderEligibleNames = useMemo(() => {
+  const folderCount = useMemo(() => {
     const byName: Record<string, number> = {};
     sales.forEach((s) => {
       const name = s.customerName?.trim();
       if (name) byName[name] = (byName[name] || 0) + 1;
     });
-    return new Set(Object.entries(byName).filter(([, c]) => c > 1).map(([name]) => name));
+    return Object.keys(byName).length;
   }, [sales]);
-
-  const folderCount = folderEligibleNames.size;
 
   const { saleGroups, saleSingles } = useMemo(() => {
     const byName: Record<string, Sale[]> = {};
     const saleSingles: Sale[] = [];
     filtered.forEach((s) => {
-      const name = s.customerName?.trim();
-      if (name && folderEligibleNames.has(name)) {
-        (byName[name] ??= []).push(s);
-      } else {
+      const name = s.customerName?.trim() || "Cliente não informado";
+      (byName[name] ??= []).push(s);
+      if (byName[name].length === 1) {
         saleSingles.push(s);
       }
     });
@@ -141,13 +138,40 @@ export function useProductSalesController(sales: Sale[], scopeKey = "sales") {
       const totalPaid = salesGroup.reduce((s, sale) => s + getSalePaidAmountHelper(sale), 0);
       const totalReceivable = salesGroup.reduce((s, sale) => s + Math.max(0, sale.total - getSalePaidAmountHelper(sale)), 0);
       const hasOverdue = salesGroup.some((s) => getSaleCategory(s) === "overdue");
-      saleGroups.push({ name, sales: salesGroup, totalAmount: salesGroup.reduce((s, sale) => s + sale.total, 0), totalPaid, totalReceivable, hasOverdue });
+      saleGroups.push({
+        name,
+        sales: salesGroup,
+        totalAmount: salesGroup.reduce((s, sale) => s + sale.total, 0),
+        totalPaid: Math.round(totalPaid * 100) / 100,
+        totalReceivable: Math.round(totalReceivable * 100) / 100,
+        hasOverdue,
+      });
     });
-    const earliestDue = (g: SaleClientGroup) => Math.min(...g.sales.map((s) => getNextDueDateHelper(s).getTime()));
-    saleGroups.sort((a, b) => earliestDue(a) - earliestDue(b));
+
+    saleGroups.sort((a, b) => {
+      // 1. Status: Atrasados primeiro
+      if (a.hasOverdue && !b.hasOverdue) return -1;
+      if (!a.hasOverdue && b.hasOverdue) return 1;
+
+      // 2. Valor: Total a receber (maior para o menor)
+      if (b.totalReceivable !== a.totalReceivable) {
+        return b.totalReceivable - a.totalReceivable;
+      }
+
+      // 3. Desempate: Quantidade de lançamentos ativos (maior para o menor)
+      const aActive = a.sales.filter((s) => getSaleCategory(s) !== "paid").length;
+      const bActive = b.sales.filter((s) => getSaleCategory(s) !== "paid").length;
+      if (aActive !== bActive) {
+        return bActive - aActive;
+      }
+
+      // 4. Desempate por nome alfabético
+      return a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" });
+    });
+
     saleGroups.forEach((g) => g.sales.sort((a, b) => getNextDueDateHelper(a).getTime() - getNextDueDateHelper(b).getTime()));
     return { saleGroups, saleSingles };
-  }, [filtered, folderEligibleNames]);
+  }, [filtered]);
 
   const listSorted = useMemo(() => {
     return [...filtered].sort((a, b) => getNextDueDateHelper(a).getTime() - getNextDueDateHelper(b).getTime());
