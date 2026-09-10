@@ -1,13 +1,14 @@
 import React, { useCallback, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronRight, MessageCircle, UserCog } from "lucide-react";
+import { ChevronRight, MessageCircle, UserCog, Folder, FolderOpen, ArrowUpRight } from "lucide-react";
 import { toast } from "sonner";
 import { useHideValues } from "@/contexts/HideValuesContext";
 import { Loan, Payment, InstallmentSchedule, Client, PaymentSplit } from "@/types/loan";
 import type { LoanRenegotiation } from "@/types/loan";
 import { rawFormatCurrency } from "@/features/loans/components/list/formatting";
 import { LoanRowView } from "@/features/loans/components/list/LoanListRow";
+import { LoanListMiniCard } from "@/features/loans/components/list/LoanListMiniCard";
 
 export interface ClientGroup {
   name: string;
@@ -39,24 +40,40 @@ export interface ClientFolderProps {
 }
 
 export function ClientFolder({
-  group, payments, installmentSchedules, onPayment, onPartialPayment, onFullPayment, onInterestPayment, onAmortize, onRenegotiate, renegotiations = [], onUpdate, onDelete, onDeletePayment, onSaveSchedule, readOnly = false, clients = [], commissionTotalByLoan,
+  group,
+  payments,
+  installmentSchedules,
+  onPayment,
+  onPartialPayment,
+  onFullPayment,
+  onInterestPayment,
+  onAmortize,
+  onRenegotiate,
+  renegotiations = [],
+  onUpdate,
+  onDelete,
+  onDeletePayment,
+  onSaveSchedule,
+  readOnly = false,
+  clients = [],
+  commissionTotalByLoan,
 }: ClientFolderProps) {
   const { mask } = useHideValues();
   const formatCurrency = useCallback((v: number) => mask(rawFormatCurrency(v)), [mask]);
   const [open, setOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
   const captureRef = useRef<HTMLDivElement>(null);
+
   const activeCount = group.loans.filter((l) => l.status !== "paid").length;
   const paidCount = group.loans.filter((l) => l.status === "paid").length;
   const managerCount = group.loans.filter((l) => l.hasManager).length;
+  const existingTags = [...new Set(group.loans.flatMap((l) => l.tags || []))];
 
   const handleShareWhatsApp = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!captureRef.current || sharing) return;
     setSharing(true);
     try {
-      // `html-to-image` foi removido do bundle (limpeza pré-Asaas). Import dinâmico
-      // via CDN mantém o compartilhamento funcionando sem re-adicionar a dep npm.
       const mod: any = await import(/* @vite-ignore */ ("https://esm.sh/html-to-image@1.11.13" as string));
       const toBlob = mod.toBlob as (
         node: HTMLElement,
@@ -116,115 +133,285 @@ export function ClientFolder({
   };
 
   return (
-    <Card no3d className={`overflow-hidden transition-shadow hover:shadow-lg ${open ? "ring-1 ring-primary/20" : ""} ${group.hasOverdue ? "border-destructive/40" : ""}`}>
-      <button type="button"
+    <Card
+      no3d
+      className={`overflow-hidden transition-all duration-200 rounded-2xl ${
+        open
+          ? "ring-2 ring-primary/20 shadow-md border-primary/30"
+          : "hover:shadow-md border-border/60 hover:border-primary/30"
+      } ${group.hasOverdue ? "border-destructive/30 bg-destructive/[0.015]" : "bg-card/90"}`}
+    >
+      {/* Botão de expansão do Card (Pasta) */}
+      <button
+        type="button"
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left"
+        className="w-full text-left p-3 sm:p-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors hover:bg-muted/20"
+        aria-expanded={open}
+        aria-label={`${open ? "Recolher" : "Expandir"} pasta de empréstimos de ${group.name}`}
       >
-        <div className={`h-10 w-10 rounded-lg flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0 shadow-md ${group.hasOverdue ? "bg-destructive" : "gradient-primary"}`}>
-          {group.name.charAt(0).toUpperCase()}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-bold text-foreground text-sm truncate">{group.name}</h3>
-            {group.hasOverdue && <Badge className="bg-destructive/10 text-destructive border-destructive/20 text-[10px]">Atrasado</Badge>}
-            {managerCount > 0 && (
-              <Badge variant="outline" className="bg-[#009C3B]/15 text-[#009C3B] dark:bg-emerald-500/25 dark:text-emerald-300 border-[#009C3B]/60 dark:border-emerald-500/60 text-[10px] gap-0.5">
-                <UserCog className="h-2.5 w-2.5" />{managerCount === group.loans.length ? "Com gerente" : `${managerCount} c/ gerente`}
-              </Badge>
+        <div className="flex items-center gap-3 sm:gap-4">
+          {/* Avatar / Ícone de Pasta */}
+          <div
+            className={`h-11 w-11 sm:h-12 sm:w-12 rounded-2xl flex items-center justify-center font-bold text-sm sm:text-base shrink-0 shadow-sm transition-transform ${
+              group.hasOverdue
+                ? "bg-destructive text-destructive-foreground shadow-destructive/20"
+                : "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-primary/20"
+            }`}
+          >
+            {group.name.charAt(0).toUpperCase()}
+          </div>
+
+          {/* Dados do Cliente e Badges */}
+          <div className="flex-1 min-w-0">
+            {/* Linha 1: Nome + Badges de Status */}
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+              <h3 className="font-bold text-foreground text-sm sm:text-base truncate leading-snug">
+                {group.name}
+              </h3>
+              {group.hasOverdue && (
+                <Badge
+                  variant="destructive"
+                  className="bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/30 text-[10px] font-bold px-1.5 py-0 uppercase tracking-wider h-5"
+                >
+                  Atrasado
+                </Badge>
+              )}
+              {managerCount > 0 && (
+                <Badge
+                  variant="outline"
+                  className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-semibold px-1.5 py-0 gap-1 h-5"
+                >
+                  <UserCog className="h-2.5 w-2.5" />
+                  {managerCount === group.loans.length ? "Com gerente" : `${managerCount} c/ gerente`}
+                </Badge>
+              )}
+            </div>
+
+            {/* Linha 2: Contadores de Contratos */}
+            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-muted/70 text-muted-foreground border border-border/40">
+                {group.loans.length} {group.loans.length === 1 ? "empréstimo" : "empréstimos"}
+              </span>
+              {activeCount > 0 && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
+                  {activeCount} {activeCount === 1 ? "ativo" : "ativos"}
+                </span>
+              )}
+              {paidCount > 0 && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  {paidCount} {paidCount === 1 ? "quitado" : "quitados"}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Lado Direito: Mobile (Resumo Rápido A Receber) */}
+          <div className="flex sm:hidden items-center gap-2 shrink-0">
+            <div className="text-right">
+              <p className="text-[9px] text-muted-foreground uppercase font-semibold tracking-wider">A receber</p>
+              <p
+                className={`font-bold text-xs tabular-nums ${
+                  group.hasOverdue ? "text-destructive" : "text-amber-600 dark:text-amber-400"
+                }`}
+              >
+                {formatCurrency(group.totalReceivable)}
+              </p>
+            </div>
+            <div className="w-6 h-6 rounded-full bg-muted/60 flex items-center justify-center text-muted-foreground">
+              <ChevronRight
+                className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-90 text-primary" : ""}`}
+              />
+            </div>
+          </div>
+
+          {/* Lado Direito: Desktop / Tablet (3 Colunas Financeiras + Ações) */}
+          <div className="hidden sm:flex items-center gap-4 text-xs shrink-0">
+            <div className="text-right pl-2">
+              <p className="text-[10px] text-muted-foreground uppercase font-medium tracking-wider">Emprestado</p>
+              <p className="font-semibold text-foreground text-sm tabular-nums mt-0.5">
+                {formatCurrency(group.totalAmount)}
+              </p>
+            </div>
+            <div className="text-right pl-2">
+              <p className="text-[10px] text-muted-foreground uppercase font-medium tracking-wider">Juros a Receber</p>
+              <p className="font-semibold text-emerald-600 dark:text-emerald-400 text-sm tabular-nums mt-0.5">
+                {formatCurrency(group.totalPaid)}
+              </p>
+            </div>
+            <div className="text-right pl-2">
+              <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">A Receber</p>
+              <p
+                className={`font-bold text-sm tabular-nums mt-0.5 ${
+                  group.hasOverdue ? "text-destructive" : "text-amber-600 dark:text-amber-400"
+                }`}
+              >
+                {formatCurrency(group.totalReceivable)}
+              </p>
+            </div>
+
+            {open && (
+              <span
+                role="button"
+                tabIndex={0}
+                aria-label="Enviar extrato para WhatsApp"
+                onClick={handleShareWhatsApp}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleShareWhatsApp(e as any);
+                  }
+                }}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-colors ml-1"
+                aria-disabled={sharing}
+              >
+                <MessageCircle className="h-4 w-4" />
+              </span>
             )}
-          </div>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <Badge variant="outline" className="text-[10px]">{group.loans.length}</Badge>
-            {activeCount > 0 && <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">{activeCount} ativos</Badge>}
-            {paidCount > 0 && <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/20">{paidCount} pagos</Badge>}
-          </div>
-        </div>
-        <div className="hidden sm:flex items-center gap-4 text-xs shrink-0">
-          {open && (
-            <span
-              role="button"
-              tabIndex={0}
-              aria-label="Enviar para WhatsApp"
-              onClick={handleShareWhatsApp}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleShareWhatsApp(e as any); } }}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#25D366] transition-colors disabled:opacity-50"
-              aria-disabled={sharing}
-            >
-              <MessageCircle className="h-4 w-4" />
-            </span>
-          )}
-          <div className="text-right">
-            <p className="text-[9px] text-muted-foreground uppercase">Emprestado</p>
-            <p className="font-bold text-foreground">{formatCurrency(group.totalAmount)}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-[9px] text-muted-foreground uppercase">Juros a Receber</p>
-            <p className="font-bold text-success">{formatCurrency(group.totalPaid)}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-[9px] text-muted-foreground uppercase">A Receber</p>
-            <p className={`font-bold ${group.hasOverdue ? "text-destructive" : "text-warning"}`}>{formatCurrency(group.totalReceivable)}</p>
+
+            <div className="w-7 h-7 rounded-full bg-muted/60 flex items-center justify-center text-muted-foreground ml-1">
+              <ChevronRight
+                className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-90 text-primary" : ""}`}
+              />
+            </div>
           </div>
         </div>
-        {open ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
       </button>
+
+      {/* Conteúdo Expandido da Pasta */}
       {open && (
-        <CardContent className="pt-0 pb-3 px-3 space-y-3">
-          <div ref={captureRef} className="space-y-3 bg-card p-3 rounded-xl">
-            <div className="flex items-center gap-3">
-              <div className={`h-10 w-10 rounded-lg flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0 shadow-md ${group.hasOverdue ? "bg-destructive" : "gradient-primary"}`}>
-                {group.name.charAt(0).toUpperCase()}
+        <CardContent className="pt-0 pb-4 px-3 sm:px-4 space-y-3">
+          <div ref={captureRef} className="space-y-3 bg-muted/30 dark:bg-white/[0.02] p-3 sm:p-4 rounded-2xl border border-border/40">
+            {/* Header Interno do Extrato */}
+            <div className="flex items-center justify-between gap-3 pb-3 border-b border-border/40">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
+                  <FolderOpen className="h-4 w-4" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-foreground text-sm leading-tight">{group.name}</h4>
+                  <p className="text-[11px] text-muted-foreground">
+                    {group.loans.length} contrato(s) vinculados · Atualizado em {new Date().toLocaleDateString("pt-BR")}
+                  </p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-foreground text-sm">{group.name}</h3>
-                <p className="text-[10px] text-muted-foreground">{group.loans.length} empréstimo(s) · {new Date().toLocaleDateString("pt-BR")}</p>
-              </div>
+
               <button
                 type="button"
-                aria-label="Enviar para WhatsApp"
+                aria-label="Exportar para WhatsApp"
                 data-whatsapp-export-hidden="true"
                 onClick={handleShareWhatsApp}
                 disabled={sharing}
-                className="sm:hidden inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#25D366] transition-colors shrink-0 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-600 dark:text-emerald-400 font-semibold text-xs transition-colors shrink-0 disabled:opacity-50"
               >
-                <MessageCircle className="h-4 w-4" />
+                <MessageCircle className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Compartilhar WhatsApp</span>
+                <span className="sm:hidden">WhatsApp</span>
               </button>
             </div>
-            {/* Mobile summary */}
-            <div className="flex sm:hidden items-center justify-between gap-2 text-xs border-b border-border/30 pb-3">
-              <div className="text-center flex-1">
-                <p className="text-[9px] text-muted-foreground uppercase">Emprestado</p>
-                <p className="font-bold text-foreground">{formatCurrency(group.totalAmount)}</p>
+
+            {/* Painel com Métricas Consolidadas */}
+            <div className="grid grid-cols-3 gap-2 py-1">
+              <div className="p-2.5 rounded-xl bg-card border border-border/40 text-center">
+                <p className="text-[10px] text-muted-foreground uppercase font-medium">Emprestado</p>
+                <p className="font-bold text-foreground text-xs sm:text-sm tabular-nums mt-0.5">
+                  {formatCurrency(group.totalAmount)}
+                </p>
               </div>
-              <div className="text-center flex-1" data-whatsapp-export-hidden="true">
-                <p className="text-[9px] text-muted-foreground uppercase">Juros a Receber</p>
-                <p className="font-bold text-success">{formatCurrency(group.totalPaid)}</p>
+              <div className="p-2.5 rounded-xl bg-card border border-border/40 text-center" data-whatsapp-export-hidden="true">
+                <p className="text-[10px] text-muted-foreground uppercase font-medium">Juros a Receber</p>
+                <p className="font-bold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm tabular-nums mt-0.5">
+                  {formatCurrency(group.totalPaid)}
+                </p>
               </div>
-              <div className="text-center flex-1">
-                <p className="text-[9px] text-muted-foreground uppercase">A Receber</p>
-                <p className={`font-bold ${group.hasOverdue ? "text-destructive" : "text-warning"}`}>{formatCurrency(group.totalReceivable)}</p>
+              <div className="p-2.5 rounded-xl bg-card border border-border/40 text-center">
+                <p className="text-[10px] text-muted-foreground uppercase font-semibold">A Receber</p>
+                <p
+                  className={`font-bold text-xs sm:text-sm tabular-nums mt-0.5 ${
+                    group.hasOverdue ? "text-destructive" : "text-amber-600 dark:text-amber-400"
+                  }`}
+                >
+                  {formatCurrency(group.totalReceivable)}
+                </p>
               </div>
             </div>
-            <div className="rounded-2xl border border-border/30 overflow-hidden shadow-[0_1px_8px_-4px_hsl(0_0%_0%/0.05)]">
+
+            {/* Mobile: Exibição em Cards Interativos (LoanListMiniCard) */}
+            <div className="sm:hidden space-y-2.5 pt-1">
+              {group.loans.map((loan) => (
+                <LoanListMiniCard
+                  key={loan.id}
+                  loan={loan}
+                  payments={payments}
+                  installmentSchedules={installmentSchedules}
+                  readOnly={readOnly}
+                  clients={clients}
+                  renegotiations={renegotiations.filter((r) => r.loanId === loan.id)}
+                  existingTags={existingTags}
+                  onPayment={(date, mid, split) => onPayment(loan.id, date, mid, split)}
+                  onPartialPayment={(amt, date, mid, split) => onPartialPayment(loan.id, amt, date, mid, split)}
+                  onFullPayment={
+                    onFullPayment
+                      ? (date, custom, mid, split) => onFullPayment(loan.id, date, custom, mid, split)
+                      : undefined
+                  }
+                  onInterestPayment={(date, custom, fees, mid, split, opts) =>
+                    onInterestPayment(loan.id, date, custom, fees, mid, split, opts)
+                  }
+                  onAmortize={onAmortize ? (amt, date, mid, split) => onAmortize(loan.id, amt, date, mid, split) : undefined}
+                  onRenegotiate={onRenegotiate ? (params) => onRenegotiate(loan.id, params) : undefined}
+                  onUpdate={(d) => onUpdate(loan.id, d)}
+                  onDelete={() => onDelete(loan.id)}
+                  onDeletePayment={onDeletePayment}
+                  onSaveSchedule={onSaveSchedule}
+                />
+              ))}
+            </div>
+
+            {/* Desktop / Tablet: Tabela Completa */}
+            <div className="hidden sm:block rounded-2xl border border-border/40 overflow-hidden bg-card shadow-sm">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-border/30">
-                    <th className="px-1.5 sm:px-4 py-2.5 text-left text-[10px] sm:text-xs font-medium text-muted-foreground">Cliente</th>
-                    <th className="hidden sm:table-cell px-1.5 sm:px-4 py-2.5 text-left text-[10px] sm:text-xs font-medium text-muted-foreground">Status</th>
-                    <th className="hidden sm:table-cell px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Emprestado</th>
-                    <th className="px-1.5 sm:px-4 py-2.5 text-left text-[10px] sm:text-xs font-medium text-muted-foreground">Restante</th>
-                    <th className="hidden sm:table-cell px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Parcelas</th>
-                    <th className="px-1.5 sm:px-4 py-2.5 text-left text-[10px] sm:text-xs font-medium text-muted-foreground">Venc.</th>
-                    <th className="hidden sm:table-cell px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Etiquetas</th>
-                    <th className="hidden sm:table-cell px-4 py-2.5 text-right text-xs font-medium text-muted-foreground"></th>
+                  <tr className="border-b border-border/40 bg-muted/40 text-xs font-semibold text-muted-foreground">
+                    <th className="px-4 py-3 text-left">Cliente / Contrato</th>
+                    <th className="px-4 py-3 text-left">Status</th>
+                    <th className="px-4 py-3 text-left">Emprestado</th>
+                    <th className="px-4 py-3 text-left">Restante</th>
+                    <th className="px-4 py-3 text-left">Parcelas</th>
+                    <th className="px-4 py-3 text-left">Vencimento</th>
+                    <th className="px-4 py-3 text-left">Etiquetas</th>
+                    <th className="px-4 py-3 text-right">Ações</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-border/30">
                   {group.loans.map((loan) => (
-                    <LoanRowView key={loan.id} loan={loan} payments={payments} installmentSchedules={installmentSchedules} readOnly={readOnly} existingTags={[...new Set(group.loans.flatMap(l => l.tags || []))]} clients={clients} renegotiations={renegotiations.filter((r) => r.loanId === loan.id)} managerCommissionTotal={commissionTotalByLoan?.get(loan.id) || 0} hideQuickNotes
-                      onPayment={(date, mid, split) => onPayment(loan.id, date, mid, split)} onPartialPayment={(amt, date, mid, split) => onPartialPayment(loan.id, amt, date, mid, split)} onFullPayment={onFullPayment ? (date, custom, mid, split) => onFullPayment(loan.id, date, custom, mid, split) : undefined}
-                      onInterestPayment={(date, custom, fees, mid, split, opts) => onInterestPayment(loan.id, date, custom, fees, mid, split, opts)} onAmortize={onAmortize ? (amt, date, mid, split) => onAmortize(loan.id, amt, date, mid, split) : undefined} onRenegotiate={onRenegotiate ? (params) => onRenegotiate(loan.id, params) : undefined} onUpdate={(d) => onUpdate(loan.id, d)} onDelete={() => onDelete(loan.id)} onDeletePayment={onDeletePayment} onSaveSchedule={onSaveSchedule} />
+                    <LoanRowView
+                      key={loan.id}
+                      loan={loan}
+                      payments={payments}
+                      installmentSchedules={installmentSchedules}
+                      readOnly={readOnly}
+                      existingTags={existingTags}
+                      clients={clients}
+                      renegotiations={renegotiations.filter((r) => r.loanId === loan.id)}
+                      managerCommissionTotal={commissionTotalByLoan?.get(loan.id) || 0}
+                      hideQuickNotes
+                      onPayment={(date, mid, split) => onPayment(loan.id, date, mid, split)}
+                      onPartialPayment={(amt, date, mid, split) => onPartialPayment(loan.id, amt, date, mid, split)}
+                      onFullPayment={
+                        onFullPayment
+                          ? (date, custom, mid, split) => onFullPayment(loan.id, date, custom, mid, split)
+                          : undefined
+                      }
+                      onInterestPayment={(date, custom, fees, mid, split, opts) =>
+                        onInterestPayment(loan.id, date, custom, fees, mid, split, opts)
+                      }
+                      onAmortize={onAmortize ? (amt, date, mid, split) => onAmortize(loan.id, amt, date, mid, split) : undefined}
+                      onRenegotiate={onRenegotiate ? (params) => onRenegotiate(loan.id, params) : undefined}
+                      onUpdate={(d) => onUpdate(loan.id, d)}
+                      onDelete={() => onDelete(loan.id)}
+                      onDeletePayment={onDeletePayment}
+                      onSaveSchedule={onSaveSchedule}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -235,3 +422,4 @@ export function ClientFolder({
     </Card>
   );
 }
+
