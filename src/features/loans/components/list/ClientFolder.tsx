@@ -163,8 +163,8 @@ export function ClientFolder({
 
           {/* Dados do Cliente e Badges */}
           <div className="flex-1 min-w-0">
-            {/* Linha 1: Nome + Badges de Status */}
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+            {/* Desktop / Tablet (sm:flex): Todas as informações na mesma linha ao lado do nome */}
+            <div className="hidden sm:flex items-center gap-2 flex-wrap">
               <h3 className="font-bold text-foreground text-sm sm:text-base truncate leading-snug">
                 {group.name}
               </h3>
@@ -185,23 +185,52 @@ export function ClientFolder({
                   {managerCount === group.loans.length ? "Com gerente" : `${managerCount} c/ gerente`}
                 </Badge>
               )}
-            </div>
-
-            {/* Linha 2: Contadores de Contratos */}
-            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-muted/70 text-muted-foreground border border-border/40">
-                {group.loans.length} {group.loans.length === 1 ? "empréstimo" : "empréstimos"}
-              </span>
-              {activeCount > 0 && (
+              {activeCount > 0 ? (
                 <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
                   {activeCount} {activeCount === 1 ? "ativo" : "ativos"}
                 </span>
-              )}
-              {paidCount > 0 && (
+              ) : paidCount > 0 ? (
                 <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                   {paidCount} {paidCount === 1 ? "quitado" : "quitados"}
                 </span>
-              )}
+              ) : null}
+            </div>
+
+            {/* Mobile (sm:hidden): Nome na linha 1, Gerente e Ativos na linha 2 abaixo do nome */}
+            <div className="sm:hidden">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h3 className="font-bold text-foreground text-sm truncate leading-snug">
+                  {group.name}
+                </h3>
+                {group.hasOverdue && (
+                  <Badge
+                    variant="destructive"
+                    className="bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/30 text-[10px] font-bold px-1.5 py-0 uppercase tracking-wider h-5"
+                  >
+                    Atrasado
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                {managerCount > 0 && (
+                  <Badge
+                    variant="outline"
+                    className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-semibold px-1.5 py-0 gap-1 h-5"
+                  >
+                    <UserCog className="h-2.5 w-2.5" />
+                    {managerCount === group.loans.length ? "Com gerente" : `${managerCount} c/ gerente`}
+                  </Badge>
+                )}
+                {activeCount > 0 ? (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
+                    {activeCount} {activeCount === 1 ? "ativo" : "ativos"}
+                  </span>
+                ) : paidCount > 0 ? (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    {paidCount} {paidCount === 1 ? "quitado" : "quitados"}
+                  </span>
+                ) : null}
+              </div>
             </div>
           </div>
 
