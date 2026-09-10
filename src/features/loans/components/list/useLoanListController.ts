@@ -609,15 +609,24 @@ export function useLoanListController({
       }
     });
     grouped.sort((a, b) => {
-      const getEarliestDue = (g: { loans: Loan[] }) => {
-        const activeLoans = g.loans.filter((l) => l.status !== "paid");
-        if (activeLoans.length === 0) return "9999-12-31";
-        return activeLoans.reduce((earliest, l) => {
-          const date = l.dueDate;
-          return date < earliest ? date : earliest;
-        }, "9999-12-31");
-      };
-      return getEarliestDue(a).localeCompare(getEarliestDue(b));
+      // 1. Atrasados primeiro
+      if (a.hasOverdue && !b.hasOverdue) return -1;
+      if (!a.hasOverdue && b.hasOverdue) return 1;
+
+      // 2. Quantidade de contratos ativos do maior para o menor
+      const aActive = a.loans.filter((l) => l.status !== "paid").length;
+      const bActive = b.loans.filter((l) => l.status !== "paid").length;
+      if (aActive !== bActive) {
+        return bActive - aActive;
+      }
+
+      // 3. Desempate: total a receber (maior para o menor)
+      if (b.totalReceivable !== a.totalReceivable) {
+        return b.totalReceivable - a.totalReceivable;
+      }
+
+      // 4. Desempate por nome alfabético
+      return a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" });
     });
     return { grouped, singles };
   }, [categorized, payments, installmentSchedules]);
