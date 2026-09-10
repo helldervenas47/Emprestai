@@ -30,7 +30,6 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useOnboardingProgress } from "@/hooks/useOnboardingProgress";
 import { toast } from "sonner";
 import { ThemeSettingsCard } from "@/components/ThemeSettingsCard";
-import { TelegramImageDeliveryCard } from "@/features/telegram/components/TelegramImageDeliveryCard";
 import { AppFontSelector } from "@/components/AppFontSelector";
 
 const UserManagement = lazy(() => import("@/features/admin/components/UserManagement").then(m => ({ default: m.UserManagement })));
@@ -144,8 +143,6 @@ export function SystemSettings() {
             <Suspense fallback={<SectionLoader />}>
               <InviteAndApprovalSettings />
             </Suspense>
-
-            <TelegramImageDeliveryCard />
           </TabsContent>
         )}
 
