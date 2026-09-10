@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useCreditCards, CreditCard } from "@/features/creditCards/hooks/useCreditCards";
 import { useExpenses } from "@/features/financial/hooks/useExpenses";
 import { useCreditCardOpenings, cycleKeyFromDate } from "@/features/creditCards/hooks/useCreditCardOpenings";
@@ -105,9 +106,17 @@ const MiniCreditCard = React.forwardRef<HTMLDivElement, MiniCardProps>(({
 }, ref) => {
   const bank = getBank(card.bank);
   const { mask } = useHideValues();
-  const utilization =
-    card.creditLimit > 0 ? Math.min(100, (pendingTotal / card.creditLimit) * 100) : 0;
-  const rootRef = (window as any).__cardRefMap || ((window as any).__cardRefMap = new Map());
+  const available = Math.max(0, card.creditLimit - pendingTotal);
+  const isPaid = invoiceTotal > 0 && cyclePendingTotal <= 0.005;
+  const isOverdue =
+    !isPaid &&
+    cyclePendingTotal > 0 &&
+    dueDate < new Date() &&
+    format(dueDate, "yyyy-MM-dd") !== format(new Date(), "yyyy-MM-dd");
+  const isDueToday =
+    !isPaid &&
+    cyclePendingTotal > 0 &&
+    format(dueDate, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -118,49 +127,70 @@ const MiniCreditCard = React.forwardRef<HTMLDivElement, MiniCardProps>(({
     <Card
       ref={ref}
       no3d
-      className={`group relative overflow-hidden cursor-pointer hover:shadow-md transition-shadow ${
-        hasActiveInvoice
-          ? "border-2 border-warning shadow-[0_0_0_3px_hsl(var(--warning)/0.15)]"
-          : ""
+      className={`group relative overflow-hidden cursor-pointer hover:shadow-md transition-all duration-200 rounded-2xl border ${
+        isOverdue
+          ? "border-destructive/40 bg-destructive/[0.015]"
+          : isDueToday
+          ? "border-amber-500/40 bg-amber-500/[0.015]"
+          : isPaid
+          ? "border-emerald-500/30 bg-emerald-500/[0.015]"
+          : "border-border/60 hover:border-primary/40 bg-card"
       }`}
       onClick={handleClick}
     >
-      {hasActiveInvoice && (
-        <div className="absolute top-2 right-2 z-10 px-2 py-0.5 rounded-full bg-warning text-warning-foreground text-[9px] font-bold uppercase tracking-wide shadow-sm">
-          Fatura do mês
-        </div>
-      )}
-      <CardContent className="p-3 space-y-2.5">
-        {/* Mini visual card thumbnail */}
+      {/* Miniatura do Cartão */}
+      <div className="p-3 pb-2">
         <div
-          className={`${bank.gradient} ${bank.textClass} relative aspect-[1.586/1] w-full rounded-lg p-2.5 shadow-sm overflow-hidden`}
+          className={`${bank.gradient} ${bank.textClass} relative aspect-[1.8/1] w-full rounded-xl p-3 shadow-xs overflow-hidden flex flex-col justify-between`}
         >
-          <div className="pointer-events-none absolute -top-6 -right-6 h-20 w-20 rounded-full bg-white/10 blur-xl" />
+          <div className="pointer-events-none absolute -top-5 -right-5 h-16 w-16 rounded-full bg-white/10 blur-lg" />
+          
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-1">
-              <div className="h-4 w-5 rounded-sm bg-gradient-to-br from-[hsl(45,90%,75%)] to-[hsl(40,80%,50%)] border border-[hsl(45,90%,80%)]/40" />
+              <div className="h-4 w-5 rounded-xs bg-gradient-to-br from-[hsl(45,90%,75%)] to-[hsl(40,80%,50%)] border border-[hsl(45,90%,80%)]/40 shadow-xs" />
               <Wifi className="h-2.5 w-2.5 rotate-90 opacity-80" />
             </div>
-            <span className="text-[9px] font-bold tracking-wide truncate max-w-[60%] text-right">
+            <span className="text-[10px] font-bold tracking-wide truncate max-w-[65%] text-right drop-shadow-xs">
               {bank.name}
             </span>
           </div>
-          <div className="absolute left-2.5 right-2.5 bottom-2 flex items-end justify-between">
-            <span className="font-mono text-[10px] tracking-[0.15em] opacity-95">
+
+          <div className="flex items-end justify-between">
+            <span className="font-mono text-[10px] tracking-[0.15em] opacity-95 drop-shadow-xs">
               •••• {card.lastFour || "0000"}
             </span>
-            <span className="text-[9px] font-bold italic opacity-95">
+            <span className="text-[10px] font-bold italic opacity-95 drop-shadow-xs">
               {brandLabel(card.brand)}
             </span>
           </div>
         </div>
+      </div>
 
-        {/* Summary info */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-semibold text-foreground truncate">
-              {card.nickname || bank.name}
-            </p>
+      <CardContent className="p-3 pt-1 space-y-2.5">
+        {/* Nome do cartão e Status */}
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-bold text-foreground truncate">
+            {card.nickname || bank.name}
+          </p>
+          <div className="flex items-center gap-1 shrink-0">
+            {isPaid ? (
+              <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[9px] py-0 px-1.5 h-4">
+                Paga
+              </Badge>
+            ) : isOverdue ? (
+              <Badge variant="destructive" className="text-[9px] py-0 px-1.5 h-4">
+                Atrasada
+              </Badge>
+            ) : isDueToday ? (
+              <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[9px] py-0 px-1.5 h-4">
+                Hoje
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-[9px] py-0 px-1.5 h-4">
+                Aberta
+              </Badge>
+            )}
+
             {!readOnly && (
               <div
                 onClick={(e) => e.stopPropagation()}
@@ -176,98 +206,60 @@ const MiniCreditCard = React.forwardRef<HTMLDivElement, MiniCardProps>(({
                 />
               </div>
             )}
-
-
-
           </div>
+        </div>
 
+        {/* Informações financeiras */}
+        <div className="space-y-1 bg-muted/30 p-2 rounded-xl border border-border/40">
           <div className="flex items-baseline justify-between gap-2">
-            <span className="text-[10px] text-muted-foreground">Fatura atual</span>
-            <span className="text-sm font-bold text-foreground">
-              {mask(
-                fmt(
-                  paidTotal > 0.005 && paidTotal < invoiceTotal - 0.005
-                    ? Math.max(0, Number((invoiceTotal - paidTotal).toFixed(2)))
-                    : paidTotal >= invoiceTotal - 0.005 && invoiceTotal > 0
-                    ? paidTotal
-                    : invoiceTotal
-                )
-              )}
+            <span className="text-[10px] text-muted-foreground">Fatura</span>
+            <span className="text-xs sm:text-sm font-extrabold text-foreground tabular-nums">
+              {mask(fmt(invoiceTotal))}
             </span>
           </div>
 
-          {hasOpening && openingAmount > 0 && (
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="text-[10px] text-muted-foreground">Saldo inicial</span>
-              <span className="text-[11px] font-medium text-muted-foreground">
-                {mask(fmt(openingAmount))}
-              </span>
-            </div>
-          )}
-
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-[10px] text-muted-foreground">Valor pago da fatura</span>
-            <span className={`text-[11px] font-semibold tabular-nums ${paidTotal > 0 ? "text-success" : "text-muted-foreground"}`}>
-              {mask(fmt(paidTotal))}
+          <div className="flex items-baseline justify-between gap-2 text-[10px]">
+            <span className="text-muted-foreground">Disponível</span>
+            <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
+              {mask(fmt(available))}
             </span>
           </div>
 
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-[10px] text-muted-foreground">Disponível</span>
-            <span className="text-[11px] font-semibold text-success tabular-nums">
-              {mask(fmt(Math.max(0, card.creditLimit - pendingTotal)))}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
-            <span>Vence {format(dueDate, "dd 'de' MMM", { locale: ptBR })}</span>
+          <div className="flex items-center justify-between gap-2 text-[9px] text-muted-foreground pt-0.5 border-t border-border/30">
+            <span>Vence {format(dueDate, "dd/MM", { locale: ptBR })}</span>
             <span>Limite {mask(fmt(card.creditLimit))}</span>
           </div>
-
-          {/* Utilization bar */}
-          <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
-            <div
-              className={`h-full transition-all ${
-                utilization >= 90
-                  ? "bg-destructive"
-                  : utilization >= 70
-                  ? "bg-warning"
-                  : "bg-primary"
-              }`}
-              style={{ width: `${utilization}%` }}
-            />
-          </div>
-
-          {!readOnly && (
-            <div className="space-y-1 mt-1">
-              <Button data-mutation
-                variant="default"
-                size="sm"
-                className="w-full h-7 text-[11px]"
-                disabled={cyclePendingTotal <= 0}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPayInvoice?.();
-                }}
-              >
-                <CheckCircle className="h-3 w-3 mr-1" />
-                Pagar fatura do mês
-              </Button>
-              <Button data-mutation
-                variant="outline"
-                size="sm"
-                className="w-full h-7 text-[11px]"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAddOpening?.();
-                }}
-              >
-                <Receipt className="h-3 w-3 mr-1" />
-                {hasOpening ? "Editar fatura" : "Adicionar fatura"}
-              </Button>
-            </div>
-          )}
         </div>
+
+        {/* Botão de Ação Rápida */}
+        {!readOnly && (
+          <div className="pt-0.5">
+            <Button
+              variant={cyclePendingTotal > 0 ? "default" : "outline"}
+              size="sm"
+              className="w-full h-7 text-[11px] rounded-lg shadow-xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (cyclePendingTotal > 0 && onPayInvoice) {
+                  onPayInvoice();
+                } else {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  onClick(rect);
+                }
+              }}
+            >
+              {cyclePendingTotal > 0 ? (
+                <>
+                  <CheckCircle className="h-3 w-3 mr-1" /> Pagar Fatura
+                </>
+              ) : (
+                <>
+                  <Receipt className="h-3 w-3 mr-1" /> Ver Detalhes
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -465,9 +457,39 @@ export function CreditCardList({ readOnly = false, referenceMonth }: Props) {
     };
   }, [openingCard, invoiceByCard]);
 
+  // Métricas Consolidadas do Resumo
+  const summaryMetrics = useMemo(() => {
+    let totalInvoices = 0;
+    let totalPaid = 0;
+    let totalPending = 0;
+    let totalLimit = 0;
+    let totalAvailable = 0;
+    let paidInvoicesCount = 0;
+
+    cards.forEach((card) => {
+      const inv = invoiceByCard.get(card.id);
+      if (!inv) return;
+      totalInvoices += inv.total;
+      totalPaid += inv.paidTotal;
+      totalPending += inv.cyclePendingTotal;
+      totalLimit += card.creditLimit;
+      totalAvailable += Math.max(0, card.creditLimit - inv.pendingTotal);
+      if (inv.isPaid) paidInvoicesCount++;
+    });
+
+    return {
+      totalInvoices,
+      totalPaid,
+      totalPending,
+      totalLimit,
+      totalAvailable,
+      paidInvoicesCount,
+    };
+  }, [cards, invoiceByCard]);
+
   return (
     <div>
-      <div className="flex items-center justify-between gap-3 mb-4">
+      <div className="flex items-center justify-between gap-3 mb-3">
         <button
           type="button"
           onClick={() => emitAppUIEvent({ type: "NAVIGATE", tab: "expenses", subTab: "cards" })}
@@ -503,6 +525,62 @@ export function CreditCardList({ readOnly = false, referenceMonth }: Props) {
           )}
         </div>
       </div>
+
+      {/* Resumo Consolidado dos Cartões */}
+      {cards.length > 0 && !loading && (
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20 shadow-xs mb-3.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/40">
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-xl bg-primary/15 text-primary flex items-center justify-center font-bold shrink-0 shadow-xs">
+                <CreditCardIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+              </div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-bold text-foreground leading-tight">
+                  Resumo Geral dos Cartões
+                </h4>
+                <p className="text-[10px] text-muted-foreground">
+                  {summaryMetrics.paidInvoicesCount} de {cards.length} fatura(s) quitada(s)
+                </p>
+              </div>
+            </div>
+
+            <Button
+              onClick={() => emitAppUIEvent({ type: "NAVIGATE", tab: "expenses", subTab: "cards" })}
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs font-semibold rounded-xl bg-background/50 border-primary/30 text-primary hover:bg-primary/10 w-full sm:w-auto"
+            >
+              Painel Completo <ChevronRight className="h-3.5 w-3.5 ml-1" />
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-3">
+            <div className="p-2 sm:p-2.5 rounded-xl bg-background/60 border border-border/40">
+              <p className="text-[10px] text-muted-foreground uppercase font-medium">Total Faturas</p>
+              <p className="text-xs sm:text-sm font-extrabold text-foreground tabular-nums mt-0.5">
+                {mask(fmt(summaryMetrics.totalInvoices))}
+              </p>
+            </div>
+
+            <div className="p-2 sm:p-2.5 rounded-xl bg-background/60 border border-border/40">
+              <p className="text-[10px] text-muted-foreground uppercase font-medium">A Pagar</p>
+              <p className="text-xs sm:text-sm font-extrabold text-amber-600 dark:text-amber-400 tabular-nums mt-0.5">
+                {mask(fmt(summaryMetrics.totalPending))}
+              </p>
+            </div>
+
+            <div className="col-span-2 sm:col-span-1 p-2 sm:p-2.5 rounded-xl bg-background/60 border border-border/40">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] text-muted-foreground uppercase font-medium">Limite Disp.</p>
+                <span className="text-[9px] text-muted-foreground">Total: {mask(fmt(summaryMetrics.totalLimit))}</span>
+              </div>
+              <p className="text-xs sm:text-sm font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums mt-0.5">
+                {mask(fmt(summaryMetrics.totalAvailable))}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="text-center text-muted-foreground py-12">Carregando...</div>
