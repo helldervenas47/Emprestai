@@ -199,30 +199,35 @@ export function WhatsappMessageTemplatesCard() {
       sublabel: "Aviso prévio antes do vencimento",
       icon: Clock,
       badge: "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20",
+      headerBg: "bg-sky-600 dark:bg-sky-700",
     },
     due_today: {
       label: "Vence Hoje",
       sublabel: "Lembrete no dia do vencimento",
       icon: AlertCircle,
       badge: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+      headerBg: "bg-amber-600 dark:bg-amber-700",
     },
     overdue: {
       label: "Vencido",
       sublabel: "Cobrança de parcela em atraso",
       icon: AlertTriangle,
       badge: "bg-destructive/10 text-destructive border-destructive/20",
+      headerBg: "bg-rose-600 dark:bg-rose-700",
     },
     very_overdue: {
       label: "Muito Atrasado",
       sublabel: `Atraso crítico (≥ ${draft.very_overdue_days} dias)`,
       icon: AlertTriangle,
       badge: "bg-destructive/20 text-destructive border-destructive/30",
+      headerBg: "bg-red-700 dark:bg-red-800",
     },
     manager: {
       label: "Resumo Gerente",
       sublabel: "Resumo semanal com vencimentos da equipe",
       icon: Users,
       badge: "bg-primary/10 text-primary border-primary/20",
+      headerBg: "bg-purple-600 dark:bg-purple-700",
     },
   };
 
@@ -358,6 +363,8 @@ export function WhatsappMessageTemplatesCard() {
                           return { ...d, message_very_overdue: val };
                         case "manager":
                           return { ...d, message_manager_weekly: val };
+                        default:
+                          return d;
                       }
                     });
                   }}
@@ -395,6 +402,7 @@ export function WhatsappMessageTemplatesCard() {
                 recipientPhone={activeTab === "manager" ? "+55 (11) 97777-6666" : "+55 (11) 98765-4321"}
                 message={previewRendered}
                 time="09:00"
+                headerBgClass={tabConfig[activeTab].headerBg}
               />
             </div>
           </div>
