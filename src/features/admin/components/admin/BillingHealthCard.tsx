@@ -68,13 +68,39 @@ export function BillingHealthCard() {
   const getHealthBadge = (health?: string) => {
     switch (health) {
       case "OK":
-        return <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" /> 🟢 Operacional</Badge>;
+        return (
+          <>
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-sm shrink-0 sm:hidden" title="Operacional" />
+            <Badge className="hidden sm:inline-flex bg-emerald-600 hover:bg-emerald-700 text-white items-center gap-1 font-semibold text-xs">
+              <CheckCircle2 className="h-3.5 w-3.5" /> 🟢 Operacional
+            </Badge>
+          </>
+        );
       case "DEGRADED":
-        return <Badge className="bg-amber-600 hover:bg-amber-700 text-white flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> 🟡 Atenção</Badge>;
+        return (
+          <>
+            <span className="h-2.5 w-2.5 rounded-full bg-amber-500 shadow-sm shrink-0 sm:hidden" title="Atenção" />
+            <Badge className="hidden sm:inline-flex bg-amber-600 hover:bg-amber-700 text-white items-center gap-1 font-semibold text-xs">
+              <AlertTriangle className="h-3.5 w-3.5" /> 🟡 Atenção
+            </Badge>
+          </>
+        );
       case "ERROR":
-        return <Badge className="bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1"><XCircle className="h-3.5 w-3.5" /> 🔴 Problema Crítico</Badge>;
+        return (
+          <>
+            <span className="h-2.5 w-2.5 rounded-full bg-rose-500 shadow-sm shrink-0 sm:hidden" title="Problema Crítico" />
+            <Badge className="hidden sm:inline-flex bg-rose-600 hover:bg-rose-700 text-white items-center gap-1 font-semibold text-xs">
+              <XCircle className="h-3.5 w-3.5" /> 🔴 Problema Crítico
+            </Badge>
+          </>
+        );
       default:
-        return <Badge variant="outline">Consultando...</Badge>;
+        return (
+          <>
+            <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground shadow-sm shrink-0 sm:hidden" title="Consultando..." />
+            <Badge variant="outline" className="hidden sm:inline-flex text-xs">Consultando...</Badge>
+          </>
+        );
     }
   };
 
@@ -82,12 +108,12 @@ export function BillingHealthCard() {
     <Card className="border-border/60 shadow-sm">
       <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3">
         <div className="space-y-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
             <Activity className="h-5 w-5 text-primary shrink-0" />
             <CardTitle className="text-base sm:text-lg font-semibold tracking-tight">
               Monitoramento & Saúde do Billing
             </CardTitle>
-            {data && getHealthBadge(data.overall_health)}
+            {getHealthBadge(data?.overall_health)}
           </div>
           <CardDescription className="text-xs">
             Diagnóstico em tempo real da integração Asaas, conciliação e integridade de assinaturas.
