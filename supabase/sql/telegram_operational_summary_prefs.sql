@@ -30,11 +30,12 @@ DO $$ BEGIN PERFORM cron.unschedule('telegram-operational-summary'); EXCEPTION W
 
 SELECT cron.schedule(
   'telegram-operational-summary',
-  '*/15 * * * *',
+  '*/10 * * * *',
   $$ SELECT net.http_post(
-    url := 'https://syyxnqzxqabeuqbuptkh.supabase.co/functions/v1/telegram-operational-summary',
+    url := 'https://lcjelojqxpnphupsnmuq.supabase.co/functions/v1/telegram-operational-summary',
     headers := '{"Content-Type":"application/json"}'::jsonb,
     body := '{}'::jsonb,
     timeout_milliseconds := 45000
   ); $$
 );
+

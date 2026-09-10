@@ -19,7 +19,8 @@ DECLARE
     'telegram-manager-weekly-summary',
     'incomes-expenses-summary',
     'daily-planning-summary',
-    'send-personal-insights-telegram'
+    'send-personal-insights-telegram',
+    'telegram-operational-summary'
   ];
 BEGIN
   FOREACH job_name IN ARRAY names LOOP
@@ -36,6 +37,7 @@ SELECT cron.schedule('telegram-manager-weekly-summary', '*/15 * * * *', $$ SELEC
 SELECT cron.schedule('incomes-expenses-summary', '*/10 * * * *', $$ SELECT net.http_post(url := 'https://lcjelojqxpnphupsnmuq.supabase.co/functions/v1/incomes-expenses-summary', headers := '{"Content-Type":"application/json"}'::jsonb, body := '{}'::jsonb, timeout_milliseconds := 45000); $$);
 SELECT cron.schedule('daily-planning-summary', '*/5 * * * *', $$ SELECT net.http_post(url := 'https://lcjelojqxpnphupsnmuq.supabase.co/functions/v1/daily-planning-summary', headers := '{"Content-Type":"application/json"}'::jsonb, body := '{}'::jsonb, timeout_milliseconds := 45000); $$);
 SELECT cron.schedule('send-personal-insights-telegram', '*/5 * * * *', $$ SELECT net.http_post(url := 'https://lcjelojqxpnphupsnmuq.supabase.co/functions/v1/send-personal-insights-telegram', headers := '{"Content-Type":"application/json"}'::jsonb, body := '{}'::jsonb, timeout_milliseconds := 45000); $$);
+SELECT cron.schedule('telegram-operational-summary', '*/10 * * * *', $$ SELECT net.http_post(url := 'https://lcjelojqxpnphupsnmuq.supabase.co/functions/v1/telegram-operational-summary', headers := '{"Content-Type":"application/json"}'::jsonb, body := '{}'::jsonb, timeout_milliseconds := 45000); $$);
 
 -- Verificar depois:
 -- SELECT jobname, schedule, active FROM cron.job ORDER BY jobname;
