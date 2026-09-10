@@ -12,6 +12,8 @@ import {
   EyeOff,
   ShieldCheck,
   CalendarClock,
+  Wifi,
+  ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -38,6 +40,7 @@ import { captureScroll } from "@/features/loans/lib/preserveScroll";
 interface CreditCardsDashboardTabProps {
   readOnly?: boolean;
   initialMonth?: string;
+  onBack?: () => void;
 }
 
 const fmt = (v: number) =>
@@ -46,6 +49,7 @@ const fmt = (v: number) =>
 export function CreditCardsDashboardTab({
   readOnly = false,
   initialMonth,
+  onBack,
 }: CreditCardsDashboardTabProps) {
   const currentMonthKey = useMemo(() => format(new Date(), "yyyy-MM"), []);
   const [selectedMonth, setSelectedMonth] = useState<string>(
@@ -140,7 +144,7 @@ export function CreditCardsDashboardTab({
         Number((itemsPaid + (openingPaidFlag ? openingAmount : 0)).toFixed(2));
       const pendingTotal = Math.max(0, invoiceTotal - paidTotal);
 
-      const limit = Number(card.limit ?? 0);
+      const limit = Number(card.creditLimit ?? 0);
       const available = Math.max(0, limit - pendingTotal);
 
       // Status da fatura
@@ -194,7 +198,7 @@ export function CreditCardsDashboardTab({
     });
 
     const usedPercentage =
-      totalLimits > 0 ? Math.min(100, Math.round((totalInvoices / totalLimits) * 100)) : 0;
+      totalLimits > 0 ? Math.min(100, Math.round((totalPending / totalLimits) * 100)) : 0;
 
     return {
       totalInvoices,
@@ -228,28 +232,31 @@ export function CreditCardsDashboardTab({
           .filter((e) => e.scope === "personal")
           .filter((e) => belongsToCardInvoice(e, card, cycle.from, cycle.to));
 
-        const amount = inCycleExpenses.reduce((s, e) => s + invoiceItemValue(e), 0);
-        if (amount > 0) {
-          totalMonth += amount;
+        const cardTotal = inCycleExpenses.reduce((s, e) => s + invoiceItemValue(e), 0);
+        if (cardTotal > 0) {
+          totalMonth += cardTotal;
           cardBreakdown.push({
-            cardName: card.nickname || card.bank || `Final ${card.lastFour}`,
-            amount,
+            cardName: card.nickname || getBank(card.bank).name,
+            amount: cardTotal,
           });
         }
       });
 
       projections.push({
         monthKey,
+        monthDate,
         label: format(monthDate, "MMMM 'de' yyyy", { locale: ptBR }),
         shortLabel: format(monthDate, "MMM/yy", { locale: ptBR }),
         total: totalMonth,
-        cardBreakdown,
+        cardsCount: cardBreakdown.length,
+        breakdown: cardBreakdown,
         isCurrent: offset === 0,
+        isSelected: monthKey === selectedMonth,
       });
     }
 
     return projections;
-  }, [cards, expandedAll]);
+  }, [cards, expandedAll, selectedMonth]);
 
   const openInvoiceDetail = (card: CreditCard) => {
     captureScroll();
@@ -265,8 +272,22 @@ export function CreditCardsDashboardTab({
 
   return (
     <div className="space-y-5">
+      {/* Botão de Retorno se chamado de outra tela */}
+      {onBack && (
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onBack}
+            className="text-xs text-muted-foreground hover:text-foreground pl-1 pr-3"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1.5" /> Voltar para Despesas
+          </Button>
+        </div>
+      )}
+
       {/* Header Geral da Aba de Cartões */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20 shadow-xs">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-primary/15 text-primary flex items-center justify-center font-bold shadow-xs shrink-0">
             <CreditCardIcon className="h-5 w-5 sm:h-6 sm:w-6" />
@@ -281,13 +302,13 @@ export function CreditCardsDashboardTab({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto shrink-0">
           {inactiveCards.length > 0 && (
             <Button
               onClick={() => setShowInactive((v) => !v)}
               size="sm"
               variant="outline"
-              className="h-9 text-xs font-semibold rounded-xl"
+              className="h-10 sm:h-9 w-full sm:w-auto text-xs font-semibold rounded-xl"
             >
               <EyeOff className="h-3.5 w-3.5 mr-1.5" />
               {showInactive ? "Ocultar inativos" : `Inativos (${inactiveCards.length})`}
@@ -301,7 +322,7 @@ export function CreditCardsDashboardTab({
                 setShowForm(true);
               }}
               size="sm"
-              className="h-9 text-xs font-semibold rounded-xl bg-primary shadow-xs"
+              className="h-10 sm:h-9 w-full sm:w-auto text-xs font-semibold rounded-xl bg-primary shadow-xs justify-center flex items-center"
             >
               <Plus className="h-4 w-4 mr-1" /> Novo Cartão
             </Button>
@@ -312,11 +333,12 @@ export function CreditCardsDashboardTab({
       {/* Seletor de Período (Mês Atual, Próximos Meses e Anteriores) */}
       <div className="space-y-2.5 p-3.5 sm:p-4 rounded-2xl bg-card border border-border/60 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+          {/* Card de Mês ocupando todo o espaço entre as setas */}
+          <div className="flex items-center gap-2 w-full">
             <Button
               variant="outline"
               size="icon"
-              className="h-8 w-8 rounded-xl shrink-0"
+              className="h-9 w-9 rounded-xl shrink-0"
               onClick={handlePrevMonth}
               title="Mês Anterior"
               aria-label="Mês Anterior"
@@ -324,36 +346,30 @@ export function CreditCardsDashboardTab({
               <ChevronLeft className="h-4 w-4" />
             </Button>
 
-            <div className="px-3 py-1 rounded-xl bg-primary/10 border border-primary/20 text-center min-w-[170px]">
-              <span className="text-xs sm:text-sm font-bold text-primary capitalize">
+            <button
+              type="button"
+              onClick={handleCurrentMonth}
+              className="flex-1 px-3 py-2 rounded-xl bg-primary/10 hover:bg-primary/15 active:scale-[0.99] border border-primary/20 text-center transition-all cursor-pointer w-full"
+              title="Clique para voltar ao mês atual"
+            >
+              <span className="text-xs sm:text-sm font-bold text-primary capitalize block truncate">
                 {format(selectedDate, "MMMM 'de' yyyy", { locale: ptBR })}
               </span>
-            </div>
+            </button>
 
             <Button
               variant="outline"
               size="icon"
-              className="h-8 w-8 rounded-xl shrink-0"
+              className="h-9 w-9 rounded-xl shrink-0"
               onClick={handleNextMonth}
               title="Próximo Mês"
               aria-label="Próximo Mês"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
-
-            {selectedMonth !== currentMonthKey && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 px-2.5 text-xs font-semibold text-primary hover:bg-primary/10 rounded-xl ml-1"
-                onClick={handleCurrentMonth}
-              >
-                Mês Atual
-              </Button>
-            )}
           </div>
 
-          <div className="text-xs text-muted-foreground flex items-center gap-2">
+          <div className="text-xs text-muted-foreground flex items-center gap-2 shrink-0">
             <span>Competência de Vencimento</span>
             {selectedMonth === currentMonthKey && (
               <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-[10px] py-0 px-1.5">
@@ -449,10 +465,10 @@ export function CreditCardsDashboardTab({
         <div className="p-3.5 sm:p-4 rounded-2xl bg-card border border-border/60 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-muted-foreground mb-1">
             <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Limite Disponível</span>
-            <ShieldCheck className="h-4 w-4 text-primary" />
+            <ShieldCheck className="h-4 w-4 text-emerald-500" />
           </div>
           <div>
-            <p className="text-base sm:text-xl font-extrabold text-primary tabular-nums">
+            <p className="text-base sm:text-xl font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
               {mask(fmt(consolidatedMetrics.totalAvailable))}
             </p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -462,26 +478,80 @@ export function CreditCardsDashboardTab({
         </div>
       </div>
 
-      {/* Lista / Grid de Cartões no Mês Selecionado */}
+      {/* Projeção de Faturas dos Próximos Meses */}
+      <Card no3d className="rounded-2xl border border-border/60 overflow-hidden shadow-xs">
+        <CardHeader className="p-4 sm:p-5 pb-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CalendarClock className="h-5 w-5 text-primary" />
+              <div>
+                <CardTitle className="text-sm sm:text-base font-bold text-foreground">
+                  Projeção de Faturas Futuras (Próximos 6 Meses)
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                  Previsão consolidada de parcelas futuras e gastos recorrentes já programados.
+                </CardDescription>
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-4 sm:p-5 pt-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
+            {futureProjections.map((proj) => (
+              <button
+                key={proj.monthKey}
+                type="button"
+                onClick={() => setSelectedMonth(proj.monthKey)}
+                className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between min-h-[90px] cursor-pointer ${
+                  proj.isSelected
+                    ? "bg-primary/10 border-primary shadow-xs ring-1 ring-primary/30"
+                    : "bg-muted/20 hover:bg-muted/40 border-border/60"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-xs font-bold capitalize text-foreground">
+                      {proj.shortLabel}
+                    </span>
+                    {proj.isCurrent && (
+                      <Badge variant="outline" className="text-[9px] py-0 px-1 bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                        Atual
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {proj.cardsCount} {proj.cardsCount === 1 ? "cartão c/ gasto" : "cartões"}
+                  </p>
+                </div>
+
+                <p className="text-sm font-extrabold text-foreground tabular-nums mt-2">
+                  {mask(fmt(proj.total))}
+                </p>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Lista Principal de Cartões com Faturas do Mês Selecionado */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
+        <div className="flex items-center justify-between">
           <h3 className="text-sm sm:text-base font-bold text-foreground flex items-center gap-2">
-            <CreditCardIcon className="h-4 w-4 text-primary" />
-            Faturas por Cartão em{" "}
-            <span className="capitalize">{format(selectedDate, "MMMM 'de' yyyy", { locale: ptBR })}</span>
+            <span>Faturas e Limites por Cartão</span>
+            <Badge variant="secondary" className="text-xs font-medium">
+              {cards.length} {cards.length === 1 ? "cartão" : "cartões"}
+            </Badge>
           </h3>
-          <span className="text-xs text-muted-foreground">
-            {cardDataForSelectedMonth.length} {cardDataForSelectedMonth.length === 1 ? "cartão" : "cartões"}
-          </span>
         </div>
 
         {loading ? (
-          <div className="text-center py-12 text-muted-foreground text-sm">Carregando cartões...</div>
-        ) : cardDataForSelectedMonth.length === 0 ? (
-          <Card className="border-dashed p-8 text-center bg-muted/10">
-            <CreditCardIcon className="h-10 w-10 mx-auto text-muted-foreground/40 mb-2" />
-            <p className="text-sm font-semibold text-foreground">Nenhum cartão ativo encontrado</p>
-            <p className="text-xs text-muted-foreground mt-1 mb-4">
+          <div className="text-center text-muted-foreground py-12">Carregando cartões e faturas...</div>
+        ) : cards.length === 0 ? (
+          <div className="text-center py-16 px-4 rounded-2xl border border-dashed border-border/60 bg-muted/10">
+            <CreditCardIcon className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
+            <h4 className="text-base font-semibold text-foreground mb-1">Nenhum cartão ativo cadastrado</h4>
+            <p className="text-xs text-muted-foreground mb-4 max-w-sm mx-auto">
               Cadastre seus cartões de crédito para acompanhar faturas e limites consolidados.
             </p>
             {!readOnly && (
@@ -490,13 +560,12 @@ export function CreditCardsDashboardTab({
                   setEditingCard(null);
                   setShowForm(true);
                 }}
-                size="sm"
-                className="rounded-xl"
+                className="bg-primary shadow-xs"
               >
-                <Plus className="h-4 w-4 mr-1" /> Cadastrar Cartão
+                <Plus className="h-4 w-4 mr-1" /> Cadastrar Primeiro Cartão
               </Button>
             )}
-          </Card>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
             {cardDataForSelectedMonth.map((item) => {
@@ -520,32 +589,33 @@ export function CreditCardsDashboardTab({
                   {/* Cartão Visual com Estilo do Banco */}
                   <div className="p-3.5 pb-2">
                     <div
-                      className="p-3.5 rounded-xl text-white shadow-xs relative overflow-hidden flex flex-col justify-between min-h-[110px]"
-                      style={{
-                        background: bank?.gradient || "linear-gradient(135deg, #1e293b, #0f172a)",
-                      }}
+                      className={`${bank.gradient} ${bank.textClass} relative aspect-[1.586/1] w-full rounded-xl p-3.5 shadow-sm overflow-hidden flex flex-col justify-between`}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-xs tracking-wider uppercase drop-shadow-xs">
-                          {card.nickname || bank?.name || "Cartão"}
+                      <div className="pointer-events-none absolute -top-6 -right-6 h-24 w-24 rounded-full bg-white/10 blur-xl" />
+                      
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <div className="h-5 w-6 rounded-sm bg-gradient-to-br from-[hsl(45,90%,75%)] to-[hsl(40,80%,50%)] border border-[hsl(45,90%,80%)]/40 shadow-xs" />
+                          <Wifi className="h-3 w-3 rotate-90 opacity-80" />
+                        </div>
+                        <span className="text-xs font-bold tracking-wide truncate max-w-[65%] text-right drop-shadow-xs">
+                          {card.nickname || bank.name}
                         </span>
-                        <Badge
-                          variant="outline"
-                          className="bg-black/30 border-white/20 text-white text-[10px] px-2 py-0 font-medium"
-                        >
-                          {brandLabel(card.brand)}
-                        </Badge>
                       </div>
 
-                      <div className="flex items-end justify-between pt-3">
-                        <div className="font-mono text-xs text-white/90 tracking-widest drop-shadow-xs">
-                          •••• {card.lastFour || "••••"}
+                      <div className="flex items-end justify-between">
+                        <div>
+                          <div className="font-mono text-xs sm:text-sm tracking-[0.15em] opacity-95 drop-shadow-xs">
+                            •••• {card.lastFour || "0000"}
+                          </div>
+                          <div className="text-[10px] opacity-80 mt-0.5">
+                            Vence dia {card.dueDay} ({format(cycle.dueDate, "dd/MM", { locale: ptBR })})
+                          </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-[9px] text-white/70 uppercase">Vencimento</p>
-                          <p className="font-semibold text-xs drop-shadow-xs">
-                            Dia {card.dueDay} ({format(cycle.dueDate, "dd/MM")})
-                          </p>
+                          <span className="text-xs font-bold italic opacity-95 drop-shadow-xs">
+                            {brandLabel(card.brand)}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -598,12 +668,14 @@ export function CreditCardsDashboardTab({
                       </div>
                     </div>
 
-                    {/* Limite Utilizado */}
+                    {/* Limite Total e Disponível */}
                     {limit > 0 && (
-                      <div className="space-y-1 pt-1">
-                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                          <span>Limite: {mask(fmt(limit))}</span>
-                          <span>Disp: {mask(fmt(item.available))}</span>
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-muted-foreground">Limite: {mask(fmt(limit))}</span>
+                          <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                            Disponível: {mask(fmt(item.available))}
+                          </span>
                         </div>
                         <Progress
                           value={Math.min(100, Math.round((pendingTotal / limit) * 100))}
@@ -643,89 +715,43 @@ export function CreditCardsDashboardTab({
         )}
       </div>
 
-      {/* Projeção de Parcelas e Compromissos Futuros */}
-      <Card no3d className="border-border/60 shadow-xs rounded-2xl overflow-hidden">
-        <CardHeader className="p-4 sm:p-5 pb-3">
-          <CardTitle className="text-base font-bold flex items-center gap-2">
-            <CalendarClock className="h-5 w-5 text-primary" />
-            Projeção de Faturas Futuras (Próximos Meses)
-          </CardTitle>
-          <CardDescription className="text-xs">
-            Acompanhe o valor de compras parceladas já lançadas e compromissadas para os próximos ciclos.
-          </CardDescription>
-        </CardHeader>
+      {/* Modais de Formulário, Fatura e Exclusão */}
+      <CreditCardForm
+        open={showForm}
+        onOpenChange={setShowForm}
+        initialData={editingCard}
+      />
 
-        <CardContent className="p-4 sm:p-5 pt-0">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-            {futureProjections.map((proj) => {
-              const isSelected = proj.monthKey === selectedMonth;
-              return (
-                <button
-                  key={proj.monthKey}
-                  type="button"
-                  onClick={() => setSelectedMonth(proj.monthKey)}
-                  className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between min-h-[90px] ${
-                    isSelected
-                      ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40"
-                      : "border-border/50 bg-muted/20 hover:bg-muted/40 hover:border-primary/30"
-                  }`}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-[11px] font-bold uppercase text-muted-foreground tracking-wider">
-                      {proj.shortLabel}
-                    </span>
-                    {proj.isCurrent && (
-                      <span className="h-2 w-2 rounded-full bg-emerald-500" title="Mês Atual" />
-                    )}
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-bold text-foreground tabular-nums">
-                      {mask(fmt(proj.total))}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground truncate">
-                      {proj.cardBreakdown.length > 0
-                        ? `${proj.cardBreakdown.length} cartão(ões)`
-                        : "Sem lançamentos"}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Modais e Dialogs de Fatura e Cartão */}
       {invoiceCard && (
         <CreditCardInvoice
           card={invoiceCard}
-          onClose={() => setInvoiceCard(null)}
-          referenceMonth={selectedMonth}
+          open={!!invoiceCard}
+          onOpenChange={(open) => {
+            if (!open) {
+              setInvoiceCard(null);
+              setInvoiceAutoOpenPayment(false);
+            }
+          }}
           autoOpenPayment={invoiceAutoOpenPayment}
-        />
-      )}
-
-      {showForm && (
-        <CreditCardForm
-          open={showForm}
-          onClose={() => setShowForm(false)}
-          initial={editingCard}
+          readOnly={readOnly}
+          referenceMonth={selectedMonth}
         />
       )}
 
       {deletingCard && (
         <ConfirmDeleteDialog
-          open={Boolean(deletingCard)}
-          onClose={() => setDeletingCard(null)}
-          onConfirm={async () => {
+          open={!!deletingCard}
+          onOpenChange={(open) => !open && setDeletingCard(null)}
+          onConfirm={() => {
             if (deletingCard) {
-              await deleteCard(deletingCard.id);
+              deleteCard(deletingCard.id);
               setDeletingCard(null);
             }
           }}
-          title="Excluir Cartão"
-          description={`Tem certeza que deseja excluir o cartão ${deletingCard.nickname || deletingCard.bank}? Os lançamentos associados não serão apagados.`}
+          title="Excluir Cartão de Crédito"
+          description={`Tem certeza que deseja excluir o cartão "${
+            deletingCard.nickname || getBank(deletingCard.bank).name
+          }"? Todas as faturas associadas também deixarão de ser vinculadas a este cartão.`}
         />
       )}
     </div>

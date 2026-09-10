@@ -1742,24 +1742,13 @@ const Index = () => {
                         <button
                           onClick={() => setIncExpTab("expenses")}
                           className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                            incExpTab === "expenses"
+                            incExpTab === "expenses" || incExpTab === "cards"
                               ? "bg-background !text-primary shadow-sm"
                               : "text-muted-foreground hover:text-foreground"
                           }`}
                         >
                           <Receipt className="h-4 w-4 shrink-0" />
                           <span className="truncate">Despesas</span>
-                        </button>
-                        <button
-                          onClick={() => setIncExpTab("cards")}
-                          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                            incExpTab === "cards"
-                              ? "bg-background !text-primary shadow-sm"
-                              : "text-muted-foreground hover:text-foreground"
-                          }`}
-                        >
-                          <CreditCard className="h-4 w-4 shrink-0" />
-                          <span className="truncate">Cartões</span>
                         </button>
                       </div>
 
@@ -1769,7 +1758,7 @@ const Index = () => {
                         </ModuleErrorBoundary>
                       ) : incExpTab === "cards" ? (
                         <ModuleErrorBoundary name="Cartões de Crédito">
-                          <CreditCardsDashboardTab readOnly={isReadOnly} />
+                          <CreditCardsDashboardTab readOnly={isReadOnly} onBack={() => setIncExpTab("expenses")} />
                         </ModuleErrorBoundary>
                       ) : (
 
