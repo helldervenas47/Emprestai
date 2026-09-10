@@ -2,14 +2,12 @@ import { useMemo, useState } from "react";
 import { Sale, SalePaymentRecord } from "@/types/loan";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Receipt, User, CreditCard, Calendar as CalendarIcon, TrendingUp } from "lucide-react";
+import { Receipt, User, CreditCard, Calendar as CalendarIcon, TrendingUp } from "lucide-react";
 import { useHideValues } from "@/contexts/HideValuesContext";
 import { usePaymentMethods } from "@/hooks/usePaymentMethods";
 import { parseNotesWithMerchandise } from "@/features/sales/lib/saleMerchandise";
+import { MonthNavigator, formatMonthLabel } from "@/components/ui/month-navigator";
 
 interface Movement {
   id: string;
@@ -28,14 +26,11 @@ function fmt(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 }
 
-const monthLabels = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-
 export function SalesLedger({ sales }: { sales: Sale[] }) {
   const { hidden: hideValues } = useHideValues();
   const { methods } = usePaymentMethods();
   const today = new Date();
-  const [year, setYear] = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth()); // 0-11
+  const [monthKey, setMonthKey] = useState(() => format(today, "yyyy-MM"));
 
   const methodNameById = useMemo(() => {
     const m = new Map<string, string>();
@@ -106,32 +101,16 @@ export function SalesLedger({ sales }: { sales: Sale[] }) {
   }, [sales, methodNameById]);
 
   const filtered = useMemo(() => {
-    return movements.filter((m) => {
-      const d = parseISO(m.date);
-      return d.getFullYear() === year && d.getMonth() === month;
-    });
-  }, [movements, year, month]);
+    return movements.filter((m) => m.date.startsWith(monthKey));
+  }, [movements, monthKey]);
 
   const total = filtered.reduce((s, m) => s + m.amount, 0);
   const count = filtered.length;
 
-  const years = useMemo(() => {
-    const set = new Set<number>([today.getFullYear()]);
-    movements.forEach((m) => set.add(parseISO(m.date).getFullYear()));
-    return Array.from(set).sort((a, b) => b - a);
-  }, [movements]);
-
-  const goPrev = () => {
-    if (month === 0) { setMonth(11); setYear((y) => y - 1); } else setMonth((m) => m - 1);
-  };
-  const goNext = () => {
-    if (month === 11) { setMonth(0); setYear((y) => y + 1); } else setMonth((m) => m + 1);
-  };
-
   const statusBadge = (s: Movement["status"]) => {
-    if (s === "paid") return <Badge className="bg-success/20 text-success border-success/30 text-[10px]">Pago</Badge>;
-    if (s === "partial") return <Badge className="bg-warning/20 text-warning border-warning/30 text-[10px]">Parcial</Badge>;
-    return <Badge className="bg-muted/40 text-muted-foreground border-border text-[10px]">Pendente</Badge>;
+    if (s === "paid") return <Badge className="bg-success/15 text-success border-success/30 text-[9px] px-1.5 py-0 h-4 font-semibold">Pago</Badge>;
+    if (s === "partial") return <Badge className="bg-warning/15 text-warning border-warning/30 text-[9px] px-1.5 py-0 h-4 font-semibold">Parcial</Badge>;
+    return <Badge className="bg-muted/40 text-muted-foreground border-border text-[9px] px-1.5 py-0 h-4 font-semibold">Pendente</Badge>;
   };
 
   const typeLabel = (t: Movement["type"]) =>
@@ -139,44 +118,21 @@ export function SalesLedger({ sales }: { sales: Sale[] }) {
 
   return (
     <div className="space-y-4">
-      {/* Filtro por mês/ano */}
+      {/* Filtro por mês padrão do app + Resumo */}
       <Card no3d className="border border-border/50">
         <CardContent className="p-3 sm:p-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" className="h-9 w-9" onClick={goPrev} aria-label="Mês anterior">
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="flex items-center gap-2 flex-1">
-                <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
-                  <SelectTrigger className="h-9 w-[110px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {monthLabels.map((label, idx) => (
-                      <SelectItem key={idx} value={String(idx)}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-                  <SelectTrigger className="h-9 w-[100px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {years.map((y) => (
-                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button variant="outline" size="icon" className="h-9 w-9" onClick={goNext} aria-label="Próximo mês">
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+            <div className="w-full sm:w-auto sm:min-w-[280px]">
+              <MonthNavigator value={monthKey} onChange={setMonthKey} className="w-full" />
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:gap-3">
-              <div className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2 text-center">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Movimentos</p>
-                <p className="text-sm font-bold text-foreground">{count}</p>
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 w-full sm:w-auto">
+              <div className="rounded-xl border border-border/50 bg-muted/20 px-3 py-2 text-center flex-1">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Movimentos</p>
+                <p className="text-sm sm:text-base font-bold text-foreground">{count}</p>
               </div>
-              <div className="rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-center">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total recebido</p>
-                <p className="text-sm font-bold text-success">{hideValues ? "•••" : fmt(total)}</p>
+              <div className="rounded-xl border border-success/30 bg-success/10 px-3 py-2 text-center flex-1">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Total recebido</p>
+                <p className="text-sm sm:text-base font-bold text-success">{hideValues ? "•••" : fmt(total)}</p>
               </div>
             </div>
           </div>
@@ -194,37 +150,35 @@ export function SalesLedger({ sales }: { sales: Sale[] }) {
         </Card>
       ) : (
         <>
-          {/* Mobile: cards */}
-          <div className="space-y-2 sm:hidden">
+          {/* Mobile: linhas simplificadas e compactas */}
+          <div className="space-y-1.5 sm:hidden">
             {filtered.map((m) => (
-              <Card key={m.id} no3d className="border border-border/50">
-                <CardContent className="p-3 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{m.customerName}</p>
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <p className="text-xs text-muted-foreground truncate">{m.description}</p>
-                        {m.isAvulsa && (
-                          <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-primary/40 text-primary shrink-0">Avulsa</Badge>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-sm font-bold text-success tabular-nums">{hideValues ? "•••" : fmt(m.amount)}</p>
-                      <p className="text-[10px] text-muted-foreground">{format(parseISO(m.date), "dd/MM/yyyy")}</p>
-                    </div>
+              <div
+                key={m.id}
+                className="rounded-xl border border-border/50 bg-card px-3 py-2 shadow-xs hover:border-primary/30 transition-colors space-y-1"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-foreground truncate">{m.customerName}</p>
+                    {m.isAvulsa && (
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 border-primary/40 text-primary shrink-0">Avulsa</Badge>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground min-w-0">
-                      <CreditCard className="h-3 w-3 shrink-0" />
-                      <span className="truncate">{m.paymentMethodName}</span>
-                      <span className="text-muted-foreground/50">·</span>
-                      <span className="truncate">{typeLabel(m.type)}</span>
-                    </div>
+                  <p className="text-xs font-bold text-success tabular-nums shrink-0">{hideValues ? "•••" : fmt(m.amount)}</p>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                  <div className="flex items-center gap-1.5 min-w-0 truncate">
+                    <span className="truncate">{m.description}</span>
+                    <span className="text-muted-foreground/40">·</span>
+                    <span className="truncate">{m.paymentMethodName}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[10px] text-muted-foreground">{format(parseISO(m.date), "dd/MM/yyyy")}</span>
                     {statusBadge(m.status)}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ))}
           </div>
 
@@ -265,7 +219,7 @@ export function SalesLedger({ sales }: { sales: Sale[] }) {
                 </tbody>
                 <tfoot className="bg-muted/20 font-semibold">
                   <tr>
-                    <td colSpan={5} className="px-4 py-2.5 text-right text-muted-foreground">Total ({format(new Date(year, month, 1), "MMMM 'de' yyyy", { locale: ptBR })})</td>
+                    <td colSpan={5} className="px-4 py-2.5 text-right text-muted-foreground">Total ({formatMonthLabel(monthKey)})</td>
                     <td className="px-4 py-2.5 text-right text-success tabular-nums">{hideValues ? "•••" : fmt(total)}</td>
                     <td />
                   </tr>
@@ -278,3 +232,4 @@ export function SalesLedger({ sales }: { sales: Sale[] }) {
     </div>
   );
 }
+
