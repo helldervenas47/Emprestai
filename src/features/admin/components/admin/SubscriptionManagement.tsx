@@ -251,7 +251,7 @@ export function SubscriptionManagement() {
         <CardContent className="space-y-3">
           <div className="flex flex-col sm:flex-row gap-2">
             <Input
-              placeholder="Buscar cliente por nome ou e-mail"
+              placeholder="Buscar cliente por nome, usuário ou e-mail"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="sm:max-w-sm h-9 text-xs rounded-xl"
@@ -302,8 +302,15 @@ export function SubscriptionManagement() {
                     className="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl border border-border/50 bg-card hover:bg-muted/40 hover:border-border transition-all cursor-pointer group shadow-sm active:scale-[0.99]"
                   >
                     <div className="min-w-0 flex-1 space-y-1">
-                      <div className="font-bold text-sm sm:text-base text-foreground truncate group-hover:text-primary transition-colors">
-                        {u.display_name || u.email || "Cliente sem nome"}
+                      <div className="flex items-baseline gap-1.5 flex-wrap">
+                        <span className="font-bold text-sm sm:text-base text-foreground truncate group-hover:text-primary transition-colors">
+                          {u.display_name || (u.username ? `@${u.username.replace(/^@/, "")}` : u.email || "Cliente sem nome")}
+                        </span>
+                        {u.username && u.display_name && (
+                          <span className="text-xs text-muted-foreground font-normal">
+                            @{u.username.replace(/^@/, "")}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
                         <span className="text-xs">{meta.dot}</span>
