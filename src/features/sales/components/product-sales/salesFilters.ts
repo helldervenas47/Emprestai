@@ -127,7 +127,7 @@ export function resolvePeriodRange(
 export function getSaleStatus(sale: Sale): SalesStatus {
   const category = getSaleCategory(sale);
   if (category === "paid") return "received";
-  const paid = getSalePaidAmountHelper(sale) + (sale.partialPaid || 0);
+  const paid = getSalePaidAmountHelper(sale);
   if (paid > 0.005) return "partial";
   if (category === "overdue") return "overdue";
   return "pending";

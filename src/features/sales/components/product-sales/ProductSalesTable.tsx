@@ -25,6 +25,7 @@ import {
   getNextInstallmentValueHelper,
   getSaleCategory,
   getSalePaidAmountHelper,
+  getSaleRemainingHelper,
   saleCategoryConfig,
 } from "./productSalesUtils";
 import { RegisterSalePaymentDialog, SalePaymentHistoryDialog } from "./ProductSalesDialogs";
@@ -51,7 +52,7 @@ export function SaleListRow({ sale, onEdit, onDelete, onUpdate, formatCurrency, 
   const catStyle = saleCategoryConfig[category];
   const isRecorrente = sale.paymentMode === "recorrente" && sale.installments > 1;
   const paidAmount = getSalePaidAmountHelper(sale);
-  const remaining = Math.max(0, sale.total - paidAmount - (sale.partialPaid || 0));
+  const remaining = getSaleRemainingHelper(sale);
   const isPaid = category === "paid";
   const nextDue = getNextDueDateHelper(sale);
   const nextInstValue = isPaid ? 0 : getNextInstallmentValueHelper(sale);
@@ -63,7 +64,7 @@ export function SaleListRow({ sale, onEdit, onDelete, onUpdate, formatCurrency, 
   const CatIcon = incomeCat ? (personalIconMap[incomeCat.icon] ?? personalIconMap.Package) : Tag;
   const catColor = incomeCat ? `hsl(${incomeCat.color})` : undefined;
 
-  const totalPaidIncludingPartial = paidAmount + (sale.partialPaid || 0);
+  const totalPaidIncludingPartial = paidAmount;
   const statusInfo = isPaid
     ? { label: "Quitado", cls: "bg-success/15 text-success border-success/30" }
     : category === "overdue"

@@ -16,6 +16,7 @@ import {
   getNextDueDateHelper,
   getSaleCategory,
   getSalePaidAmountHelper,
+  getSaleRemainingHelper,
   rawFormatCurrency,
 } from "./productSalesUtils";
 
@@ -177,20 +178,9 @@ export function useProductSalesController(sales: Sale[], scopeKey = "sales") {
     return [...filtered].sort((a, b) => getNextDueDateHelper(a).getTime() - getNextDueDateHelper(b).getTime());
   }, [filtered]);
 
-  const getSalePaidAmount = useCallback((s: Sale) => {
-    const amounts = s.installmentAmounts;
-    if (amounts && amounts.length > 0) {
-      let paid = s.downPayment || 0;
-      for (let i = 0; i < s.paidInstallments && i < amounts.length; i++) {
-        paid += amounts[i] || 0;
-      }
-      return paid + (s.partialPaid || 0);
-    }
-    const vp = s.installments > 0 ? Math.max(0, s.total - (s.downPayment || 0)) / s.installments : s.total;
-    return vp * s.paidInstallments + (s.downPayment || 0) + (s.partialPaid || 0);
-  }, []);
+  const getSalePaidAmount = useCallback((s: Sale) => getSalePaidAmountHelper(s), []);
 
-  const getRemaining = useCallback((s: Sale) => Math.max(0, s.total - getSalePaidAmount(s)), [getSalePaidAmount]);
+  const getRemaining = useCallback((s: Sale) => getSaleRemainingHelper(s), []);
 
   const overdueSales = useMemo(() => sales.filter((s) => getSaleCategory(s) === "overdue"), [sales]);
   const onTrackSales = useMemo(() => sales.filter((s) => getSaleCategory(s) === "on_track"), [sales]);

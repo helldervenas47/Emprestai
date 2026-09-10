@@ -65,13 +65,13 @@ export function SaleListMiniCard(props: {
     ? 0
     : isRecorrente
       ? Math.max(0, getNextInstallmentValueHelper(sale) - (sale.partialPaid || 0))
-      : Math.max(0, sale.total - totalPaid - (sale.partialPaid || 0));
+      : Math.max(0, sale.total - totalPaid);
 
   const displayRemaining = remaining;
   const remainingLabel = isRecorrente ? "Próx. parcela" : "Restante";
 
   const progressPct = sale.total > 0
-    ? Math.min(100, Math.max(0, Math.round(((totalPaid + (sale.partialPaid || 0)) / sale.total) * 100)))
+    ? Math.min(100, Math.max(0, Math.round((totalPaid / sale.total) * 100)))
     : 0;
 
   const today = new Date(); today.setHours(0, 0, 0, 0);

@@ -26,9 +26,15 @@ import { Client, Sale } from "@/types/loan";
 import { LocadorInfo } from "@/features/vehicles/hooks/useLocadorInfo";
 import { VehicleInfo } from "@/features/vehicles/hooks/useVehicleRegistry";
 import { parseNotesWithMerchandise } from "@/features/sales/lib/saleMerchandise";
-import { generateContract } from "@/lib/generateContract";
-import { addByFrequency, businessTabs, getSaleCategory, rawFormatCurrency, saleCategoryConfig } from "./productSalesUtils";
-import { RegisterSalePaymentDialog, SalePaymentHistoryDialog } from "./ProductSalesDialogs";
+import {
+  addByFrequency,
+  businessTabs,
+  getSaleCategory,
+  getSalePaidAmountHelper,
+  getSaleRemainingHelper,
+  rawFormatCurrency,
+  saleCategoryConfig,
+} from "./productSalesUtils";
 import { AdjustSaleDueDateDialog } from "./AdjustSaleDueDateDialog";
 import { toast } from "sonner";
 
@@ -195,11 +201,11 @@ export function ProductSaleCard({
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Valor Pago</p>
-            <p className="text-sm font-bold text-success">{formatCurrency(parcelas.filter(p => p.paid).reduce((s, p) => s + p.fullValue, 0) + (sale.downPayment || 0) + (sale.partialPaid || 0))}</p>
+            <p className="text-sm font-bold text-success">{formatCurrency(getSalePaidAmountHelper(sale))}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Restante</p>
-            <p className="text-sm font-bold text-warning">{formatCurrency(Math.max(0, parcelas.filter(p => !p.paid).reduce((s, p) => s + p.fullValue, 0) - (sale.partialPaid || 0)))}</p>
+            <p className="text-sm font-bold text-warning">{formatCurrency(getSaleRemainingHelper(sale))}</p>
           </div>
         </div>
 
@@ -281,8 +287,7 @@ export function ProductSaleCard({
 
         <div className="mt-auto space-y-2">
           {(() => {
-            const totalPaid = parcelas.filter(p => p.paid).reduce((s, p) => s + p.fullValue, 0)
-              + (sale.downPayment || 0) + (sale.partialPaid || 0);
+            const totalPaid = getSalePaidAmountHelper(sale);
             const pct = sale.total > 0 ? Math.min(100, Math.round((totalPaid / sale.total) * 100)) : 0;
             const hasPartial = (sale.partialPaid || 0) > 0;
             const nextIdx = sale.paidInstallments;
