@@ -126,7 +126,7 @@ export function CreditCardsDashboardTab({
       );
 
       const cardExpenses = expandedAll
-        .filter((e) => e.scope === "personal")
+        .filter((e) => !e.scope || e.scope === "personal")
         .filter((e) => belongsToCardInvoice(e, card, new Date(0), new Date(8640000000000000)));
 
       const expensesPending = cardExpenses
@@ -182,7 +182,7 @@ export function CreditCardsDashboardTab({
         };
 
       const inCycleExpenses = expandedAll
-        .filter((e) => e.scope === "personal")
+        .filter((e) => !e.scope || e.scope === "personal")
         .filter((e) => belongsToCardInvoice(e, card, cycle.from, cycle.to));
 
       const itemsTotal = inCycleExpenses.reduce((s, e) => s + invoiceItemValue(e), 0);
@@ -283,10 +283,16 @@ export function CreditCardsDashboardTab({
         if (!cycle) return;
 
         const inCycleExpenses = expandedAll
-          .filter((e) => e.scope === "personal")
+          .filter((e) => !e.scope || e.scope === "personal")
           .filter((e) => belongsToCardInvoice(e, card, cycle.from, cycle.to));
 
-        const cardTotal = inCycleExpenses.reduce((s, e) => s + invoiceItemValue(e), 0);
+        const itemsTotal = inCycleExpenses.reduce((s, e) => s + invoiceItemValue(e), 0);
+        const cycleKey = cycleKeyFromDate(cycle.to);
+        const opening = getOpening(card.id, cycleKey);
+        const openingAmount = opening?.openingAmount ?? 0;
+        const totalOverride = readTotalOverride(opening?.notes);
+
+        const cardTotal = totalOverride ?? (itemsTotal + openingAmount);
         if (cardTotal > 0) {
           totalMonth += cardTotal;
           cardBreakdown.push({
@@ -310,7 +316,7 @@ export function CreditCardsDashboardTab({
     }
 
     return projections;
-  }, [cards, expandedAll, selectedMonth]);
+  }, [cards, expandedAll, selectedMonth, getOpening]);
 
   const openInvoiceDetail = (card: CreditCard) => {
     captureScroll();
