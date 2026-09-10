@@ -24,6 +24,7 @@ import {
   Layers,
   Sparkles,
   AlertTriangle,
+  X,
 } from "lucide-react";
 import type { AdminSubRow } from "@/features/admin/hooks/useAdminSubscriptions";
 import { confirmWithScroll } from "@/lib/confirmWithScroll";
@@ -102,7 +103,7 @@ export function SubscriptionCustomerDetailsSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto p-0 flex flex-col gap-0 border-l border-border/60 bg-background">
         {/* Cabeçalho do Cliente */}
-        <SheetHeader className="p-5 pb-4 border-b border-border/40 bg-card/60 backdrop-blur-sm sticky top-0 z-10 text-left">
+        <SheetHeader className="p-4 sm:p-5 pb-3 sm:pb-4 border-b border-border/40 bg-card/80 backdrop-blur-sm sticky top-0 z-20 text-left">
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1 min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
@@ -117,15 +118,28 @@ export function SubscriptionCustomerDetailsSheet({
               </div>
             </div>
 
-            <div className="flex flex-col items-end gap-1 shrink-0 pt-0.5">
-              <Badge variant={statusMeta.variant as any} className="font-semibold text-xs px-2.5 py-0.5">
-                {statusMeta.label}
-              </Badge>
-              {isBlocked && (
-                <Badge variant="destructive" className="gap-1 text-[10px] font-semibold">
-                  <ShieldOff className="h-3 w-3" /> Bloqueado
+            <div className="flex items-center gap-2 shrink-0 pt-0.5">
+              <div className="flex flex-col items-end gap-1">
+                <Badge variant={statusMeta.variant as any} className="font-semibold text-xs px-2.5 py-0.5">
+                  {statusMeta.label}
                 </Badge>
-              )}
+                {isBlocked && (
+                  <Badge variant="destructive" className="gap-1 text-[10px] font-semibold">
+                    <ShieldOff className="h-3 w-3" /> Bloqueado
+                  </Badge>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => onOpenChange(false)}
+                className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/80 ml-1"
+                title="Fechar"
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Fechar</span>
+              </Button>
             </div>
           </div>
           <SheetDescription className="sr-only">
@@ -345,6 +359,18 @@ export function SubscriptionCustomerDetailsSheet({
               </Button>
             </div>
           )}
+
+          {/* Botão Fechar no rodapé */}
+          <div className="pt-3 border-t border-border/40">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-10 text-xs font-semibold rounded-xl"
+              onClick={() => onOpenChange(false)}
+            >
+              Fechar Detalhes
+            </Button>
+          </div>
         </div>
       </SheetContent>
     </Sheet>
