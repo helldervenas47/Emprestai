@@ -519,7 +519,7 @@ export function LoanList({ loans, payments, installmentSchedules, onPayment, onP
               {grouped.length === 0 && (
                 <Card>
                   <CardContent className="py-8 text-center">
-                    <p className="text-sm text-muted-foreground">Nenhum cliente com múltiplos empréstimos</p>
+                    <p className="text-sm text-muted-foreground">Nenhum cliente encontrado</p>
                   </CardContent>
                 </Card>
               )}

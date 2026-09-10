@@ -412,7 +412,7 @@ export function useLoanListController({
     loans.forEach((l) => {
       byName[l.borrowerName] = (byName[l.borrowerName] || 0) + 1;
     });
-    return Object.values(byName).filter((c) => c > 1).length;
+    return Object.keys(byName).length;
   }, [loans]);
 
   const counts = useMemo(() => {
@@ -575,37 +575,36 @@ export function useLoanListController({
     }> = [];
     const singles: Loan[] = [];
     Object.entries(byName).forEach(([name, loansArr]) => {
-      if (loansArr.length > 1) {
-        const totalInterestReceivable = loansArr.reduce((s, l) => {
-          if (l.status === "paid") return s;
+      const totalInterestReceivable = loansArr.reduce((s, l) => {
+        if (l.status === "paid") return s;
 
-          // URGENTE: O campo "Juros a Receber" da pasta deve ser a soma direta do campo "Juros" 
-          // exibido em cada contrato, sem recalcular pagamentos ou multas de atraso.
-          const interestValue = l.customInterestValue != null && l.customInterestValue > 0
-            ? l.customInterestValue
-            : l.amount * (l.interestRate / 100);
+        // O campo "Juros a Receber" da pasta deve ser a soma direta do campo "Juros" 
+        // exibido em cada contrato, sem recalcular pagamentos ou multas de atraso.
+        const interestValue = l.customInterestValue != null && l.customInterestValue > 0
+          ? l.customInterestValue
+          : l.amount * (l.interestRate / 100);
 
-          return s + interestValue;
-        }, 0);
+        return s + interestValue;
+      }, 0);
 
-        const totalReceivable = loansArr.reduce((s, l) => {
-          if (l.status === "paid") return s;
-          return s + getLoanReceivable(l, payments, installmentSchedules);
-        }, 0);
-        const hasOverdue = loansArr.some(
-          (l) =>
-            l.status !== "paid" &&
-            getLoanCategory(l, payments, installmentSchedules) === "overdue",
-        );
-        grouped.push({
-          name,
-          loans: loansArr,
-          totalAmount: loansArr.reduce((s, l) => s + l.amount, 0),
-          totalPaid: Math.round(totalInterestReceivable * 100) / 100,
-          totalReceivable: Math.round(totalReceivable * 100) / 100,
-          hasOverdue,
-        });
-      } else {
+      const totalReceivable = loansArr.reduce((s, l) => {
+        if (l.status === "paid") return s;
+        return s + getLoanReceivable(l, payments, installmentSchedules);
+      }, 0);
+      const hasOverdue = loansArr.some(
+        (l) =>
+          l.status !== "paid" &&
+          getLoanCategory(l, payments, installmentSchedules) === "overdue",
+      );
+      grouped.push({
+        name,
+        loans: loansArr,
+        totalAmount: loansArr.reduce((s, l) => s + l.amount, 0),
+        totalPaid: Math.round(totalInterestReceivable * 100) / 100,
+        totalReceivable: Math.round(totalReceivable * 100) / 100,
+        hasOverdue,
+      });
+      if (loansArr.length === 1) {
         singles.push(loansArr[0]);
       }
     });
