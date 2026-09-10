@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef } from "react";
-import { Plus, CreditCard as CreditCardIcon, Wifi, Pencil, Trash2, Receipt, CheckCircle, EyeOff, RotateCcw } from "lucide-react";
+import { Plus, CreditCard as CreditCardIcon, Wifi, Pencil, Trash2, Receipt, CheckCircle, EyeOff, RotateCcw, ChevronRight } from "lucide-react";
 import { RowActions } from "@/components/ui/row-actions";
+import { emitAppUIEvent } from "@/lib/appUIEvents";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
@@ -467,10 +468,24 @@ export function CreditCardList({ readOnly = false, referenceMonth }: Props) {
   return (
     <div>
       <div className="flex items-center justify-between gap-3 mb-4">
-        <h2 className="text-lg font-semibold text-foreground truncate">
-          Cartões ({cards.length})
-        </h2>
+        <button
+          type="button"
+          onClick={() => emitAppUIEvent({ type: "NAVIGATE", tab: "expenses", subTab: "cards" })}
+          className="group flex items-center gap-1.5 text-lg font-semibold text-foreground hover:text-primary transition-colors text-left"
+          title="Abrir painel geral de cartões"
+        >
+          <span>Cartões ({cards.length})</span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+        </button>
         <div className="flex items-center gap-2 shrink-0">
+          <Button
+            onClick={() => emitAppUIEvent({ type: "NAVIGATE", tab: "expenses", subTab: "cards" })}
+            size="sm"
+            variant="ghost"
+            className="hidden sm:inline-flex text-xs text-muted-foreground hover:text-primary"
+          >
+            Visão Geral <ChevronRight className="h-3.5 w-3.5 ml-1" />
+          </Button>
           {inactiveCards.length > 0 && (
             <Button
               onClick={() => setShowInactive((v) => !v)}

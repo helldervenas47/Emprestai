@@ -229,6 +229,7 @@ import {
   Crown,
   Trophy,
   GraduationCap,
+  CreditCard,
 } from "lucide-react";
 import type { Expense } from "@/types/loan";
 import { applyScopedExpenseDelete, type DeleteScope } from "@/features/financial/lib/expenseSeriesScope";
@@ -323,6 +324,9 @@ const PersonalExpenseList = lazy(() =>
 );
 const IncomeList = lazy(() => import("@/features/financial/components/IncomeList").then((m) => ({ default: m.IncomeList })));
 const CreditCardList = lazy(() => import("@/features/creditCards/components/CreditCardList").then((m) => ({ default: m.CreditCardList })));
+const CreditCardsDashboardTab = lazy(() =>
+  import("@/features/creditCards/components/CreditCardsDashboardTab").then((m) => ({ default: m.CreditCardsDashboardTab })),
+);
 const PiggyBankList = lazy(() => import("@/features/piggyBanks/components/PiggyBankList").then((m) => ({ default: m.PiggyBankList })));
 const ClientLoanHistory = lazy(() =>
   import("@/features/clients/components/ClientLoanHistory").then((m) => ({ default: m.ClientLoanHistory })),
@@ -513,7 +517,7 @@ type PlanMgmtSubTab = "subscribers" | "plans";
 type OverdueSubTab = "bot-telegram" | "whatsapp-cobranca";
 type ExpenseSubTab = "business" | "personal";
 type PersonalSubTab = "expenses" | "cards";
-type IncExpTab = "incomes" | "expenses";
+type IncExpTab = "incomes" | "expenses" | "cards";
 
 const tabConfig = [
   { id: "overview" as Tab, label: "Dashboard", icon: BarChart3 },
@@ -883,6 +887,11 @@ const Index = () => {
       if (targetTab === "overdue" && subTab) {
         setOverdueSubTab(subTab === "whatsapp-cobranca" ? "whatsapp-cobranca" : "bot-telegram");
       }
+      if (targetTab === "expenses" && subTab) {
+        if (subTab === "cards" || subTab === "incomes" || subTab === "expenses") {
+          setIncExpTab(subTab as IncExpTab);
+        }
+      }
       if (scrollTo) {
         // Determinístico: aguarda aba/subaba/dados renderizarem o elemento
         // (MutationObserver) em vez de apostar num timeout fixo de 250ms.
@@ -1035,7 +1044,7 @@ const Index = () => {
   }, [tab]);
   const [expenseSubTab, setExpenseSubTab] = usePersistentOption<ExpenseSubTab>("expenses", ["business", "personal"], "personal");
   const [personalSubTab, setPersonalSubTab] = usePersistentOption<PersonalSubTab>("personal", ["expenses", "cards"], "expenses");
-  const [incExpTab, setIncExpTab] = usePersistentOption<IncExpTab>("financial", ["incomes", "expenses"], "incomes");
+  const [incExpTab, setIncExpTab] = usePersistentOption<IncExpTab>("financial", ["incomes", "expenses", "cards"], "incomes");
 
   // Filter data by linked clients if user has client restrictions
   const hasClientFilter = Array.isArray(linkedClientIds) && linkedClientIds.length > 0;
@@ -1741,11 +1750,26 @@ const Index = () => {
                           <Receipt className="h-4 w-4 shrink-0" />
                           <span className="truncate">Despesas</span>
                         </button>
+                        <button
+                          onClick={() => setIncExpTab("cards")}
+                          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            incExpTab === "cards"
+                              ? "bg-background !text-primary shadow-sm"
+                              : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          <CreditCard className="h-4 w-4 shrink-0" />
+                          <span className="truncate">Cartões</span>
+                        </button>
                       </div>
 
                       {incExpTab === "incomes" ? (
                         <ModuleErrorBoundary name="Receitas">
                           <IncomeList readOnly={isReadOnly} />
+                        </ModuleErrorBoundary>
+                      ) : incExpTab === "cards" ? (
+                        <ModuleErrorBoundary name="Cartões de Crédito">
+                          <CreditCardsDashboardTab readOnly={isReadOnly} />
                         </ModuleErrorBoundary>
                       ) : (
 

@@ -36,7 +36,7 @@ export function getPrimaryFormKindForTab({
   if (tab === "dashboard") return "loan";
   if (tab === "clients" && clientSubTab === "clientes") return "client";
   if (tab === "expenses") {
-    if (incExpTab === "incomes") return null; // Receita usa CustomEvent
+    if (incExpTab === "incomes" || incExpTab === "cards") return null; // Receitas e Cartões têm suas próprias ações
     if (expenseSubTab === "personal") return "personal-expense";
     return "expense";
   }
