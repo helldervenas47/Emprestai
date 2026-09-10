@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { format, addMonths, subMonths, parseISO, isSameMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -14,6 +14,7 @@ import {
   CalendarClock,
   Wifi,
   ArrowLeft,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -92,6 +93,12 @@ export function CreditCardsDashboardTab({
   const handleCurrentMonth = () => {
     setSelectedMonth(currentMonthKey);
   };
+
+  // Garante que ao abrir a aba de cartões a tela inicie no topo
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+    document.documentElement.scrollTo({ top: 0, behavior: "instant" });
+  }, []);
 
   // Carrossel de navegação rápida de meses (-2 até +5 meses)
   const quickMonths = useMemo(() => {
@@ -332,23 +339,21 @@ export function CreditCardsDashboardTab({
 
   return (
     <div className="space-y-5">
-      {/* Botão de Retorno se chamado de outra tela */}
-      {onBack && (
-        <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onBack}
-            className="text-xs text-muted-foreground hover:text-foreground pl-1 pr-3"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1.5" /> Voltar para Despesas
-          </Button>
-        </div>
-      )}
-
       {/* Header Geral da Aba de Cartões */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20 shadow-xs">
-        <div className="flex items-center gap-3">
+      <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20 shadow-xs">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
+            title="Fechar e voltar para despesas"
+            aria-label="Fechar"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+
+        <div className="flex items-center gap-3 pr-8 sm:pr-0">
           <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-primary/15 text-primary flex items-center justify-center font-bold shadow-xs shrink-0">
             <CreditCardIcon className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
@@ -362,7 +367,7 @@ export function CreditCardsDashboardTab({
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto shrink-0">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto shrink-0 sm:pr-8">
           {inactiveCards.length > 0 && (
             <Button
               onClick={() => setShowInactive((v) => !v)}
