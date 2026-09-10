@@ -562,28 +562,34 @@ function ManagerActionButtons({ pixLink, dirty }: { pixLink: string; dirty?: boo
   const selectedMgrObj = managers.find((m) => m.user_id === selectedMgr);
 
   return (
-    <div className="flex flex-wrap items-center gap-2 pt-2">
+    <div className="grid grid-cols-2 gap-2 w-full pt-2">
       <Button
         type="button"
         variant="outline"
         size="sm"
-        className="h-8 text-xs font-semibold rounded-xl"
+        className="h-9 sm:h-8 text-xs font-semibold rounded-xl w-full justify-center px-2"
         onClick={openIndividualDialog}
       >
-        <UserCheck className="h-3.5 w-3.5 mr-1.5 text-primary" />
-        Enviar para um gerente específico
+        <UserCheck className="h-3.5 w-3.5 mr-1.5 text-primary shrink-0" />
+        <span className="hidden sm:inline">Enviar para um gerente específico</span>
+        <span className="sm:hidden">Gerente específico</span>
       </Button>
 
       <Button
         type="button"
         variant="secondary"
         size="sm"
-        className="h-8 text-xs font-semibold rounded-xl"
+        className="h-9 sm:h-8 text-xs font-semibold rounded-xl w-full justify-center px-2"
         onClick={handleSendNow}
         disabled={sending}
       >
-        {sending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
-        Disparar para todos os gerentes
+        {sending ? (
+          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin shrink-0" />
+        ) : (
+          <Send className="h-3.5 w-3.5 mr-1.5 shrink-0" />
+        )}
+        <span className="hidden sm:inline">Disparar para todos os gerentes</span>
+        <span className="sm:hidden">Todos os gerentes</span>
       </Button>
 
       {/* Dialog de Envio Individual */}
