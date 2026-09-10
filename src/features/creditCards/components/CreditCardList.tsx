@@ -88,14 +88,14 @@ interface MiniCardProps {
 
 const MiniCreditCard = React.forwardRef<HTMLDivElement, MiniCardProps>(({
   card,
-  invoiceTotal,
-  paidTotal,
-  pendingTotal,
-  cyclePendingTotal,
-  openingAmount,
-  hasOpening,
-  hasActiveInvoice,
-  hasUnpaidInvoice,
+  invoiceTotal = 0,
+  paidTotal = 0,
+  pendingTotal = 0,
+  cyclePendingTotal = 0,
+  openingAmount = 0,
+  hasOpening = false,
+  hasActiveInvoice = false,
+  hasUnpaidInvoice = false,
   dueDate,
   onClick,
   onEdit,
@@ -104,19 +104,21 @@ const MiniCreditCard = React.forwardRef<HTMLDivElement, MiniCardProps>(({
   onPayInvoice,
   readOnly,
 }, ref) => {
-  const bank = getBank(card.bank);
+  const bank = getBank(card?.bank);
   const { mask } = useHideValues();
-  const available = Math.max(0, card.creditLimit - pendingTotal);
-  const isPaid = invoiceTotal > 0 && cyclePendingTotal <= 0.005;
+  const limit = Number(card?.creditLimit ?? 0);
+  const available = Math.max(0, limit - Number(pendingTotal || 0));
+  const validDueDate = dueDate instanceof Date && !isNaN(dueDate.getTime()) ? dueDate : new Date();
+  const isPaid = (invoiceTotal || 0) > 0 && (cyclePendingTotal || 0) <= 0.005;
   const isOverdue =
     !isPaid &&
-    cyclePendingTotal > 0 &&
-    dueDate < new Date() &&
-    format(dueDate, "yyyy-MM-dd") !== format(new Date(), "yyyy-MM-dd");
+    (cyclePendingTotal || 0) > 0 &&
+    validDueDate < new Date() &&
+    format(validDueDate, "yyyy-MM-dd") !== format(new Date(), "yyyy-MM-dd");
   const isDueToday =
     !isPaid &&
-    cyclePendingTotal > 0 &&
-    format(dueDate, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
+    (cyclePendingTotal || 0) > 0 &&
+    format(validDueDate, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -468,13 +470,18 @@ export function CreditCardList({ readOnly = false, referenceMonth }: Props) {
 
     cards.forEach((card) => {
       const inv = invoiceByCard.get(card.id);
-      if (!inv) return;
-      totalInvoices += inv.total;
-      totalPaid += inv.paidTotal;
-      totalPending += inv.cyclePendingTotal;
-      totalLimit += card.creditLimit;
-      totalAvailable += Math.max(0, card.creditLimit - inv.pendingTotal);
-      if (inv.isPaid) paidInvoicesCount++;
+      const invTotal = Number(inv?.total || 0);
+      const invPaid = Number(inv?.paidTotal || 0);
+      const invPending = Number(inv?.cyclePendingTotal || 0);
+      const cardLimit = Number(card.creditLimit || 0);
+      const globalPending = Number(inv?.pendingTotal || 0);
+
+      totalInvoices += invTotal;
+      totalPaid += invPaid;
+      totalPending += invPending;
+      totalLimit += cardLimit;
+      totalAvailable += Math.max(0, cardLimit - globalPending);
+      if (invTotal > 0 && invPending <= 0.005) paidInvoicesCount++;
     });
 
     return {
