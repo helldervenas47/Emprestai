@@ -149,7 +149,13 @@ export function Settings({ backup, locadores, onSaveLocador, onRemoveLocador, is
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button variant="destructive" onClick={() => setConfirmClear(true)} disabled={clearing} size="sm">
+          <Button
+            variant="destructive"
+            onClick={() => setConfirmClear(true)}
+            disabled={clearing}
+            size="sm"
+            className="w-full sm:w-auto h-9 sm:h-8 rounded-xl font-medium"
+          >
             {clearing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Limpando…</> : <><Trash2 className="h-4 w-4 mr-2" /> Limpar cache e recarregar</>}
           </Button>
         </CardContent>
@@ -172,6 +178,7 @@ export function Settings({ backup, locadores, onSaveLocador, onRemoveLocador, is
             onClick={() => setConfirmGlobalSignOut(true)}
             disabled={signingOutGlobal}
             size="sm"
+            className="w-full sm:w-auto h-9 sm:h-8 rounded-xl font-medium"
           >
             {signingOutGlobal ? (
               <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Encerrando…</>
