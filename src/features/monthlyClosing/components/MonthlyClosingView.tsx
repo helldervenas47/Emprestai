@@ -563,13 +563,13 @@ function MetricCard({
       }`}
     >
       <div className="space-y-2">
-        {/* Cabeçalho com ícone ao lado esquerdo e título */}
-        <div className="flex items-center gap-1.5 w-full min-w-0">
+        {/* Cabeçalho centralizado com ícone ao lado esquerdo e título */}
+        <div className="flex items-center justify-center gap-1.5 w-full min-w-0">
           <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
             <Icon className="h-3.5 w-3.5 text-primary" />
           </div>
-          <div className="flex-1 flex items-center gap-1 min-w-0">
-            <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground truncate text-left" title={title}>
+          <div className="flex items-center justify-center gap-1 min-w-0">
+            <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground truncate text-center" title={title}>
               {title}
             </span>
             {tooltip && (
