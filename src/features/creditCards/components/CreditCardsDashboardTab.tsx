@@ -56,7 +56,7 @@ export function CreditCardsDashboardTab({
     initialMonth || currentMonthKey
   );
 
-  const { cards: allCards, loading, deleteCard } = useCreditCards();
+  const { cards: allCards, loading, addCard, updateCard, deleteCard } = useCreditCards();
   const cards = useMemo(() => allCards.filter((c) => c.active !== false), [allCards]);
   const inactiveCards = useMemo(() => allCards.filter((c) => c.active === false), [allCards]);
   const { expenses } = useExpenses();
@@ -716,21 +716,31 @@ export function CreditCardsDashboardTab({
       </div>
 
       {/* Modais de Formulário, Fatura e Exclusão */}
-      <CreditCardForm
-        open={showForm}
-        onOpenChange={setShowForm}
-        initialData={editingCard}
-      />
+      {showForm && (
+        <CreditCardForm
+          initial={editingCard ?? undefined}
+          onSave={async (input) => {
+            if (editingCard) {
+              await updateCard(editingCard.id, input);
+            } else {
+              await addCard(input);
+            }
+            setShowForm(false);
+            setEditingCard(null);
+          }}
+          onClose={() => {
+            setShowForm(false);
+            setEditingCard(null);
+          }}
+        />
+      )}
 
       {invoiceCard && (
         <CreditCardInvoice
           card={invoiceCard}
-          open={!!invoiceCard}
-          onOpenChange={(open) => {
-            if (!open) {
-              setInvoiceCard(null);
-              setInvoiceAutoOpenPayment(false);
-            }
+          onClose={() => {
+            setInvoiceCard(null);
+            setInvoiceAutoOpenPayment(false);
           }}
           autoOpenPayment={invoiceAutoOpenPayment}
           readOnly={readOnly}
