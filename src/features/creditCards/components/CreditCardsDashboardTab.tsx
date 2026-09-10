@@ -478,62 +478,6 @@ export function CreditCardsDashboardTab({
         </div>
       </div>
 
-      {/* Projeção de Faturas dos Próximos Meses */}
-      <Card no3d className="rounded-2xl border border-border/60 overflow-hidden shadow-xs">
-        <CardHeader className="p-4 sm:p-5 pb-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CalendarClock className="h-5 w-5 text-primary" />
-              <div>
-                <CardTitle className="text-sm sm:text-base font-bold text-foreground">
-                  Projeção de Faturas Futuras (Próximos 6 Meses)
-                </CardTitle>
-                <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                  Previsão consolidada de parcelas futuras e gastos recorrentes já programados.
-                </CardDescription>
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="p-4 sm:p-5 pt-3">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
-            {futureProjections.map((proj) => (
-              <button
-                key={proj.monthKey}
-                type="button"
-                onClick={() => setSelectedMonth(proj.monthKey)}
-                className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between min-h-[90px] cursor-pointer ${
-                  proj.isSelected
-                    ? "bg-primary/10 border-primary shadow-xs ring-1 ring-primary/30"
-                    : "bg-muted/20 hover:bg-muted/40 border-border/60"
-                }`}
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-xs font-bold capitalize text-foreground">
-                      {proj.shortLabel}
-                    </span>
-                    {proj.isCurrent && (
-                      <Badge variant="outline" className="text-[9px] py-0 px-1 bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
-                        Atual
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {proj.cardsCount} {proj.cardsCount === 1 ? "cartão c/ gasto" : "cartões"}
-                  </p>
-                </div>
-
-                <p className="text-sm font-extrabold text-foreground tabular-nums mt-2">
-                  {mask(fmt(proj.total))}
-                </p>
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Lista Principal de Cartões com Faturas do Mês Selecionado */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -714,6 +658,62 @@ export function CreditCardsDashboardTab({
           </div>
         )}
       </div>
+
+      {/* Projeção de Faturas dos Próximos Meses (Abaixo da lista de cartões) */}
+      <Card no3d className="rounded-2xl border border-border/60 overflow-hidden shadow-xs">
+        <CardHeader className="p-4 sm:p-5 pb-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CalendarClock className="h-5 w-5 text-primary" />
+              <div>
+                <CardTitle className="text-sm sm:text-base font-bold text-foreground">
+                  Projeção de Faturas Futuras (Próximos 6 Meses)
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                  Previsão consolidada de parcelas futuras e gastos recorrentes já programados.
+                </CardDescription>
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-4 sm:p-5 pt-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
+            {futureProjections.map((proj) => (
+              <button
+                key={proj.monthKey}
+                type="button"
+                onClick={() => setSelectedMonth(proj.monthKey)}
+                className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between min-h-[90px] cursor-pointer ${
+                  proj.isSelected
+                    ? "bg-primary/10 border-primary shadow-xs ring-1 ring-primary/30"
+                    : "bg-muted/20 hover:bg-muted/40 border-border/60"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-xs font-bold capitalize text-foreground">
+                      {proj.shortLabel}
+                    </span>
+                    {proj.isCurrent && (
+                      <Badge variant="outline" className="text-[9px] py-0 px-1 bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                        Atual
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {proj.cardsCount} {proj.cardsCount === 1 ? "cartão c/ gasto" : "cartões"}
+                  </p>
+                </div>
+
+                <p className="text-sm font-extrabold text-foreground tabular-nums mt-2">
+                  {mask(fmt(proj.total))}
+                </p>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Modais de Formulário, Fatura e Exclusão */}
       {showForm && (
