@@ -556,15 +556,16 @@ function MetricCard({
   return (
     <Card
       onClick={onClick}
-      className={`rounded-2xl border-border/70 bg-card p-3 sm:p-5 shadow-xs transition-all flex flex-col justify-between ${
+      className={`rounded-2xl border-border/70 bg-card p-3 sm:p-5 shadow-xs transition-all flex flex-col justify-between text-center ${
         onClick
           ? "cursor-pointer hover:border-primary/50 hover:shadow-md active:scale-[0.99]"
           : "hover:border-primary/30"
       }`}
     >
-      <div className="space-y-1.5 sm:space-y-2">
-        <div className="flex items-center justify-between gap-1.5">
-          <div className="flex items-center gap-1 min-w-0">
+      <div className="space-y-2">
+        {/* Cabeçalho centralizado com ícone */}
+        <div className="flex items-center justify-between gap-1 w-full">
+          <div className="flex-1 flex items-center justify-center gap-1 min-w-0 pl-5">
             <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground truncate" title={title}>
               {title}
             </span>
@@ -585,20 +586,21 @@ function MetricCard({
               </Tooltip>
             )}
           </div>
-          <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
-            <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
+            <Icon className="h-3.5 w-3.5 text-primary" />
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1 sm:gap-2">
-          <span className="text-base sm:text-2xl font-bold tracking-tight text-foreground truncate">
+        {/* Valor e Badge Centralizados */}
+        <div className="flex flex-col items-center justify-center text-center gap-1.5 py-0.5">
+          <span className="text-base sm:text-2xl font-bold tracking-tight text-foreground truncate max-w-full">
             {value}
           </span>
 
           {hasDiff && (
             <Badge
               variant="outline"
-              className={`text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md gap-0.5 sm:gap-1 self-start sm:self-auto ${
+              className={`text-[9px] sm:text-[11px] font-bold px-2 py-0.5 rounded-md gap-1 ${
                 isPositiveEvolution
                   ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
                   : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
@@ -619,9 +621,10 @@ function MetricCard({
         </div>
       </div>
 
-      <div className="mt-2.5 sm:mt-3 pt-2 sm:pt-2.5 border-t border-border/40 flex items-center justify-between text-[10px] sm:text-[11px] text-muted-foreground">
-        <span className="truncate">vs. {previousValue} em {previousLabel.split(" ")[0].toLowerCase()}</span>
-        {extraInfo && <span className="font-semibold text-rose-600 dark:text-rose-400 shrink-0 ml-1">{extraInfo}</span>}
+      {/* Rodapé Centralizado */}
+      <div className="mt-2.5 sm:mt-3 pt-2 sm:pt-2.5 border-t border-border/40 text-center text-[10px] sm:text-[11px] text-muted-foreground">
+        <p className="truncate">vs. {previousValue} em {previousLabel.split(" ")[0].toLowerCase()}</p>
+        {extraInfo && <p className="font-semibold text-rose-600 dark:text-rose-400 truncate mt-0.5">{extraInfo}</p>}
       </div>
     </Card>
   );
@@ -654,29 +657,32 @@ function GoalClosingCard({ goal }: { goal: MonthlyClosingGoalItem }) {
   const diff = typeof goal.diffValue === "number" && isFinite(goal.diffValue) ? goal.diffValue : 0;
 
   return (
-    <div className="p-3 sm:p-4 rounded-xl bg-card border border-border/70 shadow-xs space-y-2.5 sm:space-y-3 flex flex-col justify-between">
-      <div className="space-y-1.5 sm:space-y-2">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1.5">
-          <div className="space-y-0.5 min-w-0">
-            <span className="text-xs sm:text-sm font-bold text-foreground block truncate">
-              {goal.label}
-            </span>
-            <span className="text-[10px] sm:text-[11px] text-muted-foreground block truncate">
-              Meta: <strong>{goal.formattedTarget}</strong>
-            </span>
-          </div>
+    <div className="p-3 sm:p-4 rounded-xl bg-card border border-border/70 shadow-xs space-y-2.5 sm:space-y-3 flex flex-col justify-between text-center">
+      <div className="space-y-2">
+        {/* Título e Meta Centralizados */}
+        <div className="space-y-1">
+          <span className="text-xs sm:text-sm font-bold text-foreground block truncate">
+            {goal.label}
+          </span>
+          <span className="text-[10px] sm:text-[11px] text-muted-foreground block truncate">
+            Meta: <strong>{goal.formattedTarget}</strong>
+          </span>
+        </div>
 
-          <Badge variant="outline" className={`text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 self-start ${statusConfig.badgeClass}`}>
+        {/* Badge Centralizado */}
+        <div className="flex justify-center">
+          <Badge variant="outline" className={`text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full ${statusConfig.badgeClass}`}>
             {statusConfig.dot} {statusConfig.label}
           </Badge>
         </div>
 
-        <div className="flex items-baseline justify-between pt-0.5">
+        {/* Valor e Percentual Centralizados */}
+        <div className="flex items-center justify-center gap-1.5 pt-0.5">
           <span className="text-sm sm:text-lg font-bold text-foreground truncate">
             {goal.formattedActual}
           </span>
-          <span className="text-[10px] sm:text-xs font-bold text-muted-foreground shrink-0 ml-1">
-            {achievement.toFixed(0)}%
+          <span className="text-[10px] sm:text-xs font-bold text-muted-foreground">
+            ({achievement.toFixed(0)}%)
           </span>
         </div>
 
@@ -686,9 +692,10 @@ function GoalClosingCard({ goal }: { goal: MonthlyClosingGoalItem }) {
         />
       </div>
 
-      <div className="text-[10px] sm:text-[11px] font-medium text-muted-foreground flex items-center justify-between pt-2 border-t border-border/40">
-        <span>Dif.:</span>
-        <span className={diff >= 0 && !goal.isInverse ? "text-emerald-600 font-bold truncate" : "text-muted-foreground font-semibold truncate"}>
+      {/* Diferença Centralizada */}
+      <div className="text-[10px] sm:text-[11px] font-medium text-muted-foreground text-center pt-2 border-t border-border/40 truncate">
+        <span>Dif.: </span>
+        <span className={diff >= 0 && !goal.isInverse ? "text-emerald-600 font-bold" : "text-muted-foreground font-semibold"}>
           {goal.formattedDiff}
         </span>
       </div>
