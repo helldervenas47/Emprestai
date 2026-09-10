@@ -8,7 +8,8 @@ import { LocadorInfo } from "@/features/vehicles/hooks/useLocadorInfo";
 import { VehicleInfo } from "@/features/vehicles/hooks/useVehicleRegistry";
 import { SaleClientGroup } from "@/features/sales/components/product-sales/productSalesTypes";
 import { getSaleCategory } from "@/features/sales/components/product-sales/productSalesUtils";
-import { ProductSaleCard } from "@/features/sales/components/product-sales/ProductSaleCard";
+import { ProductSalesTable } from "@/features/sales/components/product-sales/ProductSalesTable";
+import { CustomIncomeCategory } from "@/features/financial/hooks/useIncomeCategories";
 
 export interface SaleClientFolderProps {
   group: SaleClientGroup;
@@ -21,6 +22,7 @@ export interface SaleClientFolderProps {
   locadorInfo?: LocadorInfo;
   registeredVehicles?: VehicleInfo[];
   locadores?: LocadorInfo[];
+  incomeCategoryByName?: Map<string, CustomIncomeCategory>;
 }
 
 export function SaleClientFolder({
@@ -34,6 +36,7 @@ export function SaleClientFolder({
   locadorInfo,
   registeredVehicles = [],
   locadores = [],
+  incomeCategoryByName,
 }: SaleClientFolderProps) {
   const [open, setOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -322,23 +325,17 @@ export function SaleClientFolder({
               </div>
             </div>
 
-            {/* Grid de Cards dos Lançamentos */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
-              {group.sales.map((sale) => (
-                <ProductSaleCard
-                  key={sale.id}
-                  sale={sale}
-                  onDelete={() => onDeleteSale(sale.id)}
-                  onEdit={() => onEdit(sale)}
-                  onUpdate={(data) => onUpdateSale(sale.id, data)}
-                  formatCurrency={formatCurrency}
-                  readOnly={readOnly}
-                  clients={clients}
-                  locadorInfo={locadorInfo}
-                  registeredVehicles={registeredVehicles}
-                  locadores={locadores}
-                />
-              ))}
+            {/* Lista de Lançamentos do Cliente (Tabela em Linhas) */}
+            <div className="pt-1">
+              <ProductSalesTable
+                sales={group.sales}
+                formatCurrency={formatCurrency}
+                readOnly={readOnly}
+                incomeCategoryByName={incomeCategoryByName}
+                onEdit={onEdit}
+                onDeleteSale={onDeleteSale}
+                onUpdateSale={onUpdateSale}
+              />
             </div>
           </div>
         </CardContent>

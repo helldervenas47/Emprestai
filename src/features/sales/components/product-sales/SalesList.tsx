@@ -215,6 +215,7 @@ export function SalesList({
                 locadorInfo={locadorInfo}
                 registeredVehicles={registeredVehicles}
                 locadores={locadores}
+                incomeCategoryByName={incomeCategoryByName}
               />
             ))}
           </div>
