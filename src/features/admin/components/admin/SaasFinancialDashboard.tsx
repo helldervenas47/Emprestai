@@ -459,23 +459,23 @@ export function SaasFinancialDashboard() {
         </Card>
 
         {/* 3. Grid Principal de Receita: Bruto -> Descontos -> Estornos -> Líquido */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
           {/* Card 1: Faturamento Bruto */}
           <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden relative">
             <div className="absolute top-0 left-0 right-0 h-1 bg-primary" />
-            <CardContent className="p-4 space-y-2">
-              <div className="flex items-center justify-between text-muted-foreground">
-                <span className="text-xs font-medium">Faturamento Bruto</span>
-                <DollarSign className="h-4 w-4 text-primary" />
+            <CardContent className="p-3 sm:p-4 space-y-1.5 sm:space-y-2">
+              <div className="flex items-center justify-between text-muted-foreground gap-1">
+                <span className="text-[11px] sm:text-xs font-medium truncate">Faturamento Bruto</span>
+                <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary shrink-0" />
               </div>
-              <p className="text-2xl font-bold tracking-tight text-foreground">
+              <p className="text-lg sm:text-2xl font-bold tracking-tight text-foreground truncate">
                 {loading ? "..." : fmtCurrency(summary?.gross_revenue)}
               </p>
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground pt-1 border-t border-border/40">
+              <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-muted-foreground pt-1 border-t border-border/40 truncate">
                 {summary && summary.month_growth_pct !== 0 && (
                   <span
                     className={cn(
-                      "font-semibold flex items-center gap-0.5",
+                      "font-semibold flex items-center gap-0.5 shrink-0",
                       summary.month_growth_pct > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
                     )}
                   >
@@ -483,7 +483,7 @@ export function SaasFinancialDashboard() {
                     {Math.abs(summary.month_growth_pct)}%
                   </span>
                 )}
-                <span>vs. mês anterior ({fmtCurrency(summary?.previous_month_gross)})</span>
+                <span className="truncate">vs. mês ant. ({fmtCurrency(summary?.previous_month_gross)})</span>
               </div>
             </CardContent>
           </Card>
@@ -491,16 +491,16 @@ export function SaasFinancialDashboard() {
           {/* Card 2: Descontos do App */}
           <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden relative">
             <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
-            <CardContent className="p-4 space-y-2">
-              <div className="flex items-center justify-between text-muted-foreground">
-                <span className="text-xs font-medium">Descontos Concedidos</span>
-                <Tag className="h-4 w-4 text-amber-500" />
+            <CardContent className="p-3 sm:p-4 space-y-1.5 sm:space-y-2">
+              <div className="flex items-center justify-between text-muted-foreground gap-1">
+                <span className="text-[11px] sm:text-xs font-medium truncate">Descontos</span>
+                <Tag className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-500 shrink-0" />
               </div>
-              <p className="text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
+              <p className="text-lg sm:text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400 truncate">
                 {loading ? "..." : `− ${fmtCurrency(summary?.app_discounts)}`}
               </p>
-              <div className="flex items-center gap-1 text-[11px] text-muted-foreground pt-1 border-t border-border/40">
-                <span>Abatimentos comerciais e planos</span>
+              <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-muted-foreground pt-1 border-t border-border/40 truncate">
+                <span className="truncate">Abatimentos e planos</span>
               </div>
             </CardContent>
           </Card>
@@ -508,16 +508,16 @@ export function SaasFinancialDashboard() {
           {/* Card 3: Estornos */}
           <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden relative">
             <div className="absolute top-0 left-0 right-0 h-1 bg-rose-500" />
-            <CardContent className="p-4 space-y-2">
-              <div className="flex items-center justify-between text-muted-foreground">
-                <span className="text-xs font-medium">Estornos / Chargebacks</span>
-                <RotateCcw className="h-4 w-4 text-rose-500" />
+            <CardContent className="p-3 sm:p-4 space-y-1.5 sm:space-y-2">
+              <div className="flex items-center justify-between text-muted-foreground gap-1">
+                <span className="text-[11px] sm:text-xs font-medium truncate">Estornos / Chargebacks</span>
+                <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-rose-500 shrink-0" />
               </div>
-              <p className="text-2xl font-bold tracking-tight text-rose-600 dark:text-rose-400">
+              <p className="text-lg sm:text-2xl font-bold tracking-tight text-rose-600 dark:text-rose-400 truncate">
                 {loading ? "..." : `− ${fmtCurrency(summary?.refunds_amount)}`}
               </p>
-              <div className="flex items-center gap-1 text-[11px] text-muted-foreground pt-1 border-t border-border/40">
-                <span>Valores devolvidos no período</span>
+              <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-muted-foreground pt-1 border-t border-border/40 truncate">
+                <span className="truncate">Devoluções no período</span>
               </div>
             </CardContent>
           </Card>
@@ -525,14 +525,14 @@ export function SaasFinancialDashboard() {
           {/* Card 4: Receita Líquida */}
           <Card className="rounded-2xl border-emerald-500/40 bg-emerald-500/5 shadow-sm overflow-hidden relative">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-emerald-500" />
-            <CardContent className="p-4 space-y-2">
-              <div className="flex items-center justify-between text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">Receita Líquida</span>
+            <CardContent className="p-3 sm:p-4 space-y-1.5 sm:space-y-2">
+              <div className="flex items-center justify-between text-muted-foreground gap-1">
+                <div className="flex items-center gap-1 min-w-0">
+                  <span className="text-[11px] sm:text-xs font-bold text-emerald-700 dark:text-emerald-400 truncate">Receita Líquida</span>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <button type="button" className="text-muted-foreground hover:text-foreground">
-                        <Info className="h-3.5 w-3.5" />
+                      <button type="button" className="text-muted-foreground hover:text-foreground shrink-0">
+                        <Info className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs text-xs p-2.5">
@@ -540,62 +540,62 @@ export function SaasFinancialDashboard() {
                     </TooltipContent>
                   </Tooltip>
                 </div>
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-500 shrink-0" />
               </div>
-              <p className="text-2xl font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400">
+              <p className="text-lg sm:text-2xl font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400 truncate">
                 {loading ? "..." : fmtCurrency(summary?.net_revenue)}
               </p>
-              <div className="flex items-center gap-1 text-[11px] text-muted-foreground pt-1 border-t border-emerald-500/20">
-                <span>Bruto − Descontos − Estornos</span>
+              <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-muted-foreground pt-1 border-t border-emerald-500/20 truncate">
+                <span className="truncate">Bruto − Desc. − Estornos</span>
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* 4. Métricas Secundárias do SaaS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
           <Card className="rounded-2xl border-border/50 shadow-sm">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <span className="text-xs text-muted-foreground font-medium">Ticket Médio (Bruto)</span>
-                <p className="text-xl font-bold text-foreground mt-0.5">
+            <CardContent className="p-3 sm:p-4 flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <span className="text-[11px] sm:text-xs text-muted-foreground font-medium truncate block">Ticket Médio</span>
+                <p className="text-base sm:text-xl font-bold text-foreground mt-0.5 truncate">
                   {loading ? "..." : fmtCurrency(summary?.average_ticket)}
                 </p>
-                <span className="text-[10px] text-muted-foreground">
-                  {summary?.paid_orders_count || 0} pedidos confirmados
+                <span className="text-[9px] sm:text-[10px] text-muted-foreground truncate block">
+                  {summary?.paid_orders_count || 0} pedidos conf.
                 </span>
               </div>
-              <div className="p-2.5 bg-primary/10 text-primary rounded-xl">
-                <CreditCard className="h-5 w-5" />
+              <div className="p-2 sm:p-2.5 bg-primary/10 text-primary rounded-xl shrink-0">
+                <CreditCard className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
             </CardContent>
           </Card>
 
           <Card className="rounded-2xl border-border/50 shadow-sm">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <span className="text-xs text-muted-foreground font-medium">Cobranças Pendentes</span>
-                <p className="text-xl font-bold text-amber-600 dark:text-amber-400 mt-0.5">
+            <CardContent className="p-3 sm:p-4 flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <span className="text-[11px] sm:text-xs text-muted-foreground font-medium truncate block">Cobranças Pend.</span>
+                <p className="text-base sm:text-xl font-bold text-amber-600 dark:text-amber-400 mt-0.5 truncate">
                   {loading ? "..." : fmtCurrency(summary?.pending_amount)}
                 </p>
-                <span className="text-[10px] text-muted-foreground">
-                  {summary?.pending_orders_count || 0} faturas aguardando
+                <span className="text-[9px] sm:text-[10px] text-muted-foreground truncate block">
+                  {summary?.pending_orders_count || 0} faturas aguard.
                 </span>
               </div>
-              <div className="p-2.5 bg-amber-500/10 text-amber-500 rounded-xl">
-                <Clock className="h-5 w-5" />
+              <div className="p-2 sm:p-2.5 bg-amber-500/10 text-amber-500 rounded-xl shrink-0">
+                <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
             </CardContent>
           </Card>
 
           <Card className="rounded-2xl border-border/50 shadow-sm">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
+            <CardContent className="p-3 sm:p-4 flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1">
-                  <span className="text-xs text-muted-foreground font-medium">MRR Recorrente</span>
+                  <span className="text-[11px] sm:text-xs text-muted-foreground font-medium truncate">MRR Recorrente</span>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <button type="button" className="text-muted-foreground hover:text-foreground">
+                      <button type="button" className="text-muted-foreground hover:text-foreground shrink-0">
                         <Info className="h-3 w-3" />
                       </button>
                     </TooltipTrigger>
@@ -604,27 +604,27 @@ export function SaasFinancialDashboard() {
                     </TooltipContent>
                   </Tooltip>
                 </div>
-                <p className="text-xl font-bold text-foreground mt-0.5">
+                <p className="text-base sm:text-xl font-bold text-foreground mt-0.5 truncate">
                   {loading ? "..." : fmtCurrency(summary?.mrr)}
                 </p>
-                <span className="text-[10px] text-muted-foreground">
-                  {summary?.active_subscribers_count || 0} assinantes ativos
+                <span className="text-[9px] sm:text-[10px] text-muted-foreground truncate block">
+                  {summary?.active_subscribers_count || 0} assinantes
                 </span>
               </div>
-              <div className="p-2.5 bg-indigo-500/10 text-indigo-500 rounded-xl">
-                <Users className="h-5 w-5" />
+              <div className="p-2 sm:p-2.5 bg-indigo-500/10 text-indigo-500 rounded-xl shrink-0">
+                <Users className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
             </CardContent>
           </Card>
 
           <Card className="rounded-2xl border-border/50 shadow-sm">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
+            <CardContent className="p-3 sm:p-4 flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1">
-                  <span className="text-xs text-muted-foreground font-medium">ARPU Médio</span>
+                  <span className="text-[11px] sm:text-xs text-muted-foreground font-medium truncate">ARPU Médio</span>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <button type="button" className="text-muted-foreground hover:text-foreground">
+                      <button type="button" className="text-muted-foreground hover:text-foreground shrink-0">
                         <Info className="h-3 w-3" />
                       </button>
                     </TooltipTrigger>
@@ -633,15 +633,15 @@ export function SaasFinancialDashboard() {
                     </TooltipContent>
                   </Tooltip>
                 </div>
-                <p className="text-xl font-bold text-foreground mt-0.5">
+                <p className="text-base sm:text-xl font-bold text-foreground mt-0.5 truncate">
                   {loading ? "..." : fmtCurrency(summary?.arpu)}
                 </p>
-                <span className="text-[10px] text-muted-foreground">
-                  {summary?.active_trials_count || 0} trials em andamento
+                <span className="text-[9px] sm:text-[10px] text-muted-foreground truncate block">
+                  {summary?.active_trials_count || 0} trials
                 </span>
               </div>
-              <div className="p-2.5 bg-emerald-500/10 text-emerald-500 rounded-xl">
-                <Sparkles className="h-5 w-5" />
+              <div className="p-2 sm:p-2.5 bg-emerald-500/10 text-emerald-500 rounded-xl shrink-0">
+                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
             </CardContent>
           </Card>
