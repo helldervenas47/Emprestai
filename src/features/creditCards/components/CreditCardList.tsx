@@ -274,6 +274,7 @@ MiniCreditCard.displayName = "MiniCreditCard";
 
 export function CreditCardList({ readOnly = false, referenceMonth }: Props) {
   useFinanceComponentDebug("CreditCardList");
+  const { mask } = useHideValues();
   const { cards: allCards, loading, addCard, updateCard, deleteCard } = useCreditCards();
   const cards = useMemo(() => allCards.filter((c) => c.active !== false), [allCards]);
   const inactiveCards = useMemo(() => allCards.filter((c) => c.active === false), [allCards]);
