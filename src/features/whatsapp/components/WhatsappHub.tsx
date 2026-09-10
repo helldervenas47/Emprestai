@@ -113,19 +113,19 @@ export function WhatsappHub() {
         no3d
         className="overflow-hidden border-emerald-500/20 bg-gradient-to-br from-card via-card to-emerald-500/5 rounded-2xl shadow-xs"
       >
-        <CardContent className="p-4 sm:p-5">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <CardContent className="p-3.5 sm:p-5">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5 sm:gap-4">
             {/* Lado Esquerdo: Título, Ícone e Badges de Status */}
-            <div className="space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="h-9 w-9 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold shadow-xs shrink-0">
+            <div className="space-y-2.5">
+              <div className="flex items-start gap-2.5 sm:gap-3">
+                <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold shadow-xs shrink-0 mt-0.5">
                   <MessageCircle className="h-5 w-5" />
                 </div>
-                <div>
-                  <h3 className="text-base font-bold text-foreground leading-tight flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm sm:text-base font-bold text-foreground leading-snug">
                     Cobrança e Mensagens WhatsApp
                   </h3>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
                     Central de automação de cobranças, mensagens personalizadas e inteligência financeira.
                   </p>
                 </div>
@@ -133,22 +133,22 @@ export function WhatsappHub() {
 
               {/* Status Chips */}
               {isAdmin && (
-                <div className="flex flex-wrap items-center gap-2 pt-1">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pt-0.5">
                   {isConfigured ? (
                     <Badge
                       variant="outline"
-                      className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25 text-[11px] font-semibold gap-1 py-0.5"
+                      className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25 text-[10px] sm:text-[11px] font-semibold gap-1 py-0.5 px-2"
                     >
-                      <Radio className="h-3 w-3 text-emerald-500 animate-pulse" />
+                      <Radio className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-emerald-500 animate-pulse" />
                       Provedor Conectado
                     </Badge>
                   ) : (
                     <Badge
                       variant="outline"
-                      className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[11px] font-semibold gap-1 py-0.5 cursor-pointer hover:bg-amber-500/15"
+                      className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] sm:text-[11px] font-semibold gap-1 py-0.5 px-2 cursor-pointer hover:bg-amber-500/15"
                       onClick={() => setActiveTab("automation")}
                     >
-                      <AlertTriangle className="h-3 w-3" />
+                      <AlertTriangle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                       API Pendente de Configuração
                     </Badge>
                   )}
@@ -156,17 +156,17 @@ export function WhatsappHub() {
                   {isAutoEnabled ? (
                     <Badge
                       variant="outline"
-                      className="bg-primary/10 text-primary border-primary/25 text-[11px] font-semibold gap-1 py-0.5"
+                      className="bg-primary/10 text-primary border-primary/25 text-[10px] sm:text-[11px] font-semibold gap-1 py-0.5 px-2"
                     >
-                      <CheckCircle2 className="h-3 w-3 text-primary" />
-                      Envio Diário Ativo ({schedule.send_time?.slice(0, 5) ?? "09:00"})
+                      <CheckCircle2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary" />
+                      Envio Diário ({schedule.send_time?.slice(0, 5) ?? "09:00"})
                     </Badge>
                   ) : (
                     <Badge
                       variant="outline"
-                      className="bg-muted text-muted-foreground border-border text-[11px] font-medium gap-1 py-0.5"
+                      className="bg-muted text-muted-foreground border-border text-[10px] sm:text-[11px] font-medium gap-1 py-0.5 px-2"
                     >
-                      <Clock className="h-3 w-3" />
+                      <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                       Envio Automático Pausado
                     </Badge>
                   )}
@@ -174,7 +174,7 @@ export function WhatsappHub() {
                   {totalRecent > 0 && (
                     <Badge
                       variant="outline"
-                      className="bg-muted/60 text-muted-foreground border-border text-[11px] font-medium tabular-nums py-0.5"
+                      className="bg-muted/60 text-muted-foreground border-border text-[10px] sm:text-[11px] font-medium tabular-nums py-0.5 px-2"
                     >
                       Taxa de Sucesso: {successRate}% ({recentSuccess}/{totalRecent})
                     </Badge>
@@ -185,29 +185,30 @@ export function WhatsappHub() {
 
             {/* Lado Direito: Botões de Ação Rápida (Exclusivo Admin) */}
             {isAdmin && (
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="grid grid-cols-2 gap-2 w-full md:w-auto md:flex md:items-center shrink-0 pt-1 md:pt-0">
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-9 text-xs font-semibold rounded-xl"
+                  className="h-9 text-xs font-semibold rounded-xl w-full md:w-auto justify-center"
                   onClick={() => setActiveTab("automation")}
                 >
-                  <Settings2 className="h-3.5 w-3.5 mr-1.5" />
+                  <Settings2 className="h-3.5 w-3.5 mr-1.5 shrink-0" />
                   Configurar API
                 </Button>
 
                 <Button
                   size="sm"
-                  className="h-9 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                  className="h-9 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs w-full md:w-auto justify-center"
                   onClick={handleQuickTest}
                   disabled={testing}
                 >
                   {testing ? (
-                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin shrink-0" />
                   ) : (
-                    <Send className="h-3.5 w-3.5 mr-1.5" />
+                    <Send className="h-3.5 w-3.5 mr-1.5 shrink-0" />
                   )}
-                  Executar Teste de Cobrança
+                  <span className="hidden sm:inline">Executar Teste de Cobrança</span>
+                  <span className="sm:hidden">Testar Disparo</span>
                 </Button>
               </div>
             )}
