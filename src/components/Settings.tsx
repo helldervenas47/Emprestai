@@ -16,7 +16,6 @@ import { PendingSyncCard } from "@/components/PendingSyncCard";
 import { TimezoneSettingsCard } from "@/components/TimezoneSettingsCard";
 import { ThemeSettingsCard } from "@/components/ThemeSettingsCard";
 import { ChangePasswordCard } from "@/components/ChangePasswordCard";
-import { ProfilePhoneCard } from "@/components/ProfilePhoneCard";
 import { PlanStatusCard } from "@/features/admin/components/PlanStatusCard";
 
 const UserManagement = lazy(() => import("@/features/admin/components/UserManagement").then(m => ({ default: m.UserManagement })));
@@ -98,9 +97,6 @@ export function Settings({ backup, locadores, onSaveLocador, onRemoveLocador, is
 
       {/* Alteração de senha */}
       <ChangePasswordCard />
-
-      {/* Telefone (WhatsApp) */}
-      <ProfilePhoneCard />
 
       {/* Sincronização offline */}
       <PendingSyncCard />
