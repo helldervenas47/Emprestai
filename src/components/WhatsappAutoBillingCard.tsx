@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { useWhatsappBillingSchedule } from "@/hooks/useWhatsappBillingSchedule";
 import { useMyProfilePhone } from "@/hooks/useMyProfilePhone";
 import { toast } from "sonner";
-import { Send, Loader2, CheckCircle2, XCircle, Clock, Users, Phone } from "lucide-react";
+import { Send, Loader2, CheckCircle2, XCircle, Clock, Users, Phone, Zap } from "lucide-react";
 
 const WEEKDAYS = [
   { value: 0, label: "Domingo" },
