@@ -3,12 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select";
-import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -84,46 +78,18 @@ export function SystemSettings() {
     <div className="space-y-6 w-full">
 
       <Tabs value={subTab} onValueChange={setSubTab} className="w-full">
-        {/* Seletor Mobile (Dropdown) */}
-        <div className="sm:hidden w-full mb-3">
-          <Select value={subTab} onValueChange={setSubTab}>
-            <SelectTrigger className="w-full h-11 bg-card border-border/80 shadow-xs rounded-xl font-medium">
-              <div className="flex items-center gap-2">
-                {(() => {
-                  const activeTab = systemTabs.find(t => t.value === subTab) || systemTabs[0];
-                  const IconComponent = activeTab?.icon;
-                  return (
-                    <>
-                      {IconComponent && <IconComponent className="h-4 w-4 text-primary shrink-0" />}
-                      <span className="truncate">{activeTab?.label}</span>
-                    </>
-                  );
-                })()}
-              </div>
-            </SelectTrigger>
-            <SelectContent className="z-50">
-              {systemTabs.map(tab => {
-                const TabIcon = tab.icon;
-                return (
-                  <SelectItem key={tab.value} value={tab.value} className="py-2.5 cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <TabIcon className="h-4 w-4 text-primary/80 shrink-0" />
-                      <span>{tab.label}</span>
-                    </div>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Abas Desktop / Tablet */}
-        <TabsList className="hidden sm:flex w-full flex-wrap h-auto gap-1 bg-muted/50 p-1">
+        {/* Abas Responsivas: Grade 2 colunas no mobile, Flex no desktop */}
+        <TabsList className="w-full grid grid-cols-2 sm:flex sm:flex-wrap h-auto gap-1.5 sm:gap-1 bg-muted/40 sm:bg-muted/50 p-1.5 sm:p-1 rounded-2xl sm:rounded-lg border border-border/40 sm:border-transparent">
           {systemTabs.map(tab => {
             const TabIcon = tab.icon;
             return (
-              <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-1.5 flex-1 min-w-[120px]">
-                <TabIcon className="h-3.5 w-3.5" /> {tab.label}
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                className="flex items-center justify-center sm:justify-start gap-2 sm:gap-1.5 h-10 sm:h-9 text-xs sm:text-xs font-semibold rounded-xl data-[state=active]:bg-background data-[state=active]:shadow-xs transition-all flex-1 min-w-0 sm:min-w-[120px]"
+              >
+                <TabIcon className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{tab.label}</span>
               </TabsTrigger>
             );
           })}
