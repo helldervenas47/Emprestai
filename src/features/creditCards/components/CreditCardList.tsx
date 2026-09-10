@@ -1,8 +1,7 @@
 import React, { useMemo } from "react";
-import { CreditCard as CreditCardIcon, ChevronRight, CheckCircle2, AlertCircle, ArrowUpRight } from "lucide-react";
+import { CreditCard as CreditCardIcon, ChevronRight, ArrowUpRight } from "lucide-react";
 import { emitAppUIEvent } from "@/lib/appUIEvents";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useCreditCards } from "@/features/creditCards/hooks/useCreditCards";
 import { useExpenses } from "@/features/financial/hooks/useExpenses";
 import { useCreditCardOpenings, cycleKeyFromDate } from "@/features/creditCards/hooks/useCreditCardOpenings";
@@ -224,58 +223,32 @@ export function CreditCardList({ readOnly = false, referenceMonth }: Props) {
     );
   }
 
-  const allPaid = summaryMetrics.totalInvoices > 0 && summaryMetrics.totalPending <= 0.005;
-
   return (
     <div
       onClick={handleOpenGeneralManagement}
-      className="group relative cursor-pointer overflow-hidden rounded-2xl bg-gradient-to-br from-card via-card to-primary/[0.04] border border-primary/20 hover:border-primary/40 hover:shadow-lg transition-all duration-200 p-4 sm:p-5"
+      className="group relative cursor-pointer overflow-hidden rounded-2xl bg-gradient-to-br from-card via-card to-primary/[0.04] border border-primary/20 hover:border-primary/40 hover:shadow-lg transition-all duration-200 p-4 sm:p-5 space-y-4"
       title="Clique para abrir o painel completo de Cartões de Crédito"
     >
       {/* Detalhe de fundo decorativo */}
       <div className="pointer-events-none absolute -top-12 -right-12 h-32 w-32 rounded-full bg-primary/10 blur-2xl group-hover:bg-primary/15 transition-all" />
 
       {/* Header do Card Consolidado */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/50">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-primary/15 text-primary flex items-center justify-center font-bold shrink-0 shadow-xs group-hover:scale-105 transition-transform">
-            <CreditCardIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm sm:text-base font-bold text-foreground group-hover:text-primary transition-colors">
-                Cartões de Crédito ({cards.length})
-              </h3>
-              {allPaid ? (
-                <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] py-0 px-2 h-4.5 font-medium flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3" /> Faturas Quitadas
-                </Badge>
-              ) : summaryMetrics.totalPending > 0 ? (
-                <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] py-0 px-2 h-4.5 font-medium flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" /> Pendente
-                </Badge>
-              ) : null}
-            </div>
-            <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
-              {summaryMetrics.paidInvoicesCount} de {cards.length} fatura(s) quitada(s) no período
-            </p>
-          </div>
+      <div className="flex items-center gap-3 pb-3 border-b border-border/50">
+        <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-primary/15 text-primary flex items-center justify-center font-bold shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+          <CreditCardIcon className="h-5 w-5 sm:h-6 sm:w-6" />
         </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 sm:h-9 text-xs font-semibold rounded-xl bg-background/70 border-primary/30 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all shadow-xs"
-          >
-            <span>Painel Completo</span>
-            <ArrowUpRight className="h-3.5 w-3.5 ml-1 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-          </Button>
+        <div>
+          <h3 className="text-sm sm:text-base font-bold text-foreground group-hover:text-primary transition-colors">
+            Cartões de Crédito ({cards.length})
+          </h3>
+          <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
+            {summaryMetrics.paidInvoicesCount} de {cards.length} fatura(s) quitada(s) no período
+          </p>
         </div>
       </div>
 
       {/* Grid de Métricas Principais */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3.5 pt-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3.5">
         {/* Total das Faturas */}
         <div className="p-3 sm:p-3.5 rounded-xl bg-background/70 border border-border/50 space-y-1">
           <span className="text-[10px] sm:text-[11px] uppercase font-semibold tracking-wider text-muted-foreground">
@@ -333,6 +306,18 @@ export function CreditCardList({ readOnly = false, referenceMonth }: Props) {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Botão Painel Completo ocupando todo o espaço lateral */}
+      <div className="pt-1">
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full h-9 sm:h-10 text-xs sm:text-sm font-semibold rounded-xl bg-background/80 border-primary/30 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all shadow-xs flex items-center justify-center gap-1.5"
+        >
+          <span>Painel Completo</span>
+          <ArrowUpRight className="h-4 w-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+        </Button>
       </div>
     </div>
   );
