@@ -241,16 +241,13 @@ export function CreditCardList({ readOnly = false, referenceMonth }: Props) {
           <h3 className="text-sm sm:text-base font-bold text-foreground group-hover:text-primary transition-colors">
             Cartões de Crédito ({cards.length})
           </h3>
-          <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
-            {summaryMetrics.paidInvoicesCount} de {cards.length} fatura(s) quitada(s) no período
-          </p>
         </div>
       </div>
 
       {/* Grid de Métricas Principais */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3.5">
         {/* Total das Faturas */}
-        <div className="p-3 sm:p-3.5 rounded-xl bg-background/70 border border-border/50 space-y-1">
+        <div className="p-3 sm:p-3.5 rounded-xl bg-background/70 border border-border/50 space-y-1 text-center flex flex-col items-center justify-center">
           <span className="text-[10px] sm:text-[11px] uppercase font-semibold tracking-wider text-muted-foreground">
             Total Faturas
           </span>
@@ -263,7 +260,7 @@ export function CreditCardList({ readOnly = false, referenceMonth }: Props) {
         </div>
 
         {/* Fatura a Pagar */}
-        <div className="p-3 sm:p-3.5 rounded-xl bg-background/70 border border-border/50 space-y-1">
+        <div className="p-3 sm:p-3.5 rounded-xl bg-background/70 border border-border/50 space-y-1 text-center flex flex-col items-center justify-center">
           <span className="text-[10px] sm:text-[11px] uppercase font-semibold tracking-wider text-muted-foreground">
             A Pagar (Mês)
           </span>
@@ -278,7 +275,7 @@ export function CreditCardList({ readOnly = false, referenceMonth }: Props) {
         </div>
 
         {/* Limite Global Disponível */}
-        <div className="col-span-2 sm:col-span-1 p-3 sm:p-3.5 rounded-xl bg-background/70 border border-border/50 space-y-1.5 flex flex-col justify-between">
+        <div className="col-span-2 sm:col-span-1 p-3 sm:p-3.5 rounded-xl bg-background/70 border border-border/50 space-y-1.5 flex flex-col justify-between text-center">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[10px] sm:text-[11px] uppercase font-semibold tracking-wider text-muted-foreground">
               Limite Disp. Global
@@ -288,7 +285,7 @@ export function CreditCardList({ readOnly = false, referenceMonth }: Props) {
             </span>
           </div>
 
-          <p className="text-sm sm:text-base md:text-lg font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums tracking-tight">
+          <p className="text-sm sm:text-base md:text-lg font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums tracking-tight text-center">
             {mask(fmt(summaryMetrics.totalAvailable))}
           </p>
 
