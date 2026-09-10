@@ -449,17 +449,17 @@ export function StockManager({ readOnly = false }: Props) {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {/* Valor de Venda */}
               <Card className="border border-border/60 bg-card/80 shadow-xs hover:border-emerald-500/40 transition-colors">
-                <CardContent className="p-3.5 sm:p-4 space-y-1">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Valor de Venda</span>
-                    <span className="h-7 w-7 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                      <DollarSign className="h-4 w-4" />
+                <CardContent className="p-3.5 sm:p-4 space-y-1.5 text-center flex flex-col items-center justify-center">
+                  <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+                      <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </span>
+                    <span className="font-semibold truncate">Valor de Venda</span>
                   </div>
-                  <div className="text-lg sm:text-2xl font-extrabold text-foreground tabular-nums tracking-tight">
+                  <div className="text-lg sm:text-2xl font-extrabold text-foreground tabular-nums tracking-tight text-center">
                     {fmtBRL(totalSaleValue)}
                   </div>
-                  <p className="text-[11px] text-muted-foreground truncate">
+                  <p className="text-[11px] text-muted-foreground truncate text-center">
                     Total a realizar em vendas
                   </p>
                 </CardContent>
@@ -467,17 +467,17 @@ export function StockManager({ readOnly = false }: Props) {
 
               {/* Custo do Estoque */}
               <Card className="border border-border/60 bg-card/80 shadow-xs hover:border-slate-500/40 transition-colors">
-                <CardContent className="p-3.5 sm:p-4 space-y-1">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Custo do Estoque</span>
-                    <span className="h-7 w-7 rounded-lg bg-slate-500/10 text-slate-600 dark:text-slate-400 flex items-center justify-center">
-                      <ShoppingCart className="h-4 w-4" />
+                <CardContent className="p-3.5 sm:p-4 space-y-1.5 text-center flex flex-col items-center justify-center">
+                  <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg bg-slate-500/10 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0">
+                      <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </span>
+                    <span className="font-semibold truncate">Custo do Estoque</span>
                   </div>
-                  <div className="text-lg sm:text-2xl font-extrabold text-foreground tabular-nums tracking-tight">
+                  <div className="text-lg sm:text-2xl font-extrabold text-foreground tabular-nums tracking-tight text-center">
                     {fmtBRL(totalCostValue)}
                   </div>
-                  <p className="text-[11px] text-muted-foreground truncate">
+                  <p className="text-[11px] text-muted-foreground truncate text-center">
                     Capital investido em produtos
                   </p>
                 </CardContent>
@@ -485,13 +485,16 @@ export function StockManager({ readOnly = false }: Props) {
 
               {/* Lucro Potencial */}
               <Card className="border border-border/60 bg-card/80 shadow-xs hover:border-primary/40 transition-colors">
-                <CardContent className="p-3.5 sm:p-4 space-y-1">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <CardContent className="p-3.5 sm:p-4 space-y-1.5 text-center flex flex-col items-center justify-center">
+                  <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                      <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    </span>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className="cursor-help flex items-center gap-1">
+                        <span className="cursor-help flex items-center gap-1 font-semibold truncate">
                           Lucro Potencial
-                          <AlertCircle className="h-3 w-3 text-muted-foreground/70" />
+                          <AlertCircle className="h-3 w-3 text-muted-foreground/70 shrink-0" />
                         </span>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -500,14 +503,11 @@ export function StockManager({ readOnly = false }: Props) {
                         </p>
                       </TooltipContent>
                     </Tooltip>
-                    <span className="h-7 w-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                      <TrendingUp className="h-4 w-4" />
-                    </span>
                   </div>
-                  <div className="text-lg sm:text-2xl font-extrabold text-primary tabular-nums tracking-tight">
+                  <div className="text-lg sm:text-2xl font-extrabold text-primary tabular-nums tracking-tight text-center">
                     {fmtBRL(potentialProfit)}
                   </div>
-                  <p className="text-[11px] text-muted-foreground truncate">
+                  <p className="text-[11px] text-muted-foreground truncate text-center">
                     Retorno estimado nas vendas
                   </p>
                 </CardContent>
@@ -515,20 +515,20 @@ export function StockManager({ readOnly = false }: Props) {
 
               {/* Unidades em Estoque */}
               <Card className="border border-border/60 bg-card/80 shadow-xs hover:border-blue-500/40 transition-colors">
-                <CardContent className="p-3.5 sm:p-4 space-y-1">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Unidades</span>
-                    <span className="h-7 w-7 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center">
-                      <Package className="h-4 w-4" />
+                <CardContent className="p-3.5 sm:p-4 space-y-1.5 text-center flex flex-col items-center justify-center">
+                  <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
+                      <Package className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </span>
+                    <span className="font-semibold truncate">Unidades</span>
                   </div>
-                  <div className="text-lg sm:text-2xl font-extrabold text-foreground tabular-nums tracking-tight">
+                  <div className="text-lg sm:text-2xl font-extrabold text-foreground tabular-nums tracking-tight text-center">
                     {totalUnits}{" "}
                     <span className="text-xs font-semibold text-muted-foreground">
                       itens
                     </span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground truncate">
+                  <p className="text-[11px] text-muted-foreground truncate text-center">
                     {activeProducts.length} produto
                     {activeProducts.length === 1 ? "" : "s"} cadastrado
                     {activeProducts.length === 1 ? "" : "s"}
