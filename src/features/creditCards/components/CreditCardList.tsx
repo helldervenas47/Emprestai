@@ -38,31 +38,34 @@ const fmt = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 /** Returns cycle for a reference Date (today inside the cycle window). */
-function getCycleForRef(ref: Date, closingDay: number, dueDay: number) {
-  const y = ref.getFullYear();
-  const m = ref.getMonth();
-  const day = ref.getDate();
-  const closingThis = new Date(y, m, Math.min(closingDay, new Date(y, m + 1, 0).getDate()));
+function getCycleForRef(ref: Date, closingDay?: number, dueDay?: number) {
+  const safeRef = ref instanceof Date && !isNaN(ref.getTime()) ? ref : new Date();
+  const safeClosing = Math.min(31, Math.max(1, Number(closingDay) || 1));
+  const safeDue = Math.min(31, Math.max(1, Number(dueDay) || 10));
+  const y = safeRef.getFullYear();
+  const m = safeRef.getMonth();
+  const day = safeRef.getDate();
+  const closingThis = new Date(y, m, Math.min(safeClosing, new Date(y, m + 1, 0).getDate()));
   const closingNext =
-    day >= closingDay
-      ? new Date(y, m + 1, Math.min(closingDay, new Date(y, m + 2, 0).getDate()))
+    day >= safeClosing
+      ? new Date(y, m + 1, Math.min(safeClosing, new Date(y, m + 2, 0).getDate()))
       : closingThis;
   const closingPrev =
-    day >= closingDay
+    day >= safeClosing
       ? closingThis
-      : new Date(y, m - 1, Math.min(closingDay, new Date(y, m, 0).getDate()));
-  const dueMonth = dueDay > closingDay ? closingNext.getMonth() : closingNext.getMonth() + 1;
+      : new Date(y, m - 1, Math.min(safeClosing, new Date(y, m, 0).getDate()));
+  const dueMonth = safeDue > safeClosing ? closingNext.getMonth() : closingNext.getMonth() + 1;
   const dueYear = closingNext.getFullYear();
   const dueDate = new Date(
     dueYear,
     dueMonth,
-    Math.min(dueDay, new Date(dueYear, dueMonth + 1, 0).getDate())
+    Math.min(safeDue, new Date(dueYear, dueMonth + 1, 0).getDate())
   );
   return { from: closingPrev, to: closingNext, dueDate };
 }
 
 /** Returns the current billing cycle (from, to, dueDate) for a card. */
-function getCurrentCycle(closingDay: number, dueDay: number) {
+function getCurrentCycle(closingDay?: number, dueDay?: number) {
   return getCycleForRef(new Date(), closingDay, dueDay);
 }
 
@@ -228,8 +231,8 @@ const MiniCreditCard = React.forwardRef<HTMLDivElement, MiniCardProps>(({
           </div>
 
           <div className="flex items-center justify-between gap-2 text-[9px] text-muted-foreground pt-0.5 border-t border-border/30">
-            <span>Vence {format(dueDate, "dd/MM", { locale: ptBR })}</span>
-            <span>Limite {mask(fmt(card.creditLimit))}</span>
+            <span>Vence {format(validDueDate, "dd/MM", { locale: ptBR })}</span>
+            <span>Limite {mask(fmt(Number(card?.creditLimit ?? 0)))}</span>
           </div>
         </div>
 
@@ -451,9 +454,10 @@ export function CreditCardList({ readOnly = false, referenceMonth }: Props) {
     if (!openingCard) return null;
     const inv = invoiceByCard.get(openingCard.id);
     if (!inv) return null;
+    const validDueDate = inv.dueDate instanceof Date && !isNaN(inv.dueDate.getTime()) ? inv.dueDate : new Date();
     return {
       cycleKey: inv.cycleKey,
-      cycleLabel: format(inv.dueDate, "MMMM/yy", { locale: ptBR }),
+      cycleLabel: format(validDueDate, "MMMM/yy", { locale: ptBR }),
       initialAmount: inv.opening,
       initialNotes: inv.openingNotes,
     };
@@ -606,9 +610,11 @@ export function CreditCardList({ readOnly = false, referenceMonth }: Props) {
         {(() => {
           // Sort by nearest due date (soonest first) for mobile prioritization
           const sortedCards = [...cards].sort((a, b) => {
-            const da = invoiceByCard.get(a.id)?.dueDate?.getTime() ?? 0;
-            const db = invoiceByCard.get(b.id)?.dueDate?.getTime() ?? 0;
-            return da - db;
+            const da = invoiceByCard.get(a.id)?.dueDate?.getTime();
+            const db = invoiceByCard.get(b.id)?.dueDate?.getTime();
+            const timeA = typeof da === "number" && !isNaN(da) ? da : 0;
+            const timeB = typeof db === "number" && !isNaN(db) ? db : 0;
+            return timeA - timeB;
           });
           const isMobileLimited = !showAllMobile && sortedCards.length > 2;
           const mobileVisible = isMobileLimited ? sortedCards.slice(0, 2) : sortedCards;
@@ -618,13 +624,16 @@ export function CreditCardList({ readOnly = false, referenceMonth }: Props) {
               {/* Mobile: limited list (max 2) */}
               <div className="grid gap-3 grid-cols-2 sm:hidden">
                 {mobileVisible.map((card) => {
+                  const fallbackDueDate = getCurrentCycle(card.closingDay, card.dueDay).dueDate;
                   const inv = invoiceByCard.get(card.id) ?? {
                     transactions: 0, opening: 0, total: 0, paidTotal: 0, pendingTotal: 0, cyclePendingTotal: 0,
-                    dueDate: getCurrentCycle(card.closingDay, card.dueDay).dueDate,
+                    dueDate: fallbackDueDate,
                     cycleKey: "", openingNotes: null, hasOpening: false,
                     unpaidExpenseIds: [] as string[],
                     cycleUnpaidExpenseIds: [] as string[],
                   };
+                  const safeDue = inv.dueDate instanceof Date && !isNaN(inv.dueDate.getTime()) ? inv.dueDate : fallbackDueDate;
+                  const isMonthActive = inv.total > 0 && `${safeDue.getFullYear()}-${String(safeDue.getMonth() + 1).padStart(2, "0")}` === refMonthKey;
                   return (
                     <MiniCreditCard
                       key={card.id}
@@ -635,17 +644,14 @@ export function CreditCardList({ readOnly = false, referenceMonth }: Props) {
                       cyclePendingTotal={inv.cyclePendingTotal}
                       openingAmount={inv.opening}
                       hasOpening={inv.hasOpening}
-                      hasActiveInvoice={
-                        inv.total > 0 &&
-                        `${inv.dueDate.getFullYear()}-${String(inv.dueDate.getMonth() + 1).padStart(2, "0")}` === refMonthKey
-                      }
+                      hasActiveInvoice={isMonthActive}
                       hasUnpaidInvoice={inv.unpaidExpenseIds.length > 0}
-                      dueDate={inv.dueDate}
+                      dueDate={safeDue}
                       onClick={(rect) => openInvoice(card, rect)}
                       onEdit={readOnly ? undefined : () => handleEdit(card)}
                       onDelete={readOnly ? undefined : () => setDeleting(card)}
                       onAddOpening={readOnly ? undefined : () => setOpeningCard(card)}
-                    onPayInvoice={readOnly ? undefined : () => openInvoicePayment(card)}
+                      onPayInvoice={readOnly ? undefined : () => openInvoicePayment(card)}
                       readOnly={readOnly}
                     />
                   );
@@ -670,6 +676,7 @@ export function CreditCardList({ readOnly = false, referenceMonth }: Props) {
         {/* Tablet/Desktop: full grid */}
         <div className="hidden sm:grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {cards.map((card) => {
+            const fallbackDueDate = getCurrentCycle(card.closingDay, card.dueDay).dueDate;
             const inv = invoiceByCard.get(card.id) ?? {
               transactions: 0,
               opening: 0,
@@ -677,13 +684,15 @@ export function CreditCardList({ readOnly = false, referenceMonth }: Props) {
               paidTotal: 0,
               pendingTotal: 0,
               cyclePendingTotal: 0,
-              dueDate: getCurrentCycle(card.closingDay, card.dueDay).dueDate,
+              dueDate: fallbackDueDate,
               cycleKey: "",
               openingNotes: null,
               hasOpening: false,
               unpaidExpenseIds: [] as string[],
               cycleUnpaidExpenseIds: [] as string[],
             };
+            const safeDue = inv.dueDate instanceof Date && !isNaN(inv.dueDate.getTime()) ? inv.dueDate : fallbackDueDate;
+            const isMonthActive = inv.total > 0 && `${safeDue.getFullYear()}-${String(safeDue.getMonth() + 1).padStart(2, "0")}` === refMonthKey;
             return (
               <MiniCreditCard
                 key={card.id}
@@ -694,12 +703,9 @@ export function CreditCardList({ readOnly = false, referenceMonth }: Props) {
                 cyclePendingTotal={inv.cyclePendingTotal}
                 openingAmount={inv.opening}
                 hasOpening={inv.hasOpening}
-                hasActiveInvoice={
-                  inv.total > 0 &&
-                  `${inv.dueDate.getFullYear()}-${String(inv.dueDate.getMonth() + 1).padStart(2, "0")}` === refMonthKey
-                }
+                hasActiveInvoice={isMonthActive}
                 hasUnpaidInvoice={inv.unpaidExpenseIds.length > 0}
-                dueDate={inv.dueDate}
+                dueDate={safeDue}
                 onClick={(rect) => openInvoice(card, rect)}
                 onEdit={readOnly ? undefined : () => handleEdit(card)}
                 onDelete={readOnly ? undefined : () => setDeleting(card)}
