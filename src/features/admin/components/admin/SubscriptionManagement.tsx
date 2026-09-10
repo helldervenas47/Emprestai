@@ -60,23 +60,51 @@ function resolveSubscriberState(u: AdminSubRow) {
   const trialEnd = u.trial_started_at
     ? new Date(new Date(u.trial_started_at).getTime() + trialDays * 86400000).toISOString()
     : null;
-  const isTrialActive = trialEnd ? trialEnd > now : false;
-  const isPaidPeriodActive = end ? end > now : false;
 
-  // Se a conta ainda possui dias válidos (período pago ou teste grátis ativo),
-  // ela NÃO deve ser considerada em atraso (past_due), mesmo com cobrança gerada e não paga.
-  if (isPaidPeriodActive && st !== "canceled" && st !== "suspended") {
-    st = "active";
-  } else if (isTrialActive && st !== "active") {
-    st = "trialing";
-    if (u.trial_plan_name) planId = u.trial_plan_name.toLowerCase();
-    end = trialEnd;
-  } else if (st === "active" || st === "trialing") {
-    if (end && end <= now) {
+  // Identifica se a conta é de Teste Grátis (trial)
+  const isFreeTrialAccount =
+    planId === "teste_gratis_plan" ||
+    planId === "teste_gratis" ||
+    planId === "teste" ||
+    st === "trialing" ||
+    Boolean(
+      u.trial_started_at &&
+      (!planId || planId === "free_plan" || planId === "teste_gratis_plan") &&
+      !u.subscription?.asaas_subscription_id
+    );
+
+  if (u.is_blocked || st === "suspended") {
+    st = "suspended";
+  } else if (st === "canceled") {
+    st = "canceled";
+  } else if (isFreeTrialAccount) {
+    // Contas com teste grátis:
+    // O status deve vir como "trialing" (Em teste) e os dias restantes devem ser do período de teste
+    const effectiveTrialEnd = trialEnd || end;
+    if (effectiveTrialEnd && effectiveTrialEnd > now) {
+      st = "trialing";
+      end = effectiveTrialEnd;
+    } else {
       st = "expired";
+      end = effectiveTrialEnd;
     }
-  } else if (st === "none" && trialEnd && trialEnd <= now) {
-    st = "expired";
+    if (!planId || planId === "free_plan") {
+      planId = u.trial_plan_name ? u.trial_plan_name.toLowerCase() : "teste_gratis_plan";
+    }
+  } else {
+    // Contas com planos pagos / assinaturas
+    const isPaidPeriodActive = end ? end > now : false;
+    if (isPaidPeriodActive) {
+      st = "active";
+    } else if (st === "active") {
+      if (end && end <= now) {
+        st = "expired";
+      }
+    } else if (trialEnd && trialEnd > now && st === "none") {
+      st = "trialing";
+      end = trialEnd;
+      if (u.trial_plan_name) planId = u.trial_plan_name.toLowerCase();
+    }
   }
 
   return { planId, end, st };
