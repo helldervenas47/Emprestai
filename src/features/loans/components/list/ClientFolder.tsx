@@ -1,14 +1,13 @@
 import React, { useCallback, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight, MessageCircle, UserCog, Folder, FolderOpen, ArrowUpRight } from "lucide-react";
+import { ChevronRight, MessageCircle, UserCog, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 import { useHideValues } from "@/contexts/HideValuesContext";
 import { Loan, Payment, InstallmentSchedule, Client, PaymentSplit } from "@/types/loan";
 import type { LoanRenegotiation } from "@/types/loan";
 import { rawFormatCurrency } from "@/features/loans/components/list/formatting";
 import { LoanRowView } from "@/features/loans/components/list/LoanListRow";
-import { LoanListMiniCard } from "@/features/loans/components/list/LoanListMiniCard";
 
 export interface ClientGroup {
   name: string;
@@ -360,51 +359,19 @@ export function ClientFolder({
               </div>
             </div>
 
-            {/* Mobile: Exibição em Cards Interativos (LoanListMiniCard) */}
-            <div className="sm:hidden space-y-2.5 pt-1">
-              {group.loans.map((loan) => (
-                <LoanListMiniCard
-                  key={loan.id}
-                  loan={loan}
-                  payments={payments}
-                  installmentSchedules={installmentSchedules}
-                  readOnly={readOnly}
-                  clients={clients}
-                  renegotiations={renegotiations.filter((r) => r.loanId === loan.id)}
-                  existingTags={existingTags}
-                  onPayment={(date, mid, split) => onPayment(loan.id, date, mid, split)}
-                  onPartialPayment={(amt, date, mid, split) => onPartialPayment(loan.id, amt, date, mid, split)}
-                  onFullPayment={
-                    onFullPayment
-                      ? (date, custom, mid, split) => onFullPayment(loan.id, date, custom, mid, split)
-                      : undefined
-                  }
-                  onInterestPayment={(date, custom, fees, mid, split, opts) =>
-                    onInterestPayment(loan.id, date, custom, fees, mid, split, opts)
-                  }
-                  onAmortize={onAmortize ? (amt, date, mid, split) => onAmortize(loan.id, amt, date, mid, split) : undefined}
-                  onRenegotiate={onRenegotiate ? (params) => onRenegotiate(loan.id, params) : undefined}
-                  onUpdate={(d) => onUpdate(loan.id, d)}
-                  onDelete={() => onDelete(loan.id)}
-                  onDeletePayment={onDeletePayment}
-                  onSaveSchedule={onSaveSchedule}
-                />
-              ))}
-            </div>
-
-            {/* Desktop / Tablet: Tabela Completa */}
-            <div className="hidden sm:block rounded-2xl border border-border/40 overflow-hidden bg-card shadow-sm">
+            {/* Tabela Completa em Linhas (Mobile, Tablet e Desktop) */}
+            <div className="rounded-2xl border border-border/40 overflow-x-auto bg-card shadow-sm">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-border/40 bg-muted/40 text-xs font-semibold text-muted-foreground">
-                    <th className="px-4 py-3 text-left">Cliente / Contrato</th>
-                    <th className="px-4 py-3 text-left">Status</th>
-                    <th className="px-4 py-3 text-left">Emprestado</th>
-                    <th className="px-4 py-3 text-left">Restante</th>
-                    <th className="px-4 py-3 text-left">Parcelas</th>
-                    <th className="px-4 py-3 text-left">Vencimento</th>
-                    <th className="px-4 py-3 text-left">Etiquetas</th>
-                    <th className="px-4 py-3 text-right">Ações</th>
+                  <tr className="border-b border-border/40 bg-muted/40 text-[10px] sm:text-xs font-semibold text-muted-foreground">
+                    <th className="px-2 sm:px-4 py-2.5 sm:py-3 text-left">Cliente / Contrato</th>
+                    <th className="hidden sm:table-cell px-2 sm:px-4 py-2.5 sm:py-3 text-left">Status</th>
+                    <th className="hidden sm:table-cell px-2 sm:px-4 py-2.5 sm:py-3 text-left">Emprestado</th>
+                    <th className="px-2 sm:px-4 py-2.5 sm:py-3 text-left">Restante</th>
+                    <th className="hidden sm:table-cell px-2 sm:px-4 py-2.5 sm:py-3 text-left">Parcelas</th>
+                    <th className="px-2 sm:px-4 py-2.5 sm:py-3 text-left">Vencimento</th>
+                    <th className="hidden sm:table-cell px-2 sm:px-4 py-2.5 sm:py-3 text-left">Etiquetas</th>
+                    <th className="px-2 sm:px-4 py-2.5 sm:py-3 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/30">
