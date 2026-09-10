@@ -3,6 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
+import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -63,48 +69,64 @@ export function SystemSettings() {
     : subscription.product_id === "empresarial_plan" ? "Empresarial" : "Plano ativo"
     : "Sem plano";
 
+  const systemTabs = [
+    { value: "admin", label: "Administração", icon: ShieldCheck, adminOnly: true },
+    { value: "financial", label: "Faturamento", icon: TrendingUp, adminOnly: true },
+    { value: "plans", label: "Planos", icon: Package, adminOnly: true },
+    { value: "subscriptions", label: "Assinaturas", icon: BadgeCheck, adminOnly: true },
+    { value: "billing", label: "Conta", icon: Wallet, adminOnly: false },
+    { value: "appearance", label: "Personalização", icon: Palette, adminOnly: false },
+    { value: "api-keys", label: "Chaves APIs", icon: KeyRound, adminOnly: true },
+    { value: "health", label: "Saúde do Sistema", icon: Activity, adminOnly: true },
+  ].filter(tab => !tab.adminOnly || isAdmin);
+
   return (
     <div className="space-y-6 w-full">
 
       <Tabs value={subTab} onValueChange={setSubTab} className="w-full">
-        <TabsList className="w-full flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
-          {isAdmin && (
-            <TabsTrigger value="admin" className="flex items-center gap-1.5 flex-1 min-w-[120px]">
-              <ShieldCheck className="h-3.5 w-3.5" /> Administração
-            </TabsTrigger>
-          )}
-          {isAdmin && (
-            <TabsTrigger value="financial" className="flex items-center gap-1.5 flex-1 min-w-[120px]">
-              <TrendingUp className="h-3.5 w-3.5" /> Faturamento
-            </TabsTrigger>
-          )}
-          {isAdmin && (
-            <TabsTrigger value="plans" className="flex items-center gap-1.5 flex-1 min-w-[120px]">
-              <Package className="h-3.5 w-3.5" /> Planos
-            </TabsTrigger>
-          )}
-          {isAdmin && (
-            <TabsTrigger value="subscriptions" className="flex items-center gap-1.5 flex-1 min-w-[120px]">
-              <BadgeCheck className="h-3.5 w-3.5" /> Assinaturas
-            </TabsTrigger>
-          )}
+        {/* Seletor Mobile (Dropdown) */}
+        <div className="sm:hidden w-full mb-3">
+          <Select value={subTab} onValueChange={setSubTab}>
+            <SelectTrigger className="w-full h-11 bg-card border-border/80 shadow-xs rounded-xl font-medium">
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const activeTab = systemTabs.find(t => t.value === subTab) || systemTabs[0];
+                  const IconComponent = activeTab?.icon;
+                  return (
+                    <>
+                      {IconComponent && <IconComponent className="h-4 w-4 text-primary shrink-0" />}
+                      <span className="truncate">{activeTab?.label}</span>
+                    </>
+                  );
+                })()}
+              </div>
+            </SelectTrigger>
+            <SelectContent className="z-50">
+              {systemTabs.map(tab => {
+                const TabIcon = tab.icon;
+                return (
+                  <SelectItem key={tab.value} value={tab.value} className="py-2.5 cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <TabIcon className="h-4 w-4 text-primary/80 shrink-0" />
+                      <span>{tab.label}</span>
+                    </div>
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </div>
 
-          <TabsTrigger value="billing" className="flex items-center gap-1.5 flex-1 min-w-[120px]">
-            <Wallet className="h-3.5 w-3.5" /> Conta
-          </TabsTrigger>
-          <TabsTrigger value="appearance" className="flex items-center gap-1.5 flex-1 min-w-[120px]">
-            <Palette className="h-3.5 w-3.5" /> Personalização
-          </TabsTrigger>
-          {isAdmin && (
-            <TabsTrigger value="api-keys" className="flex items-center gap-1.5 flex-1 min-w-[120px]">
-              <KeyRound className="h-3.5 w-3.5" /> Chaves APIs
-            </TabsTrigger>
-          )}
-          {isAdmin && (
-            <TabsTrigger value="health" className="flex items-center gap-1.5 flex-1 min-w-[120px]">
-              <Activity className="h-3.5 w-3.5" /> Saúde do Sistema
-            </TabsTrigger>
-          )}
+        {/* Abas Desktop / Tablet */}
+        <TabsList className="hidden sm:flex w-full flex-wrap h-auto gap-1 bg-muted/50 p-1">
+          {systemTabs.map(tab => {
+            const TabIcon = tab.icon;
+            return (
+              <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-1.5 flex-1 min-w-[120px]">
+                <TabIcon className="h-3.5 w-3.5" /> {tab.label}
+              </TabsTrigger>
+            );
+          })}
         </TabsList>
 
         {isAdmin && (
