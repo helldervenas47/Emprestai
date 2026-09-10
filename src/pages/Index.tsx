@@ -358,6 +358,9 @@ const AccountantReport = lazy(() =>
 const TelegramBotsHub = lazy(() =>
   import("@/features/telegram/components/TelegramBotsHub").then((m) => ({ default: m.TelegramBotsHub })),
 );
+const WhatsappHub = lazy(() =>
+  import("@/features/whatsapp/components/WhatsappHub").then((m) => ({ default: m.WhatsappHub })),
+);
 const WhatsappBillingCard = lazy(() =>
   import("@/components/WhatsappBillingCard").then((m) => ({ default: m.WhatsappBillingCard })),
 );
@@ -1870,9 +1873,7 @@ const Index = () => {
                         )}
                         {overdueSubTab === "whatsapp-cobranca" && (
                           <ModuleErrorBoundary name="Cobrança WhatsApp">
-                            <div className="space-y-4">
-                              <WhatsappBillingCard />
-                            </div>
+                            <WhatsappHub />
                           </ModuleErrorBoundary>
                         )}
                       </Suspense>

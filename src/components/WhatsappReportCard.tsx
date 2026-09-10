@@ -48,44 +48,53 @@ export function WhatsappReportCard() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <MessageCircle className="h-5 w-5" /> Enviar relatório no WhatsApp
+    <Card no3d className="border-border/60 shadow-xs rounded-2xl">
+      <CardHeader className="p-4 sm:p-5 pb-3">
+        <CardTitle className="text-base font-bold flex items-center gap-2">
+          <MessageCircle className="h-5 w-5 text-emerald-500" />
+          Disparo Rápido de Relatórios via WhatsApp
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+
+      <CardContent className="p-4 sm:p-5 pt-2 space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <Label>Tipo de relatório</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold">Tipo de relatório a enviar</Label>
             <Select value={reportType} onValueChange={(v) => setReportType(v as ReportType)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="text-xs rounded-xl h-9">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                <SelectItem value="daily">Diário (hoje)</SelectItem>
-                <SelectItem value="weekly">Semanal (últimos 7 dias)</SelectItem>
-                <SelectItem value="monthly">Mensal</SelectItem>
-                <SelectItem value="accountant">Contábil do mês</SelectItem>
+                <SelectItem value="daily">Resumo Diário Operacional (hoje)</SelectItem>
+                <SelectItem value="weekly">Resumo Semanal (últimos 7 dias)</SelectItem>
+                <SelectItem value="monthly">Fechamento Mensal Consolidado</SelectItem>
+                <SelectItem value="accountant">Relatório Contábil do Mês</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label>Telefone destino (opcional)</Label>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold">Telefone de destino (opcional)</Label>
             <Input
-              placeholder={profilePhone || "Ex.: 11999998888"}
+              placeholder={profilePhone || "Ex.: (11) 99999-8888"}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              className="text-xs rounded-xl h-9"
             />
           </div>
         </div>
-        <Button onClick={send} disabled={loading}>
-          {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <MessageCircle className="h-4 w-4 mr-2" />}
-          Enviar agora
-        </Button>
-        <p className="text-xs text-muted-foreground">
-          Usa a instância do WhatsApp já configurada em &quot;Cobrança WhatsApp&quot;. Se nenhum telefone for
-          informado, envia para o telefone do seu perfil ou para o número autorizado do assistente.
-        </p>
+
+        <div className="flex items-center justify-between gap-3 pt-2 flex-wrap">
+          <p className="text-[11px] text-muted-foreground flex-1 min-w-[200px]">
+            O relatório será gerado e enviado para o WhatsApp configurado usando a sua instância ativa.
+          </p>
+          <Button onClick={send} disabled={loading} className="h-9 text-xs font-semibold rounded-xl shrink-0">
+            {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <MessageCircle className="h-4 w-4 mr-2" />}
+            Gerar e Disparar Relatório
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
 }
+
