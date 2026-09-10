@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { FolderOpen, Users, ClipboardList, FileText, CalendarDays, History as HistoryIcon } from "lucide-react";
+import { FolderOpen, Users, ClipboardList, FileText, CalendarDays } from "lucide-react";
 import { SalaryDashboard } from "./SalaryDashboard";
 import { EmployeeManager } from "./EmployeeManager";
 import { PayrollManager } from "./PayrollManager";
 import { PayslipHistory } from "./PayslipHistory";
 import { SalaryCalendar } from "./SalaryCalendar";
 
-type SubTab = "dashboard" | "employees" | "payroll" | "payslips" | "calendar" | "history";
+type SubTab = "dashboard" | "employees" | "payroll" | "payslips" | "calendar";
 
 const subTabs: { id: SubTab; label: string; icon: any }[] = [
   { id: "dashboard", label: "Dashboard", icon: FolderOpen },
@@ -14,7 +14,6 @@ const subTabs: { id: SubTab; label: string; icon: any }[] = [
   { id: "payroll", label: "Folha", icon: ClipboardList },
   { id: "payslips", label: "Contracheques", icon: FileText },
   { id: "calendar", label: "Calendário", icon: CalendarDays },
-  { id: "history", label: "Histórico", icon: HistoryIcon },
 ];
 
 interface Props { readOnly?: boolean }
@@ -59,7 +58,6 @@ export function SalaryTab({ readOnly }: Props) {
       {sub === "payroll" && <PayrollManager readOnly={readOnly} />}
       {sub === "payslips" && <PayslipHistory />}
       {sub === "calendar" && <SalaryCalendar />}
-      {sub === "history" && <PayslipHistory />}
     </div>
   );
 }
