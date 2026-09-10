@@ -241,24 +241,28 @@ export function WhatsappMessageTemplatesCard() {
               </CardDescription>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:items-center shrink-0 pt-1 sm:pt-0">
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={resetDefaults}
                 disabled={loading || saving}
-                className="h-8 text-xs font-semibold"
+                className="h-9 sm:h-8 text-xs font-semibold w-full sm:w-auto justify-center rounded-xl"
               >
-                <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                <RotateCcw className="h-3.5 w-3.5 mr-1.5 shrink-0" />
                 Restaurar padrão
               </Button>
               <Button
                 size="sm"
                 onClick={handleSave}
                 disabled={!dirty || loading || saving}
-                className="h-8 text-xs font-semibold"
+                className="h-9 sm:h-8 text-xs font-semibold w-full sm:w-auto justify-center rounded-xl shadow-xs"
               >
-                {saving ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+                {saving ? (
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin shrink-0" />
+                ) : (
+                  <Save className="h-3.5 w-3.5 mr-1.5 shrink-0" />
+                )}
                 Salvar alterações
               </Button>
             </div>

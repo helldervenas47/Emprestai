@@ -182,12 +182,12 @@ export function WhatsappBillingCard() {
             dirty={dirty}
           />
 
-          <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-border/60">
-            <Button variant="ghost" size="sm" onClick={resetDefaults} disabled={loading || saving}>
-              <RotateCcw className="h-4 w-4 mr-1" /> Restaurar padrão
+          <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:items-center sm:justify-end pt-2 border-t border-border/60">
+            <Button variant="outline" size="sm" onClick={resetDefaults} disabled={loading || saving} className="h-9 sm:h-8 text-xs font-semibold w-full sm:w-auto justify-center rounded-xl">
+              <RotateCcw className="h-3.5 w-3.5 mr-1.5 shrink-0" /> Restaurar padrão
             </Button>
-            <Button size="sm" onClick={handleSave} disabled={!dirty || loading || saving}>
-              <Save className="h-4 w-4 mr-1" /> {saving ? "Salvando…" : "Salvar mensagens"}
+            <Button size="sm" onClick={handleSave} disabled={!dirty || loading || saving} className="h-9 sm:h-8 text-xs font-semibold w-full sm:w-auto justify-center rounded-xl shadow-xs">
+              <Save className="h-3.5 w-3.5 mr-1.5 shrink-0" /> {saving ? "Salvando…" : "Salvar mensagens"}
             </Button>
           </div>
         </CardContent>
