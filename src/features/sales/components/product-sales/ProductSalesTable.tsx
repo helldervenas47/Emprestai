@@ -115,26 +115,35 @@ export function SaleListRow({ sale, onEdit, onDelete, onUpdate, formatCurrency, 
         <div className="hidden md:block flex-[2] min-w-0 basis-0">
           <p className="text-[11px] lg:text-sm font-bold text-foreground truncate">{sale.description || sale.productName || "—"}</p>
         </div>
-        <div className="w-[78px] sm:w-[88px] lg:w-[110px] shrink-0">
-          <p className="text-[11px] sm:text-xs text-foreground truncate">
-            {!isPaid ? format(nextDue, "dd/MM/yyyy") : "Quitado"}{isRecorrente && ` • ${sale.paidInstallments}/${sale.installments}`}
-          </p>
-          {!isPaid && sale.businessType === "aluguel_veiculo" && (() => {
-            const days = differenceInCalendarDays(nextDue, new Date());
-            if (days < 0) return <p className="text-[10px] sm:text-[11px] font-semibold text-destructive truncate">{Math.abs(days)}d em atraso</p>;
-            if (days === 0) return <p className="text-[10px] sm:text-[11px] font-semibold text-warning truncate">Vence hoje</p>;
-            return <p className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground truncate">Faltam {days}d</p>;
-          })()}
-        </div>
-        <div className="w-[102px] sm:w-[108px] lg:w-[140px] shrink-0 text-right tabular-nums">
+        <div className="w-[85px] sm:w-[100px] lg:w-[120px] shrink-0 text-left tabular-nums">
           {isPaid ? (
             <p className="text-xs sm:text-sm font-bold text-success truncate">{formatCurrency(sale.total)}</p>
           ) : (
             <>
-              <p className="text-xs sm:text-sm font-bold text-foreground truncate">{formatCurrency(partialOnNext)}</p>
-              <p className="text-[10px] sm:text-[11px] text-muted-foreground truncate">Rest. {formatCurrency(remaining)}</p>
+              <p className={`text-xs sm:text-sm font-bold truncate ${
+                category === "overdue" ? "text-destructive" : category === "due_today" ? "text-warning" : "text-foreground"
+              }`}>
+                {formatCurrency(remaining)}
+              </p>
+              {isRecorrente && partialOnNext > 0 && partialOnNext !== remaining && (
+                <p className="text-[9px] sm:text-[10px] text-muted-foreground truncate">Parc. {formatCurrency(partialOnNext)}</p>
+              )}
             </>
           )}
+        </div>
+        <div className="w-[78px] sm:w-[90px] lg:w-[110px] shrink-0 text-left">
+          <p className={`text-[11px] sm:text-xs font-medium truncate ${
+            category === "overdue" ? "text-destructive font-semibold" : category === "due_today" ? "text-warning font-semibold" : "text-foreground"
+          }`}>
+            {!isPaid ? format(nextDue, "dd/MM/yyyy") : "Quitado"}
+          </p>
+          {!isPaid && (() => {
+            const days = differenceInCalendarDays(nextDue, new Date());
+            if (days < 0) return <p className="text-[9px] sm:text-[10px] font-semibold text-destructive truncate">{Math.abs(days)}d em atraso</p>;
+            if (days === 0) return <p className="text-[9px] sm:text-[10px] font-semibold text-warning truncate">Vence hoje</p>;
+            if (isRecorrente) return <p className="text-[9px] sm:text-[10px] text-muted-foreground truncate">{sale.paidInstallments}/{sale.installments} parc.</p>;
+            return null;
+          })()}
         </div>
         <div className="shrink-0 pl-1">
           {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
@@ -340,12 +349,11 @@ export function ProductSalesTable({
     <Card no3d className="overflow-hidden">
       <div className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 border-b border-border/50 bg-muted/40">
         <div className="h-8 w-8 sm:h-9 sm:w-9 shrink-0" aria-hidden />
-        <p className="flex-1 min-w-0 md:basis-0 md:grow text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Cliente</p>
+        <p className="flex-1 min-w-0 md:basis-0 md:grow text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Nome</p>
         <p className="hidden md:block flex-1 min-w-0 basis-0 text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Categoria</p>
         <p className="hidden md:block flex-[2] min-w-0 basis-0 text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Descrição</p>
-
-        <p className="w-[78px] sm:w-[88px] lg:w-[110px] shrink-0 text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Vencimento</p>
-        <p className="w-[102px] sm:w-[108px] lg:w-[140px] shrink-0 text-right text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Valor</p>
+        <p className="w-[85px] sm:w-[100px] lg:w-[120px] shrink-0 text-left text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Restante</p>
+        <p className="w-[78px] sm:w-[90px] lg:w-[110px] shrink-0 text-left text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Vencimento</p>
         <div className="w-4 shrink-0" aria-hidden />
       </div>
       <div className="divide-y divide-border/30">

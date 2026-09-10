@@ -365,13 +365,13 @@ export function ClientFolder({
                 <thead>
                   <tr className="border-b border-border/40 bg-muted/40 text-[10px] sm:text-xs font-semibold text-muted-foreground">
                     <th className="px-2 sm:px-4 py-2.5 sm:py-3 text-left">Cliente / Contrato</th>
-                    <th className="hidden sm:table-cell px-2 sm:px-4 py-2.5 sm:py-3 text-left">Status</th>
+                    <th className="hidden lg:table-cell px-2 sm:px-4 py-2.5 sm:py-3 text-left">Status</th>
                     <th className="hidden sm:table-cell px-2 sm:px-4 py-2.5 sm:py-3 text-left">Emprestado</th>
                     <th className="px-2 sm:px-4 py-2.5 sm:py-3 text-left">Restante</th>
                     <th className="hidden sm:table-cell px-2 sm:px-4 py-2.5 sm:py-3 text-left">Parcelas</th>
                     <th className="px-2 sm:px-4 py-2.5 sm:py-3 text-left">Vencimento</th>
                     <th className="hidden sm:table-cell px-2 sm:px-4 py-2.5 sm:py-3 text-left">Etiquetas</th>
-                    <th className="px-2 sm:px-4 py-2.5 sm:py-3 text-right">Ações</th>
+                    <th className="hidden lg:table-cell px-2 sm:px-4 py-2.5 sm:py-3 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/30">

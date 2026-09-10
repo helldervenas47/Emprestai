@@ -549,7 +549,7 @@ function LoanRowView({
     <>
     <tr className={`${hideCollapsedRow ? "hidden" : ""} border-b border-border/40 dark:border-white/[0.04] hover:bg-muted/40 dark:hover:bg-white/[0.03] transition-colors group cursor-pointer ${expanded ? "bg-muted/30 dark:bg-white/[0.03]" : ""}`} onClick={() => setExpanded(!expanded)}>
       {/* Cliente */}
-      <td className={`relative px-1.5 sm:px-4 py-2 sm:py-3 border-l-[3px] ${accentBorderClass}`}>
+      <td className={`relative px-2 sm:px-4 py-2.5 sm:py-3 border-l-[3px] ${accentBorderClass}`}>
         <div className="flex items-center gap-1.5 sm:gap-3">
           <div className={`h-6 w-6 sm:h-8 sm:w-8 rounded-full flex items-center justify-center text-primary-foreground font-bold text-[9px] sm:text-xs shrink-0 ${
             category === "overdue" ? "bg-destructive" :
@@ -560,9 +560,9 @@ function LoanRowView({
           }`}>
             {loan.borrowerName.split(" ").map(w => w[0]).join("").substring(0, 2).toUpperCase()}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1 flex-wrap">
-              <span className="font-medium text-[11px] sm:text-sm text-foreground truncate block max-w-[80px] sm:max-w-none">{loan.borrowerName}</span>
+              <span className="font-semibold text-xs sm:text-sm text-foreground truncate block">{loan.borrowerName}</span>
               {loan.isSale && (
                 <Badge variant="outline" className="text-[10px] py-0 px-1.5 bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40 gap-0.5">
                   <ShoppingBag className="h-2.5 w-2.5" />Venda
@@ -641,10 +641,16 @@ function LoanRowView({
                 </Badge>
               )}
             </div>
+            {/* Etiquetas abaixo do nome no mobile */}
             {loan.tags && loan.tags.length > 0 && (
-              <div className="flex flex-wrap gap-0.5 mt-0.5 sm:hidden">
+              <div className="flex flex-wrap gap-1 mt-1 sm:hidden">
                 {loan.tags.map((tag) => (
-                  <Badge key={tag} className="bg-primary text-primary-foreground text-[8px] px-1 py-0">{tag}</Badge>
+                  <Badge
+                    key={tag}
+                    className="bg-primary/10 text-primary border border-primary/20 text-[9px] px-1.5 py-0 font-medium"
+                  >
+                    {tag}
+                  </Badge>
                 ))}
               </div>
             )}
@@ -652,31 +658,31 @@ function LoanRowView({
         </div>
       </td>
       {/* Status - hidden on mobile and tablet */}
-      <td className="hidden lg:table-cell px-1.5 sm:px-4 py-2 sm:py-3">
+      <td className="hidden lg:table-cell px-2 sm:px-4 py-2.5 sm:py-3">
         <Badge variant="outline" className={`${badge.className} text-[9px] sm:text-xs px-1.5 sm:px-2.5`}>{badge.label}</Badge>
       </td>
       {/* Emprestado - hidden on mobile */}
-      <td className="hidden sm:table-cell px-2 lg:px-4 py-3">
-        <span className="text-xs lg:text-sm font-medium text-foreground whitespace-nowrap">
+      <td className="hidden sm:table-cell px-2 sm:px-4 py-2.5 sm:py-3">
+        <span className="text-xs sm:text-sm font-medium text-foreground whitespace-nowrap">
           {formatCurrency(loan.status === "paid" ? totalPaid : loan.amount)}
         </span>
       </td>
-      {/* Restante / Parcela / Total Pago */}
-      <td className="px-1.5 sm:px-2 lg:px-4 py-2 sm:py-3">
+      {/* Restante */}
+      <td className="px-2 sm:px-4 py-2.5 sm:py-3">
         {loan.status === "paid" ? (
-          <span className="text-[11px] sm:text-xs lg:text-sm font-medium text-success whitespace-nowrap">{formatCurrency(totalPaid)}</span>
+          <span className="text-xs sm:text-sm font-semibold text-success tabular-nums whitespace-nowrap">{formatCurrency(totalPaid)}</span>
         ) : isParcelado ? (
           <div className="flex flex-col">
-            <span className={`text-[11px] sm:text-xs lg:text-sm font-semibold whitespace-nowrap ${category === "overdue" ? "text-destructive" : category === "due_today" ? "text-warning" : "text-foreground"}`}>{formatCurrency(installmentValue + lateFees)}</span>
+            <span className={`text-xs sm:text-sm font-semibold tabular-nums whitespace-nowrap ${category === "overdue" ? "text-destructive" : category === "due_today" ? "text-warning" : "text-foreground"}`}>{formatCurrency(installmentValue + lateFees)}</span>
           </div>
         ) : (
           <div className="flex flex-col">
-            <span className={`text-[11px] sm:text-xs lg:text-sm font-semibold whitespace-nowrap ${category === "overdue" ? "text-destructive" : category === "due_today" ? "text-warning" : "text-foreground"}`}>{formatCurrency(remaining)}</span>
+            <span className={`text-xs sm:text-sm font-semibold tabular-nums whitespace-nowrap ${category === "overdue" ? "text-destructive" : category === "due_today" ? "text-warning" : "text-foreground"}`}>{formatCurrency(remaining)}</span>
           </div>
         )}
       </td>
       {/* Parcelas - hidden on mobile */}
-      <td className="hidden sm:table-cell px-2 lg:px-4 py-3">
+      <td className="hidden sm:table-cell px-2 sm:px-4 py-2.5 sm:py-3">
         <div className="flex items-center gap-1 lg:gap-1.5">
           <CheckCircle className="h-3.5 w-3.5 lg:h-4 lg:w-4 text-primary shrink-0" />
           <span className="text-xs lg:text-sm font-medium">{loan.paidInstallments}/{loan.installments}</span>
@@ -689,13 +695,13 @@ function LoanRowView({
         )}
       </td>
       {/* Vencimento */}
-      <td className="px-1.5 sm:px-2 lg:px-4 py-2 sm:py-3 whitespace-nowrap">
-        <span className={`text-[11px] sm:text-xs lg:text-sm font-medium tabular-nums ${category === "overdue" ? "text-destructive" : category === "due_today" ? "text-warning" : "text-foreground"}`}>
+      <td className="px-2 sm:px-4 py-2.5 sm:py-3 whitespace-nowrap">
+        <span className={`text-xs sm:text-sm font-medium tabular-nums ${category === "overdue" ? "text-destructive font-semibold" : category === "due_today" ? "text-warning font-semibold" : "text-foreground"}`}>
           {getFirstPendingDate(loan, installmentSchedules).toLocaleDateString("pt-BR")}
         </span>
       </td>
       {/* Etiquetas - hidden on mobile */}
-      <td className="hidden sm:table-cell px-2 lg:px-4 py-3">
+      <td className="hidden sm:table-cell px-2 sm:px-4 py-2.5 sm:py-3">
         <div className="flex flex-wrap gap-1">
           {loan.tags && loan.tags.length > 0 ? loan.tags.map((tag) => (
             <Badge key={tag} className="bg-primary text-primary-foreground text-[10px]">{tag}</Badge>
