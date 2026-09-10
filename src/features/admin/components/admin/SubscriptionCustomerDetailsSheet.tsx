@@ -21,6 +21,7 @@ import {
   History,
   Ban,
   Mail,
+  User,
   Layers,
   Sparkles,
   AlertTriangle,
@@ -109,12 +110,20 @@ export function SubscriptionCustomerDetailsSheet({
               <div className="flex items-center gap-2 flex-wrap">
                 <span className={cn("h-2.5 w-2.5 rounded-full shrink-0", statusMeta.dotColor)} />
                 <SheetTitle className="text-lg sm:text-xl font-bold text-foreground truncate max-w-full">
-                  {user.display_name || user.email || "Cliente"}
+                  {user.display_name || (user.username ? `@${user.username.replace(/^@/, "")}` : user.email || "Cliente")}
                 </SheetTitle>
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate">
-                <Mail className="h-3.5 w-3.5 shrink-0 opacity-70" />
-                <span className="truncate">{user.email || "Sem e-mail cadastrado"}</span>
+              <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+                {user.username && (
+                  <div className="flex items-center gap-1.5 font-medium text-foreground/85 truncate">
+                    <User className="h-3.5 w-3.5 shrink-0 opacity-70 text-primary" />
+                    <span className="truncate">@{user.username.replace(/^@/, "")}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5 text-muted-foreground truncate">
+                  <Mail className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                  <span className="truncate">{user.email || "Sem e-mail cadastrado"}</span>
+                </div>
               </div>
             </div>
 
@@ -143,7 +152,7 @@ export function SubscriptionCustomerDetailsSheet({
             </div>
           </div>
           <SheetDescription className="sr-only">
-            Detalhes e ações administrativas para a assinatura de {user.display_name || user.email}
+            Detalhes e ações administrativas para a assinatura de {user.display_name || user.username || user.email}
           </SheetDescription>
         </SheetHeader>
 
@@ -177,6 +186,14 @@ export function SubscriptionCustomerDetailsSheet({
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-border/40">
+              {user.username && (
+                <div>
+                  <span className="text-muted-foreground block text-[11px]">Nome de usuário:</span>
+                  <span className="font-medium text-foreground">
+                    @{user.username.replace(/^@/, "")}
+                  </span>
+                </div>
+              )}
               <div>
                 <span className="text-muted-foreground block text-[11px]">Início do período:</span>
                 <span className="font-medium text-foreground">

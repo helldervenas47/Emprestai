@@ -6,6 +6,7 @@ import { invalidateSharedResource } from "@/lib/sharedResource";
 export interface AdminSubRow {
   user_id: string;
   display_name: string | null;
+  username?: string | null;
   email: string | null;
   created_at: string;
   trial_started_at: string | null;
