@@ -136,22 +136,6 @@ export function Settings({ backup, locadores, onSaveLocador, onRemoveLocador, is
         <PaymentMethodsManager readOnly={isReadOnly} />
       </Suspense>
 
-      {/* Backup e exportação */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <DatabaseBackup className="h-4 w-4 text-primary" /> Backup e exportação
-          </CardTitle>
-          <CardDescription>Exporte seus dados em CSV ou importe um backup anterior.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Suspense fallback={<SectionLoader />}>
-            <BackupExport {...backup} />
-          </Suspense>
-        </CardContent>
-      </Card>
-
-
       {/* Sessões ativas */}
       <Suspense fallback={<SectionLoader />}>
         <ActiveSessionsCard />
