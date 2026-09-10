@@ -233,11 +233,11 @@ export function MonthlyGoalsManager({ readOnly = false }: { readOnly?: boolean }
               <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button data-mutation onClick={handleSave} disabled={!value}>
+          <div className="flex flex-col sm:flex-row gap-2 w-full pt-1">
+            <Button data-mutation onClick={handleSave} disabled={!value} className="w-full flex items-center justify-center gap-2 h-10 rounded-xl">
               <Plus className="h-4 w-4" /> {editId ? "Salvar" : "Criar Meta"}
             </Button>
-            {editId && <Button variant="outline" onClick={reset}>Cancelar</Button>}
+            {editId && <Button variant="outline" onClick={reset} className="w-full sm:w-auto h-10 rounded-xl">Cancelar</Button>}
           </div>
         </CardContent>
       </Card>
@@ -247,12 +247,12 @@ export function MonthlyGoalsManager({ readOnly = false }: { readOnly?: boolean }
         <CardContent className="p-4 min-w-0 overflow-x-hidden">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
             <h3 className="font-semibold text-foreground">Metas cadastradas</h3>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-1 rounded-lg border border-border/50 bg-muted/30 p-0.5">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+              <div className="flex items-center justify-between sm:justify-center gap-1 rounded-xl border border-border/50 bg-muted/30 p-1 w-full sm:w-auto">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 hover:bg-background"
+                  className="h-8 w-8 hover:bg-background shrink-0"
                   onClick={goPrevMonth}
                   title="Mês anterior"
                 >
@@ -261,7 +261,7 @@ export function MonthlyGoalsManager({ readOnly = false }: { readOnly?: boolean }
                 <button
                   type="button"
                   onClick={() => setFilterMonth(currentMonthKey())}
-                  className="text-xs font-medium text-foreground px-3 min-w-[140px] text-center hover:text-primary transition-colors"
+                  className="text-xs font-medium text-foreground px-3 flex-1 text-center hover:text-primary transition-colors"
                   title="Voltar para o mês atual"
                 >
                   {formatMonthLabel(filterMonth)}
@@ -269,7 +269,7 @@ export function MonthlyGoalsManager({ readOnly = false }: { readOnly?: boolean }
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 hover:bg-background"
+                  className="h-8 w-8 hover:bg-background shrink-0"
                   onClick={goNextMonth}
                   title="Próximo mês"
                 >
@@ -280,12 +280,13 @@ export function MonthlyGoalsManager({ readOnly = false }: { readOnly?: boolean }
                 <Button
                   variant="outline"
                   size="sm"
+                  className="w-full sm:w-auto flex items-center justify-center gap-1.5 h-9 rounded-xl"
                   onClick={copyFromPrevMonth}
                   disabled={missingFromPrev.length === 0}
                   title={missingFromPrev.length === 0 ? "Nada novo para copiar do mês anterior" : `Copiar ${missingFromPrev.length} meta(s) de ${formatMonthLabel(prevMonth)}`}
                 >
                   <Copy className="h-3.5 w-3.5" />
-                  Copiar do mês anterior
+                  <span>Copiar do mês anterior</span>
                   {missingFromPrev.length > 0 && (
                     <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">{missingFromPrev.length}</Badge>
                   )}
@@ -444,14 +445,14 @@ function ScoreWeightsCard() {
   return (
     <Card no3d>
       <CardContent className="p-4 space-y-3">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}
-            className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity"
+            className="flex items-start sm:items-center gap-2 text-left hover:opacity-80 transition-opacity w-full sm:w-auto"
             aria-expanded={open}
           >
-            <Target className="h-5 w-5 text-primary" />
+            <Target className="h-5 w-5 text-primary shrink-0 mt-0.5 sm:mt-0" />
             <div>
               <h3 className="font-semibold text-foreground flex items-center gap-1.5">
                 Pontuação das Metas
@@ -462,12 +463,12 @@ function ScoreWeightsCard() {
               </p>
             </div>
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
             <Badge
               variant={draftTotal === 100 ? "default" : "destructive"}
-              className={draftTotal === 100 ? "bg-success text-success-foreground" : ""}
+              className={`w-full sm:w-auto justify-center text-center py-2 px-3 text-xs font-bold rounded-xl ${draftTotal === 100 ? "bg-success text-success-foreground" : ""}`}
             >
-              Total: {draftTotal} / 100
+              TOTAL: {draftTotal} / 100
               {draftTotal !== 100 && (
                 <span className="ml-1 opacity-90">
                   {diff > 0 ? `(faltam ${diff})` : `(excede ${Math.abs(diff)})`}
@@ -475,10 +476,10 @@ function ScoreWeightsCard() {
               )}
             </Badge>
             {hasChanges && (
-              <>
-                <Button size="sm" variant="outline" onClick={reset}>Cancelar</Button>
-                <Button size="sm" data-mutation onClick={save} disabled={draftTotal !== 100}>Salvar</Button>
-              </>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Button size="sm" variant="outline" className="flex-1 sm:flex-initial h-9 rounded-xl" onClick={reset}>Cancelar</Button>
+                <Button size="sm" data-mutation className="flex-1 sm:flex-initial h-9 rounded-xl" onClick={save} disabled={draftTotal !== 100}>Salvar</Button>
+              </div>
             )}
           </div>
         </div>
