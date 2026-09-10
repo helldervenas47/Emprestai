@@ -1715,7 +1715,7 @@ const Index = () => {
                 {tab === "expenses" && (
                   <SubscriptionGate requiredTier={2} featureName="Financeiro">
                     <div className="max-w-full">
-                      <div className="w-full bg-muted/50 rounded-xl p-1 flex gap-0.5 mb-4">
+                      <div className={`w-full bg-muted/50 rounded-xl p-1 flex gap-0.5 ${incExpTab === "expenses" ? "mb-1.5" : "mb-4"}`}>
                         <button
                           onClick={() => setIncExpTab("incomes")}
                           className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
@@ -1747,7 +1747,7 @@ const Index = () => {
                       ) : (
 
                         <div>
-                          <div className="w-full bg-muted/50 rounded-xl p-1 flex gap-0.5 mb-4">
+                          <div className="w-full bg-muted/50 rounded-xl p-1 flex gap-0.5 mb-3">
                             <button
                               onClick={() => setExpenseSubTab("business")}
                               className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
@@ -1757,7 +1757,7 @@ const Index = () => {
                               }`}
                             >
                               <Receipt className="h-3.5 w-3.5 shrink-0" />
-                              <span className="truncate">Despesas Empresa</span>
+                              <span className="truncate">Empresa</span>
                             </button>
                             <button
                               onClick={() => setExpenseSubTab("personal")}
@@ -1768,14 +1768,11 @@ const Index = () => {
                               }`}
                             >
                               <User className="h-3.5 w-3.5 shrink-0" />
-                              <span className="truncate">Despesas Pessoais</span>
+                              <span className="truncate">Pessoais</span>
                             </button>
                           </div>
                           {expenseSubTab === "business" ? (
                             <div className="-mx-3 sm:mx-0">
-                              <h2 className="text-lg font-semibold text-foreground mb-4 px-3 sm:px-0">
-                                Despesas Empresa
-                              </h2>
                               <ModuleErrorBoundary name="Despesas Empresa">
                               <PersonalExpenseList
                                 mode="business"
@@ -1792,9 +1789,6 @@ const Index = () => {
                             </div>
                           ) : (
                             <div className="-mx-3 sm:mx-0">
-                              <h2 className="text-lg font-semibold text-foreground mb-4 px-3 sm:px-0">
-                                Despesas Pessoais
-                              </h2>
                               <ModuleErrorBoundary name="Despesas Pessoais">
                               <PersonalExpenseList
                                 expenses={personalExpenses}
