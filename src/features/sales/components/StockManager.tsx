@@ -573,13 +573,13 @@ export function StockManager({ readOnly = false }: Props) {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
                   {outOfStockProducts.length > 0 && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setStatusFilter("sem_estoque")}
-                      className="h-8 text-xs rounded-xl bg-background/80 border-amber-500/40 text-rose-600 hover:bg-rose-500/10"
+                      className="h-8 text-xs rounded-xl bg-background/80 border-amber-500/40 text-rose-600 hover:bg-rose-500/10 flex-1 sm:flex-initial justify-center"
                     >
                       Ver sem estoque ({outOfStockProducts.length})
                     </Button>
@@ -589,7 +589,7 @@ export function StockManager({ readOnly = false }: Props) {
                       variant="outline"
                       size="sm"
                       onClick={() => setStatusFilter("estoque_baixo")}
-                      className="h-8 text-xs rounded-xl bg-background/80 border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+                      className="h-8 text-xs rounded-xl bg-background/80 border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 flex-1 sm:flex-initial justify-center"
                     >
                       Ver estoque baixo ({lowStockProducts.length})
                     </Button>
@@ -635,7 +635,7 @@ export function StockManager({ readOnly = false }: Props) {
               )}
 
               {/* Botão de Filtros Avançados */}
-              <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+              <div className="flex items-center gap-1.5 flex-1 sm:flex-initial sm:ml-auto">
                 <Button
                   variant={
                     showAdvancedFilters || activeAdvancedFilterCount > 0
@@ -644,7 +644,7 @@ export function StockManager({ readOnly = false }: Props) {
                   }
                   size="sm"
                   onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                  className="h-8 sm:h-10 rounded-lg sm:rounded-xl px-2.5 sm:px-3.5 gap-1 sm:gap-1.5 text-xs font-medium shrink-0"
+                  className="h-8 sm:h-10 rounded-lg sm:rounded-xl px-2.5 sm:px-3.5 gap-1 sm:gap-1.5 text-xs font-medium w-full sm:w-auto justify-center"
                 >
                   <SlidersHorizontal className="h-3.5 w-3.5" />
                   <span>Filtros<span className="hidden sm:inline"> avançados</span></span>
