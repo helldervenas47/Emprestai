@@ -235,16 +235,6 @@ export function SubscriptionManagement() {
                 Clique no cliente para abrir a ficha completa e gerenciar plano, testes, datas e ações manuais.
               </CardDescription>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchRows}
-              disabled={loading}
-              className="rounded-xl h-8 text-xs gap-1.5 self-start sm:self-auto shrink-0"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin text-primary" : ""}`} />
-              <span>Atualizar</span>
-            </Button>
           </div>
         </CardHeader>
 
@@ -254,25 +244,38 @@ export function SubscriptionManagement() {
               placeholder="Buscar cliente por nome, usuário ou e-mail"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="sm:max-w-sm h-9 text-xs rounded-xl"
+              className="flex-1 sm:max-w-sm h-9 text-xs rounded-xl"
             />
-            <Select
-              value={statusFilter || "all"}
-              onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}
-            >
-              <SelectTrigger className="w-full sm:w-[180px] h-9 text-xs rounded-xl">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os status</SelectItem>
-                <SelectItem value="active">Ativa</SelectItem>
-                <SelectItem value="trialing">Em teste</SelectItem>
-                <SelectItem value="suspended">Suspensa</SelectItem>
-                <SelectItem value="canceled">Cancelada</SelectItem>
-                <SelectItem value="past_due">Em atraso</SelectItem>
-                <SelectItem value="none">Sem plano</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              <Select
+                value={statusFilter || "all"}
+                onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}
+              >
+                <SelectTrigger className="flex-1 sm:w-[180px] h-9 text-xs rounded-xl">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os status</SelectItem>
+                  <SelectItem value="active">Ativa</SelectItem>
+                  <SelectItem value="trialing">Em teste</SelectItem>
+                  <SelectItem value="suspended">Suspensa</SelectItem>
+                  <SelectItem value="canceled">Cancelada</SelectItem>
+                  <SelectItem value="past_due">Em atraso</SelectItem>
+                  <SelectItem value="none">Sem plano</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchRows}
+                disabled={loading}
+                className="rounded-xl h-9 px-3 text-xs gap-1.5 shrink-0"
+                title="Atualizar lista"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin text-primary" : ""}`} />
+                <span>Atualizar</span>
+              </Button>
+            </div>
           </div>
 
           {loading && (
