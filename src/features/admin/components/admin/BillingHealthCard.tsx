@@ -98,7 +98,7 @@ export function BillingHealthCard() {
           size="sm"
           onClick={fetchHealth}
           disabled={loading}
-          className="gap-1.5 shrink-0 self-start sm:self-auto rounded-xl text-xs h-8"
+          className="hidden sm:inline-flex gap-1.5 shrink-0 rounded-xl text-xs h-8"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           <span>Atualizar Diagnóstico</span>
@@ -182,8 +182,35 @@ export function BillingHealthCard() {
                 </div>
               </div>
             )}
+
+            {/* Botão de Atualização Mobile (abaixo dos cards, ocupando 100% da largura) */}
+            <div className="pt-1 sm:hidden">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchHealth}
+                disabled={loading}
+                className="w-full gap-1.5 rounded-xl text-xs h-9 justify-center font-medium"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+                <span>Atualizar Diagnóstico</span>
+              </Button>
+            </div>
           </>
-        ) : null}
+        ) : (
+          <div className="sm:hidden pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchHealth}
+              disabled={loading}
+              className="w-full gap-1.5 rounded-xl text-xs h-9 justify-center font-medium"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+              <span>Atualizar Diagnóstico</span>
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
