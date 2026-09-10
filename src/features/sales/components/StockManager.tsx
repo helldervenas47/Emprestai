@@ -1825,8 +1825,7 @@ export function StockManager({ readOnly = false }: Props) {
 
         {/* Botão Flutuante de Movimentações de Estoque (apenas ícone, acima do botão +) */}
         <div
-          className="fixed z-40 bottom-[132px] md:bottom-[76px]"
-          style={{ right: `calc(env(safe-area-inset-right) + 16px)` }}
+          className="fixed z-40 right-[calc(env(safe-area-inset-right)+16px)] bottom-[calc(env(safe-area-inset-bottom)+132px)] md:bottom-[calc(env(safe-area-inset-bottom)+80px)]"
         >
           <button
             type="button"
