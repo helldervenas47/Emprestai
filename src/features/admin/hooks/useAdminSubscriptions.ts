@@ -95,7 +95,6 @@ export function useAdminSubscriptions() {
       const data = await invoke<{ rows: AdminSubRow[]; plans: AdminPlanRow[]; total: number }>({
         action: "list",
         search: search || undefined,
-        status_filter: statusFilter || undefined,
         limit: 100,
         offset: page * 100,
       });
@@ -107,7 +106,7 @@ export function useAdminSubscriptions() {
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter, page]);
+  }, [search, page]);
 
   useEffect(() => { fetchRows(); }, [fetchRows]);
 

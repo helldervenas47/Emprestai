@@ -233,6 +233,15 @@ export function SubscriptionManagement() {
     [selectedUser],
   );
 
+  // Filtra as linhas com base no status resolvido dinamicamente
+  const displayedRows = useMemo(() => {
+    if (!statusFilter) return rows;
+    return rows.filter((u) => {
+      const { st } = resolveSubscriberState(u);
+      return st === statusFilter;
+    });
+  }, [rows, statusFilter]);
+
   const openAudit = async (u: AdminSubRow) => {
     setAudit({ user: u, rows: [], loading: true });
     const r = await fetchAudit(u.user_id);
@@ -289,6 +298,7 @@ export function SubscriptionManagement() {
                   <SelectItem value="suspended">Suspensa</SelectItem>
                   <SelectItem value="canceled">Cancelada</SelectItem>
                   <SelectItem value="past_due">Em atraso</SelectItem>
+                  <SelectItem value="expired">Expirada</SelectItem>
                   <SelectItem value="none">Sem plano</SelectItem>
                 </SelectContent>
               </Select>
@@ -312,16 +322,16 @@ export function SubscriptionManagement() {
             </div>
           )}
 
-          {!loading && rows.length === 0 && (
+          {!loading && displayedRows.length === 0 && (
             <div className="text-center py-10 text-xs text-muted-foreground border border-dashed rounded-2xl bg-muted/20">
               Nenhum cliente encontrado com os filtros aplicados.
             </div>
           )}
 
           {/* Lista Simplificada e Escaneável de Clientes (Todas as Resoluções) */}
-          {!loading && rows.length > 0 && (
+          {!loading && displayedRows.length > 0 && (
             <div className="space-y-2">
-              {rows.map((u) => {
+              {displayedRows.map((u) => {
                 const { planId, end, st } = resolveSubscriberState(u);
                 const meta = STATUS_CONFIG[st] ?? STATUS_CONFIG.none;
                 const daysRemaining = getDaysRemainingText(end, st);
@@ -380,7 +390,7 @@ export function SubscriptionManagement() {
             Anterior
           </Button>
           <span className="text-xs text-muted-foreground tabular-nums font-medium" aria-live="polite">
-            Página {page + 1} · {total} clientes
+            Página {page + 1} · {statusFilter ? `${displayedRows.length} de ${total}` : `${total}`} clientes
           </span>
           <Button
             variant="outline"
