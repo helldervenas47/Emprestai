@@ -198,19 +198,9 @@ export function ClientFolder({
 
             {/* Mobile (sm:hidden): Nome na linha 1, Gerente e Ativos na linha 2 abaixo do nome */}
             <div className="sm:hidden">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <h3 className="font-bold text-foreground text-sm truncate leading-snug">
-                  {group.name}
-                </h3>
-                {group.hasOverdue && (
-                  <Badge
-                    variant="destructive"
-                    className="bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/30 text-[10px] font-bold px-1.5 py-0 uppercase tracking-wider h-5"
-                  >
-                    Atrasado
-                  </Badge>
-                )}
-              </div>
+              <h3 className="font-bold text-foreground text-sm truncate leading-snug">
+                {group.name}
+              </h3>
               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                 {managerCount > 0 && (
                   <Badge
