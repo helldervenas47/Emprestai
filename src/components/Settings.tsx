@@ -152,6 +152,11 @@ export function Settings({ backup, locadores, onSaveLocador, onRemoveLocador, is
       </Card>
 
 
+      {/* Sessões ativas */}
+      <Suspense fallback={<SectionLoader />}>
+        <ActiveSessionsCard />
+      </Suspense>
+
       {/* Limpeza de cache */}
       <Card className="border-destructive/30">
         <CardHeader>
@@ -169,11 +174,6 @@ export function Settings({ backup, locadores, onSaveLocador, onRemoveLocador, is
           </Button>
         </CardContent>
       </Card>
-
-      {/* Sessões ativas */}
-      <Suspense fallback={<SectionLoader />}>
-        <ActiveSessionsCard />
-      </Suspense>
 
       {/* Segurança da conta */}
       <Card className="border-destructive/30">
