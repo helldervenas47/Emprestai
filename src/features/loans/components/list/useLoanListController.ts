@@ -15,6 +15,7 @@ import {
   getBaseRemainingAmount,
   getLoanReceivable,
 } from "@/features/loans/lib/loanLateFees";
+import { getLoanPendingBreakdown } from "@/features/loans/lib/portfolioPending";
 import { todayInAppTz } from "@/lib/timezone";
 import { rawFormatCurrency } from "@/features/loans/components/list/formatting";
 import {
@@ -578,13 +579,10 @@ export function useLoanListController({
       const totalInterestReceivable = loansArr.reduce((s, l) => {
         if (l.status === "paid") return s;
 
-        // O campo "Juros a Receber" da pasta deve ser a soma direta do campo "Juros" 
-        // exibido em cada contrato, sem recalcular pagamentos ou multas de atraso.
-        const interestValue = l.customInterestValue != null && l.customInterestValue > 0
-          ? l.customInterestValue
-          : l.amount * (l.interestRate / 100);
-
-        return s + interestValue;
+        // O campo "Juros a Receber" da pasta soma os juros pendentes dos contratos,
+        // incluindo juros contratuais, multas e juros de atraso/mora se houver.
+        const breakdown = getLoanPendingBreakdown(l, payments, installmentSchedules);
+        return s + breakdown.interestPending;
       }, 0);
 
       const totalReceivable = loansArr.reduce((s, l) => {
