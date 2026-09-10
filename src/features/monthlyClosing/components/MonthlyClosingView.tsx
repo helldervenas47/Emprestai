@@ -204,10 +204,10 @@ export function MonthlyClosingView({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4">
           {/* Card 1: Faturamento */}
           <MetricCard
-            title="Faturamento (Novos Empréstimos)"
+            title="Faturamento"
             value={formatBRL(fin.revenue)}
             icon={Banknote}
             pctDiff={comp.revenue.pctDiff}
@@ -256,7 +256,7 @@ export function MonthlyClosingView({
 
           {/* Card 5: Capital Ativo */}
           <MetricCard
-            title="Capital Ativo em Carteira"
+            title="Capital Ativo"
             value={formatBRL(fin.activeCapital)}
             icon={Wallet}
             pctDiff={comp.activeCapital.pctDiff}
@@ -268,7 +268,7 @@ export function MonthlyClosingView({
 
           {/* Card 6: Inadimplência */}
           <MetricCard
-            title="Taxa de Inadimplência"
+            title="Inadimplência"
             value={`${(fin.defaultRate ?? 0).toFixed(1).replace(".", ",")}%`}
             icon={AlertTriangle}
             ppDiff={comp.defaultRate?.ppDiff}
@@ -277,7 +277,7 @@ export function MonthlyClosingView({
             previousLabel={closingData.previousMonthLabel}
             inverse
             isRate
-            extraInfo={(fin.overdueAmount ?? 0) > 0 ? `${formatBRL(fin.overdueAmount)} vencidos (ver lista)` : undefined}
+            extraInfo={(fin.overdueAmount ?? 0) > 0 ? `${formatBRL(fin.overdueAmount)} vencidos` : undefined}
             onClick={(fin.overdueAmount ?? 0) > 0 || (fin.overdueLoansCount ?? 0) > 0 ? () => setIsOverdueDialogOpen(true) : undefined}
             tooltip="Percentual do valor vencido em atraso em relação ao total a receber da carteira no mês."
           />
@@ -352,7 +352,7 @@ export function MonthlyClosingView({
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3.5">
               {(closingData.goals || []).map((g) => (
                 <GoalClosingCard key={g.goalType} goal={g} />
               ))}
@@ -556,16 +556,18 @@ function MetricCard({
   return (
     <Card
       onClick={onClick}
-      className={`rounded-2xl border-border/70 bg-card p-4 sm:p-5 shadow-xs transition-all flex flex-col justify-between ${
+      className={`rounded-2xl border-border/70 bg-card p-3 sm:p-5 shadow-xs transition-all flex flex-col justify-between ${
         onClick
           ? "cursor-pointer hover:border-primary/50 hover:shadow-md active:scale-[0.99]"
           : "hover:border-primary/30"
       }`}
     >
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-xs font-semibold text-muted-foreground truncate">{title}</span>
+      <div className="space-y-1.5 sm:space-y-2">
+        <div className="flex items-center justify-between gap-1.5">
+          <div className="flex items-center gap-1 min-w-0">
+            <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground truncate" title={title}>
+              {title}
+            </span>
             {tooltip && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -573,7 +575,7 @@ function MetricCard({
                     type="button"
                     className="text-muted-foreground/60 hover:text-foreground transition-colors p-0.5 rounded-full inline-flex items-center justify-center shrink-0"
                   >
-                    <Info className="h-3.5 w-3.5" />
+                    <Info className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                     <span className="sr-only">Como é calculado</span>
                   </button>
                 </TooltipTrigger>
@@ -583,29 +585,29 @@ function MetricCard({
               </Tooltip>
             )}
           </div>
-          <div className="w-8 h-8 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
-            <Icon className="h-4 w-4 text-primary" />
+          <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
+            <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
           </div>
         </div>
 
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+        <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1 sm:gap-2">
+          <span className="text-base sm:text-2xl font-bold tracking-tight text-foreground truncate">
             {value}
           </span>
 
           {hasDiff && (
             <Badge
               variant="outline"
-              className={`text-[11px] font-bold px-2 py-0.5 rounded-md gap-1 ${
+              className={`text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md gap-0.5 sm:gap-1 self-start sm:self-auto ${
                 isPositiveEvolution
                   ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
                   : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
               }`}
             >
               {isPositiveEvolution ? (
-                <TrendingUp className="h-3 w-3 inline" />
+                <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3 inline" />
               ) : (
-                <TrendingDown className="h-3 w-3 inline" />
+                <TrendingDown className="h-2.5 w-2.5 sm:h-3 sm:w-3 inline" />
               )}
               <span>
                 {isRate
@@ -617,9 +619,9 @@ function MetricCard({
         </div>
       </div>
 
-      <div className="mt-3 pt-2.5 border-t border-border/40 flex items-center justify-between text-[11px] text-muted-foreground">
-        <span>vs. {previousValue} em {previousLabel.split(" ")[0].toLowerCase()}</span>
-        {extraInfo && <span className="font-semibold text-rose-600 dark:text-rose-400">{extraInfo}</span>}
+      <div className="mt-2.5 sm:mt-3 pt-2 sm:pt-2.5 border-t border-border/40 flex items-center justify-between text-[10px] sm:text-[11px] text-muted-foreground">
+        <span className="truncate">vs. {previousValue} em {previousLabel.split(" ")[0].toLowerCase()}</span>
+        {extraInfo && <span className="font-semibold text-rose-600 dark:text-rose-400 shrink-0 ml-1">{extraInfo}</span>}
       </div>
     </Card>
   );
@@ -629,13 +631,13 @@ function MetricCard({
 function GoalClosingCard({ goal }: { goal: MonthlyClosingGoalItem }) {
   const statusConfig = {
     reached: {
-      label: "Meta atingida",
+      label: "Atingida",
       badgeClass: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
       progressClass: "[&>div]:bg-emerald-500",
       dot: "🟢",
     },
     close: {
-      label: "Próximo da meta",
+      label: "Próximo",
       badgeClass: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
       progressClass: "[&>div]:bg-amber-500",
       dot: "🟡",
@@ -652,29 +654,29 @@ function GoalClosingCard({ goal }: { goal: MonthlyClosingGoalItem }) {
   const diff = typeof goal.diffValue === "number" && isFinite(goal.diffValue) ? goal.diffValue : 0;
 
   return (
-    <div className="p-3.5 sm:p-4 rounded-xl bg-card border border-border/70 shadow-xs space-y-3 flex flex-col justify-between">
-      <div className="space-y-2">
-        <div className="flex items-start justify-between gap-2">
+    <div className="p-3 sm:p-4 rounded-xl bg-card border border-border/70 shadow-xs space-y-2.5 sm:space-y-3 flex flex-col justify-between">
+      <div className="space-y-1.5 sm:space-y-2">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1.5">
           <div className="space-y-0.5 min-w-0">
             <span className="text-xs sm:text-sm font-bold text-foreground block truncate">
               {goal.label}
             </span>
-            <span className="text-[11px] text-muted-foreground block">
+            <span className="text-[10px] sm:text-[11px] text-muted-foreground block truncate">
               Meta: <strong>{goal.formattedTarget}</strong>
             </span>
           </div>
 
-          <Badge variant="outline" className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${statusConfig.badgeClass}`}>
+          <Badge variant="outline" className={`text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 self-start ${statusConfig.badgeClass}`}>
             {statusConfig.dot} {statusConfig.label}
           </Badge>
         </div>
 
-        <div className="flex items-baseline justify-between pt-1">
-          <span className="text-base sm:text-lg font-bold text-foreground">
+        <div className="flex items-baseline justify-between pt-0.5">
+          <span className="text-sm sm:text-lg font-bold text-foreground truncate">
             {goal.formattedActual}
           </span>
-          <span className="text-xs font-bold text-muted-foreground">
-            {achievement.toFixed(1).replace(".", ",")}% atingido
+          <span className="text-[10px] sm:text-xs font-bold text-muted-foreground shrink-0 ml-1">
+            {achievement.toFixed(0)}%
           </span>
         </div>
 
@@ -684,9 +686,9 @@ function GoalClosingCard({ goal }: { goal: MonthlyClosingGoalItem }) {
         />
       </div>
 
-      <div className="text-[11px] font-medium text-muted-foreground flex items-center justify-between pt-2 border-t border-border/40">
-        <span>Diferença:</span>
-        <span className={diff >= 0 && !goal.isInverse ? "text-emerald-600 font-bold" : "text-muted-foreground font-semibold"}>
+      <div className="text-[10px] sm:text-[11px] font-medium text-muted-foreground flex items-center justify-between pt-2 border-t border-border/40">
+        <span>Dif.:</span>
+        <span className={diff >= 0 && !goal.isInverse ? "text-emerald-600 font-bold truncate" : "text-muted-foreground font-semibold truncate"}>
           {goal.formattedDiff}
         </span>
       </div>
