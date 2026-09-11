@@ -52,7 +52,7 @@ export function WhatsappAutoBillingCard() {
               Disparos e Cobrança Automática
             </CardTitle>
             <CardDescription className="mt-1 text-xs leading-relaxed">
-              Configure sua instância self-hosted WPPConnect ou o provedor legado e as rotinas de envio.
+              Configure sua instância Evolution API ou WPPConnect e as rotinas de envio.
             </CardDescription>
           </div>
           <div className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-border/40 bg-muted/40 px-3 sm:min-h-0 sm:w-auto sm:justify-start sm:py-1.5">
@@ -69,7 +69,7 @@ export function WhatsappAutoBillingCard() {
       </CardHeader>
 
       <CardContent className="space-y-4 p-3.5 pt-1 sm:space-y-5 sm:p-5 sm:pt-2">
-        {schedule.provider === "wppconnect" && <WppConnectStatus />}
+        {(schedule.provider === "wppconnect" || schedule.provider === "evolution") && <WppConnectStatus provider={schedule.provider} />}
         {/* Bloco 1: Conexão da API */}
         <div className="space-y-3 rounded-2xl border border-border/40 bg-muted/20 p-3 sm:p-4">
           <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:gap-2">
@@ -84,13 +84,17 @@ export function WhatsappAutoBillingCard() {
               <Label className="text-xs font-semibold">Provedor</Label>
               <Select value={schedule.provider} onValueChange={(provider) => save({ provider })}>
                 <SelectTrigger className="h-11 rounded-xl text-sm sm:h-9 sm:text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="wppconnect">WPPConnect</SelectItem><SelectItem value="whatsmiau">Whatsmiau / Evolution</SelectItem></SelectContent>
+                <SelectContent>
+                  <SelectItem value="evolution">Evolution API</SelectItem>
+                  <SelectItem value="wppconnect">WPPConnect</SelectItem>
+                  <SelectItem value="whatsmiau">Whatsmiau / Evolution legado</SelectItem>
+                </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">URL base do serviço</Label>
               <Input
-                placeholder={schedule.provider === "wppconnect" ? "https://whatsapp.seudominio.com" : "https://api.whatsmiau.com.br"}
+                placeholder={schedule.provider === "wppconnect" ? "https://whatsapp.seudominio.com" : "https://evolution.seudominio.com"}
                 value={schedule.base_url}
                 onChange={(e) => save({ base_url: e.target.value })}
                 className="h-11 rounded-xl text-sm sm:h-9 sm:text-xs"

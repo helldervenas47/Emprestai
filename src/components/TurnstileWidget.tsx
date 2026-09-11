@@ -110,7 +110,15 @@ export const TurnstileWidget = ({ onToken, onExpire, theme = "auto" }: Props) =>
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 
+  // O widget do Turnstile não é confiável em hosts locais/privados e pode
+  // retornar 300030 mesmo com a chave pública de teste. No preview, libera
+  // somente a interface local; a verificação real continua ativa em produção.
   useEffect(() => {
+    if (isPreviewEnv) onToken("local-preview");
+  }, [onToken]);
+
+  useEffect(() => {
+    if (isPreviewEnv) return;
     let cancelled = false;
     setStatus("loading");
     setErrorCode(null);
@@ -179,6 +187,8 @@ export const TurnstileWidget = ({ onToken, onExpire, theme = "auto" }: Props) =>
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attempt]);
+
+  if (isPreviewEnv) return null;
 
   return (
     <div className="flex flex-col items-center gap-2">

@@ -15,6 +15,14 @@ export async function sendWhatsappText(config: WhatsappProviderConfig, phone: st
     });
     return { ok: response.ok, status: response.status, body: await response.text() };
   }
+  if (config.provider === "evolution") {
+    const response = await fetch(`${base}/message/sendText/${encodeURIComponent(config.instanceId)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: config.apiKey },
+      body: JSON.stringify({ number: phone, text: message }),
+    });
+    return { ok: response.ok, status: response.status, body: await response.text() };
+  }
   const response = await fetch(`${base}/message/sendText/${encodeURIComponent(config.instanceId)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: config.apiKey },

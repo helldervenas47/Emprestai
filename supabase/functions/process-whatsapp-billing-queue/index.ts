@@ -15,12 +15,16 @@ Deno.serve(async (req) => {
     const { data: loan } = await admin.from("loans").select("status, paid_installments").eq("id", item.loan_id).eq("user_id", item.user_id).single();
     if (!loan || loan.status === "paid" || Number(loan.paid_installments) >= item.installment_number) throw new Error("Parcela já quitada ou indisponível");
     const { data: config } = await admin.from("whatsapp_billing_schedule").select("provider, base_url, instance_id").eq("owner_id", item.user_id).single();
-    const apiKey = Deno.env.get(config?.provider === "wppconnect" ? "WPPCONNECT_TOKEN" : "WHATSMIAU_API_KEY") || "";
+    const apiKey = config?.provider === "wppconnect"
+      ? Deno.env.get("WPPCONNECT_TOKEN") || ""
+      : config?.provider === "evolution"
+        ? Deno.env.get("EVOLUTION_API_KEY") || Deno.env.get("WHATSMIAU_API_KEY") || ""
+        : Deno.env.get("WHATSMIAU_API_KEY") || "";
     if (!config?.base_url || !config?.instance_id || !apiKey) throw new Error("WhatsApp não configurado");
     const result = await sendWhatsappText({ provider: config.provider, baseUrl: config.base_url, instanceId: config.instance_id, apiKey }, item.phone, item.message);
     if (!result.ok) throw new Error(`HTTP ${result.status}: ${result.body.slice(0, 300)}`);
     await admin.from("whatsapp_billing_queue").update({ status: "sent", sent_at: new Date().toISOString(), error_message: null }).eq("id", item.id);
-    await admin.from("whatsapp_billing_log").insert({ owner_id: item.user_id, loan_id: item.loan_id, client_id: item.client_id, installment_number: item.installment_number, status_when_sent: "central", phone: item.phone, message: item.message, success: true, sent_date: new Date().toISOString().slice(0, 10) });
+    await admin.from("whatsapp_billing_log").insert({ owner_id: item.user_id, loan_id: item.loan_id, client_id: item.client_id, installment_number: item.installment_number, status_when_sent: item.billing_status || "central", phone: item.phone, message: item.message, success: true, sent_date: new Date().toISOString().slice(0, 10) });
     return new Response(JSON.stringify({ ok: true, id: item.id }), { headers: cors });
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause);

@@ -15,14 +15,35 @@ Deno.serve(async (req) => {
   const ownership = await validateUserOwner(admin, req, ownerId);
   if (!ownership.ok) return reply({ error: ownership.reason }, 403);
   const { data: config } = await admin.from("whatsapp_billing_schedule").select("provider, base_url, instance_id").eq("owner_id", ownerId).single();
-  if (config?.provider !== "wppconnect" || !config.base_url || !config.instance_id) return reply({ error: "wppconnect_not_configured" }, 400);
-  const token = Deno.env.get("WPPCONNECT_TOKEN") || "";
-  if (!token) return reply({ error: "missing_server_token" }, 503);
+  if (!config?.base_url || !config.instance_id || !["wppconnect", "evolution"].includes(config.provider)) {
+    return reply({ error: "whatsapp_not_configured" }, 400);
+  }
+  const token = config.provider === "evolution"
+    ? Deno.env.get("EVOLUTION_API_KEY") || Deno.env.get("WHATSMIAU_API_KEY") || ""
+    : Deno.env.get("WPPCONNECT_TOKEN") || "";
+  if (!token) return reply({ error: config.provider === "evolution" ? "missing_evolution_api_key" : "missing_server_token" }, 503);
   const action = requestBody.action || "status";
   const base = config.base_url.replace(/\/+$/, "");
   const session = encodeURIComponent(config.instance_id);
-  const endpoint = action === "connect" ? `/api/${session}/start-session` : action === "disconnect" ? `/api/${session}/logout-session` : `/api/${session}/status-session`;
-  const response = await fetch(`${base}${endpoint}`, { method: action === "status" ? "GET" : "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } });
+  const isEvolution = config.provider === "evolution";
+  const endpoint = isEvolution
+    ? action === "connect"
+      ? `/instance/connect/${session}`
+      : action === "disconnect"
+        ? `/instance/logout/${session}`
+        : `/instance/connectionState/${session}`
+    : action === "connect"
+      ? `/api/${session}/start-session`
+      : action === "disconnect"
+        ? `/api/${session}/logout-session`
+        : `/api/${session}/status-session`;
+  const method = isEvolution
+    ? action === "disconnect" ? "DELETE" : "GET"
+    : action === "status" ? "GET" : "POST";
+  const requestHeaders = isEvolution
+    ? { apikey: token, "Content-Type": "application/json" }
+    : { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+  const response = await fetch(`${base}${endpoint}`, { method, headers: requestHeaders });
   const text = await response.text();
   let upstreamBody: any; try { upstreamBody = JSON.parse(text); } catch { upstreamBody = { message: text }; }
   if (!response.ok) {
@@ -30,7 +51,7 @@ Deno.serve(async (req) => {
       ? upstreamBody.message
       : typeof upstreamBody?.error === "string"
         ? upstreamBody.error
-        : `WPPConnect respondeu HTTP ${response.status}`;
+        : `${isEvolution ? "Evolution API" : "WPPConnect"} respondeu HTTP ${response.status}`;
     console.error("[whatsapp-session] upstream error", {
       action,
       ownerId,
@@ -38,18 +59,18 @@ Deno.serve(async (req) => {
       upstreamMessage: upstreamMessage.slice(0, 300),
     });
     return reply({
-      error: "wppconnect_upstream_error",
+      error: isEvolution ? "evolution_upstream_error" : "wppconnect_upstream_error",
       upstream_status: response.status,
       message: upstreamMessage.slice(0, 300),
     });
   }
-  const statusParts = [upstreamBody.status, upstreamBody.message, upstreamBody.response?.status, upstreamBody.response?.message]
+  const statusParts = [upstreamBody.status, upstreamBody.message, upstreamBody.state, upstreamBody.instance?.state, upstreamBody.response?.status, upstreamBody.response?.message]
     .filter((value) => value !== undefined && value !== null)
     .map((value) => String(value));
   const statusText = statusParts.join(" ").toLowerCase();
   const disconnected = ["disconnect", "notlogged", "not logged", "closed", "browserclose", "autoclose", "deleteToken"]
     .some((value) => statusText.includes(value.toLowerCase()));
-  const connected = !disconnected && ["connected", "islogged", "inchat", "qrreadsuccess"]
+  const connected = !disconnected && ["connected", "open", "islogged", "inchat", "qrreadsuccess"]
     .some((value) => statusText.includes(value));
   const connecting = !connected && !disconnected && ["starting", "initial", "qrcode", "qr code", "opening"]
     .some((value) => statusText.includes(value));

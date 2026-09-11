@@ -106,24 +106,13 @@ function computeLateFees(loan: any, baseAmount: number, daysOverdue: number) {
   return Math.max(0, interest + penalty);
 }
 
-async function sendWhatsmiau(baseUrl: string, instance: string, apiKey: string, phone: string, text: string) {
-  const url = `${baseUrl.replace(/\/+$/, "")}/message/sendText/${instance}`;
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", apikey: apiKey },
-    body: JSON.stringify({ number: phone, text, textMessage: { text } }),
-  });
-  const body = await resp.text();
-  return { ok: resp.ok, status: resp.status, body };
-}
-
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
     const SUPABASE_URL = Deno.env.get("EXTERNAL_SUPABASE_URL")!;
     const SERVICE_KEY = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")!;
-    const API_KEY = Deno.env.get("WHATSMIAU_API_KEY") ?? "";
+    const EVOLUTION_API_KEY = Deno.env.get("EVOLUTION_API_KEY") || Deno.env.get("WHATSMIAU_API_KEY") || "";
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
@@ -151,7 +140,7 @@ Deno.serve(async (req: Request) => {
       return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
     })();
 
-    const scheduleCols = "owner_id, enabled, send_time, base_url, instance_id, days_before_due, send_on_due_day, send_when_overdue, overdue_repeat_days";
+    const scheduleCols = "owner_id, enabled, provider, send_time, base_url, instance_id, days_before_due, send_on_due_day, send_when_overdue, overdue_repeat_days";
     let scheduleQuery = admin.from("whatsapp_billing_schedule").select(scheduleCols).eq("enabled", true);
     if (forceOwner) scheduleQuery = scheduleQuery.eq("owner_id", forceOwner);
     const { data: schedules, error: schedErr } = await scheduleQuery;
@@ -166,12 +155,17 @@ Deno.serve(async (req: Request) => {
         if (targetHour !== currentHour) continue;
       }
 
-      if (!sched.base_url || !sched.instance_id || !API_KEY) {
+      const providerApiKey = sched.provider === "wppconnect"
+        ? Deno.env.get("WPPCONNECT_TOKEN") || ""
+        : EVOLUTION_API_KEY;
+      if (!sched.base_url || !sched.instance_id || !providerApiKey) {
         results.push({ owner_id: sched.owner_id, skipped: "missing_credentials" });
         continue;
       }
 
       const ownerId = sched.owner_id;
+      const batchId = crypto.randomUUID();
+      let queueIndex = 0;
 
       const { data: tplRow } = await admin
         .from("whatsapp_billing_messages")
@@ -325,22 +319,25 @@ Deno.serve(async (req: Request) => {
             : baseMessage;
 
           const phone = normalizePhoneBR(phoneRaw);
-          const send = await sendWhatsmiau(sched.base_url, sched.instance_id, API_KEY, phone, message);
-
-          await admin.from("whatsapp_billing_log").insert({
-            owner_id: ownerId,
+          if (!client?.id) continue;
+          const scheduledAt = new Date(Date.now() + queueIndex * 30_000).toISOString();
+          const { error: queueError } = await admin.from("whatsapp_billing_queue").insert({
+            batch_id: batchId,
+            user_id: ownerId,
+            client_id: client.id,
             loan_id: loan.id,
-            client_id: client?.id ?? null,
             installment_number: installmentNumber,
-            status_when_sent: status,
             phone,
             message,
-            success: send.ok,
-            error_message: send.ok ? null : `HTTP ${send.status}: ${send.body.slice(0, 500)}`,
-            sent_date: today,
+            amount: valorTotal,
+            due_date: billingDate,
+            billing_status: status,
+            scheduled_at: scheduledAt,
           });
+          if (queueError && queueError.code !== "23505") throw queueError;
+          if (!queueError) queueIndex += 1;
 
-          results.push({ owner_id: ownerId, loan_id: loan.id, status, success: send.ok });
+          results.push({ owner_id: ownerId, loan_id: loan.id, status, queued: !queueError, duplicate: queueError?.code === "23505" });
         } catch (e) {
           results.push({ owner_id: ownerId, loan_id: loan.id, error: String(e) });
         }

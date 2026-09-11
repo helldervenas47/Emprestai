@@ -37,7 +37,7 @@ export interface WhatsappBillingLog {
 
 const DEFAULT: WhatsappBillingSchedule = {
   enabled: false,
-  provider: "whatsmiau",
+  provider: "evolution",
   base_url: "",
   instance_id: "",
   send_time: "09:00",

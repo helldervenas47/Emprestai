@@ -6,7 +6,7 @@ import { Loader2, Power, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
-export function WppConnectStatus() {
+export function WppConnectStatus({ provider = "wppconnect" }: { provider?: string }) {
   const { dataOwnerId } = useAuth();
   const [state, setState] = React.useState<"unknown" | "connected" | "connecting" | "disconnected">("unknown");
   const [qr, setQr] = React.useState<string | null>(null);
@@ -27,7 +27,7 @@ export function WppConnectStatus() {
           ? `${failure.message}${failure.upstream_status ? ` (HTTP ${failure.upstream_status})` : ""}`
           : failure?.error
             ? `Falha na conexão: ${failure.error}`
-            : `Não foi possível comunicar com o WPPConnect${(error as any)?.message ? `: ${(error as any).message}` : "."}`;
+            : `Não foi possível comunicar com ${provider === "evolution" ? "a Evolution API" : "o WPPConnect"}${(error as any)?.message ? `: ${(error as any).message}` : "."}`;
         toast.error(detail);
       }
       setState("disconnected");
@@ -40,7 +40,7 @@ export function WppConnectStatus() {
       .some((item) => value.includes(item));
     setState(connected ? "connected" : value.includes("connecting") || action === "connect" ? "connecting" : "disconnected");
     setQr(data.qrcode || null);
-  }, [dataOwnerId]);
+  }, [dataOwnerId, provider]);
   React.useEffect(() => { call("status"); }, [call]);
   React.useEffect(() => {
     if (state !== "connecting") return;
