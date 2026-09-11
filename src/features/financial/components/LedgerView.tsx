@@ -450,20 +450,20 @@ export function LedgerView({ readOnly = false }: Props) {
 
       {/* Entradas/Saídas do período filtrado */}
       <div className="flex gap-2 sm:gap-3">
-        <div className="flex-1 rounded-2xl border border-border/60 bg-success/10 p-3 flex items-center gap-3 transition-colors hover:bg-success/15">
+        <div className="flex-1 rounded-2xl border border-border/60 bg-success/10 p-3 flex items-center justify-center gap-3 transition-colors hover:bg-success/15 text-center">
           <div className="rounded-xl bg-success p-2 text-success-foreground shrink-0">
             <ArrowUpRight className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 text-left">
             <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-success">Entradas</p>
             <p className="text-sm sm:text-base font-bold tabular-nums text-success truncate">{formatBRL(totals.totalIn)}</p>
           </div>
         </div>
-        <div className="flex-1 rounded-2xl border border-border/60 bg-destructive/10 p-3 flex items-center gap-3 transition-colors hover:bg-destructive/15">
+        <div className="flex-1 rounded-2xl border border-border/60 bg-destructive/10 p-3 flex items-center justify-center gap-3 transition-colors hover:bg-destructive/15 text-center">
           <div className="rounded-xl bg-destructive p-2 text-destructive-foreground shrink-0">
             <ArrowDownRight className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 text-left">
             <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-destructive">Saídas</p>
             <p className="text-sm sm:text-base font-bold tabular-nums text-destructive truncate">{formatBRL(totals.totalOut)}</p>
           </div>

@@ -356,14 +356,14 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
               className="cursor-pointer border border-border/60 bg-muted/40 transition-colors hover:bg-muted/60"
               onClick={() => setOpenPatrimonio(true)}
             >
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center gap-1.5">
+              <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center">
+                <div className="flex items-center justify-center gap-1.5">
                   <div className="rounded-md bg-primary/10 p-1">
                     <Gem className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
                   </div>
                   <p className="text-[10px] sm:text-xs font-medium text-muted-foreground">Patrimônio</p>
                 </div>
-                <p className={`mt-1.5 text-sm sm:text-base font-bold tabular-nums truncate ${patrimonioTotal < 0 ? "text-destructive" : "text-foreground"}`}>
+                <p className={`mt-1.5 text-sm sm:text-base font-bold tabular-nums truncate text-center ${patrimonioTotal < 0 ? "text-destructive" : "text-foreground"}`}>
                   {formatBRL(patrimonioTotal)}
                 </p>
               </CardContent>
@@ -374,8 +374,8 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
               className="cursor-pointer border border-border/60 bg-muted/40 transition-colors hover:bg-muted/60"
               onClick={() => setOpenMaos(true)}
             >
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center gap-1.5">
+              <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center">
+                <div className="flex items-center justify-center gap-1.5">
                   <div className="rounded-md bg-success/10 p-1">
                     <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-success" />
                   </div>
@@ -384,7 +384,7 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
                 {balanceLoading ? (
                   <span aria-hidden className="mt-2 inline-block h-5 w-24 animate-pulse rounded-md bg-muted-foreground/25" />
                 ) : (
-                  <p className={`mt-1.5 text-sm sm:text-base font-bold tabular-nums truncate ${totalEmMaos < 0 ? "text-destructive" : "text-foreground"}`}>
+                  <p className={`mt-1.5 text-sm sm:text-base font-bold tabular-nums truncate text-center ${totalEmMaos < 0 ? "text-destructive" : "text-foreground"}`}>
                     {formatBRL(totalEmMaos)}
                   </p>
                 )}
@@ -396,14 +396,14 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
               className="cursor-pointer border border-border/60 bg-primary/5 transition-colors hover:bg-primary/10"
               onClick={() => setOpenRua(true)}
             >
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center gap-1.5">
+              <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center">
+                <div className="flex items-center justify-center gap-1.5">
                   <div className="rounded-md bg-primary/10 p-1">
                     <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
                   </div>
                   <p className="text-[10px] sm:text-xs font-medium text-primary/80">Na Rua</p>
                 </div>
-                <p className={`mt-1.5 text-sm sm:text-base font-bold tabular-nums truncate ${totalNaRua < 0 ? "text-destructive" : "text-foreground"}`}>
+                <p className={`mt-1.5 text-sm sm:text-base font-bold tabular-nums truncate text-center ${totalNaRua < 0 ? "text-destructive" : "text-foreground"}`}>
                   {formatBRL(totalNaRua)}
                 </p>
               </CardContent>
@@ -414,14 +414,14 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
               className="cursor-pointer border border-border/60 bg-warning/10 transition-colors hover:bg-warning/15"
               onClick={() => setOpenStockBreakdown(true)}
             >
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center gap-1.5">
+              <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center">
+                <div className="flex items-center justify-center gap-1.5">
                   <div className="rounded-md bg-warning/15 p-1">
                     <PiggyBank className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-warning" />
                   </div>
                   <p className="text-[10px] sm:text-xs font-medium text-muted-foreground">Em estoque</p>
                 </div>
-                <p className={`mt-1.5 text-sm sm:text-base font-bold tabular-nums truncate ${stockValue < 0 ? "text-destructive" : "text-foreground"}`}>
+                <p className={`mt-1.5 text-sm sm:text-base font-bold tabular-nums truncate text-center ${stockValue < 0 ? "text-destructive" : "text-foreground"}`}>
                   {formatBRL(stockValue)}
                 </p>
               </CardContent>
