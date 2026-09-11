@@ -44,6 +44,7 @@ export function BillingCenter() {
   const [creating, setCreating] = React.useState(false);
   const [historyStatus, setHistoryStatus] = React.useState<"all" | "sent" | "failed" | "cancelled">("all");
   const [historyOpen, setHistoryOpen] = React.useState(false);
+  const [chargedTodayOpen, setChargedTodayOpen] = React.useState(false);
   const [clientsOpen, setClientsOpen] = React.useState(false);
   const [clientPreferences, setClientPreferences] = React.useState<ClientBillingPreference[]>([]);
   const [clientPreferenceDraft, setClientPreferenceDraft] = React.useState<Set<string>>(new Set());
@@ -228,11 +229,15 @@ export function BillingCenter() {
       return map;
     }, new Map<string, { clientId: string; clientName: string; rows: BillingCandidate[] }>()).values(),
   ).sort((a, b) => a.clientName.localeCompare(b.clientName, "pt-BR", { sensitivity: "base" }));
+  const clientsSentToday = sentTodayClientIds;
+  const chargedTodayGroups = clientGroups.filter((group) => clientsSentToday.has(group.clientId));
+  const pendingClientGroups = clientGroups.filter((group) => !clientsSentToday.has(group.clientId));
 
   const upcomingDayGroups = React.useMemo(() => {
     if (filter !== "upcoming") return [];
     const dayMap = new Map<number, { dateYmd: string; items: BillingCandidate[] }>();
     for (const item of visible) {
+      if (clientsSentToday.has(item.clientId)) continue;
       const daysUntil = Math.max(1, getDaysUntil(item.billingDate, todayInBahia));
       const current = dayMap.get(daysUntil) || { dateYmd: item.billingDate, items: [] };
       current.items.push(item);
@@ -265,9 +270,8 @@ export function BillingCenter() {
         clientGroups: groups,
       };
     });
-  }, [filter, visible, todayInBahia]);
+  }, [filter, visible, todayInBahia, clientsSentToday]);
 
-  const clientsSentToday = sentTodayClientIds;
   const activeQueue = queue.filter((q) => ["pending", "processing"].includes(q.status));
   const pausedQueue = queue.filter((q) => q.status === "paused");
   const historyRows = queue.filter((q) => historyStatus === "all" || q.status === historyStatus).slice(0, 30);
@@ -301,6 +305,35 @@ export function BillingCenter() {
 
     {activeQueue.length > 0 && <Card no3d className="border-primary/30"><CardContent className="p-3 flex items-center gap-3"><Loader2 className="h-4 w-4 animate-spin text-primary"/><div className="flex-1"><p className="text-sm font-semibold">Enviando cobranças</p><p className="text-xs text-muted-foreground">{queue.filter(q => q.status === 'sent').length} enviadas · {activeQueue.length} aguardando/processando</p></div><Button size="sm" variant="outline" onClick={() => updateBatch('paused')}><Pause className="h-3.5 w-3.5 mr-1"/>Pausar</Button><Button size="sm" variant="ghost" onClick={() => updateBatch('cancelled')}>Cancelar fila</Button></CardContent></Card>}
     {pausedQueue.length > 0 && <Card no3d className="border-amber-500/30"><CardContent className="p-3 flex items-center gap-3"><Pause className="h-4 w-4 text-amber-500"/><p className="text-sm font-semibold flex-1">Fila pausada · {pausedQueue.length} aguardando</p><Button size="sm" onClick={() => updateBatch('pending')}>Retomar</Button><Button size="sm" variant="ghost" onClick={() => updateBatch('cancelled')}>Cancelar fila</Button></CardContent></Card>}
+
+    {chargedTodayGroups.length > 0 && (
+      <Collapsible open={chargedTodayOpen} onOpenChange={setChargedTodayOpen} className="overflow-hidden rounded-2xl border border-emerald-500/30 bg-emerald-500/5">
+        <CollapsibleTrigger className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-emerald-500/10">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white">
+            <CheckCircle2 className="h-4 w-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold text-emerald-700 dark:text-emerald-400">Cobrado Hoje</span>
+            <span className="block text-[11px] text-muted-foreground">Clientes que já receberam cobrança neste dia</span>
+          </span>
+          <Badge className="border-0 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">{chargedTodayGroups.length}</Badge>
+          <ChevronDown className={`h-4 w-4 transition-transform ${chargedTodayOpen ? "rotate-180" : ""}`} />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-2 border-t border-emerald-500/20 p-2">
+          {chargedTodayGroups.map((group) => (
+            <ClientBillingFolder
+              key={`charged-${group.clientId}`}
+              group={group}
+              sentToday
+              selected={selected}
+              setSelected={setSelected}
+              onCharge={(item) => setConfirm([item])}
+              onChargeMany={(rows) => setConfirm(rows)}
+            />
+          ))}
+        </CollapsibleContent>
+      </Collapsible>
+    )}
 
     {loading ? (
       <div className="py-12 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary"/></div>
@@ -349,7 +382,7 @@ export function BillingCenter() {
       </div>
     ) : (
       <div className="space-y-2">
-        {clientGroups.map((group) => (
+        {pendingClientGroups.map((group) => (
           <ClientBillingFolder
             key={group.clientId}
             group={group}
