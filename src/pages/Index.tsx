@@ -381,8 +381,6 @@ const Settings = lazy(() => import("@/components/Settings").then((m) => ({ defau
 const SystemSettings = lazy(() => import("@/components/SystemSettings").then((m) => ({ default: m.SystemSettings })));
 const SalaryTab = lazy(() => import("@/features/payroll/components/salary/SalaryTab").then((m) => ({ default: m.SalaryTab })));
 const BoletosTab = lazy(() => import("@/features/boletos/components/boletos/BoletosTab").then((m) => ({ default: m.BoletosTab })));
-import { GettingStartedChecklist } from "@/components/onboarding/GettingStartedChecklist";
-import { QuickOnboardingWizard } from "@/components/onboarding/QuickOnboardingWizard";
 
 // Direct import for the constant used at render time
 import { isVehicleExpenseForVehicles } from "@/features/vehicles/components/VehicleExpenseForm";
@@ -500,7 +498,8 @@ type Tab =
   | "clients"
   | "products"
   | "vehicles"
-  | "overdue"
+  | "telegram_reports"
+  | "billing_center"
   | "metas"
   | "expenses"
   | "boletos"
@@ -514,7 +513,6 @@ type Tab =
 type ClientSubTab = "clientes" | "veiculos" | "ranking";
 type VehicleSubTab = "veiculos" | "locadores";
 type PlanMgmtSubTab = "subscribers" | "plans";
-type OverdueSubTab = "bot-telegram" | "whatsapp-cobranca";
 type ExpenseSubTab = "business" | "personal";
 type PersonalSubTab = "expenses" | "cards";
 type IncExpTab = "incomes" | "expenses" | "cards";
@@ -531,7 +529,8 @@ const tabConfig = [
   { id: "salary" as Tab, label: "Salário", icon: Wallet },
   { id: "accountant" as Tab, label: "Contador", icon: Calculator },
 
-  { id: "overdue" as Tab, label: "Relatório", icon: Folders },
+  { id: "telegram_reports" as Tab, label: "EmprestAI Telegram", icon: Send },
+  { id: "billing_center" as Tab, label: "Central de Cobranças", icon: MessageCircle },
   { id: "metas" as Tab, label: "Metas", icon: Target },
   { id: "video_lessons" as Tab, label: "Vídeo Aulas", icon: GraduationCap },
   { id: "settings" as Tab, label: "Configurações", icon: SettingsIcon },
@@ -616,12 +615,18 @@ const tabHelp: Record<Tab, { title: string; items: string[] }> = {
     title: "Contador",
     items: ["Relatório consolidado para fins contábeis.", "Inclui receitas, despesas, vendas e empréstimos."],
   },
-  overdue: {
-    title: "Relatório",
+  telegram_reports: {
+    title: "EmprestAI Telegram",
     items: [
-      "Lista todos os empréstimos com parcelas em atraso.",
-      "Também mostra empréstimos que vencem hoje.",
-      "Use para priorizar suas cobranças diárias.",
+      "Conecte e configure o bot de relatórios do Telegram.",
+      "Consulte e envie os relatórios já disponíveis nessa área.",
+    ],
+  },
+  billing_center: {
+    title: "Central de Cobranças",
+    items: [
+      "Organize cobranças por cliente e por data priorizada.",
+      "Configure mensagens, automação e acompanhe os envios.",
     ],
   },
   metas: {
@@ -802,7 +807,8 @@ const Index = () => {
   // Tab state - declared early so hooks can use it for lazy loading
   const [tab, setTabState] = useState<Tab>(() => {
     const params = new URLSearchParams(window.location.search);
-    const urlTab = params.get("tab");
+    const requestedTab = params.get("tab");
+    const urlTab = requestedTab === "overdue" ? "telegram_reports" : requestedTab;
     if (urlTab && tabConfig.some((t) => t.id === urlTab)) {
       params.delete("tab");
       const remaining = params.toString();
@@ -883,10 +889,9 @@ const Index = () => {
       // Eventos `app:navigate` são navegações intencionais do usuário disparadas
       // por outros componentes (ex.: notificações). Se pedirem a aba já ativa,
       // o `changeTab` faz no-op — não rola. Se pedirem outra aba, rola.
-      if (targetTab) changeTab(targetTab, { source: "user" });
-      if (targetTab === "overdue" && subTab) {
-        setOverdueSubTab(subTab === "whatsapp-cobranca" ? "whatsapp-cobranca" : "bot-telegram");
-      }
+      if (targetTab === "overdue") {
+        changeTab(subTab === "whatsapp-cobranca" ? "billing_center" : "telegram_reports", { source: "user" });
+      } else if (targetTab) changeTab(targetTab, { source: "user" });
       if (targetTab === "expenses" && subTab) {
         if (subTab === "cards" || subTab === "incomes" || subTab === "expenses") {
           setIncExpTab(subTab as IncExpTab);
@@ -1035,13 +1040,6 @@ const Index = () => {
   }, []);
   const [vehicleSubTab, setVehicleSubTab] = usePersistentOption<VehicleSubTab>("vehicles", ["veiculos", "locadores"], "veiculos");
   const [planMgmtSubTab, setPlanMgmtSubTab] = usePersistentOption<PlanMgmtSubTab>("planMgmt", ["subscribers", "plans"], "subscribers");
-  const [overdueSubTab, setOverdueSubTab] = useState<OverdueSubTab>("bot-telegram");
-  // Ao sair da aba Relatório, reinicia o sub-tab para "Bot Telegram"
-  // (assim, na próxima vez que abrir, ela começa lá — sem sobrescrever
-  // sub-tabs definidos por deep links via app:navigate).
-  useEffect(() => {
-    if (tab !== "overdue") setOverdueSubTab("bot-telegram");
-  }, [tab]);
   const [expenseSubTab, setExpenseSubTab] = usePersistentOption<ExpenseSubTab>("expenses", ["business", "personal"], "personal");
   const [personalSubTab, setPersonalSubTab] = usePersistentOption<PersonalSubTab>("personal", ["expenses", "cards"], "expenses");
   const [incExpTab, setIncExpTab] = usePersistentOption<IncExpTab>("financial", ["incomes", "expenses", "cards"], "incomes");
@@ -1073,21 +1071,6 @@ const Index = () => {
   const nonVehicleExpenses = expenses.filter((e) => !isVehicleExpenseForVehicles(e));
   const businessExpenses = nonVehicleExpenses.filter((e) => (e.scope ?? "business") === "business");
   const personalExpenses = nonVehicleExpenses.filter((e) => e.scope === "personal");
-  const [showOnboardingWizard, setShowOnboardingWizard] = useState(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("onboarding") === "true") {
-        params.delete("onboarding");
-        const remaining = params.toString();
-        const newUrl = window.location.pathname + (remaining ? `?${remaining}` : "") + window.location.hash;
-        window.history.replaceState(window.history.state, "", newUrl);
-        return true;
-      }
-    } catch {
-      /* noop */
-    }
-    return false;
-  });
   const [showLoanForm, setShowLoanForm] = useState(false);
   const [showLoanSimulator, setShowLoanSimulator] = useState(false);
   const [loanFormPrefill, setLoanFormPrefill] = useState<{
@@ -1227,14 +1210,16 @@ const Index = () => {
       !isLegacyPlanTabs &&
       !planAccessLoading &&
       Array.isArray(planAllowedTabs) &&
-      !planAllowedTabs.includes(t.id)
+      !planAllowedTabs.includes(t.id) &&
+      !(planAllowedTabs.includes("overdue") && (t.id === "telegram_reports" || t.id === "billing_center"))
     ) {
       return false;
     }
 
     // Permissão por papel (role_tab_permissions): se a aba não está liberada
     // para o papel do usuário, esconde.
-    if (Array.isArray(roleAllowedTabs) && !roleAllowedTabs.includes(t.id)) return false;
+    if (Array.isArray(roleAllowedTabs) && !roleAllowedTabs.includes(t.id) &&
+      !(roleAllowedTabs.includes("overdue") && (t.id === "telegram_reports" || t.id === "billing_center"))) return false;
 
     // Permissão por usuário (user_tab_permissions): se houver lista customizada, exigir presença.
     const isLegacyClientPlanTabs =
@@ -1242,7 +1227,9 @@ const Index = () => {
       Array.isArray(allowedTabs) &&
       allowedTabs.length > 0 &&
       allowedTabs.every((id) => LEGACY_CLIENT_PLAN_TAB_IDS.has(id));
-    if (Array.isArray(allowedTabs) && allowedTabs.length > 0 && !isLegacyClientPlanTabs) return allowedTabs.includes(t.id);
+    if (Array.isArray(allowedTabs) && allowedTabs.length > 0 && !isLegacyClientPlanTabs) {
+      return allowedTabs.includes(t.id) || (allowedTabs.includes("overdue") && (t.id === "telegram_reports" || t.id === "billing_center"));
+    }
     return true;
   }), [loading, user, role, roleAllowedTabs, allowedTabs, planAllowedTabs, planAccessLoading]);
 
@@ -1527,15 +1514,6 @@ const Index = () => {
               />
             ) : (
               <>
-                {/* Checklist de Primeiros Passos Pós-Ativação */}
-                <GettingStartedChecklist
-                  clientsCount={clients.length}
-                  loansCount={loans.length}
-                  onOpenWizard={() => setShowOnboardingWizard(true)}
-                  onOpenNewClient={() => setShowClientForm(true)}
-                  onOpenNewLoan={() => setShowLoanForm(true)}
-                />
-
                 {tab === "overview" && (
                   <SubscriptionGate requiredTier={1} featureName="Dashboard">
                     <DashboardOverview
@@ -1842,55 +1820,18 @@ const Index = () => {
                   </SubscriptionGate>
                 )}
                 {tab === "boletos" && <BoletosTab readOnly={isReadOnly} />}
-                {tab === "overdue" && (
+                {tab === "telegram_reports" && (
                   <SubscriptionGate requiredTier={2} featureName="Relatórios">
-                    <div>
-                      <nav className="flex gap-1 mb-4 bg-muted/60 p-1 rounded-xl border border-border/50 overflow-x-auto scrollbar-hide">
-                        <button
-                          type="button"
-                          onClick={() => setOverdueSubTab("bot-telegram")}
-                          className={`flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap flex-1 min-w-0 ${
-                            overdueSubTab === "bot-telegram"
-                              ? "bg-background !text-primary shadow-sm"
-                              : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-                          }`}
-                        >
-                          <Send className={`h-4 w-4 shrink-0 ${overdueSubTab === "bot-telegram" ? "!text-primary" : ""}`} />
-                          <span className="truncate">EmprestAI Telegram</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setOverdueSubTab("whatsapp-cobranca")}
-                          className={`flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap flex-1 min-w-0 ${
-                            overdueSubTab === "whatsapp-cobranca"
-                              ? "bg-background !text-primary shadow-sm"
-                              : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-                          }`}
-                        >
-                          <MessageCircle className={`h-4 w-4 shrink-0 ${overdueSubTab === "whatsapp-cobranca" ? "!text-primary" : ""}`} />
-                          <span className="truncate">Cobrança WhatsApp</span>
-                        </button>
-                      </nav>
-                      <Suspense
-                        fallback={
-                          <div className="py-12 flex flex-col items-center justify-center space-y-2">
-                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                            <span className="text-xs text-muted-foreground">Carregando…</span>
-                          </div>
-                        }
-                      >
-                        {overdueSubTab === "bot-telegram" && (
-                          <ModuleErrorBoundary name="EmprestAI Telegram">
-                            <TelegramBotsHub />
-                          </ModuleErrorBoundary>
-                        )}
-                        {overdueSubTab === "whatsapp-cobranca" && (
-                          <ModuleErrorBoundary name="Cobrança WhatsApp">
-                            <WhatsappHub />
-                          </ModuleErrorBoundary>
-                        )}
-                      </Suspense>
-                    </div>
+                    <Suspense fallback={<div className="py-12 text-center text-sm text-muted-foreground">Carregando…</div>}>
+                      <ModuleErrorBoundary name="EmprestAI Telegram"><TelegramBotsHub /></ModuleErrorBoundary>
+                    </Suspense>
+                  </SubscriptionGate>
+                )}
+                {tab === "billing_center" && (
+                  <SubscriptionGate requiredTier={2} featureName="Central de Cobranças">
+                    <Suspense fallback={<div className="py-12 text-center text-sm text-muted-foreground">Carregando…</div>}>
+                      <ModuleErrorBoundary name="Central de Cobranças"><WhatsappHub /></ModuleErrorBoundary>
+                    </Suspense>
                   </SubscriptionGate>
                 )}
                 {tab === "metas" && (
@@ -2084,14 +2025,6 @@ const Index = () => {
             da aba — o que anteriormente causava o scroll voltar ao topo ao abrir
             um modal pela primeira vez na sessão. */}
         <LazyDialogBoundary>
-          {showOnboardingWizard && (
-            <QuickOnboardingWizard
-              open={showOnboardingWizard}
-              onOpenChange={setShowOnboardingWizard}
-              onAddClient={addClient}
-              onAddLoan={addLoan}
-            />
-          )}
           {showLoanForm && (
             <LoanForm
               onAdd={addLoan}
@@ -2341,7 +2274,7 @@ const Index = () => {
                   const MOBILE_GROUPS: { label: string; ids: string[] }[] = [
                     { label: "Principal", ids: ["overview", "calendar", "metas"] },
                     { label: "Financeiro", ids: ["expenses", "dashboard", "products", "boletos", "salary", "vehicles"] },
-                    { label: "Gestão", ids: ["clients", "accountant", "overdue"] },
+                    { label: "Gestão", ids: ["clients", "accountant", "telegram_reports", "billing_center"] },
                     { label: "Ferramentas", ids: ["video_lessons", "help", "settings", "system"] },
                   ];
                   const groupedNav = MOBILE_GROUPS.map((g) => ({
