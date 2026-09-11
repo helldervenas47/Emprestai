@@ -38,7 +38,7 @@ export function BillingCenter() {
   const [queue, setQueue] = React.useState<QueueRow[]>([]);
   const [sentTodayClientIds, setSentTodayClientIds] = React.useState<Set<string>>(new Set());
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
-  const [filter, setFilter] = React.useState<Filter>("today");
+  const [filter, setFilter] = React.useState<Filter>("all");
   const [confirm, setConfirm] = React.useState<BillingCandidate[] | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [creating, setCreating] = React.useState(false);
@@ -295,7 +295,7 @@ export function BillingCenter() {
       </div>
     </CardContent></Card>
 
-    <div className="flex w-full items-center gap-2 pb-1"><div className="grid min-w-0 flex-1 grid-cols-4 gap-1.5">{([['today','Hoje'],['overdue','Atrasadas'],['all','Total'],['upcoming','Futuras']] as [Filter,string][]).map(([id,label]) => <Button key={id} size="sm" variant={filter === id ? "default" : "outline"} className="h-8 w-full min-w-0 rounded-full px-1 text-[11px] sm:px-3 sm:text-xs" onClick={() => setFilter(id)}>{label}</Button>)}</div><Button size="sm" variant="ghost" className="h-8 w-8 shrink-0 p-0" aria-label="Atualizar cobranças" onClick={refresh}><RefreshCw className="h-3.5 w-3.5"/></Button></div>
+    <div className="flex w-full items-center gap-2 pb-1"><div className="grid min-w-0 flex-1 grid-cols-4 gap-1.5">{([['today','Hoje'],['overdue','Atrasadas'],['all','A cobrar'],['upcoming','Futuras']] as [Filter,string][]).map(([id,label]) => <Button key={id} size="sm" variant={filter === id ? "default" : "outline"} className="h-8 w-full min-w-0 rounded-full px-1 text-[11px] sm:px-3 sm:text-xs" onClick={() => setFilter(id)}>{label}</Button>)}</div><Button size="sm" variant="ghost" className="h-8 w-8 shrink-0 p-0" aria-label="Atualizar cobranças" onClick={refresh}><RefreshCw className="h-3.5 w-3.5"/></Button></div>
 
     <div className="sticky top-2 z-20 flex items-center gap-2 rounded-xl border bg-background/95 backdrop-blur p-2 shadow-sm">
       <Button size="sm" variant="ghost" onClick={() => setSelected(new Set(visible.filter((i) => i.validPhone && !clientsSentToday.has(i.clientId)).map((i) => i.key)))}>Selecionar todos</Button>
