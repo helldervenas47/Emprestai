@@ -38,6 +38,19 @@ const mockLoans = [
     status: "active",
     tags: ["Empréstimo B"],
   },
+  {
+    id: "loan-3",
+    user_id: "user-1",
+    borrower_id: "client-3",
+    borrower_name: "Cliente Daniel",
+    due_date: "2026-09-15", // D+4
+    amount: 700,
+    remaining_amount: 700,
+    installments: 1,
+    paid_installments: 0,
+    status: "active",
+    tags: ["Empréstimo C"],
+  },
 ];
 
 const mockClients = [
@@ -53,6 +66,13 @@ const mockClients = [
     user_id: "user-1",
     name: "Cliente Bruno",
     phone: "(11) 99999-2222",
+    auto_billing_enabled: true,
+  },
+  {
+    id: "client-3",
+    user_id: "user-1",
+    name: "Cliente Daniel",
+    phone: "(11) 99999-3333",
     auto_billing_enabled: true,
   },
 ];
@@ -102,10 +122,12 @@ describe("BillingCenter — Filtro de Futuras com separação por faixa de dias"
     await waitFor(() => {
       expect(screen.getByText(/Vence em 1 dia/i)).toBeInTheDocument();
       expect(screen.getByText(/Vence em 2 dias/i)).toBeInTheDocument();
+      expect(screen.getByText(/Vence em 4 dias/i)).toBeInTheDocument();
     });
 
     // Deve exibir as pastas dos clientes nas suas respectivas faixas
     expect(screen.getByText("Cliente Carlos")).toBeInTheDocument();
     expect(screen.getByText("Cliente Bruno")).toBeInTheDocument();
+    expect(screen.getByText("Cliente Daniel")).toBeInTheDocument();
   });
 });

@@ -127,7 +127,7 @@ export function BillingCenter() {
   const visible = items.filter((item) => (filter === "all" && item.billingDate <= todayInBahia) ||
     (filter === "today" && ["requested_today", "today"].includes(item.priority)) ||
     (filter === "overdue" && item.priority === "overdue") ||
-    (filter === "upcoming" && (["tomorrow", "in_two_days", "in_three_days"].includes(item.priority) || item.billingDate > todayInBahia)));
+    (filter === "upcoming" && ["tomorrow", "in_two_days", "in_three_days", "in_four_days"].includes(item.priority)));
   React.useEffect(() => {
     if (loading) return;
     const keys = visible.filter((item) => item.validPhone && autoBillingClientIds.has(item.clientId)).map((item) => item.key).sort();
