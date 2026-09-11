@@ -13,6 +13,7 @@ import {
   MoreVertical,
   Loader2,
   Calendar,
+  CalendarClock,
   DollarSign,
   Tag,
   ArrowUpDown,
@@ -42,6 +43,7 @@ import { useSavedFilters, FilterState } from "@/features/loans/hooks/useSavedFil
 
 export type DueDateQuick = "yesterday" | "today" | "tomorrow" | null;
 export type NotesFilter = "all" | "with" | "without";
+export type ExpectedDateFilter = "all" | "with" | "without";
 export type SortBy = "dueDate" | "startDate" | "amount" | "name";
 
 /* -------------------------------------------------------------------------- */
@@ -335,6 +337,7 @@ interface LoanActiveFiltersBarProps {
   onClearTag: () => void;
   onClearNotesFilter: () => void;
   onClearNotesSearch: () => void;
+  onClearExpectedDateFilter?: () => void;
   onClearSearch: () => void;
   onClearAll: () => void;
 }
@@ -353,6 +356,7 @@ export function LoanActiveFiltersBar({
   onClearTag,
   onClearNotesFilter,
   onClearNotesSearch,
+  onClearExpectedDateFilter,
   onClearSearch,
   onClearAll,
 }: LoanActiveFiltersBarProps) {
@@ -483,6 +487,21 @@ export function LoanActiveFiltersBar({
     });
   }
 
+  // Data prevista (presença)
+  if (filterState.expectedDateFilter === "with") {
+    activeChips.push({
+      id: "expected-with",
+      label: "Com data prevista",
+      onRemove: onClearExpectedDateFilter || onClearAll,
+    });
+  } else if (filterState.expectedDateFilter === "without") {
+    activeChips.push({
+      id: "expected-without",
+      label: "Sem data prevista",
+      onRemove: onClearExpectedDateFilter || onClearAll,
+    });
+  }
+
   if (activeChips.length === 0) return null;
 
   return (
@@ -548,6 +567,8 @@ interface LoanAdvancedFiltersProps {
   setNotesFilter: (v: NotesFilter) => void;
   notesSearch: string;
   setNotesSearch: (v: string) => void;
+  expectedDateFilter?: ExpectedDateFilter;
+  setExpectedDateFilter?: (v: ExpectedDateFilter) => void;
   dueDateQuick?: DueDateQuick;
   setDueDateQuick?: (v: DueDateQuick) => void;
   currentFilterState: FilterState;
@@ -577,6 +598,8 @@ export function LoanAdvancedFilters({
   setNotesFilter,
   notesSearch,
   setNotesSearch,
+  expectedDateFilter = "all",
+  setExpectedDateFilter,
   currentFilterState,
   onClose,
 }: LoanAdvancedFiltersProps) {
@@ -591,6 +614,7 @@ export function LoanAdvancedFilters({
     setAmountMax("");
     setTagFilter("");
     setNotesFilter("all");
+    setExpectedDateFilter?.("all");
     setSortBy("dueDate");
     setNotesSearch("");
   };
@@ -643,7 +667,8 @@ export function LoanAdvancedFilters({
       amountMax ||
       tagFilter ||
       notesSearch.trim() ||
-      notesFilter !== "all"
+      notesFilter !== "all" ||
+      expectedDateFilter !== "all"
   );
 
   const cursorDate = dueDateFrom && isValid(parseISO(dueDateFrom)) ? parseISO(dueDateFrom) : new Date();
@@ -904,7 +929,25 @@ export function LoanAdvancedFilters({
           </div>
         </div>
 
-        {/* SEÇÃO 4: Rodapé de Ações do Painel */}
+        {/* SEÇÃO 4: Filtro por Data Prevista */}
+        <div className="p-3 rounded-xl bg-card/60 border border-border/40">
+          <Label className="text-xs font-bold text-foreground flex items-center gap-1.5 mb-1.5">
+            <CalendarClock className="h-3.5 w-3.5 text-primary" />
+            Presença de Data Prevista
+          </Label>
+          <select
+            value={expectedDateFilter}
+            onChange={(e) => setExpectedDateFilter?.(e.target.value as ExpectedDateFilter)}
+            aria-label="Filtrar por data prevista"
+            className="flex h-8.5 w-full rounded-md border border-input bg-background px-3 py-1 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="all">Todas as datas previstas</option>
+            <option value="with">Apenas com data prevista</option>
+            <option value="without">Apenas sem data prevista</option>
+          </select>
+        </div>
+
+        {/* SEÇÃO 5: Rodapé de Ações do Painel */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 border-t border-border/40">
           <div className="flex items-center gap-2">
             {hasActiveAdvancedFilters && (

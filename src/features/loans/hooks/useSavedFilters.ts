@@ -16,6 +16,7 @@ export interface FilterState {
   tagFilter: string;
   notesFilter: "all" | "with" | "without";
   notesSearch: string;
+  expectedDateFilter?: "all" | "with" | "without";
   sortBy: "dueDate" | "startDate" | "amount" | "name";
 }
 

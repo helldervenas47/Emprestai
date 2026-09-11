@@ -223,6 +223,49 @@ describe("LoanListFilters — UX/UI dos Filtros de Empréstimos", () => {
       expect(setDueDateFrom).toHaveBeenCalled();
       expect(setDueDateTo).toHaveBeenCalled();
     });
+
+    it("renderiza o filtro de Presença de Data Prevista e permite selecionar", () => {
+      const setExpectedDateFilter = vi.fn();
+
+      render(
+        <LoanAdvancedFilters
+          dateFrom=""
+          setDateFrom={vi.fn()}
+          dateTo=""
+          setDateTo={vi.fn()}
+          dueDateFrom=""
+          setDueDateFrom={vi.fn()}
+          dueDateTo=""
+          setDueDateTo={vi.fn()}
+          amountMin=""
+          setAmountMin={vi.fn()}
+          amountMax=""
+          setAmountMax={vi.fn()}
+          tagFilter=""
+          setTagFilter={vi.fn()}
+          allTags={["VIP", "Bronze"]}
+          sortBy="dueDate"
+          setSortBy={vi.fn()}
+          notesFilter="all"
+          setNotesFilter={vi.fn()}
+          notesSearch=""
+          setNotesSearch={vi.fn()}
+          expectedDateFilter="all"
+          setExpectedDateFilter={setExpectedDateFilter}
+          currentFilterState={defaultFilterState}
+          applyFilterState={vi.fn()}
+          onClose={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText("Presença de Data Prevista")).toBeInTheDocument();
+      expect(screen.getByRole("combobox", { name: "Filtrar por data prevista" })).toBeInTheDocument();
+
+      fireEvent.change(screen.getByRole("combobox", { name: "Filtrar por data prevista" }), {
+        target: { value: "with" },
+      });
+      expect(setExpectedDateFilter).toHaveBeenCalledWith("with");
+    });
   });
 
   describe("LoanSearchBar (Barra de Busca e Toggle)", () => {

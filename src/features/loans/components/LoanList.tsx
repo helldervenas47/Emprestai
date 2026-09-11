@@ -144,6 +144,7 @@ export function LoanList({ loans, payments, installmentSchedules, onPayment, onP
     tagFilter, setTagFilter,
     notesFilter, setNotesFilter,
     notesSearch, setNotesSearch,
+    expectedDateFilter, setExpectedDateFilter,
     sortBy, setSortBy,
     cycleColumnSort, sortIndicator,
     allTags,
@@ -181,7 +182,8 @@ export function LoanList({ loans, payments, installmentSchedules, onPayment, onP
         amountMax ||
         tagFilter ||
         (notesSearch || "").trim() ||
-        (notesFilter && notesFilter !== "all")
+        (notesFilter && notesFilter !== "all") ||
+        (expectedDateFilter && expectedDateFilter !== "all")
     );
   }, [
     selectedCategories,
@@ -196,6 +198,7 @@ export function LoanList({ loans, payments, installmentSchedules, onPayment, onP
     tagFilter,
     notesSearch,
     notesFilter,
+    expectedDateFilter,
   ]);
 
   const activeFiltersCount = useMemo(() => {
@@ -216,6 +219,7 @@ export function LoanList({ loans, payments, installmentSchedules, onPayment, onP
     if (tagFilter) count += 1;
     if (notesFilter && notesFilter !== "all") count += 1;
     if ((notesSearch || "").trim()) count += 1;
+    if (expectedDateFilter && expectedDateFilter !== "all") count += 1;
     return count;
   }, [
     selectedCategories,
@@ -230,6 +234,7 @@ export function LoanList({ loans, payments, installmentSchedules, onPayment, onP
     tagFilter,
     notesFilter,
     notesSearch,
+    expectedDateFilter,
   ]);
 
   if (loans.length === 0) {
@@ -409,6 +414,7 @@ export function LoanList({ loans, payments, installmentSchedules, onPayment, onP
             onClearTag={() => setTagFilter("")}
             onClearNotesFilter={() => setNotesFilter("all")}
             onClearNotesSearch={() => setNotesSearch("")}
+            onClearExpectedDateFilter={() => setExpectedDateFilter("all")}
             onClearSearch={() => setSearch("")}
             onClearAll={() => {
               setSearch("");
@@ -419,6 +425,7 @@ export function LoanList({ loans, payments, installmentSchedules, onPayment, onP
               setAmountMin(""); setAmountMax("");
               setTagFilter(""); setNotesFilter("all"); setSortBy("dueDate");
               setNotesSearch("");
+              setExpectedDateFilter("all");
             }}
           />
 
@@ -435,6 +442,7 @@ export function LoanList({ loans, payments, installmentSchedules, onPayment, onP
             sortBy={sortBy} setSortBy={setSortBy}
             notesFilter={notesFilter} setNotesFilter={setNotesFilter}
             notesSearch={notesSearch} setNotesSearch={setNotesSearch}
+            expectedDateFilter={expectedDateFilter} setExpectedDateFilter={setExpectedDateFilter}
             dueDateQuick={dueDateQuick} setDueDateQuick={setDueDateQuick}
             currentFilterState={currentFilterState}
             applyFilterState={applyFilterState}

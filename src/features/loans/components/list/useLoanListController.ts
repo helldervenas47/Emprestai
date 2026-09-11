@@ -25,6 +25,7 @@ import {
   getTotalPaid,
 } from "@/features/loans/components/list/calculations";
 import type { Category } from "@/features/loans/components/list/types";
+import { usePaymentPromises } from "@/features/loans/hooks/usePaymentPromises";
 
 export type SortableCol =
   | "borrowerName"
@@ -108,6 +109,8 @@ export function useLoanListController({
   const [amountMax, setAmountMax] = useState("");
   const [tagFilter, setTagFilter] = useState("");
   const [notesFilter, setNotesFilter] = useState<"all" | "with" | "without">("all");
+  const [expectedDateFilter, setExpectedDateFilter] = useState<"all" | "with" | "without">("all");
+  const { promisedLoanIds } = usePaymentPromises();
   // Busca por conteúdo da observação (parcial, sem acento, case-insensitive)
   const [notesSearch, setNotesSearch] = useState("");
   const [notesSearchDebounced, setNotesSearchDebounced] = useState("");
@@ -178,6 +181,12 @@ export function useLoanListController({
       filtered = filtered.filter((l) => !l.notes?.trim());
     }
 
+    if (expectedDateFilter === "with") {
+      filtered = filtered.filter((l) => promisedLoanIds.has(l.id));
+    } else if (expectedDateFilter === "without") {
+      filtered = filtered.filter((l) => !promisedLoanIds.has(l.id));
+    }
+
     if (notesSearchDebounced) {
       const q = normalizeText(notesSearchDebounced);
       filtered = filtered.filter((l) => {
@@ -214,6 +223,8 @@ export function useLoanListController({
     amountMax,
     tagFilter,
     notesFilter,
+    expectedDateFilter,
+    promisedLoanIds,
     notesSearchDebounced,
     dueDateQuick,
     view,
@@ -641,6 +652,7 @@ export function useLoanListController({
       tagFilter,
       notesFilter,
       notesSearch,
+      expectedDateFilter,
       sortBy,
     };
 
@@ -656,6 +668,9 @@ export function useLoanListController({
       setTagFilter(state.tagFilter);
       setNotesFilter(state.notesFilter);
       setNotesSearch(state.notesSearch);
+      if (state.expectedDateFilter) {
+        setExpectedDateFilter(state.expectedDateFilter);
+      }
       setSortBy(state.sortBy);
     }, []);
 
@@ -694,6 +709,8 @@ export function useLoanListController({
     setNotesFilter,
     notesSearch,
     setNotesSearch,
+    expectedDateFilter,
+    setExpectedDateFilter,
     sortBy,
     setSortBy,
     // sorting
