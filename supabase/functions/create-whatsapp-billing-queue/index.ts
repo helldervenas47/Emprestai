@@ -26,6 +26,18 @@ Deno.serve(async (req) => {
   const clientIds = [...new Set(items.map((item: any) => item.client_id))];
   const { data: ownedClients } = await admin.from("clients").select("id, phone").eq("user_id", ownerId).in("id", clientIds);
   const clients = new Map((ownedClients || []).map((client: any) => [client.id, client]));
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bahia" }).format(new Date());
+  const todayStart = new Date(`${today}T00:00:00-03:00`);
+  const tomorrow = new Date(todayStart);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const { data: sentClients } = await admin.from("whatsapp_billing_queue")
+    .select("client_id")
+    .eq("user_id", ownerId)
+    .eq("status", "sent")
+    .gte("sent_at", todayStart.toISOString())
+    .lt("sent_at", tomorrow.toISOString())
+    .in("client_id", clientIds);
+  const alreadyCharged = new Set((sentClients || []).map((row: any) => row.client_id));
   const batchId = crypto.randomUUID();
   const createdAt = new Date();
   const rows = items.flatMap((item: any, index: number) => {
@@ -33,7 +45,7 @@ Deno.serve(async (req) => {
     const client = clients.get(item.client_id);
     const phone = String(client?.phone || "").replace(/\D/g, "");
     const normalizedPhone = phone.startsWith("55") ? phone : `55${phone}`;
-    if (!loan || !client || loan.borrower_id !== client.id || loan.status === "paid" || Number(loan.paid_installments) >= Number(item.installment_number) || !/^55\d{10,11}$/.test(normalizedPhone)) return [];
+    if (!loan || !client || alreadyCharged.has(item.client_id) || loan.borrower_id !== client.id || loan.status === "paid" || Number(loan.paid_installments) >= Number(item.installment_number) || !/^55\d{10,11}$/.test(normalizedPhone)) return [];
     return [{
       batch_id: batchId, user_id: ownerId, client_id: item.client_id, loan_id: item.loan_id,
       installment_number: item.installment_number, phone: normalizedPhone, message: String(item.message || "").slice(0, 4096),
@@ -41,7 +53,7 @@ Deno.serve(async (req) => {
       scheduled_at: new Date(createdAt.getTime() + index * 30_000).toISOString(),
     }];
   });
-  if (!rows.length) return json({ error: "no_valid_owned_items" }, 400);
+  if (!rows.length) return json({ error: alreadyCharged.size ? "already_charged_today" : "no_valid_owned_items" }, alreadyCharged.size ? 409 : 400);
   const { data, error } = await admin.from("whatsapp_billing_queue").insert(rows).select("id, status, scheduled_at");
   if (error) return json({ error: error.code === "23505" ? "duplicate_today" : error.message }, 409);
   return json({ batch_id: batchId, items: data });

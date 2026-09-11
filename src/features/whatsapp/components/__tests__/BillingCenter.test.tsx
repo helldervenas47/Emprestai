@@ -79,25 +79,24 @@ const mockClients = [
 
 vi.mock("@/integrations/supabase/userClient", () => ({
   supabase: {
-    from: (table: string) => ({
-      select: () => ({
-        eq: () => ({
-          order: () => ({
-            limit: () => Promise.resolve({ data: [], error: null }),
-          }),
-          maybeSingle: () => Promise.resolve({ data: null, error: null }),
-          then: (resolve: any) => {
-            if (table === "loans") return resolve({ data: mockLoans, error: null });
-            if (table === "clients") return resolve({ data: mockClients, error: null });
-            if (table === "loan_installments") return resolve({ data: [], error: null });
-            if (table === "payments") return resolve({ data: [], error: null });
-            if (table === "whatsapp_payment_promises") return resolve({ data: [], error: null });
-            if (table === "whatsapp_billing_queue") return resolve({ data: [], error: null });
-            return resolve({ data: [], error: null });
-          },
-        }),
-      }),
-    }),
+    from: (table: string) => {
+      const result = () => {
+        if (table === "loans") return { data: mockLoans, error: null };
+        if (table === "clients") return { data: mockClients, error: null };
+        return { data: [], error: null };
+      };
+      const query: any = {
+        select: () => query,
+        eq: () => query,
+        gte: () => query,
+        lt: () => query,
+        order: () => query,
+        limit: () => Promise.resolve(result()),
+        maybeSingle: () => Promise.resolve({ data: null, error: null }),
+        then: (resolve: any) => resolve(result()),
+      };
+      return query;
+    },
   },
 }));
 

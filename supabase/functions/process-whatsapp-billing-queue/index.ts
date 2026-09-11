@@ -12,6 +12,24 @@ Deno.serve(async (req) => {
   const item = claimed?.[0];
   if (!item) return new Response(JSON.stringify({ ok: true, idle: true }), { headers: cors });
   try {
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bahia" }).format(new Date());
+    const todayStart = new Date(`${today}T00:00:00-03:00`);
+    const tomorrow = new Date(todayStart);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const { data: previousSend } = await admin.from("whatsapp_billing_queue")
+      .select("id")
+      .eq("user_id", item.user_id)
+      .eq("client_id", item.client_id)
+      .eq("status", "sent")
+      .gte("sent_at", todayStart.toISOString())
+      .lt("sent_at", tomorrow.toISOString())
+      .neq("id", item.id)
+      .limit(1)
+      .maybeSingle();
+    if (previousSend) {
+      await admin.from("whatsapp_billing_queue").update({ status: "cancelled", error_message: "Cliente já cobrado hoje" }).eq("id", item.id);
+      return new Response(JSON.stringify({ ok: true, id: item.id, skipped: "client_already_charged_today" }), { headers: cors });
+    }
     const { data: loan } = await admin.from("loans").select("status, paid_installments").eq("id", item.loan_id).eq("user_id", item.user_id).single();
     if (!loan || loan.status === "paid" || Number(loan.paid_installments) >= item.installment_number) throw new Error("Parcela já quitada ou indisponível");
     const { data: config } = await admin.from("whatsapp_billing_schedule").select("provider, base_url, instance_id").eq("owner_id", item.user_id).single();

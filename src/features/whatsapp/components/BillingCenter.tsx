@@ -36,6 +36,7 @@ export function BillingCenter() {
   const { user, dataOwnerId } = useAuth();
   const [items, setItems] = React.useState<BillingCandidate[]>([]);
   const [queue, setQueue] = React.useState<QueueRow[]>([]);
+  const [sentTodayClientIds, setSentTodayClientIds] = React.useState<Set<string>>(new Set());
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [filter, setFilter] = React.useState<Filter>("today");
   const [confirm, setConfirm] = React.useState<BillingCandidate[] | null>(null);
@@ -57,16 +58,20 @@ export function BillingCenter() {
   const refresh = React.useCallback(async () => {
     if (!user || !dataOwnerId) return;
     const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bahia" }).format(new Date());
-    const [loans, clients, schedules, payments, promises, queued, templates] = await Promise.all([
+    const todayStart = new Date(`${today}T00:00:00-03:00`).toISOString();
+    const tomorrow = new Date(`${today}T00:00:00-03:00`);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const [loans, clients, schedules, payments, promises, queued, sentClients, templates] = await Promise.all([
       supabase.from("loans").select("*").eq("user_id", dataOwnerId),
       supabase.from("clients").select("*").eq("user_id", dataOwnerId),
       supabase.from("loan_installments").select("*").eq("user_id", dataOwnerId),
       supabase.from("payments").select("*").eq("user_id", dataOwnerId),
       supabase.from("whatsapp_payment_promises").select("loan_id, installment_number, promised_date").eq("user_id", dataOwnerId),
       supabase.from("whatsapp_billing_queue").select("id, batch_id, client_id, status, scheduled_at, sent_at, error_message, attempts").eq("user_id", dataOwnerId).order("created_at", { ascending: false }).limit(100),
+      supabase.from("whatsapp_billing_queue").select("client_id").eq("user_id", dataOwnerId).eq("status", "sent").gte("sent_at", todayStart).lt("sent_at", tomorrow.toISOString()),
       supabase.from("whatsapp_billing_messages").select("message_upcoming, message_due_today, message_overdue, message_very_overdue, message_center_single, message_center_multiple, very_overdue_days, pix_link").eq("owner_id", dataOwnerId).maybeSingle(),
     ]);
-    const errors = [loans.error, clients.error, schedules.error, payments.error, promises.error, queued.error].filter(Boolean);
+    const errors = [loans.error, clients.error, schedules.error, payments.error, promises.error, queued.error, sentClients.error].filter(Boolean);
     if (errors.length) toast.error("Não foi possível carregar toda a Central de Cobranças.");
     const mappedLoans = (loans.data || []).map((l: any) => ({
       ...l,
@@ -109,6 +114,7 @@ export function BillingCenter() {
       pixLink: (templates.data as any)?.pix_link || "",
     });
     setQueue((queued.data || []) as QueueRow[]);
+    setSentTodayClientIds(new Set((sentClients.data || []).map((row: any) => row.client_id)));
     setLoading(false);
   }, [user, dataOwnerId]);
 
@@ -130,12 +136,12 @@ export function BillingCenter() {
     (filter === "upcoming" && ["tomorrow", "in_two_days", "in_three_days", "in_four_days"].includes(item.priority)));
   React.useEffect(() => {
     if (loading) return;
-    const keys = visible.filter((item) => item.validPhone && autoBillingClientIds.has(item.clientId)).map((item) => item.key).sort();
+    const keys = visible.filter((item) => item.validPhone && autoBillingClientIds.has(item.clientId) && !sentTodayClientIds.has(item.clientId)).map((item) => item.key).sort();
     const autoSelectionKey = `${filter}:${keys.join("|")}`;
     if (autoSelectionKeyRef.current === autoSelectionKey) return;
     autoSelectionKeyRef.current = autoSelectionKey;
     setSelected(new Set(keys));
-  }, [filter, loading, visible, autoBillingClientIds]);
+  }, [filter, loading, visible, autoBillingClientIds, sentTodayClientIds]);
   const selectedItems = visible.filter((item) => selected.has(item.key));
   const visibleClientIds = new Set(visible.map((item) => item.clientId));
   const sentToday = queue.filter((q) => q.status === "sent" && q.sent_at && bahiaDay(q.sent_at) === todayInBahia && visibleClientIds.has(q.client_id)).length;
@@ -144,7 +150,13 @@ export function BillingCenter() {
   const enqueue = async () => {
     if (!confirm?.length) return;
     setCreating(true);
-    const grouped = Array.from(confirm.reduce((map, item) => {
+    const chargeable = confirm.filter((item) => !sentTodayClientIds.has(item.clientId));
+    if (!chargeable.length) {
+      setCreating(false);
+      setConfirm(null);
+      return toast.info("Este cliente já foi cobrado hoje.");
+    }
+    const grouped = Array.from(chargeable.reduce((map, item) => {
       const rows = map.get(item.clientId) || [];
       rows.push(item); map.set(item.clientId, rows); return map;
     }, new Map<string, BillingCandidate[]>()).values());
@@ -154,7 +166,7 @@ export function BillingCenter() {
     });
     const { data, error } = await supabase.functions.invoke("create-whatsapp-billing-queue", { body: { owner_id: dataOwnerId, items: queueItems } });
     setCreating(false);
-    if (error || data?.error) return toast.error(data?.error === "duplicate_today" ? "Uma dessas cobranças já foi enviada ou está na fila hoje." : "Não foi possível criar a fila de cobranças.");
+    if (error || data?.error) return toast.error(data?.error === "already_charged_today" ? "Este cliente já foi cobrado hoje." : data?.error === "duplicate_today" ? "Uma dessas cobranças já foi enviada ou está na fila hoje." : "Não foi possível criar a fila de cobranças.");
     toast.success(`${confirm.length} contrato(s) agrupado(s) em ${queueItems.length} mensagem(ns).`);
     setSelected(new Set()); setConfirm(null); await refresh();
   };
@@ -255,7 +267,7 @@ export function BillingCenter() {
     });
   }, [filter, visible, todayInBahia]);
 
-  const clientsSentToday = new Set(queue.filter((q) => q.status === "sent" && q.sent_at && bahiaDay(q.sent_at) === todayInBahia).map((q) => q.client_id));
+  const clientsSentToday = sentTodayClientIds;
   const activeQueue = queue.filter((q) => ["pending", "processing"].includes(q.status));
   const pausedQueue = queue.filter((q) => q.status === "paused");
   const historyRows = queue.filter((q) => historyStatus === "all" || q.status === historyStatus).slice(0, 30);
@@ -282,7 +294,7 @@ export function BillingCenter() {
     <div className="flex w-full items-center gap-2 pb-1"><div className="grid min-w-0 flex-1 grid-cols-4 gap-1.5">{([['today','Hoje'],['overdue','Atrasadas'],['all','Total'],['upcoming','Futuras']] as [Filter,string][]).map(([id,label]) => <Button key={id} size="sm" variant={filter === id ? "default" : "outline"} className="h-8 w-full min-w-0 rounded-full px-1 text-[11px] sm:px-3 sm:text-xs" onClick={() => setFilter(id)}>{label}</Button>)}</div><Button size="sm" variant="ghost" className="h-8 w-8 shrink-0 p-0" aria-label="Atualizar cobranças" onClick={refresh}><RefreshCw className="h-3.5 w-3.5"/></Button></div>
 
     <div className="sticky top-2 z-20 flex items-center gap-2 rounded-xl border bg-background/95 backdrop-blur p-2 shadow-sm">
-      <Button size="sm" variant="ghost" onClick={() => setSelected(new Set(visible.filter((i) => i.validPhone).map((i) => i.key)))}>Selecionar todos</Button>
+      <Button size="sm" variant="ghost" onClick={() => setSelected(new Set(visible.filter((i) => i.validPhone && !clientsSentToday.has(i.clientId)).map((i) => i.key)))}>Selecionar todos</Button>
       <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Desmarcar</Button>
       <Button size="sm" className="ml-auto bg-emerald-600 hover:bg-emerald-700" disabled={!selectedItems.length} onClick={() => setConfirm(selectedItems)}><Send className="h-4 w-4 mr-1.5"/>Cobrar</Button>
     </div>
@@ -400,7 +412,7 @@ function ClientBillingFolder({ group, sentToday, selected, setSelected, onCharge
   onChargeMany: (items: BillingCandidate[]) => void;
 }) {
   const [open, setOpen] = React.useState(false);
-  const selectableKeys = group.rows.filter((item) => item.validPhone).map((item) => item.key);
+  const selectableKeys = sentToday ? [] : group.rows.filter((item) => item.validPhone).map((item) => item.key);
   const allSelected = selectableKeys.length > 0 && selectableKeys.every((key) => selected.has(key));
   const toggleGroup = () => setSelected((previous) => {
     const next = new Set(previous);
@@ -425,7 +437,7 @@ function ClientBillingFolder({ group, sentToday, selected, setSelected, onCharge
     </div>
     <CollapsibleContent className="border-t">
       {group.rows.map(item => <div key={item.key} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 border-b last:border-0 px-3 py-2.5">
-        <Checkbox checked={selected.has(item.key)} disabled={!item.validPhone} onCheckedChange={(checked) => setSelected(prev => { const next = new Set(prev); checked ? next.add(item.key) : next.delete(item.key); return next; })}/>
+        <Checkbox checked={selected.has(item.key)} disabled={!item.validPhone || sentToday} onCheckedChange={(checked) => setSelected(prev => { const next = new Set(prev); checked ? next.add(item.key) : next.delete(item.key); return next; })}/>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="max-w-full truncate text-[10px]">{item.contractLabel}</Badge>
@@ -434,9 +446,9 @@ function ClientBillingFolder({ group, sentToday, selected, setSelected, onCharge
           {item.promisedDate && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-primary"><CalendarClock className="h-3.5 w-3.5"/>Nova Data: {date(item.promisedDate)}</p>}
           {!item.validPhone && <p className="text-[11px] text-amber-600 flex items-center gap-1"><AlertTriangle className="h-3 w-3"/>Número de WhatsApp inválido</p>}
         </div>
-        <Button size="sm" variant="outline" disabled={!item.validPhone} onClick={() => onCharge(item)}>Cobrar</Button>
+        <Button size="sm" variant="outline" disabled={!item.validPhone || sentToday} onClick={() => onCharge(item)}>Cobrar</Button>
       </div>)}
-      <div className="flex justify-end bg-muted/20 p-3"><Button size="sm" className="w-full bg-emerald-600 hover:bg-emerald-700 sm:w-auto" disabled={!group.rows.some(item => item.validPhone)} onClick={() => onChargeMany(group.rows.filter(item => item.validPhone))}><Send className="mr-1.5 h-3.5 w-3.5"/>Cobrar todos ({group.rows.filter(item => item.validPhone).length})</Button></div>
+      <div className="flex justify-end bg-muted/20 p-3"><Button size="sm" className="w-full bg-emerald-600 hover:bg-emerald-700 sm:w-auto" disabled={sentToday || !group.rows.some(item => item.validPhone)} onClick={() => onChargeMany(group.rows.filter(item => item.validPhone))}><Send className="mr-1.5 h-3.5 w-3.5"/>{sentToday ? "Cobrado hoje" : `Cobrar todos (${group.rows.filter(item => item.validPhone).length})`}</Button></div>
     </CollapsibleContent>
   </Collapsible>;
 }
