@@ -39,14 +39,19 @@ export function getBaseRemainingAmount(loan: Loan, payments: Payment[], schedule
 }
 
 
-export function getLoanLateFees(loan: Loan, payments: Payment[], schedules: InstallmentSchedule[]) {
+export function getLoanLateFees(
+  loan: Loan,
+  payments: Payment[],
+  schedules: InstallmentSchedule[],
+  referenceDate: string = todayInAppTz(),
+) {
   // Mesmo para contratos quitados, calculamos se houve multas/mora geradas,
   // mas o foco da análise de "Atrasados" geralmente é para contratos abertos.
   if (loan.status === "paid") {
     return { daysOverdue: 0, lateInterestTotal: 0, penaltyTotal: 0, lateFees: 0 };
   }
 
-  const todayStr = todayInAppTz();
+  const todayStr = referenceDate;
   const today = new Date(`${todayStr}T00:00:00`);
 
   const loanPayments = payments.filter((p) => p.loanId === loan.id);

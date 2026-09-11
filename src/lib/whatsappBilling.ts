@@ -10,6 +10,8 @@ export interface WhatsappBillingMessages {
   message_overdue: string;
   message_very_overdue: string;
   message_manager_weekly: string;
+  message_center_single: string;
+  message_center_multiple: string;
   pix_link: string;
   very_overdue_days: number;
 }
@@ -25,6 +27,10 @@ export const DEFAULT_WHATSAPP_MESSAGES: WhatsappBillingMessages = {
     "Olá {nome_cliente}, identificamos um atraso significativo de {dias_atraso} dias na sua parcela de {valor_parcela}. Total atualizado com encargos: {valor_total} ({juros} de juros/multa). É urgente regularizar.\n{link_pagamento}",
   message_manager_weekly:
     "Olá! Resumo da semana:\n• {total_emprestimos_semana} empréstimo(s) vencendo\n• Total: {valores_totais}\n\nClientes:\n{lista_clientes}",
+  message_center_single:
+    "Olá, {nome_cliente}!\n\nIdentificamos o seguinte contrato pendente:\n\n• {etiqueta} — {valor_total} — {situacao}\n\nCaso já tenha realizado o pagamento, desconsidere este item.\n\nEmprestAI",
+  message_center_multiple:
+    "Olá, {nome_cliente}!\n\nIdentificamos os seguintes contratos pendentes:\n\n{lista_contratos}\n\nTotal: {valor_total}\n\nCaso já tenha realizado algum pagamento, desconsidere o respectivo item.\n\nEmprestAI",
   pix_link: "",
   very_overdue_days: 30,
 };
@@ -146,6 +152,11 @@ const KNOWN_VARS = new Set([
   "dias_atraso", "juros", "valor_total", "etiqueta", "link_pagamento",
   // manager-only
   "total_emprestimos_semana", "lista_clientes", "valores_totais", "etiquetas",
+  // central manual
+  "lista_contratos", "quantidade_contratos", "situacao",
+  "valor_cobranca", "valor_base", "encargos", "parcelas_vencidas",
+  "vencimento_original", "data_priorizada", "etiquetas_contratos",
+  "valores_contratos", "datas_priorizadas",
 ]);
 export function findUnknownVariables(template: string): string[] {
   const matches = template.match(/\{([a-z_]+)\}/g) ?? [];

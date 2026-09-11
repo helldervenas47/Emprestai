@@ -48,7 +48,7 @@ export const SIDEBAR_GROUPS: SidebarGroup[] = [
     label: "Financeiro",
     ids: ["expenses", "dashboard", "products", "vehicles", "boletos", "salary"],
   },
-  { label: "Gestão", ids: ["clients", "accountant", "overdue"] },
+  { label: "Gestão", ids: ["clients", "accountant", "telegram_reports", "billing_center"] },
   { label: "Sistema", ids: ["video_lessons", "help", "settings", "system"] },
 ];
 

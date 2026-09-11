@@ -23,7 +23,7 @@ export function useWhatsappBillingMessages() {
       const { data } = await supabase
         .from("whatsapp_billing_messages" as any)
         .select(
-          "message_upcoming, message_due_today, message_overdue, message_very_overdue, message_manager_weekly, pix_link, very_overdue_days",
+          "message_upcoming, message_due_today, message_overdue, message_very_overdue, message_manager_weekly, message_center_single, message_center_multiple, pix_link, very_overdue_days",
         )
         .eq("owner_id", ownerId)
         .maybeSingle();
@@ -38,6 +38,10 @@ export function useWhatsappBillingMessages() {
             d.message_very_overdue ?? DEFAULT_WHATSAPP_MESSAGES.message_very_overdue,
           message_manager_weekly:
             d.message_manager_weekly ?? DEFAULT_WHATSAPP_MESSAGES.message_manager_weekly,
+          message_center_single:
+            d.message_center_single ?? DEFAULT_WHATSAPP_MESSAGES.message_center_single,
+          message_center_multiple:
+            d.message_center_multiple ?? DEFAULT_WHATSAPP_MESSAGES.message_center_multiple,
           pix_link: d.pix_link ?? "",
           very_overdue_days: Number(d.very_overdue_days ?? 30) || 30,
         });
@@ -64,6 +68,8 @@ export function useWhatsappBillingMessages() {
             message_overdue: next.message_overdue,
             message_very_overdue: next.message_very_overdue,
             message_manager_weekly: next.message_manager_weekly,
+            message_center_single: next.message_center_single,
+            message_center_multiple: next.message_center_multiple,
             pix_link: next.pix_link,
             very_overdue_days: next.very_overdue_days,
           },

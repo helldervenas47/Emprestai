@@ -105,49 +105,57 @@ export function RolePermissionsMatrix() {
   return (
     <Card>
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <CardHeader>
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <ShieldCheck className="h-4 w-4 text-primary" /> Papéis &amp; Permissões
-              </CardTitle>
-              <CardDescription>
-                Defina quais ações cada papel pode realizar em cada módulo e quais abas ficam visíveis.
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              {dirtyCount > 0 && (
-                <Badge variant="secondary">{dirtyCount} alteração(ões) pendentes</Badge>
-              )}
-              {isOpen && (
-                <Button onClick={save} disabled={saving || dirtyCount === 0} size="sm">
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  <span className="ml-2">Salvar</span>
-                </Button>
-              )}
-              <CollapsibleTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  <span>{isOpen ? "Recolher" : "Expandir"}</span>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 rounded-xl"
+          >
+            <CardHeader className="flex-row items-center justify-between space-y-0 p-4 sm:p-6 cursor-pointer hover:bg-muted/30 transition-colors rounded-xl">
+              <div className="space-y-1 min-w-0">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <ShieldCheck className="h-4 w-4 text-primary shrink-0" /> Papéis &amp; Permissões
+                </CardTitle>
+                <CardDescription>
+                  Defina quais ações cada papel pode realizar em cada módulo e quais abas ficam visíveis.
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs text-muted-foreground hidden sm:inline font-medium">
+                  {isOpen ? "Recolher" : "Expandir"}
+                </span>
+                <div className="h-8 w-8 rounded-lg bg-muted/60 flex items-center justify-center border border-border/50">
                   <ChevronDown
-                    className={`h-4 w-4 transition-transform duration-200 ${
+                    className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${
                       isOpen ? "rotate-180" : ""
                     }`}
                   />
-                </Button>
-              </CollapsibleTrigger>
-            </div>
-          </div>
-        </CardHeader>
+                </div>
+              </div>
+            </CardHeader>
+          </button>
+        </CollapsibleTrigger>
         <CollapsibleContent>
           <CardContent className="pt-0">
             <Tabs defaultValue="matrix" className="w-full">
-              <TabsList>
-                <TabsTrigger value="matrix">Ações</TabsTrigger>
-                <TabsTrigger value="tabs">Abas visíveis</TabsTrigger>
-                <TabsTrigger value="history">
-                  <History className="h-3.5 w-3.5 mr-1" /> Histórico
-                </TabsTrigger>
-              </TabsList>
+              <div className="flex items-center justify-between gap-4">
+                <TabsList className="grid h-auto flex-1 grid-cols-3">
+                  <TabsTrigger value="matrix" className="w-full">Ações</TabsTrigger>
+                  <TabsTrigger value="tabs" className="w-full">Abas visíveis</TabsTrigger>
+                  <TabsTrigger value="history" className="w-full">
+                    <History className="h-3.5 w-3.5 mr-1" /> Histórico
+                  </TabsTrigger>
+                </TabsList>
+
+                <div className="hidden md:flex items-center justify-end gap-2">
+                  {dirtyCount > 0 && (
+                    <Badge variant="secondary">{dirtyCount} alteração(ões) pendentes</Badge>
+                  )}
+                  <Button onClick={save} disabled={saving || dirtyCount === 0} size="sm">
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    <span className="ml-2">Salvar</span>
+                  </Button>
+                </div>
+              </div>
 
               <TabsContent value="tabs" className="mt-4">
                 <RoleTabsMatrix />
@@ -253,6 +261,18 @@ export function RolePermissionsMatrix() {
           <TabsContent value="history" className="mt-4">
             <RolePermissionsHistory />
           </TabsContent>
+
+          <div className="mt-5 space-y-2 md:hidden">
+            {dirtyCount > 0 && (
+              <Badge variant="secondary" className="w-full justify-center">
+                {dirtyCount} alteração(ões) pendentes
+              </Badge>
+            )}
+            <Button onClick={save} disabled={saving || dirtyCount === 0} className="w-full">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              <span className="ml-2">Salvar</span>
+            </Button>
+          </div>
         </Tabs>
       </CardContent>
     </CollapsibleContent>
@@ -397,4 +417,3 @@ function RoleTabsMatrix() {
     </>
   );
 }
-

@@ -212,6 +212,15 @@ Deno.serve(async (req: Request) => {
         schedByLoan.set(s.loan_id, arr);
       }
 
+      const { data: promises } = await admin
+        .from("whatsapp_payment_promises")
+        .select("loan_id, installment_number, promised_date")
+        .eq("user_id", ownerId)
+        .in("loan_id", loanIds);
+      const promiseByInstallment = new Map(
+        (promises ?? []).map((p: any) => [`${p.loan_id}:${p.installment_number}`, p.promised_date]),
+      );
+
       const { data: todayLogs } = await admin
         .from("whatsapp_billing_log")
         .select("loan_id, status_when_sent, success")
@@ -238,13 +247,40 @@ Deno.serve(async (req: Request) => {
           const nextInst = list.find((s: any) => s.installment_number === paid + 1);
           const dueDate: string | null = nextInst?.due_date ?? loan.due_date ?? null;
           const installmentNumber = (nextInst?.installment_number ?? paid + 1) as number;
-          const amount = Number(nextInst?.amount ?? loan.amount ?? 0);
+          const remaining = Number(loan.remaining_amount ?? 0);
+          const fallbackInstallment = Number(loan.custom_installment_value ?? 0)
+            || (Number(loan.amount ?? 0) * (1 + Number(loan.interest_rate ?? 0) / 100)) / Math.max(1, total);
+          let amount: number;
+          if (total <= 1) {
+            amount = remaining > 0 ? remaining : Number(nextInst?.amount ?? fallbackInstallment);
+          } else if (nextInst && loan.remaining_amount != null) {
+            const futureSum = list
+              .filter((s: any) => s.installment_number > installmentNumber)
+              .reduce((sum: number, s: any) => sum + Number(s.amount ?? 0), 0);
+            amount = Math.min(Number(nextInst.amount ?? fallbackInstallment), Math.max(0, remaining - futureSum));
+          } else {
+            amount = remaining > 0 ? Math.min(fallbackInstallment, remaining) : fallbackInstallment;
+          }
+          amount = Math.round(Math.max(0, amount) * 100) / 100;
+          const overdueInstallments = total > 1
+            ? list.filter((s: any) => s.installment_number > paid && s.due_date < today)
+            : [];
+          const overdueInstallmentCount = overdueInstallments.length;
+          if (overdueInstallmentCount > 1) {
+            amount = Math.round(overdueInstallments.reduce((sum: number, s: any) => (
+              sum + (s.installment_number === installmentNumber ? amount : Number(s.amount ?? 0))
+            ), 0) * 100) / 100;
+          }
 
           if (!dueDate) continue;
 
-          const status = getDueStatus(dueDate, today, veryOverdueDays);
-          const daysDiff = diffDays(dueDate, today);
-          const daysOverdue = daysDiff < 0 ? Math.abs(daysDiff) : 0;
+          const promisedDate = promiseByInstallment.get(`${loan.id}:${installmentNumber}`) as string | undefined;
+          const billingDate = promisedDate || dueDate;
+          const status = getDueStatus(billingDate, today, veryOverdueDays);
+          const daysDiff = diffDays(billingDate, today);
+          const messageDaysOverdue = daysDiff < 0 ? Math.abs(daysDiff) : 0;
+          const originalDaysDiff = diffDays(dueDate, today);
+          const financialDaysOverdue = originalDaysDiff < 0 ? Math.abs(originalDaysDiff) : 0;
 
           let shouldSend = false;
           if (status === "a_vencer") {
@@ -254,7 +290,7 @@ Deno.serve(async (req: Request) => {
           } else if (status === "vencida" || status === "muito_vencida") {
             if (sched.send_when_overdue) {
               const repeat = Math.max(1, sched.overdue_repeat_days ?? 3);
-              shouldSend = manualRun ? daysOverdue > 0 : daysOverdue === 0 || daysOverdue % repeat === 0;
+              shouldSend = manualRun ? messageDaysOverdue > 0 : messageDaysOverdue === 0 || messageDaysOverdue % repeat === 0;
             }
           }
           if (!shouldSend) continue;
@@ -265,8 +301,8 @@ Deno.serve(async (req: Request) => {
           const template = templates[status] ?? "";
           if (!template.trim()) continue;
 
-          const juros = computeLateFees(loan, amount, daysOverdue);
-          const valorTotal = amount + juros;
+          const juros = computeLateFees(loan, amount, financialDaysOverdue);
+          const valorTotal = Math.round((amount + juros) * 100) / 100;
           const etiqueta = Array.isArray(loan.tags)
             ? loan.tags
                 .map((t: unknown) => (t == null ? "" : String(t).trim()))
@@ -274,16 +310,19 @@ Deno.serve(async (req: Request) => {
                 .join(", ")
             : "";
 
-          const message = applyVariables(template, {
+          const baseMessage = applyVariables(template, {
             nome: client?.name ?? loan.borrower_name ?? "",
-            valorParcela: amount,
-            dataVenc: dueDate,
-            diasAtraso: daysOverdue,
+            valorParcela: valorTotal,
+            dataVenc: billingDate,
+            diasAtraso: messageDaysOverdue,
             juros,
             valorTotal,
             etiqueta,
             linkPagamento,
           });
+          const message = overdueInstallmentCount > 1
+            ? `${baseMessage}\n\n${overdueInstallmentCount} parcelas vencidas. Valor total com juros e multa: ${formatBRL(valorTotal)}.`
+            : baseMessage;
 
           const phone = normalizePhoneBR(phoneRaw);
           const send = await sendWhatsmiau(sched.base_url, sched.instance_id, API_KEY, phone, message);

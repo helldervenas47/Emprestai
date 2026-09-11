@@ -24,6 +24,8 @@ export const PERMISSION_MODULES: PermissionModule[] = [
   { key: "incomes", label: "Receitas" },
   { key: "payrolls", label: "Folha de pagamento" },
   { key: "reports", label: "Relatórios" },
+  { key: "telegram_reports", label: "EmprestAI Telegram" },
+  { key: "billing_center", label: "Central de Cobranças" },
   { key: "products", label: "Produtos" },
   { key: "sales", label: "Vendas" },
   { key: "credit_cards", label: "Cartões de crédito" },

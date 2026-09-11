@@ -65,13 +65,43 @@ const MANAGER_VARIABLES = [
   { id: "link_pagamento", label: "Link/Chave Pix", desc: "Link Pix configurado" },
 ];
 
-type TemplateTab = "upcoming" | "due_today" | "overdue" | "very_overdue" | "manager";
+const CENTER_SINGLE_VARIABLES = [
+  { id: "nome_cliente", label: "Nome do cliente", desc: "Ex: Maria Silva" },
+  { id: "etiqueta", label: "Etiqueta", desc: "Nome da etiqueta ou do cliente" },
+  { id: "valor_total", label: "Valor da cobrança", desc: "Saldo, parcelas vencidas e encargos" },
+  { id: "valor_cobranca", label: "Valor atualizado", desc: "Mesmo valor total que será cobrado" },
+  { id: "valor_base", label: "Valor sem encargos", desc: "Saldo ou parcelas vencidas antes dos encargos" },
+  { id: "encargos", label: "Juros e multa", desc: "Total de encargos pendentes" },
+  { id: "parcelas_vencidas", label: "Parcelas vencidas", desc: "Quantidade de parcelas vencidas" },
+  { id: "vencimento_original", label: "Vencimento original", desc: "Data oficial preservada" },
+  { id: "data_priorizada", label: "Data priorizada", desc: "Nova Data ou vencimento original" },
+  { id: "data_vencimento", label: "Data priorizada", desc: "Nova Data ou vencimento original" },
+  { id: "dias_atraso", label: "Dias de atraso", desc: "Calculados pelo vencimento original" },
+  { id: "situacao", label: "Situação", desc: "Vence hoje, vencido ou data priorizada" },
+  { id: "link_pagamento", label: "Chave Pix", desc: "Link ou chave Pix configurada abaixo" },
+];
+
+const CENTER_MULTIPLE_VARIABLES = [
+  { id: "nome_cliente", label: "Nome do cliente", desc: "Ex: Maria Silva" },
+  { id: "lista_contratos", label: "Lista de contratos", desc: "Linhas com etiqueta, valor e situação" },
+  { id: "quantidade_contratos", label: "Quantidade", desc: "Total de contratos agrupados" },
+  { id: "valor_total", label: "Valor total", desc: "Soma das cobranças do cliente" },
+  { id: "valor_base", label: "Total sem encargos", desc: "Soma dos valores antes dos encargos" },
+  { id: "encargos", label: "Juros e multas", desc: "Soma dos encargos de todos os contratos" },
+  { id: "parcelas_vencidas", label: "Parcelas vencidas", desc: "Quantidade total de parcelas vencidas" },
+  { id: "etiquetas_contratos", label: "Etiquetas", desc: "Etiquetas dos contratos agrupados" },
+  { id: "valores_contratos", label: "Valores", desc: "Valores atualizados de cada contrato" },
+  { id: "datas_priorizadas", label: "Datas priorizadas", desc: "Datas usadas para organizar as cobranças" },
+  { id: "link_pagamento", label: "Chave Pix", desc: "Link ou chave Pix configurada abaixo" },
+];
+
+type TemplateTab = "center_single" | "center_multiple" | "upcoming" | "due_today" | "overdue" | "very_overdue" | "manager";
 
 export function WhatsappMessageTemplatesCard() {
   const { messages, loading, save } = useWhatsappBillingMessages();
   const [draft, setDraft] = useState<WhatsappBillingMessages>(messages);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<TemplateTab>("upcoming");
+  const [activeTab, setActiveTab] = useState<TemplateTab>("center_single");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -85,6 +115,8 @@ export function WhatsappMessageTemplatesCard() {
       draft.message_overdue !== messages.message_overdue ||
       draft.message_very_overdue !== messages.message_very_overdue ||
       draft.message_manager_weekly !== messages.message_manager_weekly ||
+      draft.message_center_single !== messages.message_center_single ||
+      draft.message_center_multiple !== messages.message_center_multiple ||
       draft.pix_link !== messages.pix_link ||
       draft.very_overdue_days !== messages.very_overdue_days,
     [draft, messages]
@@ -107,7 +139,11 @@ export function WhatsappMessageTemplatesCard() {
     const textarea = textareaRef.current;
     const tag = `{${varName}}`;
     const fieldKey =
-      activeTab === "upcoming"
+      activeTab === "center_single"
+        ? "message_center_single"
+        : activeTab === "center_multiple"
+        ? "message_center_multiple"
+        : activeTab === "upcoming"
         ? "message_upcoming"
         : activeTab === "due_today"
         ? "message_due_today"
@@ -137,6 +173,10 @@ export function WhatsappMessageTemplatesCard() {
 
   const currentMessage = useMemo(() => {
     switch (activeTab) {
+      case "center_single":
+        return draft.message_center_single;
+      case "center_multiple":
+        return draft.message_center_multiple;
       case "upcoming":
         return draft.message_upcoming;
       case "due_today":
@@ -154,6 +194,38 @@ export function WhatsappMessageTemplatesCard() {
     const today = new Date();
     const formatDate = (d: Date) =>
       d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+    if (activeTab === "center_single") {
+      return currentMessage
+        .replace(/\{nome_cliente\}|\{nome\}/g, "Maria Silva")
+        .replace(/\{etiqueta\}/g, "Contrato VIP")
+        .replace(/\{valor_total\}|\{valor_parcela\}|\{valor\}/g, "R$ 285,00")
+        .replace(/\{valor_cobranca\}/g, "R$ 285,00")
+        .replace(/\{valor_base\}/g, "R$ 250,00")
+        .replace(/\{encargos\}|\{juros\}/g, "R$ 35,00")
+        .replace(/\{parcelas_vencidas\}/g, "1")
+        .replace(/\{vencimento_original\}/g, "08/09/2026")
+        .replace(/\{data_priorizada\}/g, "15/09/2026")
+        .replace(/\{data_vencimento\}/g, "15/09/2026")
+        .replace(/\{dias_atraso\}/g, "7")
+        .replace(/\{situacao\}/g, "vencido há 7 dia(s)")
+        .replace(/\{link_pagamento\}/g, draft.pix_link || "chave-pix-exemplo");
+    }
+
+    if (activeTab === "center_multiple") {
+      return currentMessage
+        .replace(/\{nome_cliente\}|\{nome\}/g, "Maria Silva")
+        .replace(/\{lista_contratos\}/g, "• Contrato Casa — R$ 285,00 — vencido há 7 dia(s)\n• Contrato Moto — R$ 150,00 — vence hoje")
+        .replace(/\{quantidade_contratos\}/g, "2")
+        .replace(/\{valor_total\}|\{valor_cobranca\}|\{valor\}/g, "R$ 435,00")
+        .replace(/\{valor_base\}/g, "R$ 400,00")
+        .replace(/\{encargos\}|\{juros\}/g, "R$ 35,00")
+        .replace(/\{parcelas_vencidas\}/g, "2")
+        .replace(/\{etiquetas_contratos\}/g, "Contrato Casa, Contrato Moto")
+        .replace(/\{valores_contratos\}/g, "R$ 285,00; R$ 150,00")
+        .replace(/\{datas_priorizadas\}/g, "15/09/2026; 22/09/2026")
+        .replace(/\{link_pagamento\}/g, draft.pix_link || "chave-pix-exemplo");
+    }
 
     if (activeTab === "manager") {
       return currentMessage
@@ -194,6 +266,20 @@ export function WhatsappMessageTemplatesCard() {
   const unknownVars = useMemo(() => findUnknownVariables(currentMessage), [currentMessage]);
 
   const tabConfig = {
+    center_single: {
+      label: "Central: 1 contrato",
+      sublabel: "Cobrança manual individual",
+      icon: UserCheck,
+      badge: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      headerBg: "bg-emerald-600 dark:bg-emerald-700",
+    },
+    center_multiple: {
+      label: "Central: vários",
+      sublabel: "Cobrança agrupada por cliente",
+      icon: Users,
+      badge: "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20",
+      headerBg: "bg-violet-600 dark:bg-violet-700",
+    },
     upcoming: {
       label: "A Vencer",
       sublabel: "Aviso prévio antes do vencimento",
@@ -276,7 +362,7 @@ export function WhatsappMessageTemplatesCard() {
 
         <CardContent className="p-4 sm:p-5 pt-0 space-y-5">
           {/* Navegação por Sub-Abas dos Templates */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 p-1 bg-muted/40 rounded-2xl border border-border/40">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1.5 p-1 bg-muted/40 rounded-2xl border border-border/40">
             {(Object.keys(tabConfig) as TemplateTab[]).map((tabKey) => {
               const cfg = tabConfig[tabKey];
               const Icon = cfg.icon;
@@ -329,7 +415,7 @@ export function WhatsappMessageTemplatesCard() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-1.5 pt-1">
-                  {(activeTab === "manager" ? MANAGER_VARIABLES : CLIENT_VARIABLES).map((v) => (
+                  {(activeTab === "manager" ? MANAGER_VARIABLES : activeTab === "center_single" ? CENTER_SINGLE_VARIABLES : activeTab === "center_multiple" ? CENTER_MULTIPLE_VARIABLES : CLIENT_VARIABLES).map((v) => (
                     <button
                       key={v.id}
                       type="button"
@@ -353,6 +439,10 @@ export function WhatsappMessageTemplatesCard() {
                     const val = e.target.value;
                     setDraft((d) => {
                       switch (activeTab) {
+                        case "center_single":
+                          return { ...d, message_center_single: val };
+                        case "center_multiple":
+                          return { ...d, message_center_multiple: val };
                         case "upcoming":
                           return { ...d, message_upcoming: val };
                         case "due_today":

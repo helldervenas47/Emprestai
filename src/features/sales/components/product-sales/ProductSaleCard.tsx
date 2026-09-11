@@ -36,6 +36,7 @@ import {
   saleCategoryConfig,
 } from "./productSalesUtils";
 import { AdjustSaleDueDateDialog } from "./AdjustSaleDueDateDialog";
+import { RegisterSalePaymentDialog, SalePaymentHistoryDialog } from "./ProductSalesDialogs";
 import { toast } from "sonner";
 
 export function ProductSaleCard({

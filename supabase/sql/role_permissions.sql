@@ -142,7 +142,7 @@ DO $$
 DECLARE
   v_modules text[] := ARRAY[
     'loans','clients','payments','expenses','incomes','payrolls',
-    'reports','products','sales','credit_cards','users_admin','settings'
+    'reports','telegram_reports','billing_center','products','sales','credit_cards','users_admin','settings'
   ];
   m text;
 BEGIN

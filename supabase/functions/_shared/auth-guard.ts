@@ -12,6 +12,8 @@ export async function validateCronSecret(
     req.headers.get("x-cron-secret") ||
     "";
   if (!headerToken) return false;
+  const environmentToken = Deno.env.get("CRON_SECRET") || "";
+  if (environmentToken && headerToken === environmentToken) return true;
   const { data } = await admin
     .from("app_internal_config")
     .select("value")

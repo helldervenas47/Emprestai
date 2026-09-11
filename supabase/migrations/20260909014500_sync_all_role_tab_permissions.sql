@@ -19,13 +19,9 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE tablename = 'role_tab_permissions' AND policyname = 'role_tab_permissions_admin_all'
   ) THEN
-    CREATE POLICY role_tab_permissions_admin_all ON public.role_tab_permissions FOR ALL USING (
-      EXISTS (
-        SELECT 1 FROM public.user_roles ur
-        JOIN public.roles r ON ur.role_id = r.id
-        WHERE ur.user_id = auth.uid() AND r.name = 'admin'
-      )
-    );
+    CREATE POLICY role_tab_permissions_admin_all ON public.role_tab_permissions FOR ALL
+      USING (public.has_role(auth.uid(), 'admin'::public.app_role))
+      WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
   END IF;
 END $$;
 

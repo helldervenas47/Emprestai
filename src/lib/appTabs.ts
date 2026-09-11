@@ -18,7 +18,8 @@ export const APP_TABS = [
   { id: "boletos", label: "Boletos" },
   { id: "salary", label: "Salário" },
   { id: "accountant", label: "Contador" },
-  { id: "overdue", label: "Relatório" },
+  { id: "telegram_reports", label: "EmprestAI Telegram" },
+  { id: "billing_center", label: "Central de Cobranças" },
   { id: "metas", label: "Metas" },
   { id: "video_lessons", label: "Vídeo Aulas" },
   { id: "settings", label: "Configurações" },
@@ -33,5 +34,6 @@ export const APP_TAB_IDS: string[] = APP_TABS.map((t) => t.id);
 /** Keep only tab ids that still exist in the app. */
 export function sanitizeAllowedTabs(ids: string[] | null | undefined): string[] {
   if (!Array.isArray(ids)) return APP_TAB_IDS.slice();
-  return ids.filter((id) => APP_TAB_IDS.includes(id));
+  const expanded = ids.flatMap((id) => id === "overdue" ? ["telegram_reports", "billing_center"] : [id]);
+  return Array.from(new Set(expanded.filter((id) => APP_TAB_IDS.includes(id))));
 }

@@ -30,6 +30,23 @@ const CLIENT_COLUMNS =
 // 2 min é conservador — mutações locais invalidam o cache imediatamente.
 const STALE_MS = 2 * 60_000;
 
+const digitsOnly = (value?: string | null) => (value ?? "").replace(/\D/g, "");
+const normalizedEmail = (value?: string | null) => (value ?? "").trim().toLocaleLowerCase("pt-BR");
+
+function findDuplicateClient(candidate: Pick<Client, "cpf" | "cnpj" | "phone" | "email">, existing: Client[]) {
+  const cpf = digitsOnly(candidate.cpf);
+  const cnpj = digitsOnly(candidate.cnpj);
+  const phone = digitsOnly(candidate.phone);
+  const email = normalizedEmail(candidate.email);
+
+  return existing.find((client) =>
+    (cpf.length === 11 && digitsOnly(client.cpf) === cpf) ||
+    (cnpj.length === 14 && digitsOnly(client.cnpj) === cnpj) ||
+    (phone.length >= 10 && digitsOnly(client.phone) === phone) ||
+    (email.length > 3 && normalizedEmail(client.email) === email)
+  );
+}
+
 async function triggerClientAnalysis(clientId: string) {
   await supabase.functions.invoke("sync-client-analysis", {
     body: { client_id: clientId, force: true },
@@ -191,6 +208,26 @@ export function useClients() {
   const addClient = useCallback(async (client: Omit<Client, "id" | "createdAt">): Promise<string | null> => {
     assertWritable();
     if (!user || !dataOwnerId) return null;
+
+    // Evita criar outro registro para a mesma pessoa. A conferência local cobre
+    // o fluxo normal e a leitura no servidor cobre outra aba/dispositivo.
+    let duplicate = findDuplicateClient(client, clients);
+    if (!duplicate && isOnline()) {
+      try {
+        duplicate = findDuplicateClient(client, await fetchClientsRows(dataOwnerId));
+      } catch {
+        // Uma falha temporária de leitura não deve impedir o cadastro offline.
+      }
+    }
+    if (duplicate) {
+      toast({
+        title: "Cliente já cadastrado",
+        description: `${duplicate.name} já possui o mesmo CPF, CNPJ, telefone ou e-mail.`,
+        variant: "destructive",
+      });
+      return null;
+    }
+
     const tempId = crypto.randomUUID();
     const optimistic: Client = { ...client, id: tempId, createdAt: new Date().toISOString() };
     commit((prev) => [optimistic, ...prev]);
@@ -234,7 +271,7 @@ export function useClients() {
       return data.id;
     }
     return tempId;
-  }, [user, dataOwnerId, commit]);
+  }, [user, dataOwnerId, clients, commit]);
 
   const deleteClient = useCallback(async (id: string) => {
     assertWritable();

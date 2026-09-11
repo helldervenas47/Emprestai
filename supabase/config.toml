@@ -42,6 +42,15 @@ verify_jwt = false
 [functions.whatsapp-assistant-webhook]
 verify_jwt = false
 
+[functions.create-whatsapp-billing-queue]
+verify_jwt = false
+
+[functions.process-whatsapp-billing-queue]
+verify_jwt = false
+
+[functions.whatsapp-session]
+verify_jwt = false
+
 [functions.telegram-manager-weekly-summary]
 verify_jwt = false
 
@@ -111,4 +120,3 @@ verify_jwt = false
 
 [functions.asaas-balance]
 verify_jwt = true
-

@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { todayInAppTz, formatYmdInAppTz } from "@/lib/timezone";
@@ -56,6 +56,7 @@ import { PaymentHubDialog } from "@/features/loans/components/payment-hub/Paymen
 import { LateInterestDialog, PenaltyDialog } from "@/features/loans/components/LateFeeDialogs";
 import { WhatsappBillButton } from "@/features/loans/components/list/WhatsappBillButton";
 import { LoanListSummaryCards } from "@/features/loans/components/list/LoanListSummaryCards";
+import { NewPaymentDateDialog } from "@/features/loans/components/NewPaymentDateDialog";
 import { LoanCategoryChips, LoanSearchBar, LoanQuickDateFilters, LoanAdvancedFilters } from "@/features/loans/components/list/LoanListFilters";
 
 
@@ -170,11 +171,6 @@ function LoanRowView({
   const [penaltyValue, setPenaltyValue] = useState<string>(loan.penaltyValue != null ? String(loan.penaltyValue) : "");
   const [showRenegotiateDialog, setShowRenegotiateDialog] = useState(false);
   const [showRowDetails, setShowRowDetails] = useState(false);
-  const [quickNoteOpen, setQuickNoteOpen] = useState(false);
-  const [quickNoteDraft, setQuickNoteDraft] = useState(loan.notes || "");
-  React.useEffect(() => {
-    if (!quickNoteOpen) setQuickNoteDraft(loan.notes || "");
-  }, [loan, quickNoteOpen]);
   const [showRowAccountModal, setShowRowAccountModal] = useState(false);
   const managerOptions = useMemo(() => clients.filter((c) => c.isManager && c.active !== false), [clients]);
   const { activeMethods: rowActiveMethods } = usePaymentMethods();
@@ -356,19 +352,6 @@ function LoanRowView({
       console.error("[saveEdit] Erro ao salvar:", err);
       toast.error("Erro ao salvar alterações: " + (err?.message || "Tente novamente"));
     }
-  };
-
-  const saveQuickNote = () => {
-    const trimmed = quickNoteDraft.trim();
-    if (trimmed !== (loan.notes || "")) {
-      onUpdate({ notes: trimmed || null });
-      toast.success("Observação salva");
-    }
-    setQuickNoteOpen(false);
-  };
-  const cancelQuickNote = () => {
-    setQuickNoteDraft(loan.notes || "");
-    setQuickNoteOpen(false);
   };
 
   const openPaymentDialog = (type: "installment" | "interest" | "partial" | "full" | "payoff" | "amortize", amount?: number) => {
@@ -569,53 +552,7 @@ function LoanRowView({
                 </Badge>
               )}
               {!readOnly && !hideQuickNotes && (
-                <Popover open={quickNoteOpen} onOpenChange={setQuickNoteOpen}>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      className="inline-flex items-center justify-center h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-muted text-muted-foreground border border-border/50 shrink-0 hover:text-primary hover:bg-primary/10 transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setQuickNoteDraft(loan.notes || "");
-                      }}
-                      aria-label={loan.notes?.trim() ? "Editar observação" : "Adicionar observação"}
-                    >
-                      {loan.notes?.trim() ? (
-                        <MessageCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                      ) : (
-                        <Pencil className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                      )}
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 sm:w-72 p-3" onClick={(e) => e.stopPropagation()} align="start">
-                    <p className="text-xs font-medium text-foreground mb-1.5">Observação rápida</p>
-                    <Textarea
-                      value={quickNoteDraft}
-                      onChange={(e) => setQuickNoteDraft(e.target.value)}
-                      placeholder="Digite uma observação..."
-                      rows={3}
-                      className="text-xs resize-none"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                          e.preventDefault();
-                          saveQuickNote();
-                        }
-                        if (e.key === "Escape") {
-                          e.preventDefault();
-                          cancelQuickNote();
-                        }
-                      }}
-                    />
-                    <div className="flex items-center justify-end gap-2 mt-2">
-                      <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={cancelQuickNote}>
-                        <X className="h-3 w-3 mr-1" /> Cancelar
-                      </Button>
-                      <Button type="button" size="sm" className="h-7 px-2 text-xs" onClick={saveQuickNote}>
-                        <Check className="h-3 w-3 mr-1" /> Salvar
-                      </Button>
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                <NewPaymentDateDialog loanId={loan.id} clientId={loan.borrowerId} installmentNumber={(loan.paidInstallments || 0) + 1} compact />
               )}
               {renegotiations.length > 0 && (
                 <TooltipProvider delayDuration={300}>

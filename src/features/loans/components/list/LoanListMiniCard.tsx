@@ -1,7 +1,7 @@
 // Mini horizontal card for the "Lista" view — compact, presentation-only.
 // Tap opens a Dialog with the full LoanCardView (same logic, dialogs, permissions).
 import React, { useState, useMemo } from "react";
-import { ChevronRight, ChevronDown, Tag, Pencil, Check, X } from "lucide-react";
+import { ChevronRight, ChevronDown, Tag } from "lucide-react";
 import { Loan, Payment, InstallmentSchedule, Client, PaymentSplit } from "@/types/loan";
 import type { LoanRenegotiation } from "@/types/loan";
 import { useHideValues } from "@/contexts/HideValuesContext";
@@ -16,10 +16,8 @@ import {
 } from "@/features/loans/components/list/calculations";
 import { calculateTotalWithInterest } from "@/features/loans/hooks/useLoans";
 import { LoanRowView } from "@/features/loans/components/list/LoanListRow";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { NewPaymentDateDialog } from "@/features/loans/components/NewPaymentDateDialog";
 
 type Cat = "paid" | "paid_interest" | "overdue" | "due_today" | "on_track";
 
@@ -66,22 +64,7 @@ export interface LoanListMiniCardProps {
 export function LoanListMiniCard(props: LoanListMiniCardProps) {
   const { loan, payments, installmentSchedules, onUpdate, readOnly, hideQuickNotes = false } = props;
   const [open, setOpen] = useState(false);
-  const [noteOpen, setNoteOpen] = useState(false);
-  const [noteDraft, setNoteDraft] = useState(loan.notes || "");
   const { mask } = useHideValues();
-
-  const saveNote = () => {
-    const trimmed = noteDraft.trim();
-    if (trimmed !== (loan.notes || "")) {
-      onUpdate({ notes: trimmed || null });
-      toast.success("Observação salva");
-    }
-    setNoteOpen(false);
-  };
-  const cancelNote = () => {
-    setNoteDraft(loan.notes || "");
-    setNoteOpen(false);
-  };
 
   const category = getLoanCategory(loan, payments, installmentSchedules) as Cat;
   const tone = toneByCat[category];
@@ -236,72 +219,14 @@ export function LoanListMiniCard(props: LoanListMiniCardProps) {
             </div>
           </div>
 
-          {/* Row 3 — Faixa de Observação sempre visível */}
+          {/* Nova Data controla somente a organização da cobrança. */}
           <div
             className="mt-2.5 pt-2 border-t border-border/40 dark:border-white/5 flex items-center justify-between gap-2 bg-muted/40 dark:bg-white/[0.03] rounded-xl px-2.5 py-1.5"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-1.5 min-w-0 flex-1">
-              <span className="text-amber-600 dark:text-amber-400 text-xs shrink-0 font-bold">📝</span>
-              {loan.notes ? (
-                <p className="text-xs font-medium text-foreground truncate">
-                  {loan.notes}
-                </p>
-              ) : (
-                <span className="text-[11px] text-muted-foreground/70 italic">
-                  Sem observação
-                </span>
-              )}
-            </div>
+            <span className="text-[11px] text-muted-foreground">Data prevista para cobrança</span>
             {!readOnly && !hideQuickNotes && (
-              <Popover open={noteOpen} onOpenChange={setNoteOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setNoteDraft(loan.notes || "");
-                    }}
-                    className="inline-flex items-center justify-center h-6 w-6 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
-                    aria-label={loan.notes ? "Editar observação" : "Adicionar observação"}
-                    title={loan.notes ? "Editar observação" : "Adicionar observação"}
-                  >
-                    <Pencil className="h-3 w-3" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-64 sm:w-72 p-3"
-                  onClick={(e) => e.stopPropagation()}
-                  align="end"
-                >
-                  <p className="text-xs font-semibold text-foreground mb-1.5">Observação rápida</p>
-                  <Textarea
-                    value={noteDraft}
-                    onChange={(e) => setNoteDraft(e.target.value)}
-                    placeholder="Digite uma observação..."
-                    rows={3}
-                    className="text-xs resize-none"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                        e.preventDefault();
-                        saveNote();
-                      }
-                      if (e.key === "Escape") {
-                        e.preventDefault();
-                        cancelNote();
-                      }
-                    }}
-                  />
-                  <div className="flex items-center justify-end gap-2 mt-2">
-                    <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={cancelNote}>
-                      <X className="h-3 w-3 mr-1" /> Cancelar
-                    </Button>
-                    <Button type="button" size="sm" className="h-7 px-2 text-xs" onClick={saveNote}>
-                      <Check className="h-3 w-3 mr-1" /> Salvar
-                    </Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <NewPaymentDateDialog loanId={loan.id} clientId={loan.borrowerId} installmentNumber={(loan.paidInstallments || 0) + 1} compact />
             )}
           </div>
 

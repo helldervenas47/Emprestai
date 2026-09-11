@@ -19,6 +19,8 @@ export interface NativeDatePickerProps {
   disabled?: boolean;
   /** Visual size — matches Button variants */
   size?: "sm" | "default";
+  displaySeparator?: "/" | "-";
+  autoOpen?: boolean;
 }
 
 // Detect environments where <input type="date"> / showPicker() are unreliable
@@ -63,11 +65,16 @@ export function NativeDatePicker({
   max,
   disabled,
   size = "default",
+  displaySeparator = "/",
+  autoOpen = false,
 }: NativeDatePickerProps) {
   const [open, setOpen] = React.useState(false);
+  React.useEffect(() => {
+    if (autoOpen) setOpen(true);
+  }, [autoOpen]);
   const dateValue = value ? new Date(value + "T00:00:00") : undefined;
   const label = dateValue && !isNaN(dateValue.getTime())
-    ? format(dateValue, "dd/MM/yyyy", { locale: ptBR })
+    ? format(dateValue, displaySeparator === "-" ? "dd-MM-yyyy" : "dd/MM/yyyy", { locale: ptBR })
     : placeholder;
 
   const minDate = min ? new Date(min + "T00:00:00") : undefined;
