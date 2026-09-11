@@ -249,6 +249,7 @@ import { useIsMobile, useIsMobileOrTablet } from "@/hooks/use-mobile";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyRoleTabs } from "@/features/admin/hooks/useRoleTabPermissions";
+import { usePermissions } from "@/features/admin/hooks/useRolePermissions";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { HideValuesProvider, useHideValues } from "@/contexts/HideValuesContext";
@@ -796,6 +797,7 @@ const Index = () => {
   // qualquer hook persistido ler o storage (evita vazar contexto entre contas).
   setNavigationScope(user?.id ?? null);
   const roleAllowedTabs = useMyRoleTabs(role);
+  const { can: canRoleAction } = usePermissions();
   const navigate = useNavigate();
   const location = useLocation();
   const scrollPolicy = useScrollPolicy();
@@ -1193,8 +1195,10 @@ const Index = () => {
     // Tabs marcadas como adminOnly são exclusivas para administradores
     if ((t as any).adminOnly && role !== "admin") return false;
 
-    // Visualizador: aba de Configurações é ocultada por completo se for visualizador
-    if (t.id === "settings" && role === "visualizador") return false;
+    // Se o papel tiver uma regra de can_view = false na matriz de permissões de módulos (role_permissions)
+    if (role !== "admin" && (t.id === "billing_center" || t.id === "telegram_reports") && !canRoleAction(t.id, "view")) {
+      return false;
+    }
 
     // Se o plano possuir a lista legada (8 abas antigas), não bloqueia as novas abas padrão (metas, boletos, etc.)
     const isLegacyPlanTabs =
@@ -1210,16 +1214,14 @@ const Index = () => {
       !isLegacyPlanTabs &&
       !planAccessLoading &&
       Array.isArray(planAllowedTabs) &&
-      !planAllowedTabs.includes(t.id) &&
-      !(planAllowedTabs.includes("overdue") && (t.id === "telegram_reports" || t.id === "billing_center"))
+      !planAllowedTabs.includes(t.id)
     ) {
       return false;
     }
 
     // Permissão por papel (role_tab_permissions): se a aba não está liberada
     // para o papel do usuário, esconde.
-    if (Array.isArray(roleAllowedTabs) && !roleAllowedTabs.includes(t.id) &&
-      !(roleAllowedTabs.includes("overdue") && (t.id === "telegram_reports" || t.id === "billing_center"))) return false;
+    if (Array.isArray(roleAllowedTabs) && !roleAllowedTabs.includes(t.id)) return false;
 
     // Permissão por usuário (user_tab_permissions): se houver lista customizada, exigir presença.
     const isLegacyClientPlanTabs =
@@ -1228,10 +1230,10 @@ const Index = () => {
       allowedTabs.length > 0 &&
       allowedTabs.every((id) => LEGACY_CLIENT_PLAN_TAB_IDS.has(id));
     if (Array.isArray(allowedTabs) && allowedTabs.length > 0 && !isLegacyClientPlanTabs) {
-      return allowedTabs.includes(t.id) || (allowedTabs.includes("overdue") && (t.id === "telegram_reports" || t.id === "billing_center"));
+      return allowedTabs.includes(t.id);
     }
     return true;
-  }), [loading, user, role, roleAllowedTabs, allowedTabs, planAllowedTabs, planAccessLoading]);
+  }), [loading, user, role, roleAllowedTabs, allowedTabs, planAllowedTabs, planAccessLoading, canRoleAction]);
 
   const visibleTabsSignature = React.useMemo(
     () => visibleTabs.map((t) => t.id).join(","),
