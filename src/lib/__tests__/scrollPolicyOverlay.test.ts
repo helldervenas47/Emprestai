@@ -35,42 +35,12 @@ describe("scrollPolicy", () => {
     expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" });
   });
 
-  it("memoriza e restaura a posição por aba quando o conteúdo já comporta", () => {
-    Object.defineProperty(window, "scrollY", { value: 420, configurable: true });
-    Object.defineProperty(window, "innerHeight", { value: 800, configurable: true });
-    Object.defineProperty(document.documentElement, "scrollHeight", {
-      value: 4000,
-      configurable: true,
-    });
-    rememberScrollFor("loans");
-    expect(getTabScroll("loans")).toBe(420);
+  it("sempre vai ao topo ao restaurar/entrar em qualquer aba", () => {
+    restoreScrollFor("system");
+    expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" });
 
-    restoreScrollFor("loans");
-    expect(window.scrollTo).toHaveBeenCalledWith({ top: 420, left: 0, behavior: "auto" });
-  });
-
-  it("adia a restauração enquanto a aba ainda não renderizou altura suficiente", () => {
-    Object.defineProperty(window, "scrollY", { value: 1800, configurable: true });
-    Object.defineProperty(window, "innerHeight", { value: 800, configurable: true });
-    Object.defineProperty(document.documentElement, "scrollHeight", {
-      value: 4000,
-      configurable: true,
-    });
-    rememberScrollFor("finance");
-
-    // Conteúdo ainda curto na aba de destino.
-    Object.defineProperty(document.documentElement, "scrollHeight", {
-      value: 1000,
-      configurable: true,
-    });
-    (window.scrollTo as unknown as ReturnType<typeof vi.fn>).mockClear();
-    restoreScrollFor("finance");
-    expect(window.scrollTo).not.toHaveBeenCalled();
-  });
-
-  it("vai ao topo quando a aba nunca foi aberta", () => {
-    restoreScrollFor("aba-nunca-aberta");
-    expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 0, left: 0, behavior: "auto" });
+    restoreScrollFor("dashboard");
+    expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" });
   });
 
 });

@@ -148,7 +148,24 @@ export function restoreScrollWhenReady(
 
 export function scrollAppToTop() {
   if (typeof window === "undefined") return;
-  setScrollTop(getAppScrollContainer(), 0);
+  cancelPendingScrollRestore();
+  setScrollTop(window, 0);
+  const container = getAppScrollContainer();
+  if (container && container !== window) {
+    setScrollTop(container, 0);
+  }
+  if (document.documentElement) document.documentElement.scrollTop = 0;
+  if (document.body) document.body.scrollTop = 0;
+
+  // Garante no próximo frame para absorver lazy-loads e renderizações assíncronas
+  if (typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(() => {
+      setScrollTop(window, 0);
+      if (container && container !== window) setScrollTop(container, 0);
+      if (document.documentElement) document.documentElement.scrollTop = 0;
+      if (document.body) document.body.scrollTop = 0;
+    });
+  }
 }
 
 /**
@@ -235,70 +252,9 @@ function activeTabContainer(): HTMLElement {
  * conteúdo parou de crescer). Isso evita o clamp do navegador em listas que
  * montam de forma assíncrona. A restauração acontece uma única vez.
  */
-export function restoreScrollFor(tabId: string) {
+export function restoreScrollFor(_tabId?: string) {
   if (typeof window === "undefined") return;
-
-  cancelPendingScrollRestore();
-
-  const saved = getTabScroll(tabId);
-
-  if (typeof saved !== "number" || saved <= 0) {
-    // Primeira visita (ou topo salvo): abre no topo.
-    if (typeof requestAnimationFrame === "function") requestAnimationFrame(scrollAppToTop);
-    else scrollAppToTop();
-    return;
-  }
-
-  let cancelled = false;
-  let frame = 0;
-  let observer: MutationObserver | null = null;
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-  const cleanup = () => {
-    cancelled = true;
-    observer?.disconnect();
-    observer = null;
-    if (timeoutId) clearTimeout(timeoutId);
-    timeoutId = null;
-    if (frame && typeof cancelAnimationFrame === "function") cancelAnimationFrame(frame);
-    frame = 0;
-    if (pendingRestore === cleanup) pendingRestore = null;
-  };
-
-  const apply = () => {
-    if (cancelled) return;
-    setScrollTop(window, saved);
-    cleanup();
-  };
-
-  const tryApply = () => {
-    if (cancelled) return;
-    if (getMaxScrollTop(window) >= saved - 2) apply();
-  };
-
-  pendingRestore = cleanup;
-
-  if (typeof requestAnimationFrame === "function") {
-    frame = requestAnimationFrame(tryApply);
-  } else {
-    tryApply();
-  }
-
-  // Escopo mínimo: apenas o conteúdo da aba ativa (nunca todo o document.body,
-  // que dispararia com toasts, portais, tooltips e dropdowns).
-  if (!cancelled && typeof MutationObserver === "function") {
-    const target = activeTabContainer();
-    if (target) {
-      observer = new MutationObserver(tryApply);
-      observer.observe(target, { childList: true, subtree: true });
-    }
-  }
-
-  // Limite de segurança: se o conteúdo nunca alcançar a altura salva,
-  // aplicamos mesmo assim (o navegador ajusta ao máximo disponível).
-  if (!cancelled) {
-    timeoutId = setTimeout(apply, 600);
-  }
+  scrollAppToTop();
 }
 
 export interface ScrollPolicy {

@@ -845,6 +845,10 @@ const Index = () => {
     },
     [],
   );
+  useEffect(() => {
+    scrollPolicy.scrollToTop();
+  }, [tab, scrollPolicy]);
+
   const setTab = useCallback((t: Tab) => changeTab(t, { source: "user" }), [changeTab]);
   /**
    * Clique no botão de aba (menu inferior mobile / sidebar desktop-tablet).
