@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,12 +15,16 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MoneyInput } from "@/components/ui/money-input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Pencil, Plus, Trash2, Star, Loader2, Check, Tag, Layers } from "lucide-react";
+import { Pencil, Plus, Trash2, Star, Loader2, Check, Tag, Layers, TrendingUp } from "lucide-react";
 import { usePlans, PlanRecord } from "@/features/admin/hooks/usePlans";
 import { calcCyclePrice, calcSavings, equivalentMonthly, formatBRL } from "@/features/admin/lib/planPricing";
 import { LIMIT_KEYS, PERMISSION_GROUPS, PlanLimits, PlanPermissions } from "@/features/admin/lib/planEntitlements";
 import { confirmWithScroll } from "@/lib/confirmWithScroll";
 import { CouponManagement } from "./CouponManagement";
+
+const SaasFinancialDashboard = lazy(() =>
+  import("./SaasFinancialDashboard").then((m) => ({ default: m.SaasFinancialDashboard }))
+);
 
 const BADGE_OPTIONS = [
   { value: "__none__", label: "Nenhum" },
@@ -184,17 +188,33 @@ export function PlanManagement() {
   };
 
   return (
-    <Tabs defaultValue="plans" className="space-y-4">
-      <TabsList className="bg-muted/60 p-1 rounded-xl border border-border/50 w-full sm:w-auto grid grid-cols-2 sm:inline-flex">
+    <Tabs defaultValue="financial" className="space-y-4">
+      <TabsList className="bg-muted/60 p-1 rounded-xl border border-border/50 w-full sm:w-auto grid grid-cols-3 sm:inline-flex">
+        <TabsTrigger value="financial" className="gap-2 text-xs sm:text-sm font-semibold">
+          <TrendingUp className="h-4 w-4" />
+          Faturamento
+        </TabsTrigger>
         <TabsTrigger value="plans" className="gap-2 text-xs sm:text-sm font-semibold">
           <Layers className="h-4 w-4" />
-          Planos de assinatura
+          Plano de assinatura
         </TabsTrigger>
         <TabsTrigger value="coupons" className="gap-2 text-xs sm:text-sm font-semibold">
           <Tag className="h-4 w-4 text-primary" />
-          Cupons de desconto
+          Cupom de desconto
         </TabsTrigger>
       </TabsList>
+
+      <TabsContent value="financial" className="space-y-4 mt-0">
+        <Suspense
+          fallback={
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          }
+        >
+          <SaasFinancialDashboard />
+        </Suspense>
+      </TabsContent>
 
       <TabsContent value="plans" className="space-y-4 mt-0">
       <Card>
@@ -225,13 +245,13 @@ export function PlanManagement() {
                 return (
                   <div
                     key={p.id}
-                    className="border rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    className="border rounded-lg p-4 flex flex-col items-center justify-center gap-3 text-center"
                     style={p.recommended && p.highlight_color
                       ? { borderColor: p.highlight_color, boxShadow: `0 0 0 1px ${p.highlight_color}` }
                       : undefined}
                   >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
+                    <div className="w-full min-w-0">
+                      <div className="flex items-center justify-center gap-2 flex-wrap">
                         <h4 className="font-semibold text-foreground">{p.name}</h4>
                         {p.badge && <Badge variant="secondary">{p.badge}</Badge>}
                         {p.recommended && (
@@ -240,16 +260,16 @@ export function PlanManagement() {
                         {!p.active && <Badge variant="outline">Inativo</Badge>}
                       </div>
                       {p.description && (
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{p.description}</p>
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2 text-center">{p.description}</p>
                       )}
-                      <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                      <div className="text-xs text-muted-foreground mt-1 flex flex-wrap justify-center gap-x-3 gap-y-1">
                         <span>Mensal: <b className="text-foreground">{formatBRL(p.price)}</b></span>
                         <span>Semestral: <b className="text-foreground">{formatBRL(sem)}</b> ({p.discount_semestral ?? 0}% off)</span>
                         <span>Anual: <b className="text-foreground">{formatBRL(an)}</b> ({p.discount_anual ?? 0}% off)</span>
                         <span>Ordem: {p.sort_order ?? 0}</span>
                       </div>
                     </div>
-                    <div className="flex gap-2 shrink-0">
+                    <div className="flex flex-wrap justify-center gap-2 shrink-0">
                       {!p.recommended && (
                         <Button size="sm" variant="outline" onClick={() => setRecommended(p.id)}>
                           <Star className="h-4 w-4" />

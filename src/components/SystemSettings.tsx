@@ -39,7 +39,6 @@ const ApiKeysManager = lazy(() => import("@/components/ApiKeysManager").then(m =
 const RolePermissionsMatrix = lazy(() => import("@/features/admin/components/admin/RolePermissionsMatrix").then(m => ({ default: m.RolePermissionsMatrix })));
 const PlanManagement = lazy(() => import("@/features/admin/components/admin/PlanManagement").then(m => ({ default: m.PlanManagement })));
 const SubscriptionManagement = lazy(() => import("@/features/admin/components/admin/SubscriptionManagement").then(m => ({ default: m.SubscriptionManagement })));
-const SaasFinancialDashboard = lazy(() => import("@/features/admin/components/admin/SaasFinancialDashboard").then(m => ({ default: m.SaasFinancialDashboard })));
 
 
 const SectionLoader = () => (
@@ -62,13 +61,9 @@ export function SystemSettings() {
 
   const systemTabs = [
     { value: "admin", label: "Administração", icon: ShieldCheck, adminOnly: true },
-    { value: "financial", label: "Faturamento", icon: TrendingUp, adminOnly: true },
     { value: "plans", label: "Planos", icon: Package, adminOnly: true },
     { value: "subscriptions", label: "Assinaturas", icon: BadgeCheck, adminOnly: true },
     { value: "billing", label: "Conta", icon: Wallet, adminOnly: false },
-    { value: "appearance", label: "Personalização", icon: Palette, adminOnly: false },
-    { value: "api-keys", label: "Chaves APIs", icon: KeyRound, adminOnly: true },
-    { value: "health", label: "Saúde do Sistema", icon: Activity, adminOnly: true },
   ].filter(tab => !tab.adminOnly || isAdmin);
 
   return (
@@ -145,14 +140,6 @@ export function SystemSettings() {
         )}
 
         {isAdmin && (
-          <TabsContent value="financial" className="space-y-4 mt-4">
-            <Suspense fallback={<SectionLoader />}>
-              <SaasFinancialDashboard />
-            </Suspense>
-          </TabsContent>
-        )}
-
-        {isAdmin && (
           <TabsContent value="plans" className="space-y-4 mt-4">
             <Suspense fallback={<SectionLoader />}>
               <PlanManagement />
@@ -167,8 +154,6 @@ export function SystemSettings() {
             </Suspense>
           </TabsContent>
         )}
-
-
 
         <TabsContent value="billing" className="space-y-4 mt-4">
           <Card>
@@ -186,9 +171,7 @@ export function SystemSettings() {
               </Button>
             </CardContent>
           </Card>
-        </TabsContent>
 
-        <TabsContent value="appearance" className="space-y-4 mt-4">
           {isAdmin && (
             <Card>
               <CardHeader>
@@ -210,10 +193,8 @@ export function SystemSettings() {
           <AppFontSelector />
 
           <ThemeSettingsCard />
-        </TabsContent>
 
-        {isAdmin && (
-          <TabsContent value="api-keys" className="space-y-4 mt-4">
+          {isAdmin && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -229,11 +210,9 @@ export function SystemSettings() {
                 </Suspense>
               </CardContent>
             </Card>
-          </TabsContent>
-        )}
+          )}
 
-        {isAdmin && (
-          <TabsContent value="health" className="space-y-4 mt-4">
+          {isAdmin && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -249,8 +228,8 @@ export function SystemSettings() {
                 </Suspense>
               </CardContent>
             </Card>
-          </TabsContent>
-        )}
+          )}
+        </TabsContent>
       </Tabs>
     </div>
   );
