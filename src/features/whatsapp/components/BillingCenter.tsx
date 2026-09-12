@@ -530,8 +530,7 @@ function ClientBillingFolder({ group, sentToday, blockedToday = sentToday, selec
         <Flag className={`h-4 w-4 ${allSelected ? "fill-current" : ""}`}/>
       </button>
       <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-2 px-2 py-3 text-left">
-      <span className={`min-w-0 flex-1 truncate text-sm font-bold ${sentToday ? "text-emerald-500" : ""}`}>{group.clientName}</span>
-      {sentToday && <Badge className="bg-emerald-500/15 text-emerald-600 border-0 text-[10px]">Cobrado hoje</Badge>}
+      <span className={`min-w-0 flex-1 truncate text-sm font-bold ${sentToday ? "text-emerald-600 dark:text-emerald-400" : ""}`}>{group.clientName}</span>
       <span className="shrink-0 text-[11px] font-semibold tabular-nums text-muted-foreground sm:text-xs">{money.format(group.rows.reduce((sum, item) => sum + item.amount, 0))}</span>
       <Badge variant="outline" className="min-w-7 justify-center px-2 text-[10px]">
         <span>{group.rows.length}</span><span className="hidden sm:inline">&nbsp;contrato(s)</span>
@@ -552,7 +551,7 @@ function ClientBillingFolder({ group, sentToday, blockedToday = sentToday, selec
         </div>
         <Button size="sm" variant="outline" disabled={!item.validPhone || blockedToday} onClick={() => onCharge(item)}>Cobrar</Button>
       </div>)}
-      <div className="flex justify-end bg-muted/20 p-3"><Button size="sm" className="w-full bg-emerald-600 hover:bg-emerald-700 sm:w-auto" disabled={blockedToday || !group.rows.some(item => item.validPhone)} onClick={() => onChargeMany(group.rows.filter(item => item.validPhone))}><Send className="mr-1.5 h-3.5 w-3.5"/>{sentToday ? "Cobrado hoje" : blockedToday ? "Cliente já cobrado hoje" : `Cobrar todos (${group.rows.filter(item => item.validPhone).length})`}</Button></div>
+      <div className="flex justify-end bg-muted/20 p-3"><Button size="sm" className="w-full bg-emerald-600 hover:bg-emerald-700 sm:w-auto" disabled={blockedToday || !group.rows.some(item => item.validPhone)} onClick={() => onChargeMany(group.rows.filter(item => item.validPhone))}><Send className="mr-1.5 h-3.5 w-3.5"/>{sentToday ? "Reenviar cobrança" : blockedToday ? "Cliente já cobrado hoje" : `Cobrar todos (${group.rows.filter(item => item.validPhone).length})`}</Button></div>
     </CollapsibleContent>
   </Collapsible>;
 }
