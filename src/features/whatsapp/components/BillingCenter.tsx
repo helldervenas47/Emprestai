@@ -154,11 +154,11 @@ export function BillingCenter() {
   const enqueue = async () => {
     if (!confirm?.length) return;
     setCreating(true);
-    const chargeable = confirm.filter((item) => !sentTodayClientIds.has(item.clientId));
+    const chargeable = confirm;
     if (!chargeable.length) {
       setCreating(false);
       setConfirm(null);
-      return toast.info("Este cliente já foi cobrado hoje.");
+      return toast.info("Nenhum contrato selecionado para envio.");
     }
     const grouped = Array.from(chargeable.reduce((map, item) => {
       const rows = map.get(item.clientId) || [];
@@ -166,11 +166,50 @@ export function BillingCenter() {
     }, new Map<string, BillingCandidate[]>()).values());
     const queueItems = grouped.map((rows) => {
       const first = rows[0];
-      return { client_id: first.clientId, loan_id: first.loanId, loan_ids: rows.map((item) => item.loanId), installment_number: first.installmentNumber, phone: first.phone, message: rows.length > 1 ? consolidatedMessage(rows, centerTemplates.multiple, centerTemplates.pixLink) : singleContractMessage(first, centerTemplates.single, centerTemplates.pixLink), amount: rows.reduce((sum, item) => sum + item.amount, 0), due_date: first.dueDate };
+      return {
+        client_id: first.clientId,
+        loan_id: first.loanId,
+        loan_ids: rows.map((item) => item.loanId),
+        installment_number: first.installmentNumber,
+        phone: first.phone,
+        message: rows.length > 1 ? consolidatedMessage(rows, centerTemplates.multiple, centerTemplates.pixLink) : singleContractMessage(first, centerTemplates.single, centerTemplates.pixLink),
+        amount: rows.reduce((sum, item) => sum + item.amount, 0),
+        due_date: first.dueDate,
+      };
     });
-    const { data, error } = await supabase.functions.invoke("create-whatsapp-billing-queue", { body: { owner_id: dataOwnerId, items: queueItems } });
+    
+    let responseData: any = null;
+    let errorMessage: string | null = null;
+    try {
+      const { data, error } = await supabase.functions.invoke("create-whatsapp-billing-queue", {
+        body: { owner_id: dataOwnerId, items: queueItems, force_resend: true },
+      });
+      responseData = data;
+      if (error) {
+        if ((error as any).context && typeof (error as any).context.json === "function") {
+          const errBody = await (error as any).context.json().catch(() => null);
+          errorMessage = errBody?.error || error.message;
+        } else {
+          errorMessage = error.message;
+        }
+      }
+    } catch (e: any) {
+      errorMessage = e?.message || "Falha de conexão ao criar fila.";
+    }
+
     setCreating(false);
-    if (error || data?.error) return toast.error(data?.error === "already_charged_today" ? "Este cliente já foi cobrado hoje." : data?.error === "duplicate_today" ? "Uma dessas cobranças já foi enviada ou está na fila hoje." : "Não foi possível criar a fila de cobranças.");
+    if (errorMessage || responseData?.error) {
+      const err = errorMessage || responseData?.error;
+      const formattedErr = err === "already_charged_today"
+        ? "Este cliente já foi cobrado hoje."
+        : err === "duplicate_today"
+        ? "Uma dessas cobranças já foi enviada ou está na fila hoje."
+        : err === "no_valid_owned_items"
+        ? "Nenhum contrato válido encontrado para envio (verifique se os telefones dos clientes estão preenchidos)."
+        : String(err || "Não foi possível criar a fila de cobranças.");
+      return toast.error(formattedErr);
+    }
+
     toast.success(`${confirm.length} contrato(s) agrupado(s) em ${queueItems.length} mensagem(ns).`);
     setSelected(new Set()); setConfirm(null); await refresh();
   };

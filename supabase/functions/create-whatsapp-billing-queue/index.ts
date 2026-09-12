@@ -37,9 +37,10 @@ Deno.serve(async (req) => {
     .gte("sent_at", todayStart.toISOString())
     .lt("sent_at", tomorrow.toISOString())
     .in("client_id", clientIds);
-  const alreadyCharged = new Set((sentClients || []).map((row: any) => row.client_id));
+  const isForceResend = body.force_resend === true;
   const batchId = crypto.randomUUID();
   const createdAt = new Date();
+  const invalidReasons: string[] = [];
   const rows = items.flatMap((item: any, index: number) => {
     const loan = owned.get(item.loan_id);
     const includedLoanIds = [...new Set([item.loan_id, ...(Array.isArray(item.loan_ids) ? item.loan_ids : [])].filter(Boolean))];
@@ -50,15 +51,27 @@ Deno.serve(async (req) => {
     const client = clients.get(item.client_id);
     const phone = String(client?.phone || "").replace(/\D/g, "");
     const normalizedPhone = phone.startsWith("55") ? phone : `55${phone}`;
-    if (!loan || !client || !includedLoansAreValid || alreadyCharged.has(item.client_id) || loan.borrower_id !== client.id || loan.status === "paid" || Number(loan.paid_installments) >= Number(item.installment_number) || !/^55\d{10,11}$/.test(normalizedPhone)) return [];
+    
+    if (!loan) { invalidReasons.push("Empréstimo não encontrado ou não pertence ao usuário."); return []; }
+    if (!client) { invalidReasons.push("Cliente não encontrado."); return []; }
+    if (!includedLoansAreValid) { invalidReasons.push("Um ou mais contratos associados estão quitados ou inválidos."); return []; }
+    if (!isForceResend && alreadyCharged.has(item.client_id)) { invalidReasons.push("already_charged_today"); return []; }
+    if (loan.borrower_id !== client.id) { invalidReasons.push("Contrato não pertence ao cliente informado."); return []; }
+    if (loan.status === "paid") { invalidReasons.push("Contrato já está quitado."); return []; }
+    if (!/^55\d{10,11}$/.test(normalizedPhone)) { invalidReasons.push(`Telefone do cliente inválido (${normalizedPhone || "vazio"}).`); return []; }
+
+    const installmentNumber = Math.max(1, Number(item.installment_number) || 1);
     return [{
       batch_id: batchId, user_id: ownerId, client_id: item.client_id, loan_id: item.loan_id, loan_ids: includedLoanIds,
-      installment_number: item.installment_number, phone: normalizedPhone, message: String(item.message || "").slice(0, 4096),
-      amount: item.amount, due_date: item.due_date, force_resend: body.force_resend === true,
+      installment_number: installmentNumber, phone: normalizedPhone, message: String(item.message || "").slice(0, 4096),
+      amount: Number(item.amount) || 0, due_date: item.due_date, force_resend: isForceResend,
       scheduled_at: new Date(createdAt.getTime() + index * 30_000).toISOString(),
     }];
   });
-  if (!rows.length) return json({ error: alreadyCharged.size ? "already_charged_today" : "no_valid_owned_items" }, alreadyCharged.size ? 409 : 400);
+  if (!rows.length) {
+    const firstReason = invalidReasons[0] || "no_valid_owned_items";
+    return json({ error: firstReason }, firstReason === "already_charged_today" ? 409 : 400);
+  }
   const { data, error } = await admin.from("whatsapp_billing_queue").insert(rows).select("id, status, scheduled_at");
   if (error) return json({ error: error.code === "23505" ? "duplicate_today" : error.message }, 409);
   return json({ batch_id: batchId, items: data });
