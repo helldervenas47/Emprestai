@@ -7,12 +7,15 @@ export interface SchedulePrefs {
   send_time_1: string | null;
   send_time_2: string | null;
   send_time_3: string | null;
+  send_whatsapp?: boolean;
+  whatsapp_phone?: string | null;
 }
 
 export function useScheduledReportPrefs(table: string, defaultTime: string) {
   const { user } = useAuth();
   const [prefs, setPrefs] = useState<SchedulePrefs>({
     enabled: false, send_time_1: defaultTime, send_time_2: null, send_time_3: null,
+    send_whatsapp: false, whatsapp_phone: null,
   });
   const [loading, setLoading] = useState(true);
 
@@ -20,15 +23,17 @@ export function useScheduledReportPrefs(table: string, defaultTime: string) {
     if (!user) { setLoading(false); return; }
     const { data } = await supabase
       .from(table as any)
-      .select("enabled, send_time_1, send_time_2, send_time_3")
+      .select("enabled, send_time_1, send_time_2, send_time_3, send_whatsapp, whatsapp_phone")
       .eq("user_id", user.id)
       .maybeSingle();
     if (data) {
       setPrefs({
-        enabled: (data as any).enabled,
+        enabled: Boolean((data as any).enabled),
         send_time_1: (data as any).send_time_1,
         send_time_2: (data as any).send_time_2,
         send_time_3: (data as any).send_time_3,
+        send_whatsapp: Boolean((data as any).send_whatsapp),
+        whatsapp_phone: (data as any).whatsapp_phone ?? null,
       });
     }
     setLoading(false);

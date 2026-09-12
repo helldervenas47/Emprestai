@@ -4,12 +4,17 @@
 create table if not exists public.telegram_operational_summary_prefs (
   user_id uuid primary key,
   enabled boolean not null default false,
+  send_whatsapp boolean not null default false,
+  whatsapp_phone text,
   send_time_1 text default '19:00',
   send_time_2 text,
   send_time_3 text,
   last_sent jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now()
 );
+
+alter table public.telegram_operational_summary_prefs add column if not exists send_whatsapp boolean not null default false;
+alter table public.telegram_operational_summary_prefs add column if not exists whatsapp_phone text;
 
 grant select, insert, update, delete on public.telegram_operational_summary_prefs to authenticated;
 grant all on public.telegram_operational_summary_prefs to service_role;

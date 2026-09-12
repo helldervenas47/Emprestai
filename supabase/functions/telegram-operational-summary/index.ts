@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { requireCronOrAdmin, cronCors } from "../_shared/require-cron-or-admin.ts";
 import { dueSlotKeys } from "../_shared/schedule.ts";
+import { sendWhatsappText } from "../_shared/whatsapp-service.ts";
 
 const corsHeaders = {
   ...cronCors,
@@ -161,6 +162,76 @@ async function sendReportsMessage(supabase: any, userId: string, chatId: number,
     return { sent: !!json.ok, reason: json.description };
   } catch (e: any) {
     return { sent: false, reason: e?.message || "fetch_error" };
+  }
+}
+
+function normalizePhoneBR(raw: string): string {
+  const digits = (raw || "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("55") && digits.length >= 12) return digits;
+  return `55${digits}`;
+}
+
+async function sendOperationalSummaryToWhatsapp(
+  admin: any,
+  ownerId: string,
+  text: string,
+  customPhone?: string | null
+): Promise<{ sent: boolean; reason?: string }> {
+  try {
+    let phone = customPhone ? normalizePhoneBR(customPhone) : "";
+    if (!phone) {
+      const { data: auth } = await admin
+        .from("whatsapp_assistant_authorized")
+        .select("phone")
+        .eq("owner_id", ownerId)
+        .eq("enabled", true)
+        .limit(1)
+        .maybeSingle();
+      if (auth?.phone) phone = normalizePhoneBR(auth.phone);
+    }
+    if (!phone) {
+      const { data: prof } = await admin
+        .from("profiles")
+        .select("phone")
+        .eq("user_id", ownerId)
+        .maybeSingle();
+      if (prof?.phone) phone = normalizePhoneBR(prof.phone);
+    }
+    if (!phone) {
+      return { sent: false, reason: "no_phone_configured" };
+    }
+
+    const { data: sched } = await admin
+      .from("whatsapp_billing_schedule")
+      .select("provider, base_url, instance_id, api_key")
+      .eq("owner_id", ownerId)
+      .maybeSingle();
+
+    if (!sched?.base_url || !sched?.instance_id) {
+      return { sent: false, reason: "whatsapp_not_configured" };
+    }
+
+    const globalApiKey = Deno.env.get("EVOLUTION_API_KEY") || Deno.env.get("WHATSMIAU_API_KEY") || "";
+    const apiKey = sched.api_key || globalApiKey;
+
+    const result = await sendWhatsappText(
+      {
+        provider: sched.provider || "evolution",
+        baseUrl: sched.base_url,
+        instanceId: sched.instance_id,
+        apiKey,
+      },
+      phone,
+      text
+    );
+
+    return {
+      sent: result.ok,
+      reason: result.ok ? undefined : `HTTP ${result.status}: ${result.body}`,
+    };
+  } catch (err: any) {
+    return { sent: false, reason: err?.message || String(err) };
   }
 }
 
@@ -744,18 +815,27 @@ Deno.serve(async (req: Request): Promise<Response> => {
           if ((settings as any)?.timezone) tz = (settings as any).timezone;
         } catch (_) {}
 
+        const body = await req.json().catch(() => ({}));
+        const isWhatsapp = body?.channel === "whatsapp" || body?.send_whatsapp === true;
         const { today } = nowParts(tz);
         const text = await generateOperationalSummaryReport(admin, resolvedOwnerId, today);
-        const link = await getReportsLinkForUser(admin, userId);
 
+        if (isWhatsapp) {
+          const wppRes = await sendOperationalSummaryToWhatsapp(admin, resolvedOwnerId, text, body?.phone);
+          return new Response(JSON.stringify({ ok: true, sent: wppRes.sent, reason: wppRes.reason, text, channel: "whatsapp" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const link = await getReportsLinkForUser(admin, userId);
         if (!link) {
-          return new Response(JSON.stringify({ ok: true, sent: false, reason: "no_reports_link", text }), {
+          return new Response(JSON.stringify({ ok: true, sent: false, reason: "no_reports_link", text, channel: "telegram" }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
 
         const send = await sendReportsMessage(admin, userId, Number(link.chat_id), text);
-        return new Response(JSON.stringify({ ok: true, sent: send.sent, reason: send.reason, text }), {
+        return new Response(JSON.stringify({ ok: true, sent: send.sent, reason: send.reason, text, channel: "telegram" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -768,8 +848,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     try {
       const { data } = await admin
         .from("telegram_operational_summary_prefs")
-        .select("user_id, enabled, send_time_1, send_time_2, send_time_3, last_sent")
-        .eq("enabled", true);
+        .select("user_id, enabled, send_whatsapp, whatsapp_phone, send_time_1, send_time_2, send_time_3, last_sent")
+        .or("enabled.eq.true,send_whatsapp.eq.true");
       prefs = data ?? [];
     } catch (_) {}
 
@@ -807,12 +887,30 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
         if (firedSlots.length === 0) continue;
 
-        const link = await getReportsLinkForUser(admin, (pref as any).user_id);
-        if (!link) continue;
-
+        let anySent = false;
         const text = await generateOperationalSummaryReport(admin, resolvedOwnerId, today);
-        const send = await sendReportsMessage(admin, (pref as any).user_id, Number(link.chat_id), text);
-        if (!send.sent) continue;
+
+        // Disparo via Telegram se habilitado
+        if ((pref as any).enabled) {
+          const link = await getReportsLinkForUser(admin, (pref as any).user_id);
+          if (link) {
+            const sendTg = await sendReportsMessage(admin, (pref as any).user_id, Number(link.chat_id), text);
+            if (sendTg.sent) anySent = true;
+          }
+        }
+
+        // Disparo via WhatsApp se habilitado
+        if ((pref as any).send_whatsapp) {
+          const sendWpp = await sendOperationalSummaryToWhatsapp(
+            admin,
+            resolvedOwnerId,
+            text,
+            (pref as any).whatsapp_phone,
+          );
+          if (sendWpp.sent) anySent = true;
+        }
+
+        if (!anySent) continue;
 
         const merged = { ...lastSent };
         for (const slot of firedSlots) {
