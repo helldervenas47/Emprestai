@@ -372,12 +372,12 @@ export function BillingCenter() {
       </div>
 
       {filter === "today" && (
-        <div className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-1.5">
+        <div className="mt-3 flex items-center justify-between sm:justify-center gap-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-1.5">
           <Button
             type="button"
             size="icon"
             variant="ghost"
-            className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
+            className="h-7 w-7 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
             aria-label="Dia anterior"
             title="Dia anterior"
             onClick={() => setSelectedDate((curr) => shiftDay(curr, -1))}
@@ -388,23 +388,19 @@ export function BillingCenter() {
           <button
             type="button"
             onClick={() => setSelectedDate(todayInBahia)}
-            title="Clique para voltar ao dia atual"
+            title={selectedDate === todayInBahia ? "Dia atual" : "Clique para voltar ao dia atual"}
             className={cn(
-              "group flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-semibold transition-all hover:bg-background/80 active:scale-95",
+              "group flex items-center justify-center gap-1.5 rounded-lg px-2 sm:px-3 py-1 text-xs font-semibold whitespace-nowrap transition-all hover:bg-background/80 active:scale-95",
               selectedDate === todayInBahia
                 ? "text-primary font-bold"
                 : "text-foreground hover:text-primary"
             )}
           >
-            <Calendar className="h-3.5 w-3.5 text-primary" />
-            <span>{formatDayLabel(selectedDate, todayInBahia).label}</span>
-            {selectedDate === todayInBahia ? (
-              <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px] font-medium bg-primary/10 text-primary border-0">
+            <Calendar className="h-3.5 w-3.5 shrink-0 text-primary" />
+            <span className="whitespace-nowrap">{formatDayLabel(selectedDate, todayInBahia).label}</span>
+            {selectedDate === todayInBahia && (
+              <Badge variant="secondary" className="ml-1 h-4 shrink-0 px-1 text-[10px] font-medium bg-primary/10 text-primary border-0 whitespace-nowrap">
                 Hoje
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="ml-1 h-4 px-1 text-[10px] font-normal text-muted-foreground group-hover:border-primary group-hover:text-primary">
-                Voltar para hoje
               </Badge>
             )}
           </button>
@@ -413,7 +409,7 @@ export function BillingCenter() {
             type="button"
             size="icon"
             variant="ghost"
-            className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
+            className="h-7 w-7 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
             aria-label="Próximo dia"
             title="Próximo dia"
             onClick={() => setSelectedDate((curr) => shiftDay(curr, 1))}

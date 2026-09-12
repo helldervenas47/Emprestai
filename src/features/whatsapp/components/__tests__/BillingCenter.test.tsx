@@ -177,14 +177,16 @@ describe("BillingCenter — Filtro de Futuras com separação por faixa de dias"
     await waitFor(() => {
       // O cliente com vencimento amanhã (Cliente Carlos) deve aparecer
       expect(screen.getByText("Cliente Carlos")).toBeInTheDocument();
-      expect(screen.getByText("Voltar para hoje")).toBeInTheDocument();
+      expect(screen.getByTitle("Clique para voltar ao dia atual")).toBeInTheDocument();
     });
 
-    // Clicar em "Voltar para hoje"
-    fireEvent.click(screen.getByText("Voltar para hoje"));
+    // Clicar na data para voltar para hoje
+    fireEvent.click(screen.getByTitle("Clique para voltar ao dia atual"));
 
     await waitFor(() => {
+      expect(screen.queryByText("Cliente Carlos")).not.toBeInTheDocument();
       expect(screen.getByText("Hoje")).toBeInTheDocument();
+      expect(screen.getByTitle("Dia atual")).toBeInTheDocument();
     });
   });
 });
