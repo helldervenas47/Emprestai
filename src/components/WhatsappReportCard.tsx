@@ -139,9 +139,23 @@ export function WhatsappReportCard() {
     }
   };
 
-  const handlePhoneBlur = () => {
+  const handlePhoneBlur = async () => {
     if (whatsappPhone !== (prefs.whatsapp_phone ?? "")) {
-      savePrefs({ whatsapp_phone: whatsappPhone.trim() || null });
+      try {
+        await savePrefs({ whatsapp_phone: whatsappPhone.trim() || null });
+        toast.success("Telefone atualizado com sucesso!");
+      } catch {
+        toast.error("Erro ao salvar telefone.");
+      }
+    }
+  };
+
+  const handleTimeChange = async (key: SlotKey, value: string | null) => {
+    try {
+      await savePrefs({ [key]: value } as any);
+      toast.success(value ? "Horário atualizado!" : "Horário removido.");
+    } catch {
+      toast.error("Erro ao salvar horário.");
     }
   };
 
@@ -201,7 +215,16 @@ export function WhatsappReportCard() {
             <Switch
               disabled={prefsLoading}
               checked={Boolean(prefs.send_whatsapp)}
-              onCheckedChange={(v) => savePrefs({ send_whatsapp: v })}
+              onCheckedChange={async (v) => {
+                try {
+                  await savePrefs({ send_whatsapp: v });
+                  toast.success(v ? "Envio diário ativado!" : "Envio diário desativado.");
+                } catch (e) {
+                  toast.error("Erro ao salvar preferência no banco.", {
+                    description: "Execute o SQL de migração no Supabase se as colunas ainda não existirem.",
+                  });
+                }
+              }}
             />
           </div>
 
@@ -227,9 +250,14 @@ export function WhatsappReportCard() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => {
+                      onClick={async () => {
                         setWhatsappPhone(profilePhone);
-                        savePrefs({ whatsapp_phone: profilePhone });
+                        try {
+                          await savePrefs({ whatsapp_phone: profilePhone });
+                          toast.success("Telefone preenchido com o do perfil!");
+                        } catch {
+                          toast.error("Erro ao salvar telefone.");
+                        }
                       }}
                       className="text-[11px] h-9 shrink-0 px-2.5 rounded-xl"
                       title="Preencher com o telefone do perfil"
@@ -259,14 +287,14 @@ export function WhatsappReportCard() {
                 )}
 
                 <div className="space-y-2">
-                  {activeSlots.map((key, idx) => (
+                  {activeSlots.map((key) => (
                     <div key={key} className="flex items-center gap-2">
                       <div className="flex-1 relative">
                         <Clock className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <Input
                           type="time"
                           value={prefs[key] ?? ""}
-                          onChange={(e) => savePrefs({ [key]: e.target.value || null } as any)}
+                          onChange={(e) => handleTimeChange(key, e.target.value || null)}
                           className="text-xs rounded-xl h-9 pl-8"
                         />
                       </div>
@@ -274,7 +302,7 @@ export function WhatsappReportCard() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        onClick={() => savePrefs({ [key]: null } as any)}
+                        onClick={() => handleTimeChange(key, null)}
                         title="Remover horário"
                         className="h-9 w-9 text-destructive hover:bg-destructive/10 rounded-xl shrink-0"
                       >
@@ -290,7 +318,7 @@ export function WhatsappReportCard() {
                     variant="outline"
                     size="sm"
                     className="w-full text-xs h-8 rounded-xl border-dashed"
-                    onClick={() => savePrefs({ [slots.find((s) => !prefs[s])!]: "19:00" } as any)}
+                    onClick={() => handleTimeChange(slots.find((s) => !prefs[s])!, "19:00")}
                   >
                     <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Horário
                   </Button>
