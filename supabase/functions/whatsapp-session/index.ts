@@ -24,26 +24,43 @@ Deno.serve(async (req) => {
   if (!token) return reply({ error: config.provider === "evolution" ? "missing_evolution_api_key" : "missing_server_token" }, 503);
   const action = requestBody.action || "status";
   const base = config.base_url.replace(/\/+$/, "");
-  const session = encodeURIComponent(config.instance_id);
+  let instanceName = config.instance_id;
   const isEvolution = config.provider === "evolution";
-  const endpoint = isEvolution
+  const getEndpoint = () => isEvolution
     ? action === "connect"
-      ? `/instance/connect/${session}`
+      ? `/instance/connect/${encodeURIComponent(instanceName)}`
       : action === "disconnect"
-        ? `/instance/logout/${session}`
-        : `/instance/connectionState/${session}`
+        ? `/instance/logout/${encodeURIComponent(instanceName)}`
+        : `/instance/connectionState/${encodeURIComponent(instanceName)}`
     : action === "connect"
-      ? `/api/${session}/start-session`
+      ? `/api/${encodeURIComponent(instanceName)}/start-session`
       : action === "disconnect"
-        ? `/api/${session}/logout-session`
-        : `/api/${session}/status-session`;
+        ? `/api/${encodeURIComponent(instanceName)}/logout-session`
+        : `/api/${encodeURIComponent(instanceName)}/status-session`;
   const method = isEvolution
     ? action === "disconnect" ? "DELETE" : "GET"
     : action === "status" ? "GET" : "POST";
   const requestHeaders = isEvolution
     ? { apikey: token, "Content-Type": "application/json" }
     : { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
-  const response = await fetch(`${base}${endpoint}`, { method, headers: requestHeaders });
+  let response = await fetch(`${base}${getEndpoint()}`, { method, headers: requestHeaders });
+  if (isEvolution && response.status === 404) {
+    const instancesResponse = await fetch(`${base}/instance/fetchInstances`, { headers: requestHeaders });
+    if (instancesResponse.ok) {
+      const instances = await instancesResponse.json().catch(() => []);
+      const rows = Array.isArray(instances) ? instances : Array.isArray(instances?.data) ? instances.data : [];
+      const match = rows.find((row: any) => {
+        const candidate = row?.name || row?.instanceName || row?.instance?.instanceName || row?.instance?.name;
+        return String(candidate || "").toLocaleLowerCase() === instanceName.toLocaleLowerCase();
+      });
+      const canonicalName = match?.name || match?.instanceName || match?.instance?.instanceName || match?.instance?.name;
+      if (canonicalName) {
+        instanceName = String(canonicalName);
+        await admin.from("whatsapp_billing_schedule").update({ instance_id: instanceName }).eq("owner_id", ownerId);
+        response = await fetch(`${base}${getEndpoint()}`, { method, headers: requestHeaders });
+      }
+    }
+  }
   const text = await response.text();
   let upstreamBody: any; try { upstreamBody = JSON.parse(text); } catch { upstreamBody = { message: text }; }
   if (!response.ok) {
