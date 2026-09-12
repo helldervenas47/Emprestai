@@ -279,8 +279,32 @@ export function WhatsappAutoBillingCard() {
 
         <div className="space-y-3 rounded-2xl border border-border/40 bg-muted/20 p-3 sm:p-4">
           <div className="flex items-center gap-2 text-sm font-bold"><Users className="h-4 w-4 text-primary"/>Regras por cliente</div>
-          <p className="text-xs text-muted-foreground">Personalize horário, frequência e dias. Campos vazios usam a regra geral.</p>
-          <div className="max-h-96 space-y-2 overflow-y-auto pr-1">{clients.map((client) => <div key={client.id} className="rounded-xl border bg-background p-3"><div className="flex items-center justify-between gap-2"><p className="truncate text-sm font-semibold">{client.name}</p><Switch checked={client.auto_billing_enabled !== false} onCheckedChange={(value) => updateClientRule(client.id, { auto_billing_enabled: value })}/></div><div className="mt-3 grid gap-2 sm:grid-cols-2"><div><Label className="text-[11px]">Horário individual</Label><Input type="time" value={client.auto_billing_send_time || ""} onChange={(e) => updateClientRule(client.id, { auto_billing_send_time: e.target.value || null })} className="mt-1 h-9"/></div><div><Label className="text-[11px]">Repetir atraso a cada</Label><Input type="number" min={1} max={30} placeholder={String(schedule.overdue_repeat_days)} value={client.auto_billing_repeat_days || ""} onChange={(e) => updateClientRule(client.id, { auto_billing_repeat_days: e.target.value ? Number(e.target.value) : null })} className="mt-1 h-9"/></div></div><div className="mt-2 grid grid-cols-7 gap-1">{["D", "S", "T", "Q", "Q", "S", "S"].map((label, day) => { const values = client.auto_billing_weekdays || schedule.allowed_weekdays; const active = values.includes(day); return <Button key={day} type="button" size="sm" variant={active ? "secondary" : "outline"} className="h-8 min-w-0 px-0 text-[10px]" onClick={() => updateClientRule(client.id, { auto_billing_weekdays: active ? values.filter((value: number) => value !== day) : [...values, day].sort() })}>{label}</Button>; })}</div></div>)}</div>
+          <p className="text-xs text-muted-foreground">Ative o cliente e escolha entre a configuração geral ou uma configuração própria.</p>
+          <div className="max-h-[32rem] space-y-2 overflow-y-auto pr-1">{clients.map((client) => {
+            const custom = client.auto_billing_send_time != null || client.auto_billing_repeat_days != null || client.auto_billing_weekdays != null;
+            const weekdays = client.auto_billing_weekdays || schedule.allowed_weekdays;
+            const dayOptions = [[1, "Seg"], [2, "Ter"], [3, "Qua"], [4, "Qui"], [5, "Sex"], [6, "Sáb"], [0, "Dom"]] as const;
+            return <div key={client.id} className="rounded-xl border bg-background p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0"><p className="truncate text-sm font-semibold">{client.name}</p><p className={`mt-0.5 text-[11px] ${client.auto_billing_enabled !== false ? "text-emerald-600" : "text-muted-foreground"}`}>{client.auto_billing_enabled !== false ? "Recebe cobranças automáticas" : "Cobrança automática desativada"}</p></div>
+                <Switch aria-label={`Cobrança automática para ${client.name}`} checked={client.auto_billing_enabled !== false} onCheckedChange={(value) => updateClientRule(client.id, { auto_billing_enabled: value })}/>
+              </div>
+              {client.auto_billing_enabled !== false && <>
+                <label className="mt-3 flex min-h-12 items-center justify-between gap-3 rounded-xl bg-muted/50 px-3 py-2">
+                  <div><p className="text-xs font-semibold">Usar regra geral</p><p className="text-[10px] text-muted-foreground">{schedule.send_time.slice(0, 5)} · a cada {schedule.overdue_repeat_days} dia(s)</p></div>
+                  <Switch checked={!custom} onCheckedChange={(useGeneral) => updateClientRule(client.id, useGeneral ? { auto_billing_send_time: null, auto_billing_repeat_days: null, auto_billing_weekdays: null } : { auto_billing_send_time: schedule.send_time.slice(0, 5), auto_billing_repeat_days: schedule.overdue_repeat_days, auto_billing_weekdays: schedule.allowed_weekdays })}/>
+                </label>
+                {custom && <div className="mt-3 space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+                  <p className="text-xs font-bold text-primary">Regra personalizada</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div><Label className="text-[11px]">Enviar às</Label><Input type="time" value={client.auto_billing_send_time || schedule.send_time.slice(0, 5)} onChange={(e) => updateClientRule(client.id, { auto_billing_send_time: e.target.value })} className="mt-1 h-10"/></div>
+                    <div><Label className="text-[11px]">Repetir atrasados a cada</Label><div className="relative mt-1"><Input type="number" min={1} max={30} value={client.auto_billing_repeat_days || schedule.overdue_repeat_days} onChange={(e) => updateClientRule(client.id, { auto_billing_repeat_days: Math.max(1, Number(e.target.value || 1)) })} className="h-10 pr-12"/><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">dias</span></div></div>
+                  </div>
+                  <div><Label className="text-[11px]">Dias de envio</Label><div className="mt-1.5 grid grid-cols-4 gap-1.5 sm:grid-cols-7">{dayOptions.map(([day, label]) => { const active = weekdays.includes(day); return <Button key={day} type="button" size="sm" variant={active ? "default" : "outline"} aria-pressed={active} className="h-9 min-w-0 px-1 text-[11px]" onClick={() => updateClientRule(client.id, { auto_billing_weekdays: active ? weekdays.filter((value: number) => value !== day) : [...weekdays, day].sort() })}>{label}</Button>; })}</div></div>
+                </div>}
+              </>}
+            </div>;
+          })}</div>
         </div>
 
         <div className="space-y-3 rounded-2xl border border-border/40 bg-muted/20 p-3 sm:p-4">
