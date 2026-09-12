@@ -20,6 +20,17 @@ export function WhatsappAutoBillingCard() {
   const [connectionOpen, setConnectionOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [connectRequest, setConnectRequest] = useState(0);
+  const [providerDraft, setProviderDraft] = useState({ provider: "evolution", base_url: "", instance_id: "" });
+
+  const openConnectionSettings = () => {
+    setProviderDraft({ provider: schedule.provider, base_url: schedule.base_url, instance_id: schedule.instance_id });
+    setConnectionOpen(true);
+  };
+
+  const toggleConnectionSettings = () => {
+    if (connectionOpen) setConnectionOpen(false);
+    else openConnectionSettings();
+  };
 
   const loadPreview = async () => {
     setPreviewing(true);
@@ -32,7 +43,7 @@ export function WhatsappAutoBillingCard() {
   };
 
   const saveAndConnect = async () => {
-    await save({ provider: schedule.provider, base_url: schedule.base_url.trim(), instance_id: schedule.instance_id.trim() });
+    await save({ provider: providerDraft.provider, base_url: providerDraft.base_url.trim(), instance_id: providerDraft.instance_id.trim() });
     setConnectRequest((value) => value + 1);
   };
 
@@ -98,7 +109,7 @@ export function WhatsappAutoBillingCard() {
       </CardHeader>
 
       <CardContent className="space-y-4 p-3.5 pt-1 sm:space-y-5 sm:p-5 sm:pt-2">
-        {(schedule.provider === "wppconnect" || schedule.provider === "evolution") && <WppConnectStatus provider={schedule.provider} onConnectRequested={() => setConnectionOpen(true)} connectRequest={connectRequest} />}
+        {(schedule.provider === "wppconnect" || schedule.provider === "evolution") && <WppConnectStatus provider={schedule.provider} onConnectRequested={openConnectionSettings} connectRequest={connectRequest} />}
         {schedule.alert_on_failure && alerts.length > 0 && <div className="space-y-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 sm:p-4">
           <div className="flex items-center gap-2 text-sm font-bold text-amber-700 dark:text-amber-400"><AlertTriangle className="h-4 w-4"/>Alertas da automação</div>
           {alerts.map((alert) => <p key={alert} className="text-xs text-muted-foreground">{alert}</p>)}
@@ -107,14 +118,14 @@ export function WhatsappAutoBillingCard() {
         <div className="space-y-3 rounded-2xl border border-border/40 bg-muted/20 p-3 sm:p-4">
           <div className="flex items-start justify-between gap-2 sm:items-center">
             <div className="min-w-0"><Badge variant="outline" className="whitespace-normal text-left text-[11px] leading-tight bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25 sm:text-xs">1. Conexão do Provedor</Badge><p className="mt-1.5 text-xs text-muted-foreground">Credenciais da sua instância do WhatsApp</p></div>
-            <Button type="button" variant="ghost" className="h-9 w-auto shrink-0 rounded-xl px-2 text-[11px] sm:px-3 sm:text-xs" aria-expanded={connectionOpen} onClick={() => setConnectionOpen((open) => !open)}>{connectionOpen ? "Recolher" : "Expandir"}<ChevronDown className={`ml-1 h-4 w-4 transition-transform sm:ml-1.5 ${connectionOpen ? "rotate-180" : ""}`}/></Button>
+            <Button type="button" variant="ghost" className="h-9 w-auto shrink-0 rounded-xl px-2 text-[11px] sm:px-3 sm:text-xs" aria-expanded={connectionOpen} onClick={toggleConnectionSettings}>{connectionOpen ? "Recolher" : "Expandir"}<ChevronDown className={`ml-1 h-4 w-4 transition-transform sm:ml-1.5 ${connectionOpen ? "rotate-180" : ""}`}/></Button>
           </div>
 
           {connectionOpen && <div className="space-y-3 border-t border-border/40 pt-3">
           <div className="grid gap-3 pt-1 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">Provedor</Label>
-              <Select value={schedule.provider} onValueChange={(provider) => save({ provider })}>
+              <Select value={providerDraft.provider} onValueChange={(provider) => setProviderDraft((draft) => ({ ...draft, provider }))}>
                 <SelectTrigger className="h-11 rounded-xl text-sm sm:h-9 sm:text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="evolution">Evolution API</SelectItem>
@@ -126,9 +137,9 @@ export function WhatsappAutoBillingCard() {
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">URL base do serviço</Label>
               <Input
-                placeholder={schedule.provider === "wppconnect" ? "https://whatsapp.seudominio.com" : "https://evolution.seudominio.com"}
-                value={schedule.base_url}
-                onChange={(e) => save({ base_url: e.target.value })}
+                placeholder={providerDraft.provider === "wppconnect" ? "https://whatsapp.seudominio.com" : "https://evolution.seudominio.com"}
+                value={providerDraft.base_url}
+                onChange={(e) => setProviderDraft((draft) => ({ ...draft, base_url: e.target.value }))}
                 className="h-11 rounded-xl text-sm sm:h-9 sm:text-xs"
               />
             </div>
@@ -136,13 +147,13 @@ export function WhatsappAutoBillingCard() {
               <Label className="text-xs font-semibold">Instance ID</Label>
               <Input
                 placeholder="minha-instancia"
-                value={schedule.instance_id}
-                onChange={(e) => save({ instance_id: e.target.value })}
+                value={providerDraft.instance_id}
+                onChange={(e) => setProviderDraft((draft) => ({ ...draft, instance_id: e.target.value }))}
                 className="h-11 rounded-xl text-sm sm:h-9 sm:text-xs"
               />
             </div>
           </div>
-          <Button type="button" className="h-11 w-full rounded-xl sm:ml-auto sm:h-9 sm:w-auto" disabled={!schedule.base_url.trim() || !schedule.instance_id.trim()} onClick={saveAndConnect}><Plug className="mr-1.5 h-4 w-4"/>Salvar e conectar</Button>
+          <Button type="button" className="h-11 w-full rounded-xl sm:ml-auto sm:h-9 sm:w-auto" disabled={!providerDraft.base_url.trim() || !providerDraft.instance_id.trim()} onClick={saveAndConnect}><Plug className="mr-1.5 h-4 w-4"/>Salvar e conectar</Button>
           </div>}
         </div>
 
