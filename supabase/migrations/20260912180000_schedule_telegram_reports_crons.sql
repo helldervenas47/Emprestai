@@ -7,18 +7,15 @@ create extension if not exists pg_cron;
 -- Garante tabela de configuração interna e chave do cron
 create table if not exists public.app_internal_config (
   key text primary key,
-  value text not null,
-  description text,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
+  value text not null
 );
 
 grant select, insert, update on public.app_internal_config to authenticated;
 grant all on public.app_internal_config to service_role;
 
 -- Garante que exista um cron_secret para autenticar as chamadas das edge functions
-insert into public.app_internal_config (key, value, description)
-values ('cron_secret', encode(gen_random_bytes(32), 'hex'), 'Segredo compartilhado para chamadas automáticas do pg_cron')
+insert into public.app_internal_config (key, value)
+values ('cron_secret', encode(gen_random_bytes(32), 'hex'))
 on conflict (key) do nothing;
 
 do $$
