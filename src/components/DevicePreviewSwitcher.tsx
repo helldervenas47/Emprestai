@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Monitor, Smartphone, Tablet, ChevronDown, ChevronUp, RotateCw, ExternalLink } from "lucide-react";
+import { Monitor, Smartphone, Tablet, ChevronDown, ChevronUp, RotateCw, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export type DeviceMode = "desktop" | "mobile" | "mobile-max" | "tablet";
@@ -7,20 +7,19 @@ export type DeviceMode = "desktop" | "mobile" | "mobile-max" | "tablet";
 interface DeviceConfig {
   id: DeviceMode;
   label: string;
-  width: string;
-  height: string;
+  width: number;
+  height: number;
   icon: React.ElementType;
 }
 
 const DEVICES: DeviceConfig[] = [
-  { id: "desktop", label: "PC / Desktop", width: "100%", height: "100%", icon: Monitor },
-  { id: "tablet", label: "Tablet (768px)", width: "768px", height: "1024px", icon: Tablet },
-  { id: "mobile-max", label: "Mobile Max (430px)", width: "430px", height: "932px", icon: Smartphone },
-  { id: "mobile", label: "Mobile (390px)", width: "390px", height: "844px", icon: Smartphone },
+  { id: "desktop", label: "PC / Desktop", width: 0, height: 0, icon: Monitor },
+  { id: "tablet", label: "Tablet (768px)", width: 768, height: 1024, icon: Tablet },
+  { id: "mobile-max", label: "Mobile Max (430px)", width: 430, height: 932, icon: Smartphone },
+  { id: "mobile", label: "Mobile (390px)", width: 390, height: 844, icon: Smartphone },
 ];
 
 export function DevicePreviewWrapper({ children }: { children: React.ReactNode }) {
-  // Se já estiver sendo executado dentro de um iframe, renderiza diretamente o conteúdo real
   const isInsideIframe = typeof window !== "undefined" && window.self !== window.top;
 
   const [device, setDevice] = useState<DeviceMode>(() => {
@@ -28,6 +27,10 @@ export function DevicePreviewWrapper({ children }: { children: React.ReactNode }
   });
   const [minimized, setMinimized] = useState<boolean>(() => {
     return localStorage.getItem("emprestai_preview_device_minimized") === "true";
+  });
+  const [scale, setScale] = useState<number>(() => {
+    const saved = localStorage.getItem("emprestai_preview_device_scale");
+    return saved ? Number(saved) : 0.95;
   });
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -44,7 +47,10 @@ export function DevicePreviewWrapper({ children }: { children: React.ReactNode }
     localStorage.setItem("emprestai_preview_device_minimized", String(minimized));
   }, [minimized]);
 
-  // Se já está no iframe, renderiza o App real sem adicionar mais wrappers
+  useEffect(() => {
+    localStorage.setItem("emprestai_preview_device_scale", String(scale));
+  }, [scale]);
+
   if (isInsideIframe) {
     return <>{children}</>;
   }
@@ -101,6 +107,29 @@ export function DevicePreviewWrapper({ children }: { children: React.ReactNode }
                   type="button"
                   size="icon"
                   variant="ghost"
+                  className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground text-xs"
+                  onClick={() => setScale((prev) => Math.max(0.7, Number((prev - 0.05).toFixed(2))))}
+                  title="Diminuir zoom do dispositivo"
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </Button>
+                <span className="text-[10px] font-mono font-medium text-muted-foreground w-8 text-center">
+                  {Math.round(scale * 100)}%
+                </span>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground text-xs"
+                  onClick={() => setScale((prev) => Math.min(1.1, Number((prev + 0.05).toFixed(2))))}
+                  title="Aumentar zoom do dispositivo"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
                   className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground"
                   onClick={reloadIframe}
                   title="Recarregar tela mobile"
@@ -138,41 +167,35 @@ export function DevicePreviewWrapper({ children }: { children: React.ReactNode }
         )}
       </div>
 
-      {/* Renderização real */}
+      {/* Renderização do App */}
       {device === "desktop" ? (
         <div className="w-full min-h-screen flex-1">{children}</div>
       ) : (
-        <div className="w-full min-h-screen bg-neutral-900/90 dark:bg-black/95 py-6 px-4 flex flex-col justify-start items-center overflow-y-auto">
-          <div className="text-center mb-3">
-            <span className="text-xs font-medium text-neutral-300 bg-neutral-800/80 px-3 py-1 rounded-full border border-neutral-700">
-              Viewport real: <strong className="text-white">{activeDevice.width} × {activeDevice.height}</strong> ({activeDevice.label})
+        <div className="w-full min-h-screen bg-neutral-950 py-4 px-2 flex flex-col justify-center items-center overflow-x-hidden">
+          <div className="text-center mb-2">
+            <span className="text-[11px] font-medium text-neutral-400 bg-neutral-900/90 px-3 py-0.5 rounded-full border border-neutral-800 shadow-sm">
+              {activeDevice.label} • Resolução real: <strong className="text-neutral-200">{activeDevice.width}px × {activeDevice.height}px</strong>
             </span>
           </div>
 
           <div
-            style={{ width: activeDevice.width, height: activeDevice.height, maxWidth: "100%" }}
-            className="bg-background border-[10px] border-neutral-800 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] rounded-[44px] overflow-hidden flex flex-col relative ring-1 ring-white/10 shrink-0"
+            style={{
+              width: `${activeDevice.width}px`,
+              height: `${activeDevice.height}px`,
+              transform: `scale(${scale})`,
+              transformOrigin: "top center",
+              marginBottom: `calc(${activeDevice.height * (scale - 1)}px + 20px)`,
+            }}
+            className="bg-background border-2 border-neutral-700/80 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] rounded-[32px] overflow-hidden flex flex-col relative ring-1 ring-white/10 shrink-0 transition-transform duration-150"
           >
-            {/* Dynamic Island / Câmera de Smartphone */}
-            <div className="w-full bg-background pt-2 pb-1.5 flex justify-center items-center select-none shrink-0 border-b border-border/10">
-              <div className="w-24 h-4 bg-black rounded-full flex items-center justify-end pr-2">
-                <div className="w-2.5 h-2.5 bg-neutral-800 rounded-full" />
-              </div>
-            </div>
-
-            {/* Iframe com a viewport e media queries reais de mobile */}
+            {/* Iframe com 100% da área visível sem sobreposições */}
             <iframe
               ref={iframeRef}
               src={iframeSrc}
               title={`Simulador ${activeDevice.label}`}
-              className="w-full flex-1 border-none bg-background"
+              className="w-full h-full border-none bg-background flex-1"
               style={{ width: "100%", height: "100%" }}
             />
-
-            {/* Home Indicator do Smartphone */}
-            <div className="w-full bg-background py-1.5 flex justify-center items-center select-none shrink-0 border-t border-border/10">
-              <div className="w-32 h-1 bg-neutral-400/50 dark:bg-neutral-600 rounded-full" />
-            </div>
           </div>
         </div>
       )}
