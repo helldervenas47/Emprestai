@@ -370,6 +370,7 @@ export function BillingCenter() {
           <ChevronDown className={`h-4 w-4 transition-transform ${chargedTodayOpen ? "rotate-180" : ""}`} />
         </CollapsibleTrigger>
         <CollapsibleContent className="space-y-2 border-t border-emerald-500/20 p-2">
+          <BillingListHeader />
           {chargedTodayGroups.map((group) => (
             <ClientBillingFolder
               key={`charged-${group.clientId}`}
@@ -415,6 +416,7 @@ export function BillingCenter() {
               </div>
             </div>
             <div className="space-y-2">
+              <BillingListHeader />
               {dayGroup.clientGroups.map((group) => (
                 <ClientBillingFolder
                   key={`${dayGroup.daysUntil}-${group.clientId}`}
@@ -433,6 +435,7 @@ export function BillingCenter() {
       </div>
     ) : (
       <div className="space-y-2">
+        <BillingListHeader />
         {pendingClientGroups.map((group) => (
           <ClientBillingFolder
             key={group.clientId}
@@ -506,6 +509,31 @@ export function BillingCenter() {
   </div>;
 }
 
+function BillingListHeader() {
+  return (
+    <div className="flex w-full items-center text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-0 py-1 select-none">
+      <div className="ml-3 flex h-8 w-8 shrink-0 items-center justify-center">
+        <span className="sr-only">Seleção</span>
+      </div>
+      <div className="flex min-w-0 flex-1 items-center gap-2 px-2 text-left">
+        <span className="min-w-0 flex-1 truncate">Cliente</span>
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 text-right">
+          <div className="min-w-[65px] sm:min-w-[85px] text-right">
+            <span>Juros</span>
+          </div>
+          <div className="min-w-[70px] sm:min-w-[95px] text-right">
+            <span>A receber</span>
+          </div>
+        </div>
+        <div className="min-w-7 px-1.5 sm:px-2 shrink-0 text-center">
+          <span className="hidden sm:inline">Qtd</span>
+        </div>
+        <div className="w-4 shrink-0" />
+      </div>
+    </div>
+  );
+}
+
 function ClientBillingFolder({ group, sentToday, blockedToday = sentToday, selected, setSelected, onCharge, onChargeMany }: {
   group: { clientId: string; clientName: string; rows: BillingCandidate[] };
   sentToday: boolean;
@@ -536,12 +564,10 @@ function ClientBillingFolder({ group, sentToday, blockedToday = sentToday, selec
         {group.clientName}
       </span>
       <div className="flex items-center gap-2 sm:gap-3 shrink-0 text-right">
-        <div className="text-right">
-          <span className="hidden sm:block text-[9px] uppercase font-semibold text-muted-foreground leading-none mb-0.5">Juros</span>
+        <div className="min-w-[65px] sm:min-w-[85px] text-right">
           <span className="text-[11px] sm:text-xs font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{money.format(totalInterest)}</span>
         </div>
-        <div className="text-right">
-          <span className="hidden sm:block text-[9px] uppercase font-semibold text-muted-foreground leading-none mb-0.5">A receber</span>
+        <div className="min-w-[70px] sm:min-w-[95px] text-right">
           <span className="text-[11px] sm:text-xs font-bold tabular-nums text-foreground">{money.format(totalAmount)}</span>
         </div>
       </div>
