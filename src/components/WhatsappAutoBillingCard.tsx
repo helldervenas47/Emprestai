@@ -18,6 +18,7 @@ export function WhatsappAutoBillingCard() {
   const [previewing, setPreviewing] = useState(false);
   const [preview, setPreview] = useState<any[]>([]);
   const [connectionOpen, setConnectionOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
   const [connectRequest, setConnectRequest] = useState(0);
 
   const loadPreview = async () => {
@@ -106,7 +107,7 @@ export function WhatsappAutoBillingCard() {
         <div className="space-y-3 rounded-2xl border border-border/40 bg-muted/20 p-3 sm:p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0"><Badge variant="outline" className="whitespace-normal text-left text-[11px] leading-tight bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25 sm:text-xs">1. Conexão do Provedor</Badge><p className="mt-1.5 text-xs text-muted-foreground">Credenciais da sua instância do WhatsApp</p></div>
-            {connectionOpen && <Button type="button" variant="ghost" className="h-11 w-full rounded-xl sm:h-9 sm:w-auto" aria-expanded={connectionOpen} onClick={() => setConnectionOpen(false)}>Recolher<ChevronDown className="ml-1.5 h-4 w-4 rotate-180"/></Button>}
+            <Button type="button" variant="ghost" className="h-11 w-full rounded-xl sm:h-9 sm:w-auto" aria-expanded={connectionOpen} onClick={() => setConnectionOpen((open) => !open)}>{connectionOpen ? "Recolher" : "Expandir"}<ChevronDown className={`ml-1.5 h-4 w-4 transition-transform ${connectionOpen ? "rotate-180" : ""}`}/></Button>
           </div>
 
           {connectionOpen && <div className="space-y-3 border-t border-border/40 pt-3">
@@ -147,13 +148,12 @@ export function WhatsappAutoBillingCard() {
 
         {/* Bloco 2: Regras e Horários de Envio aos Clientes */}
         <div className="space-y-4 rounded-2xl border border-border/40 bg-muted/20 p-3 sm:p-4">
-          <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:gap-2">
-            <Badge variant="outline" className="whitespace-normal text-left text-[11px] leading-tight bg-primary/10 text-primary border-primary/25 sm:text-xs">
-              2. Regras e Horários para Clientes
-            </Badge>
-            <span className="text-xs text-muted-foreground">Defina quando e com que frequência disparar</span>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0"><Badge variant="outline" className="whitespace-normal text-left text-[11px] leading-tight bg-primary/10 text-primary border-primary/25 sm:text-xs">2. Regras e Horários para Clientes</Badge><p className="mt-1.5 text-xs text-muted-foreground">Defina quando e com que frequência disparar</p></div>
+            <Button type="button" variant="ghost" className="h-11 w-full rounded-xl sm:h-9 sm:w-auto" aria-expanded={rulesOpen} onClick={() => setRulesOpen((open) => !open)}>{rulesOpen ? "Recolher" : "Expandir"}<ChevronDown className={`ml-1.5 h-4 w-4 transition-transform ${rulesOpen ? "rotate-180" : ""}`}/></Button>
           </div>
 
+          {rulesOpen && <div className="space-y-4 border-t border-border/40 pt-3">
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">Horário de envio diário</Label>
@@ -242,6 +242,7 @@ export function WhatsappAutoBillingCard() {
               Executar teste agora
             </Button>
           </div>
+          </div>}
         </div>
 
         <div className="space-y-3 rounded-2xl border border-border/40 bg-muted/20 p-3 sm:p-4">
