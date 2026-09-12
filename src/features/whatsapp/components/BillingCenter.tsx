@@ -211,7 +211,10 @@ export function BillingCenter() {
     }
 
     toast.success(`${confirm.length} contrato(s) agrupado(s) em ${queueItems.length} mensagem(ns).`);
-    setSelected(new Set()); setConfirm(null); await refresh();
+    setSelected(new Set());
+    setConfirm(null);
+    supabase.functions.invoke("process-whatsapp-billing-queue", {}).catch(() => {});
+    await refresh();
   };
 
   const updateBatch = async (status: "paused" | "pending" | "cancelled") => {
