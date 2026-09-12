@@ -19,6 +19,7 @@ export function WhatsappAutoBillingCard() {
   const [preview, setPreview] = useState<any[]>([]);
   const [connectionOpen, setConnectionOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const [connectRequest, setConnectRequest] = useState(0);
   const [providerDraft, setProviderDraft] = useState({ provider: "evolution", base_url: "", instance_id: "" });
 
@@ -55,6 +56,7 @@ export function WhatsappAutoBillingCard() {
     if (schedule.enabled && schedule.last_run_at && Date.now() - new Date(schedule.last_run_at).getTime() > 36 * 60 * 60 * 1000) rows.push("A automação está ativa, mas não executa há mais de 36 horas.");
     return rows;
   }, [logs, schedule]);
+  const failedLogs = logs.filter((log) => !log.success);
 
   const handleRunNow = async () => {
     if (!schedule.base_url || !schedule.instance_id) {
@@ -111,8 +113,12 @@ export function WhatsappAutoBillingCard() {
       <CardContent className="space-y-4 p-3.5 pt-1 sm:space-y-5 sm:p-5 sm:pt-2">
         {(schedule.provider === "wppconnect" || schedule.provider === "evolution") && <WppConnectStatus provider={schedule.provider} onConnectRequested={openConnectionSettings} connectRequest={connectRequest} />}
         {schedule.alert_on_failure && alerts.length > 0 && <div className="space-y-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 sm:p-4">
-          <div className="flex items-center gap-2 text-sm font-bold text-amber-700 dark:text-amber-400"><AlertTriangle className="h-4 w-4"/>Alertas da automação</div>
+          <button type="button" className="flex w-full items-center gap-2 text-left text-sm font-bold text-amber-700 dark:text-amber-400" aria-expanded={alertsOpen} onClick={() => setAlertsOpen((open) => !open)}><AlertTriangle className="h-4 w-4"/><span className="flex-1">Alertas da automação</span><span className="text-[11px]">{alertsOpen ? "Recolher" : "Ver detalhes"}</span><ChevronDown className={`h-4 w-4 transition-transform ${alertsOpen ? "rotate-180" : ""}`}/></button>
           {alerts.map((alert) => <p key={alert} className="text-xs text-muted-foreground">{alert}</p>)}
+          {alertsOpen && <div className="max-h-64 space-y-2 overflow-y-auto border-t border-amber-500/20 pt-2">
+            {failedLogs.map((log) => <div key={log.id} className="rounded-xl border border-amber-500/20 bg-background/80 p-3"><div className="flex flex-wrap items-center justify-between gap-1"><span className="text-xs font-semibold">{log.status_when_sent || "Cobrança"}</span><span className="text-[10px] text-muted-foreground">{new Date(log.created_at).toLocaleString("pt-BR")}</span></div><p className="mt-1 text-[11px] text-muted-foreground">Telefone: {log.phone || "Não informado"}</p><p className="mt-1 break-words text-[11px] text-destructive">{log.error_message || "Falha sem detalhe informado pelo provedor."}</p></div>)}
+            {!failedLogs.length && <p className="py-2 text-center text-xs text-muted-foreground">Este alerta não possui registros de envio associados.</p>}
+          </div>}
         </div>}
         {/* Bloco 1: Conexão da API */}
         <div className="space-y-3 rounded-2xl border border-border/40 bg-muted/20 p-3 sm:p-4">
