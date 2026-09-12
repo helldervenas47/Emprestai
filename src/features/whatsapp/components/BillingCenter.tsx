@@ -1,5 +1,5 @@
 import React from "react";
-import { AlertTriangle, CalendarClock, CheckCheck, CheckCircle2, ChevronDown, Flag, ListChecks, Loader2, MessageCircle, Pause, RefreshCw, Send, TrendingUp, Users, WalletCards } from "lucide-react";
+import { AlertTriangle, Calendar, CalendarClock, CheckCheck, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Flag, ListChecks, Loader2, MessageCircle, Pause, RefreshCw, Send, TrendingUp, Users, WalletCards } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { DEFAULT_WHATSAPP_MESSAGES } from "@/lib/whatsappBilling";
 import { buildBillingCandidates, type BillingCandidate } from "../lib/billingCenter";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 type Filter = "all" | "today" | "overdue" | "upcoming";
 type QueueRow = { id: string; batch_id: string; client_id: string; loan_id: string; loan_ids?: string[] | null; status: string; scheduled_at: string; sent_at?: string; error_message?: string; attempts: number };
@@ -21,6 +22,28 @@ const date = (ymd: string) => ymd.split("-").reverse().join("/");
 const bahiaDay = (value: string | Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bahia" }).format(new Date(value));
 const getDaysUntil = (ymd: string, today: string) =>
   Math.round((new Date(`${ymd}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86_400_000);
+
+const shiftDay = (ymd: string, days: number) => {
+  const [year, month, day] = ymd.split("-").map(Number);
+  const d = new Date(year, month - 1, day);
+  d.setDate(d.getDate() + days);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dt = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dt}`;
+};
+
+const formatDayLabel = (ymd: string, todayYmd: string) => {
+  const [year, month, day] = ymd.split("-").map(Number);
+  const d = new Date(year, month - 1, day);
+  const weekday = new Intl.DateTimeFormat("pt-BR", { weekday: "short" }).format(d);
+  const formattedDate = `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
+  const isToday = ymd === todayYmd;
+  return {
+    label: `${weekday.charAt(0).toUpperCase() + weekday.slice(1)}, ${formattedDate}`,
+    isToday,
+  };
+};
 
 function SummaryCard({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return <div className="min-w-0 rounded-xl border border-border/60 bg-muted/25 p-3 text-center">
@@ -131,26 +154,27 @@ export function BillingCenter() {
   }, [queue, refresh]);
 
   const todayInBahia = bahiaDay(new Date());
+  const [selectedDate, setSelectedDate] = React.useState(todayInBahia);
   const autoBillingClientIds = React.useMemo(
     () => new Set(clientPreferences.filter((client) => client.enabled).map((client) => client.id)),
     [clientPreferences],
   );
   const visible = items.filter((item) => (filter === "all" && item.billingDate <= todayInBahia) ||
-    (filter === "today" && ["requested_today", "today"].includes(item.priority)) ||
+    (filter === "today" && item.billingDate === selectedDate) ||
     (filter === "overdue" && item.priority === "overdue") ||
     (filter === "upcoming" && ["tomorrow", "in_two_days", "in_three_days", "in_four_days"].includes(item.priority)));
   React.useEffect(() => {
     if (loading) return;
     const keys = visible.filter((item) => item.validPhone && autoBillingClientIds.has(item.clientId) && !sentTodayClientIds.has(item.clientId)).map((item) => item.key).sort();
-    const autoSelectionKey = `${filter}:${keys.join("|")}`;
+    const autoSelectionKey = `${filter}:${selectedDate}:${keys.join("|")}`;
     if (autoSelectionKeyRef.current === autoSelectionKey) return;
     autoSelectionKeyRef.current = autoSelectionKey;
     setSelected(new Set(keys));
-  }, [filter, loading, visible, autoBillingClientIds, sentTodayClientIds]);
+  }, [filter, selectedDate, loading, visible, autoBillingClientIds, sentTodayClientIds]);
   const selectedItems = visible.filter((item) => selected.has(item.key));
   const visibleClientIds = new Set(visible.map((item) => item.clientId));
   const sentTodayQueueRows = queue.filter(
-    (q) => q.status === "sent" && q.sent_at && bahiaDay(q.sent_at) === todayInBahia && visibleClientIds.has(q.client_id)
+    (q) => q.status === "sent" && q.sent_at && bahiaDay(q.sent_at) === (filter === "today" ? selectedDate : todayInBahia) && visibleClientIds.has(q.client_id)
   );
   const sentToday = sentTodayQueueRows.length;
   const sentTodayLoansCount = sentTodayQueueRows.reduce((sum, q) => {
@@ -346,6 +370,59 @@ export function BillingCenter() {
           <Users className="mr-1.5 h-3.5 w-3.5"/>Clientes
         </Button>
       </div>
+
+      {filter === "today" && (
+        <div className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-1.5">
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
+            aria-label="Dia anterior"
+            title="Dia anterior"
+            onClick={() => setSelectedDate((curr) => shiftDay(curr, -1))}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedDate(todayInBahia)}
+            title="Clique para voltar ao dia atual"
+            className={cn(
+              "group flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-semibold transition-all hover:bg-background/80 active:scale-95",
+              selectedDate === todayInBahia
+                ? "text-primary font-bold"
+                : "text-foreground hover:text-primary"
+            )}
+          >
+            <Calendar className="h-3.5 w-3.5 text-primary" />
+            <span>{formatDayLabel(selectedDate, todayInBahia).label}</span>
+            {selectedDate === todayInBahia ? (
+              <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px] font-medium bg-primary/10 text-primary border-0">
+                Hoje
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="ml-1 h-4 px-1 text-[10px] font-normal text-muted-foreground group-hover:border-primary group-hover:text-primary">
+                Voltar para hoje
+              </Badge>
+            )}
+          </button>
+
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
+            aria-label="Próximo dia"
+            title="Próximo dia"
+            onClick={() => setSelectedDate((curr) => shiftDay(curr, 1))}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
       <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-6">
         <SummaryCard icon={WalletCards} label="Total a receber" value={money.format(visibleAmount)} />
         <SummaryCard icon={TrendingUp} label="Juros a receber" value={money.format(visibleInterestAmount)} />
@@ -356,7 +433,7 @@ export function BillingCenter() {
       </div>
     </CardContent></Card>
 
-    <div className="flex w-full items-center gap-2 pb-1"><div className="grid min-w-0 flex-1 grid-cols-4 gap-1.5">{([['today','Hoje'],['overdue','Atrasadas'],['all','A cobrar'],['upcoming','Futuras']] as [Filter,string][]).map(([id,label]) => <Button key={id} size="sm" variant={filter === id ? "default" : "outline"} className="h-8 w-full min-w-0 rounded-full px-1 text-[11px] sm:px-3 sm:text-xs" onClick={() => setFilter(id)}>{label}</Button>)}</div><Button size="sm" variant="ghost" className="h-8 w-8 shrink-0 p-0" aria-label="Atualizar cobranças" onClick={refresh}><RefreshCw className="h-3.5 w-3.5"/></Button></div>
+    <div className="flex w-full items-center gap-2 pb-1"><div className="grid min-w-0 flex-1 grid-cols-4 gap-1.5">{([['today','Dia'],['overdue','Atrasadas'],['all','A cobrar'],['upcoming','Futuras']] as [Filter,string][]).map(([id,label]) => <Button key={id} size="sm" variant={filter === id ? "default" : "outline"} className="h-8 w-full min-w-0 rounded-full px-1 text-[11px] sm:px-3 sm:text-xs" onClick={() => setFilter(id)}>{label}</Button>)}</div><Button size="sm" variant="ghost" className="h-8 w-8 shrink-0 p-0" aria-label="Atualizar cobranças" onClick={refresh}><RefreshCw className="h-3.5 w-3.5"/></Button></div>
 
     <div className="sticky top-2 z-20 flex w-full items-center gap-1.5 rounded-xl border bg-background/95 p-2 shadow-sm backdrop-blur sm:gap-2">
       <Button size="sm" variant="ghost" className="min-w-0 flex-1 px-1 text-xs sm:flex-none sm:px-3 sm:text-sm" onClick={() => setSelected(new Set(visible.filter((i) => i.validPhone && !clientsSentToday.has(i.clientId)).map((i) => i.key)))}>Selecionar todos</Button>
@@ -400,7 +477,7 @@ export function BillingCenter() {
     {loading ? (
       <div className="py-12 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary"/></div>
     ) : visible.length === 0 ? (
-      <Card no3d><CardContent className="py-10 text-center text-sm text-muted-foreground"><CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-emerald-500"/>Nenhuma cobrança prioritária neste filtro.</CardContent></Card>
+      <Card no3d><CardContent className="py-10 text-center text-sm text-muted-foreground"><CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-emerald-500"/>{filter === "today" ? `Nenhuma cobrança para ${formatDayLabel(selectedDate, todayInBahia).label}.` : "Nenhuma cobrança prioritária neste filtro."}</CardContent></Card>
     ) : filter === "upcoming" ? (
       <div className="space-y-4">
         {upcomingDayGroups.map((dayGroup) => (

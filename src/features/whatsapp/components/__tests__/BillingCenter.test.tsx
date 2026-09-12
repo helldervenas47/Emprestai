@@ -149,4 +149,42 @@ describe("BillingCenter — Filtro de Futuras com separação por faixa de dias"
       expect(screen.getByText("Enviadas hoje")).toBeInTheDocument();
     });
   });
+
+  it("renderiza o seletor de dias na aba Dia e permite navegar entre os dias e resetar para hoje", async () => {
+    render(<BillingCenter />);
+
+    // Aguardar carregar e mudar para a aba "Dia"
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /^Dia$/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^Dia$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTitle("Dia anterior")).toBeInTheDocument();
+    });
+
+    const diaAnteriorBtn = screen.getByTitle("Dia anterior");
+    const proximoDiaBtn = screen.getByTitle("Próximo dia");
+
+    expect(diaAnteriorBtn).toBeInTheDocument();
+    expect(proximoDiaBtn).toBeInTheDocument();
+    expect(screen.getByText("Hoje")).toBeInTheDocument();
+
+    // Avançar para o próximo dia (Amanhã / D+1)
+    fireEvent.click(proximoDiaBtn);
+
+    await waitFor(() => {
+      // O cliente com vencimento amanhã (Cliente Carlos) deve aparecer
+      expect(screen.getByText("Cliente Carlos")).toBeInTheDocument();
+      expect(screen.getByText("Voltar para hoje")).toBeInTheDocument();
+    });
+
+    // Clicar em "Voltar para hoje"
+    fireEvent.click(screen.getByText("Voltar para hoje"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Hoje")).toBeInTheDocument();
+    });
+  });
 });
