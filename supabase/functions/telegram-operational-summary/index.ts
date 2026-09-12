@@ -310,14 +310,42 @@ async function sendOperationalSummaryToWhatsapp(
       if (prof?.phone) phone = normalizePhoneBR(prof.phone);
     }
     if (!phone) {
+      const { data: anyProf } = await admin
+        .from("profiles")
+        .select("phone")
+        .not("phone", "is", null)
+        .neq("phone", "")
+        .limit(1)
+        .maybeSingle();
+      if (anyProf?.phone) phone = normalizePhoneBR(anyProf.phone);
+    }
+    if (!phone) {
       return { sent: false, reason: "no_phone_configured" };
     }
 
-    const { data: sched } = await admin
+    let sched: any = null;
+    const { data: directSched } = await admin
       .from("whatsapp_billing_schedule")
       .select("provider, base_url, instance_id, api_key")
       .eq("owner_id", ownerId)
       .maybeSingle();
+
+    if (directSched?.base_url?.trim() && directSched?.instance_id?.trim()) {
+      sched = directSched;
+    } else {
+      const { data: fallbackSched } = await admin
+        .from("whatsapp_billing_schedule")
+        .select("provider, base_url, instance_id, api_key")
+        .not("base_url", "is", null)
+        .neq("base_url", "")
+        .not("instance_id", "is", null)
+        .neq("instance_id", "")
+        .limit(1)
+        .maybeSingle();
+      if (fallbackSched?.base_url && fallbackSched?.instance_id) {
+        sched = fallbackSched;
+      }
+    }
 
     if (!sched?.base_url || !sched?.instance_id) {
       return { sent: false, reason: "whatsapp_not_configured" };
@@ -916,6 +944,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
           if (ownerId) resolvedOwnerId = ownerId as string;
         } catch (_) {}
 
+        const body = await req.json().catch(() => ({}));
+        if (body?.owner_id) resolvedOwnerId = body.owner_id;
+
         let tz = "America/Sao_Paulo";
         try {
           const { data: settings } = await admin
@@ -926,7 +957,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
           if ((settings as any)?.timezone) tz = (settings as any).timezone;
         } catch (_) {}
 
-        const body = await req.json().catch(() => ({}));
         const isWhatsapp = body?.channel === "whatsapp" || body?.send_whatsapp === true;
         const { today } = nowParts(tz);
         const text = await generateOperationalSummaryReport(admin, resolvedOwnerId, today);

@@ -67,6 +67,7 @@ export function WhatsappReportCard() {
       const destPhone = whatsappPhone.trim() || profilePhone || undefined;
       const { data, error } = await supabase.functions.invoke("telegram-operational-summary", {
         body: {
+          owner_id: ownerId,
           channel: "whatsapp",
           send_whatsapp: true,
           phone: destPhone,
