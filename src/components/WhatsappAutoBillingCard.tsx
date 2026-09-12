@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useWhatsappBillingSchedule } from "@/hooks/useWhatsappBillingSchedule";
 import { toast } from "sonner";
-import { Send, Loader2, Clock, Zap, Eye, AlertTriangle } from "lucide-react";
+import { Send, Loader2, Clock, Zap, Eye, AlertTriangle, Plug, ChevronDown } from "lucide-react";
 import { WppConnectStatus } from "@/features/whatsapp/components/WppConnectStatus";
 
 
@@ -17,6 +17,7 @@ export function WhatsappAutoBillingCard() {
   const [sending, setSending] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [preview, setPreview] = useState<any[]>([]);
+  const [connectionOpen, setConnectionOpen] = useState(false);
 
   const loadPreview = async () => {
     setPreviewing(true);
@@ -90,21 +91,20 @@ export function WhatsappAutoBillingCard() {
       </CardHeader>
 
       <CardContent className="space-y-4 p-3.5 pt-1 sm:space-y-5 sm:p-5 sm:pt-2">
-        {(schedule.provider === "wppconnect" || schedule.provider === "evolution") && <WppConnectStatus provider={schedule.provider} />}
         {schedule.alert_on_failure && alerts.length > 0 && <div className="space-y-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 sm:p-4">
           <div className="flex items-center gap-2 text-sm font-bold text-amber-700 dark:text-amber-400"><AlertTriangle className="h-4 w-4"/>Alertas da automação</div>
           {alerts.map((alert) => <p key={alert} className="text-xs text-muted-foreground">{alert}</p>)}
         </div>}
         {/* Bloco 1: Conexão da API */}
         <div className="space-y-3 rounded-2xl border border-border/40 bg-muted/20 p-3 sm:p-4">
-          <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:gap-2">
-            <Badge variant="outline" className="whitespace-normal text-left text-[11px] leading-tight bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25 sm:text-xs">
-              1. Conexão do Provedor
-            </Badge>
-            <span className="text-xs text-muted-foreground">Credenciais da sua instância do WhatsApp</span>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0"><Badge variant="outline" className="whitespace-normal text-left text-[11px] leading-tight bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25 sm:text-xs">1. Conexão do Provedor</Badge><p className="mt-1.5 text-xs text-muted-foreground">Credenciais da sua instância do WhatsApp</p></div>
+            <Button type="button" variant={connectionOpen ? "secondary" : "outline"} className="h-11 w-full rounded-xl sm:h-9 sm:w-auto" aria-expanded={connectionOpen} onClick={() => setConnectionOpen((open) => !open)}><Plug className="mr-1.5 h-4 w-4"/>{connectionOpen ? "Recolher" : "Conectar"}<ChevronDown className={`ml-1.5 h-4 w-4 transition-transform ${connectionOpen ? "rotate-180" : ""}`}/></Button>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3 pt-1">
+          {connectionOpen && <div className="space-y-3 border-t border-border/40 pt-3">
+          {(schedule.provider === "wppconnect" || schedule.provider === "evolution") && <WppConnectStatus provider={schedule.provider} />}
+          <div className="grid gap-3 pt-1 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">Provedor</Label>
               <Select value={schedule.provider} onValueChange={(provider) => save({ provider })}>
@@ -135,6 +135,7 @@ export function WhatsappAutoBillingCard() {
               />
             </div>
           </div>
+          </div>}
         </div>
 
         {/* Bloco 2: Regras e Horários de Envio aos Clientes */}
