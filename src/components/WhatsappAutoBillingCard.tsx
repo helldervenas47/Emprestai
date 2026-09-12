@@ -105,9 +105,9 @@ export function WhatsappAutoBillingCard() {
         </div>}
         {/* Bloco 1: Conexão da API */}
         <div className="space-y-3 rounded-2xl border border-border/40 bg-muted/20 p-3 sm:p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start justify-between gap-2 sm:items-center">
             <div className="min-w-0"><Badge variant="outline" className="whitespace-normal text-left text-[11px] leading-tight bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25 sm:text-xs">1. Conexão do Provedor</Badge><p className="mt-1.5 text-xs text-muted-foreground">Credenciais da sua instância do WhatsApp</p></div>
-            <Button type="button" variant="ghost" className="h-11 w-full rounded-xl sm:h-9 sm:w-auto" aria-expanded={connectionOpen} onClick={() => setConnectionOpen((open) => !open)}>{connectionOpen ? "Recolher" : "Expandir"}<ChevronDown className={`ml-1.5 h-4 w-4 transition-transform ${connectionOpen ? "rotate-180" : ""}`}/></Button>
+            <Button type="button" variant="ghost" className="h-9 w-auto shrink-0 rounded-xl px-2 text-[11px] sm:px-3 sm:text-xs" aria-expanded={connectionOpen} onClick={() => setConnectionOpen((open) => !open)}>{connectionOpen ? "Recolher" : "Expandir"}<ChevronDown className={`ml-1 h-4 w-4 transition-transform sm:ml-1.5 ${connectionOpen ? "rotate-180" : ""}`}/></Button>
           </div>
 
           {connectionOpen && <div className="space-y-3 border-t border-border/40 pt-3">
@@ -148,9 +148,9 @@ export function WhatsappAutoBillingCard() {
 
         {/* Bloco 2: Regras e Horários de Envio aos Clientes */}
         <div className="space-y-4 rounded-2xl border border-border/40 bg-muted/20 p-3 sm:p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start justify-between gap-2 sm:items-center">
             <div className="min-w-0"><Badge variant="outline" className="whitespace-normal text-left text-[11px] leading-tight bg-primary/10 text-primary border-primary/25 sm:text-xs">2. Regras e Horários para Clientes</Badge><p className="mt-1.5 text-xs text-muted-foreground">Defina quando e com que frequência disparar</p></div>
-            <Button type="button" variant="ghost" className="h-11 w-full rounded-xl sm:h-9 sm:w-auto" aria-expanded={rulesOpen} onClick={() => setRulesOpen((open) => !open)}>{rulesOpen ? "Recolher" : "Expandir"}<ChevronDown className={`ml-1.5 h-4 w-4 transition-transform ${rulesOpen ? "rotate-180" : ""}`}/></Button>
+            <Button type="button" variant="ghost" className="h-9 w-auto shrink-0 rounded-xl px-2 text-[11px] sm:px-3 sm:text-xs" aria-expanded={rulesOpen} onClick={() => setRulesOpen((open) => !open)}>{rulesOpen ? "Recolher" : "Expandir"}<ChevronDown className={`ml-1 h-4 w-4 transition-transform sm:ml-1.5 ${rulesOpen ? "rotate-180" : ""}`}/></Button>
           </div>
 
           {rulesOpen && <div className="space-y-4 border-t border-border/40 pt-3">
