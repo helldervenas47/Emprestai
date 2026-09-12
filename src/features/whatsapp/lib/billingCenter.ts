@@ -1,7 +1,6 @@
 import type { Client, InstallmentSchedule, Loan, Payment } from "@/types/loan";
 import { getInstallmentAmount, getOverdueInstallments } from "@/features/loans/lib/loanInstallmentAmount";
 import { getLoanLateFees } from "@/features/loans/lib/loanLateFees";
-import { getLoanPendingBreakdown } from "@/features/loans/lib/portfolioPending";
 import {
   applyMessageVariables,
   DEFAULT_WHATSAPP_MESSAGES,
@@ -124,8 +123,19 @@ export function buildBillingCandidates(params: {
       ? finiteMoney(loan.renegotiationPenaltyTotal)
       : 0;
     const amount = Math.round((baseAmount + lateFees + renegotiationPenalty) * 100) / 100;
-    const loanBreakdown = getLoanPendingBreakdown(loan, payments, schedules, today);
-    const interestAmount = Math.round(finiteMoney(loanBreakdown.interestPending) * 100) / 100;
+    const installmentCount = overdueInstallmentCount > 1 ? overdueInstallmentCount : 1;
+    let chargedPrincipal = 0;
+    if (loan.installments > 1) {
+      const principalPerInstallment = safePrincipal / Math.max(1, loan.installments);
+      chargedPrincipal = Math.min(baseAmount, principalPerInstallment * installmentCount);
+    } else if (loan.paymentType === "Juros") {
+      chargedPrincipal = 0;
+    } else {
+      const contractualInterestRate = Number(loan.interestRate) || 0;
+      const nominalInterest = (safePrincipal * contractualInterestRate) / 100;
+      chargedPrincipal = Math.max(0, baseAmount - nominalInterest);
+    }
+    const interestAmount = Math.max(0, Math.round((amount - chargedPrincipal) * 100) / 100);
     const phone = normalizePhoneBR(clientPhone);
     const contractLabel = Array.isArray(loan.tags)
       ? loan.tags.map(String).map((tag) => tag.trim()).filter(Boolean).join(", ")
