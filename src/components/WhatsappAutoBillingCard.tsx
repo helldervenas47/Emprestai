@@ -18,6 +18,7 @@ export function WhatsappAutoBillingCard() {
   const [previewing, setPreviewing] = useState(false);
   const [preview, setPreview] = useState<any[]>([]);
   const [connectionOpen, setConnectionOpen] = useState(false);
+  const [connectRequest, setConnectRequest] = useState(0);
 
   const loadPreview = async () => {
     setPreviewing(true);
@@ -27,6 +28,11 @@ export function WhatsappAutoBillingCard() {
     } catch (error: any) {
       toast.error("Não foi possível gerar a prévia: " + (error?.message || String(error)));
     } finally { setPreviewing(false); }
+  };
+
+  const saveAndConnect = async () => {
+    await save({ provider: schedule.provider, base_url: schedule.base_url.trim(), instance_id: schedule.instance_id.trim() });
+    setConnectRequest((value) => value + 1);
   };
 
   const alerts = useMemo(() => {
@@ -91,6 +97,7 @@ export function WhatsappAutoBillingCard() {
       </CardHeader>
 
       <CardContent className="space-y-4 p-3.5 pt-1 sm:space-y-5 sm:p-5 sm:pt-2">
+        {(schedule.provider === "wppconnect" || schedule.provider === "evolution") && <WppConnectStatus provider={schedule.provider} onConnectRequested={() => setConnectionOpen(true)} connectRequest={connectRequest} />}
         {schedule.alert_on_failure && alerts.length > 0 && <div className="space-y-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 sm:p-4">
           <div className="flex items-center gap-2 text-sm font-bold text-amber-700 dark:text-amber-400"><AlertTriangle className="h-4 w-4"/>Alertas da automação</div>
           {alerts.map((alert) => <p key={alert} className="text-xs text-muted-foreground">{alert}</p>)}
@@ -99,11 +106,10 @@ export function WhatsappAutoBillingCard() {
         <div className="space-y-3 rounded-2xl border border-border/40 bg-muted/20 p-3 sm:p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0"><Badge variant="outline" className="whitespace-normal text-left text-[11px] leading-tight bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25 sm:text-xs">1. Conexão do Provedor</Badge><p className="mt-1.5 text-xs text-muted-foreground">Credenciais da sua instância do WhatsApp</p></div>
-            <Button type="button" variant={connectionOpen ? "secondary" : "outline"} className="h-11 w-full rounded-xl sm:h-9 sm:w-auto" aria-expanded={connectionOpen} onClick={() => setConnectionOpen((open) => !open)}><Plug className="mr-1.5 h-4 w-4"/>{connectionOpen ? "Recolher" : "Conectar"}<ChevronDown className={`ml-1.5 h-4 w-4 transition-transform ${connectionOpen ? "rotate-180" : ""}`}/></Button>
+            {connectionOpen && <Button type="button" variant="ghost" className="h-11 w-full rounded-xl sm:h-9 sm:w-auto" aria-expanded={connectionOpen} onClick={() => setConnectionOpen(false)}>Recolher<ChevronDown className="ml-1.5 h-4 w-4 rotate-180"/></Button>}
           </div>
 
           {connectionOpen && <div className="space-y-3 border-t border-border/40 pt-3">
-          {(schedule.provider === "wppconnect" || schedule.provider === "evolution") && <WppConnectStatus provider={schedule.provider} />}
           <div className="grid gap-3 pt-1 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">Provedor</Label>
@@ -135,6 +141,7 @@ export function WhatsappAutoBillingCard() {
               />
             </div>
           </div>
+          <Button type="button" className="h-11 w-full rounded-xl sm:ml-auto sm:h-9 sm:w-auto" disabled={!schedule.base_url.trim() || !schedule.instance_id.trim()} onClick={saveAndConnect}><Plug className="mr-1.5 h-4 w-4"/>Salvar e conectar</Button>
           </div>}
         </div>
 
