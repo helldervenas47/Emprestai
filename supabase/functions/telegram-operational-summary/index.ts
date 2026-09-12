@@ -1,13 +1,124 @@
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
-import { requireCronOrAdmin, cronCors } from "../_shared/require-cron-or-admin.ts";
-import { dueSlotKeys } from "../_shared/schedule.ts";
-import { sendWhatsappText } from "../_shared/whatsapp-service.ts";
 
 const corsHeaders = {
-  ...cronCors,
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
+
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+export function timeToMinutes(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const [hour, minute] = String(value).split(":").map(Number);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  return hour * 60 + minute;
+}
+
+export function isTimeDueToday(value: string | null | undefined, nowMinutes: number): boolean {
+  const target = timeToMinutes(value);
+  return target !== null && nowMinutes >= target;
+}
+
+export function dueSlotKeys<T extends string>(
+  slots: ReadonlyArray<{ key: T; time: string | null | undefined }>,
+  nowMinutes: number,
+  today: string,
+  lastSent: Record<string, string>,
+): T[] {
+  return slots
+    .filter((slot) => isTimeDueToday(slot.time, nowMinutes) && lastSent[slot.key] !== today)
+    .map((slot) => slot.key);
+}
+
+export interface WhatsappProviderConfig {
+  provider: string;
+  baseUrl: string;
+  instanceId: string;
+  apiKey: string;
+}
+
+export async function sendWhatsappText(config: WhatsappProviderConfig, phone: string, message: string) {
+  const base = config.baseUrl.replace(/\/+$/, "");
+  if (config.provider === "wppconnect") {
+    const response = await fetch(`${base}/api/${encodeURIComponent(config.instanceId)}/send-message`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.apiKey}` },
+      body: JSON.stringify({ phone, message }),
+    });
+    return { ok: response.ok, status: response.status, body: await response.text() };
+  }
+  if (config.provider === "evolution") {
+    const response = await fetch(`${base}/message/sendText/${encodeURIComponent(config.instanceId)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: config.apiKey },
+      body: JSON.stringify({ number: phone, text: message }),
+    });
+    return { ok: response.ok, status: response.status, body: await response.text() };
+  }
+  const response = await fetch(`${base}/message/sendText/${encodeURIComponent(config.instanceId)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: config.apiKey },
+    body: JSON.stringify({ number: phone, text: message, textMessage: { text: message } }),
+  });
+  return { ok: response.ok, status: response.status, body: await response.text() };
+}
+
+export async function requireCronOrAdmin(
+  req: Request,
+  adminClient?: SupabaseClient,
+): Promise<{ via: "cron" | "admin"; userId?: string } | Response> {
+  const provided = req.headers.get("x-cron-secret") ?? "";
+  const expected = Deno.env.get("CRON_SECRET") ?? "";
+  if (expected && provided && safeEqual(provided, expected)) {
+    return { via: "cron" };
+  }
+
+  if (provided) {
+    try {
+      const admin = adminClient ?? getExternalAdmin();
+      const { data } = await admin
+        .from("app_internal_config")
+        .select("value")
+        .eq("key", "cron_secret")
+        .maybeSingle();
+      if (data?.value && safeEqual(provided, String(data.value))) {
+        return { via: "cron" };
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const token = authHeader.replace(/^Bearer\s+/i, "");
+
+  if (token) {
+    const serviceKeys = [
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    ];
+    try {
+      const externalServiceKey = getExternalServiceRoleKey();
+      if (!serviceKeys.includes(externalServiceKey)) serviceKeys.push(externalServiceKey);
+    } catch {
+      // ignore
+    }
+    if (serviceKeys.some((key) => key && safeEqual(token, key))) {
+      return { via: "cron" };
+    }
+  }
+
+  return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    status: 401,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
 const EXTERNAL_PROJECT_REF = Deno.env.get("EXTERNAL_PROJECT_REF") ?? "syyxnqzxqabeuqbuptkh";
 

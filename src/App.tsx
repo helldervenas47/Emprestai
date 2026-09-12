@@ -25,7 +25,6 @@ import { TrialExpiredGate } from "./features/admin/components/upgrade/TrialExpir
 import { ReadOnlyModeSync } from "./features/admin/components/upgrade/ReadOnlyModeSync";
 import { AccessLockRouteGuard } from "./features/admin/components/upgrade/AccessLockRouteGuard";
 import { LazyChunkErrorBoundary } from "./components/LazyChunkErrorBoundary";
-import { DevicePreviewWrapper } from "./components/DevicePreviewSwitcher";
 
 wireAutoSync();
 
@@ -141,86 +140,84 @@ const App = () => (
               <MobileKeyboardScrollSync />
               <AppFontSync />
               <ViewAsBanner />
-              <DevicePreviewWrapper>
-                <Suspense fallback={<PageLoader />}>
-                  <LazyChunkErrorBoundary>
-                  <Routes>
-                    <Route
-                      path="/"
-                      element={
-                        <ProtectedRoute>
-                          <Index />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/auth"
-                      element={
-                        <PublicRoute>
-                          <Auth />
-                        </PublicRoute>
-                      }
-                    />
-                    <Route
-                      path="/cadastro"
-                      element={
-                        <PublicRoute>
-                          <Cadastro />
-                        </PublicRoute>
-                      }
-                    />
-                    <Route path="/planos" element={<Pricing />} />
-                    <Route path="/termos" element={<Terms />} />
-                    <Route path="/reembolso" element={<RefundPolicy />} />
-                    <Route path="/privacidade" element={<PrivacyPolicy />} />
-                    <Route path="/reset-password" element={<ResetPassword />} />
-                    <Route
-                      path="/planejamento-do-dia"
-                      element={
-                        <ProtectedRoute>
-                          <DailyPlanning />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/cofrinhos"
-                      element={
-                        <ProtectedRoute>
-                          <PiggyBanks />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/bem-vindo"
-                      element={
-                        <ProtectedRoute skipOnboardingCheck>
-                          <Welcome />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route path="/ajuda" element={<Navigate to="/?tab=help" replace />} />
-                    <Route
-                      path="/cofrinho/:id"
-                      element={
-                        <ProtectedRoute>
-                          <PiggyBankDetail />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/diagnostico-financeiro"
-                      element={
-                        <ProtectedRoute>
-                          <PainelMigracao />
-                        </ProtectedRoute>
-                      }
-                    />
+              <Suspense fallback={<PageLoader />}>
+                <LazyChunkErrorBoundary>
+                <Routes>
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute>
+                        <Index />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/auth"
+                    element={
+                      <PublicRoute>
+                        <Auth />
+                      </PublicRoute>
+                    }
+                  />
+                  <Route
+                    path="/cadastro"
+                    element={
+                      <PublicRoute>
+                        <Cadastro />
+                      </PublicRoute>
+                    }
+                  />
+                  <Route path="/planos" element={<Pricing />} />
+                  <Route path="/termos" element={<Terms />} />
+                  <Route path="/reembolso" element={<RefundPolicy />} />
+                  <Route path="/privacidade" element={<PrivacyPolicy />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route
+                    path="/planejamento-do-dia"
+                    element={
+                      <ProtectedRoute>
+                        <DailyPlanning />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/cofrinhos"
+                    element={
+                      <ProtectedRoute>
+                        <PiggyBanks />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/bem-vindo"
+                    element={
+                      <ProtectedRoute skipOnboardingCheck>
+                        <Welcome />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route path="/ajuda" element={<Navigate to="/?tab=help" replace />} />
+                  <Route
+                    path="/cofrinho/:id"
+                    element={
+                      <ProtectedRoute>
+                        <PiggyBankDetail />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/diagnostico-financeiro"
+                    element={
+                      <ProtectedRoute>
+                        <PainelMigracao />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                  </LazyChunkErrorBoundary>
-                </Suspense>
-              </DevicePreviewWrapper>
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+                </LazyChunkErrorBoundary>
+              </Suspense>
             </PaymentCelebrationProvider>
           </AuthProvider>
         </BrowserRouter>
