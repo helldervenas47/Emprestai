@@ -313,10 +313,10 @@ export function BillingCenter() {
 
     <div className="flex w-full items-center gap-2 pb-1"><div className="grid min-w-0 flex-1 grid-cols-4 gap-1.5">{([['today','Hoje'],['overdue','Atrasadas'],['all','A cobrar'],['upcoming','Futuras']] as [Filter,string][]).map(([id,label]) => <Button key={id} size="sm" variant={filter === id ? "default" : "outline"} className="h-8 w-full min-w-0 rounded-full px-1 text-[11px] sm:px-3 sm:text-xs" onClick={() => setFilter(id)}>{label}</Button>)}</div><Button size="sm" variant="ghost" className="h-8 w-8 shrink-0 p-0" aria-label="Atualizar cobranças" onClick={refresh}><RefreshCw className="h-3.5 w-3.5"/></Button></div>
 
-    <div className="sticky top-2 z-20 flex items-center gap-2 rounded-xl border bg-background/95 backdrop-blur p-2 shadow-sm">
-      <Button size="sm" variant="ghost" onClick={() => setSelected(new Set(visible.filter((i) => i.validPhone && !clientsSentToday.has(i.clientId)).map((i) => i.key)))}>Selecionar todos</Button>
-      <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Desmarcar</Button>
-      <Button size="sm" className="ml-auto bg-emerald-600 hover:bg-emerald-700" disabled={!selectedItems.length} onClick={() => setConfirm(selectedItems)}><Send className="h-4 w-4 mr-1.5"/>Cobrar</Button>
+    <div className="sticky top-2 z-20 flex w-full items-center gap-1.5 rounded-xl border bg-background/95 p-2 shadow-sm backdrop-blur sm:gap-2">
+      <Button size="sm" variant="ghost" className="min-w-0 flex-1 px-1 text-xs sm:flex-none sm:px-3 sm:text-sm" onClick={() => setSelected(new Set(visible.filter((i) => i.validPhone && !clientsSentToday.has(i.clientId)).map((i) => i.key)))}>Selecionar todos</Button>
+      <Button size="sm" variant="ghost" className="min-w-0 flex-1 px-1 text-xs sm:flex-none sm:px-3 sm:text-sm" onClick={() => setSelected(new Set())}>Desmarcar</Button>
+      <Button size="sm" className="shrink-0 bg-emerald-600 px-3 hover:bg-emerald-700 sm:ml-auto" disabled={!selectedItems.length} onClick={() => setConfirm(selectedItems)}><Send className="mr-1.5 h-4 w-4"/>Cobrar</Button>
     </div>
 
     {activeQueue.length > 0 && <Card no3d className="border-primary/30"><CardContent className="p-3 flex items-center gap-3"><Loader2 className="h-4 w-4 animate-spin text-primary"/><div className="flex-1"><p className="text-sm font-semibold">Enviando cobranças</p><p className="text-xs text-muted-foreground">{queue.filter(q => q.status === 'sent').length} enviadas · {activeQueue.length} aguardando/processando</p></div><Button size="sm" variant="outline" onClick={() => updateBatch('paused')}><Pause className="h-3.5 w-3.5 mr-1"/>Pausar</Button><Button size="sm" variant="ghost" onClick={() => updateBatch('cancelled')}>Cancelar fila</Button></CardContent></Card>}
