@@ -48,6 +48,8 @@ Deno.serve(async (req) => {
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause);
     await admin.from("whatsapp_billing_queue").update({ status: "failed", error_message: message }).eq("id", item.id);
+    const failedLoanIds = Array.isArray(item.loan_ids) && item.loan_ids.length ? item.loan_ids : [item.loan_id];
+    await admin.from("whatsapp_billing_log").insert(failedLoanIds.map((loanId: string) => ({ owner_id: item.user_id, loan_id: loanId, client_id: item.client_id, installment_number: loanId === item.loan_id ? item.installment_number : 0, status_when_sent: item.billing_status || "central", phone: item.phone, message: item.message, success: false, error_message: message, sent_date: new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bahia" }).format(new Date()) })));
     return new Response(JSON.stringify({ ok: false, id: item.id, error: message }), { status: 502, headers: cors });
   }
 });

@@ -14,6 +14,10 @@ export interface WhatsappBillingSchedule {
   send_on_due_day: boolean;
   send_when_overdue: boolean;
   overdue_repeat_days: number;
+  allowed_start_time: string;
+  allowed_end_time: string;
+  allowed_weekdays: number[];
+  alert_on_failure: boolean;
   last_run_at?: string | null;
   manager_summary_enabled: boolean;
   manager_summary_day_of_week: number; // 0=Sun..6=Sat
@@ -45,13 +49,17 @@ const DEFAULT: WhatsappBillingSchedule = {
   send_on_due_day: true,
   send_when_overdue: true,
   overdue_repeat_days: 3,
+  allowed_start_time: "08:00",
+  allowed_end_time: "18:00",
+  allowed_weekdays: [1, 2, 3, 4, 5, 6],
+  alert_on_failure: true,
   manager_summary_enabled: false,
   manager_summary_day_of_week: 1,
   manager_summary_time: "09:00",
 };
 
 const BILLING_SCHEDULE_COLUMNS =
-  "id, owner_id, enabled, provider, base_url, instance_id, send_time, days_before_due, send_on_due_day, send_when_overdue, overdue_repeat_days, last_run_at, manager_summary_enabled, manager_summary_day_of_week, manager_summary_time, manager_last_run_at";
+  "id, owner_id, enabled, provider, base_url, instance_id, send_time, days_before_due, send_on_due_day, send_when_overdue, overdue_repeat_days, allowed_start_time, allowed_end_time, allowed_weekdays, alert_on_failure, last_run_at, manager_summary_enabled, manager_summary_day_of_week, manager_summary_time, manager_last_run_at";
 
 const BILLING_LOG_COLUMNS =
   "id, loan_id, client_id, installment_number, status_when_sent, phone, message, success, error_message, sent_date, created_at";
@@ -93,6 +101,10 @@ export function useWhatsappBillingSchedule() {
       send_on_due_day: next.send_on_due_day,
       send_when_overdue: next.send_when_overdue,
       overdue_repeat_days: next.overdue_repeat_days,
+      allowed_start_time: next.allowed_start_time,
+      allowed_end_time: next.allowed_end_time,
+      allowed_weekdays: next.allowed_weekdays,
+      alert_on_failure: next.alert_on_failure,
       manager_summary_enabled: next.manager_summary_enabled,
       manager_summary_day_of_week: next.manager_summary_day_of_week,
       manager_summary_time: next.manager_summary_time,
@@ -110,6 +122,15 @@ export function useWhatsappBillingSchedule() {
     if (error) throw error;
     return data;
   }, [dataOwnerId, fetchAll]);
+
+  const previewNextRun = useCallback(async () => {
+    if (!dataOwnerId) return null;
+    const { data, error } = await supabase.functions.invoke("send-whatsapp-billing", {
+      body: { owner_id: dataOwnerId, manual_run: true, preview_only: true },
+    });
+    if (error) throw error;
+    return data;
+  }, [dataOwnerId]);
 
   const runManagerSummaryNow = useCallback(async (opts?: { manager_user_id?: string }) => {
     if (!dataOwnerId) return null;
@@ -140,7 +161,7 @@ export function useWhatsappBillingSchedule() {
   }, [dataOwnerId]);
 
   return {
-    schedule, logs, loading, save, runNow,
+    schedule, logs, loading, save, runNow, previewNextRun,
     runManagerSummaryNow,
     listManagerSummaryRecipients,
     previewManagerSummary,

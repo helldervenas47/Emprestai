@@ -27,6 +27,16 @@ function todayStr(tz = APP_TZ): string {
   return `${y}-${m}-${day}`;
 }
 
+const minutesOf = (value: string) => {
+  const [hour, minute] = value.slice(0, 5).split(":").map(Number);
+  return hour * 60 + minute;
+};
+
+const isDueInCurrentCronWindow = (target: string, current: string) => {
+  const delta = minutesOf(current) - minutesOf(target || "09:00");
+  return delta >= 0 && delta < 5;
+};
+
 function diffDays(a: string, b: string): number {
   const da = new Date(a + "T00:00:00").getTime();
   const db = new Date(b + "T00:00:00").getTime();
@@ -118,10 +128,12 @@ Deno.serve(async (req: Request) => {
 
     let forceOwner: string | null = null;
     let manualRun = false;
+    let previewOnly = false;
     try {
       const json = await req.json();
       if (json?.owner_id) forceOwner = json.owner_id;
       manualRun = json?.manual_run === true;
+      previewOnly = json?.preview_only === true;
     } catch { /* no body */ }
 
     // AUTH: per-owner manual run requires the caller's JWT to belong to that owner;
@@ -140,7 +152,7 @@ Deno.serve(async (req: Request) => {
       return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
     })();
 
-    const scheduleCols = "owner_id, enabled, provider, send_time, base_url, instance_id, days_before_due, send_on_due_day, send_when_overdue, overdue_repeat_days";
+    const scheduleCols = "owner_id, enabled, provider, send_time, base_url, instance_id, days_before_due, send_on_due_day, send_when_overdue, overdue_repeat_days, allowed_start_time, allowed_end_time, allowed_weekdays, alert_on_failure";
     let scheduleQuery = admin.from("whatsapp_billing_schedule").select(scheduleCols).eq("enabled", true);
     if (forceOwner) scheduleQuery = scheduleQuery.eq("owner_id", forceOwner);
     const { data: schedules, error: schedErr } = await scheduleQuery;
@@ -149,11 +161,11 @@ Deno.serve(async (req: Request) => {
     const results: any[] = [];
 
     for (const sched of schedules ?? []) {
-      if (!forceOwner) {
-        const targetHour = (sched.send_time || "09:00").slice(0, 2);
-        const currentHour = nowHM.slice(0, 2);
-        if (targetHour !== currentHour) continue;
-      }
+      const weekday = nowInTz().getDay();
+      const allowedWeekdays = Array.isArray(sched.allowed_weekdays) ? sched.allowed_weekdays : [1, 2, 3, 4, 5, 6];
+      const insideWindow = minutesOf(nowHM) >= minutesOf(sched.allowed_start_time || "08:00")
+        && minutesOf(nowHM) <= minutesOf(sched.allowed_end_time || "18:00");
+      if (!manualRun && (!allowedWeekdays.includes(weekday) || !insideWindow)) continue;
 
       const providerApiKey = sched.provider === "wppconnect"
         ? Deno.env.get("WPPCONNECT_TOKEN") || ""
@@ -193,7 +205,7 @@ Deno.serve(async (req: Request) => {
       const borrowerIds = Array.from(new Set(loans.map((l: any) => l.borrower_id).filter(Boolean)));
 
       const { data: clients } = borrowerIds.length
-        ? await admin.from("clients").select("id, name, phone, auto_billing_enabled").in("id", borrowerIds)
+        ? await admin.from("clients").select("id, name, phone, auto_billing_enabled, auto_billing_send_time, auto_billing_repeat_days, auto_billing_weekdays").in("id", borrowerIds)
         : { data: [] as any[] };
       const clientById = new Map((clients ?? []).map((c: any) => [c.id, c]));
 
@@ -231,6 +243,9 @@ Deno.serve(async (req: Request) => {
           const phoneRaw = client?.phone || "";
           if (!phoneRaw) continue;
           if (client && client.auto_billing_enabled === false) continue;
+          const clientWeekdays = Array.isArray(client?.auto_billing_weekdays) ? client.auto_billing_weekdays : allowedWeekdays;
+          const clientSendTime = client?.auto_billing_send_time || sched.send_time || "09:00";
+          if (!manualRun && (!clientWeekdays.includes(weekday) || !isDueInCurrentCronWindow(clientSendTime, nowHM))) continue;
 
           const paid = loan.paid_installments ?? 0;
           const total = loan.installments ?? 1;
@@ -284,7 +299,7 @@ Deno.serve(async (req: Request) => {
             shouldSend = !!sched.send_on_due_day;
           } else if (status === "vencida" || status === "muito_vencida") {
             if (sched.send_when_overdue) {
-              const repeat = Math.max(1, sched.overdue_repeat_days ?? 3);
+              const repeat = Math.max(1, client?.auto_billing_repeat_days ?? sched.overdue_repeat_days ?? 3);
               shouldSend = manualRun ? messageDaysOverdue > 0 : messageDaysOverdue === 0 || messageDaysOverdue % repeat === 0;
             }
           }
@@ -348,6 +363,11 @@ Deno.serve(async (req: Request) => {
             .replace(/\{datas_priorizadas\}/g, entries.map((entry: any) => formatBR(entry.dueDate)).join("; "))
             .replace(/\{link_pagamento\}/g, linkPagamento);
         }
+        if (previewOnly) {
+          results.push({ owner_id: ownerId, client_id: clientId, client_name: clientById.get(clientId)?.name || "", loan_ids: entries.map((entry: any) => entry.loanId), contracts: entries.length, amount: totalAmount, scheduled_at: new Date(Date.now() + queueIndex * 30_000).toISOString(), message });
+          queueIndex += 1;
+          continue;
+        }
         const scheduledAt = new Date(Date.now() + queueIndex * 30_000).toISOString();
         const { error: queueError } = await admin.from("whatsapp_billing_queue").insert({
           batch_id: batchId, user_id: ownerId, client_id: clientId,
@@ -361,7 +381,7 @@ Deno.serve(async (req: Request) => {
         results.push({ owner_id: ownerId, client_id: clientId, loan_ids: entries.map((entry: any) => entry.loanId), queued: !queueError, duplicate: queueError?.code === "23505" });
       }
 
-      await admin.from("whatsapp_billing_schedule")
+      if (!previewOnly) await admin.from("whatsapp_billing_schedule")
         .update({ last_run_at: new Date().toISOString() })
         .eq("owner_id", ownerId);
     }
