@@ -511,22 +511,23 @@ export function BillingCenter() {
 
 function BillingListHeader() {
   return (
-    <div className="flex w-full items-center text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-0 py-1 select-none">
+    <div className="flex w-full items-center rounded-2xl border border-transparent text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-muted-foreground select-none">
       <div className="ml-3 flex h-8 w-8 shrink-0 items-center justify-center">
         <span className="sr-only">Seleção</span>
       </div>
-      <div className="flex min-w-0 flex-1 items-center gap-2 px-2 text-left">
+      <div className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left">
         <span className="min-w-0 flex-1 truncate">Cliente</span>
         <div className="flex items-center gap-2 sm:gap-3 shrink-0 text-right">
-          <div className="min-w-[65px] sm:min-w-[85px] text-right">
+          <div className="w-20 sm:w-28 shrink-0 text-right">
             <span>Juros</span>
           </div>
-          <div className="min-w-[70px] sm:min-w-[95px] text-right">
+          <div className="w-20 sm:w-32 shrink-0 text-right">
             <span>A receber</span>
           </div>
         </div>
-        <div className="min-w-7 px-1.5 sm:px-2 shrink-0 text-center">
-          <span className="hidden sm:inline">Qtd</span>
+        <div className="w-8 sm:w-28 shrink-0 flex items-center justify-center text-center">
+          <span className="hidden sm:inline">Contratos</span>
+          <span className="sm:hidden">Qtd</span>
         </div>
         <div className="w-4 shrink-0" />
       </div>
@@ -564,16 +565,18 @@ function ClientBillingFolder({ group, sentToday, blockedToday = sentToday, selec
         {group.clientName}
       </span>
       <div className="flex items-center gap-2 sm:gap-3 shrink-0 text-right">
-        <div className="min-w-[65px] sm:min-w-[85px] text-right">
+        <div className="w-20 sm:w-28 shrink-0 text-right">
           <span className="text-[11px] sm:text-xs font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{money.format(totalInterest)}</span>
         </div>
-        <div className="min-w-[70px] sm:min-w-[95px] text-right">
+        <div className="w-20 sm:w-32 shrink-0 text-right">
           <span className="text-[11px] sm:text-xs font-bold tabular-nums text-foreground">{money.format(totalAmount)}</span>
         </div>
       </div>
-      <Badge variant="outline" className="min-w-7 justify-center px-1.5 sm:px-2 text-[10px] shrink-0">
-        <span>{group.rows.length}</span><span className="hidden sm:inline">&nbsp;contrato(s)</span>
-      </Badge>
+      <div className="w-8 sm:w-28 shrink-0 flex items-center justify-center">
+        <Badge variant="outline" className="w-full justify-center px-1 text-[10px] truncate">
+          <span>{group.rows.length}</span><span className="hidden sm:inline">&nbsp;contrato(s)</span>
+        </Badge>
+      </div>
       <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}/>
       </CollapsibleTrigger>
     </div>
