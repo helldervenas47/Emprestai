@@ -1,6 +1,7 @@
 import type { Client, InstallmentSchedule, Loan, Payment } from "@/types/loan";
 import { getInstallmentAmount, getOverdueInstallments } from "@/features/loans/lib/loanInstallmentAmount";
 import { getLoanLateFees } from "@/features/loans/lib/loanLateFees";
+import { getLoanPendingBreakdown } from "@/features/loans/lib/portfolioPending";
 import {
   applyMessageVariables,
   DEFAULT_WHATSAPP_MESSAGES,
@@ -29,6 +30,7 @@ export interface BillingCandidate {
   amount: number;
   baseAmount: number;
   lateFees: number;
+  interestAmount: number;
   overdueInstallmentCount: number;
   dueDate: string;
   billingDate: string;
@@ -122,6 +124,8 @@ export function buildBillingCandidates(params: {
       ? finiteMoney(loan.renegotiationPenaltyTotal)
       : 0;
     const amount = Math.round((baseAmount + lateFees + renegotiationPenalty) * 100) / 100;
+    const loanBreakdown = getLoanPendingBreakdown(loan, payments, schedules, today);
+    const interestAmount = Math.round(finiteMoney(loanBreakdown.interestPending) * 100) / 100;
     const phone = normalizePhoneBR(clientPhone);
     const contractLabel = Array.isArray(loan.tags)
       ? loan.tags.map(String).map((tag) => tag.trim()).filter(Boolean).join(", ")
@@ -142,6 +146,7 @@ export function buildBillingCandidates(params: {
       amount,
       baseAmount,
       lateFees: lateFees + renegotiationPenalty,
+      interestAmount,
       overdueInstallmentCount,
       dueDate,
       billingDate,

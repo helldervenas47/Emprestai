@@ -524,18 +524,31 @@ function ClientBillingFolder({ group, sentToday, blockedToday = sentToday, selec
     else selectableKeys.forEach((key) => next.add(key));
     return next;
   });
+  const totalAmount = group.rows.reduce((sum, item) => sum + item.amount, 0);
+  const totalInterest = group.rows.reduce((sum, item) => sum + (item.interestAmount || 0), 0);
   return <Collapsible open={open} onOpenChange={setOpen} className="rounded-2xl border bg-card overflow-hidden">
     <div className="flex w-full items-center hover:bg-muted/40">
       <button type="button" onClick={toggleGroup} disabled={!selectableKeys.length} aria-label={`${allSelected ? "Desmarcar" : "Selecionar"} todos os contratos de ${group.clientName}`} aria-pressed={allSelected} className={`ml-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors disabled:opacity-40 ${allSelected ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:border-primary hover:text-primary"}`}>
         <Flag className={`h-4 w-4 ${allSelected ? "fill-current" : ""}`}/>
       </button>
       <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-2 px-2 py-3 text-left">
-      <span className={`min-w-0 flex-1 truncate text-sm font-bold ${sentToday ? "text-emerald-600 dark:text-emerald-400" : ""}`}>{group.clientName}</span>
-      <span className="shrink-0 text-[11px] font-semibold tabular-nums text-muted-foreground sm:text-xs">{money.format(group.rows.reduce((sum, item) => sum + item.amount, 0))}</span>
-      <Badge variant="outline" className="min-w-7 justify-center px-2 text-[10px]">
+      <span className={`min-w-0 flex-1 truncate text-sm font-bold ${sentToday ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"}`} title={group.clientName}>
+        {group.clientName}
+      </span>
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0 text-right">
+        <div className="text-right">
+          <span className="hidden sm:block text-[9px] uppercase font-semibold text-muted-foreground leading-none mb-0.5">Juros</span>
+          <span className="text-[11px] sm:text-xs font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{money.format(totalInterest)}</span>
+        </div>
+        <div className="text-right">
+          <span className="hidden sm:block text-[9px] uppercase font-semibold text-muted-foreground leading-none mb-0.5">A receber</span>
+          <span className="text-[11px] sm:text-xs font-bold tabular-nums text-foreground">{money.format(totalAmount)}</span>
+        </div>
+      </div>
+      <Badge variant="outline" className="min-w-7 justify-center px-1.5 sm:px-2 text-[10px] shrink-0">
         <span>{group.rows.length}</span><span className="hidden sm:inline">&nbsp;contrato(s)</span>
       </Badge>
-      <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}/>
+      <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}/>
       </CollapsibleTrigger>
     </div>
     <CollapsibleContent className="border-t">

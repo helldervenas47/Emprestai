@@ -11,13 +11,20 @@ vi.mock("@/hooks/useAuth", () => ({
   }),
 }));
 
+const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bahia" }).format(new Date());
+const addDays = (ymd: string, days: number) => {
+  const d = new Date(`${ymd}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 const mockLoans = [
   {
     id: "loan-1",
     user_id: "user-1",
     borrower_id: "client-1",
     borrower_name: "Cliente Carlos",
-    due_date: "2026-09-12", // Amanhã (D+1)
+    due_date: addDays(today, 1), // Amanhã (D+1)
     amount: 500,
     remaining_amount: 500,
     installments: 1,
@@ -30,7 +37,7 @@ const mockLoans = [
     user_id: "user-1",
     borrower_id: "client-2",
     borrower_name: "Cliente Bruno",
-    due_date: "2026-09-13", // D+2
+    due_date: addDays(today, 2), // D+2
     amount: 300,
     remaining_amount: 300,
     installments: 1,
@@ -43,7 +50,7 @@ const mockLoans = [
     user_id: "user-1",
     borrower_id: "client-3",
     borrower_name: "Cliente Daniel",
-    due_date: "2026-09-15", // D+4
+    due_date: addDays(today, 4), // D+4
     amount: 700,
     remaining_amount: 700,
     installments: 1,
