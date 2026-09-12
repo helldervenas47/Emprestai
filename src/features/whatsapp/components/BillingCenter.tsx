@@ -1,5 +1,5 @@
 import React from "react";
-import { AlertTriangle, CalendarClock, CheckCircle2, ChevronDown, Clock3, Flag, ListChecks, Loader2, MessageCircle, Pause, RefreshCw, Send, Users, WalletCards, XCircle } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckCircle2, ChevronDown, Flag, ListChecks, Loader2, MessageCircle, Pause, RefreshCw, Send, Users, WalletCards } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,8 +43,6 @@ export function BillingCenter() {
   const [confirm, setConfirm] = React.useState<BillingCandidate[] | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [creating, setCreating] = React.useState(false);
-  const [historyStatus, setHistoryStatus] = React.useState<"all" | "sent" | "failed" | "cancelled">("all");
-  const [historyOpen, setHistoryOpen] = React.useState(false);
   const [chargedTodayOpen, setChargedTodayOpen] = React.useState(true);
   const [clientsOpen, setClientsOpen] = React.useState(false);
   const [clientPreferences, setClientPreferences] = React.useState<ClientBillingPreference[]>([]);
@@ -185,11 +183,6 @@ export function BillingCenter() {
     await refresh();
   };
 
-  const retry = async (id: string) => {
-    await supabase.from("whatsapp_billing_queue").update({ status: "pending", scheduled_at: new Date().toISOString(), error_message: null }).eq("id", id).eq("status", "failed");
-    await refresh();
-  };
-
   const openClientPreferences = () => {
     setClientPreferenceDraft(new Set(clientPreferences.filter((client) => client.enabled).map((client) => client.id)));
     setClientPreferenceView("all");
@@ -290,7 +283,6 @@ export function BillingCenter() {
 
   const activeQueue = queue.filter((q) => ["pending", "processing"].includes(q.status));
   const pausedQueue = queue.filter((q) => q.status === "paused");
-  const historyRows = queue.filter((q) => historyStatus === "all" || q.status === historyStatus).slice(0, 30);
 
   return <div className="space-y-3">
     <Card no3d className="rounded-2xl border-border/60"><CardContent className="p-4">
@@ -413,8 +405,6 @@ export function BillingCenter() {
         ))}
       </div>
     )}
-
-    <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}><Card no3d><CardContent className="p-3"><CollapsibleTrigger className="flex w-full items-center gap-2 text-left"><h3 className="flex-1 text-sm font-semibold">Histórico recente</h3><Badge variant="outline" className="text-[10px]">{queue.length}</Badge><ChevronDown className={`h-4 w-4 transition-transform ${historyOpen ? "rotate-180" : ""}`}/></CollapsibleTrigger><CollapsibleContent><div className="mt-3 flex flex-wrap gap-1">{([['all','Todas'],['sent','Enviadas'],['failed','Falharam'],['cancelled','Canceladas']] as const).map(([id,label]) => <Button key={id} size="sm" variant={historyStatus === id ? 'secondary' : 'ghost'} className="h-7 px-2 text-[11px]" onClick={() => setHistoryStatus(id)}>{label}</Button>)}</div><div className="mt-2 space-y-1">{historyRows.map(row => <div key={row.id} className="flex items-center gap-2 text-xs py-1.5 border-b last:border-0">{row.status === 'sent' ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500"/> : row.status === 'failed' ? <XCircle className="h-3.5 w-3.5 text-destructive"/> : <Clock3 className="h-3.5 w-3.5 text-muted-foreground"/>}<span className="capitalize">{row.status}</span><span className="ml-auto text-muted-foreground">Tentativa {row.attempts}</span>{row.error_message && <span className="truncate max-w-[35%] text-destructive">{row.error_message}</span>}{row.status === 'failed' && <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => retry(row.id)}>Tentar novamente</Button>}</div>)}</div></CollapsibleContent></CardContent></Card></Collapsible>
 
     <Dialog open={!!confirm} onOpenChange={(open) => !open && setConfirm(null)}><DialogContent><DialogHeader><DialogTitle>Enviar cobranças?</DialogTitle><DialogDescription>{confirm && new Set(confirm.map(i => i.clientId)).size === 1 ? `Enviar uma mensagem com ${confirm.length} contrato(s) para ${confirm[0].clientName}?` : `${confirm?.length || 0} contratos serão agrupados por cliente, sem limite de quantidade.`}</DialogDescription></DialogHeader>{confirm && new Set(confirm.map(i => i.clientId)).size === 1 && <div className="max-h-72 overflow-y-auto rounded-xl bg-muted/50 p-3 text-sm whitespace-pre-wrap">{confirm.length > 1 ? consolidatedMessage(confirm, centerTemplates.multiple, centerTemplates.pixLink) : singleContractMessage(confirm[0], centerTemplates.single, centerTemplates.pixLink)}</div>}<DialogFooter><Button variant="outline" onClick={() => setConfirm(null)}>Cancelar</Button><Button onClick={enqueue} disabled={creating}>{creating && <Loader2 className="h-4 w-4 mr-1 animate-spin"/>}Enviar mensagem</Button></DialogFooter></DialogContent></Dialog>
 
