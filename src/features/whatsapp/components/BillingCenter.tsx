@@ -361,61 +361,68 @@ export function BillingCenter() {
 
   return <div className="space-y-3">
     <Card no3d className="rounded-2xl border-border/60"><CardContent className="p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2"><MessageCircle className="h-5 w-5 text-emerald-500"/><h2 className="font-bold">Central de Cobranças</h2></div>
-          <p className="mt-1 text-xs text-muted-foreground">Quem você precisa cobrar hoje, em uma única lista.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <MessageCircle className="h-5 w-5 text-emerald-500 shrink-0" />
+            <h2 className="font-bold text-base sm:text-lg truncate">Central de Cobranças</h2>
+          </div>
+          <p className="mt-0.5 text-xs text-muted-foreground">Quem você precisa cobrar hoje, em uma única lista.</p>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 shrink-0">
-          {filter === "today" && (
-            <div className="inline-flex items-center gap-0.5 rounded-lg border border-border/60 bg-muted/20 px-1 py-0.5">
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7 shrink-0 rounded-md text-muted-foreground hover:text-foreground"
-                aria-label="Dia anterior"
-                title="Dia anterior"
-                onClick={() => setSelectedDate((curr) => shiftDay(curr, -1))}
-              >
-                <ChevronLeft className="h-3.5 w-3.5" />
-              </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 shrink-0 rounded-full px-3 text-xs"
+          onClick={openClientPreferences}
+        >
+          <Users className="mr-1.5 h-3.5 w-3.5" />
+          Clientes
+        </Button>
+      </div>
 
-              <button
-                type="button"
-                onClick={() => setSelectedDate(todayInBahia)}
-                title={selectedDate === todayInBahia ? "Dia atual" : "Clique para voltar ao dia atual"}
-                className={cn(
-                  "group flex items-center justify-center gap-1.5 rounded px-2 py-1 text-xs font-semibold whitespace-nowrap transition-all hover:bg-background/80 active:scale-95",
-                  selectedDate === todayInBahia
-                    ? "text-primary font-bold"
-                    : "text-foreground hover:text-primary"
-                )}
-              >
-                <Calendar className="h-3.5 w-3.5 shrink-0 text-primary" />
-                <span className="whitespace-nowrap">{formatDayLabel(selectedDate, todayInBahia).label}</span>
-              </button>
+      {filter === "today" && (
+        <div className="mt-3 flex w-full items-center justify-between gap-1 rounded-xl border border-border/60 bg-muted/20 p-1">
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground active:scale-95"
+            aria-label="Dia anterior"
+            title="Dia anterior"
+            onClick={() => setSelectedDate((curr) => shiftDay(curr, -1))}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
 
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7 shrink-0 rounded-md text-muted-foreground hover:text-foreground"
-                aria-label="Próximo dia"
-                title="Próximo dia"
-                onClick={() => setSelectedDate((curr) => shiftDay(curr, 1))}
-              >
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={() => setSelectedDate(todayInBahia)}
+            title={selectedDate === todayInBahia ? "Dia atual" : "Clique para voltar ao dia atual"}
+            className={cn(
+              "group flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold whitespace-nowrap transition-all hover:bg-background/80 active:scale-95",
+              selectedDate === todayInBahia
+                ? "text-primary font-bold"
+                : "text-foreground hover:text-primary"
+            )}
+          >
+            <Calendar className="h-3.5 w-3.5 shrink-0 text-primary" />
+            <span className="truncate">{formatDayLabel(selectedDate, todayInBahia).label}</span>
+          </button>
 
-          <Button size="sm" variant="outline" className="h-8 shrink-0 rounded-full px-3" onClick={openClientPreferences}>
-            <Users className="mr-1.5 h-3.5 w-3.5"/>Clientes
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground active:scale-95"
+            aria-label="Próximo dia"
+            title="Próximo dia"
+            onClick={() => setSelectedDate((curr) => shiftDay(curr, 1))}
+          >
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-      </div>
+      )}
 
       <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-6">
         <SummaryCard icon={WalletCards} label="Total a receber" value={money.format(visibleAmount)} />
