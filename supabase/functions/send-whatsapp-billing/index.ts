@@ -326,6 +326,7 @@ Deno.serve(async (req: Request) => {
             user_id: ownerId,
             client_id: client.id,
             loan_id: loan.id,
+            loan_ids: [loan.id],
             installment_number: installmentNumber,
             phone,
             message,

@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
   if (!ownership.ok) return json({ error: ownership.reason }, 403);
   const items = Array.isArray(body.items) ? body.items.slice(0, 50) : [];
   if (!items.length) return json({ error: "empty_queue" }, 400);
-  const loanIds = [...new Set(items.map((item: any) => item.loan_id))];
+  const loanIds = [...new Set(items.flatMap((item: any) => [item.loan_id, ...(Array.isArray(item.loan_ids) ? item.loan_ids : [])]).filter(Boolean))];
   const { data: ownedLoans } = await admin.from("loans").select("id, borrower_id, status, paid_installments").eq("user_id", ownerId).in("id", loanIds);
   const owned = new Map((ownedLoans || []).map((loan: any) => [loan.id, loan]));
   const clientIds = [...new Set(items.map((item: any) => item.client_id))];
@@ -42,12 +42,17 @@ Deno.serve(async (req) => {
   const createdAt = new Date();
   const rows = items.flatMap((item: any, index: number) => {
     const loan = owned.get(item.loan_id);
+    const includedLoanIds = [...new Set([item.loan_id, ...(Array.isArray(item.loan_ids) ? item.loan_ids : [])].filter(Boolean))];
+    const includedLoansAreValid = includedLoanIds.every((loanId) => {
+      const includedLoan = owned.get(loanId);
+      return includedLoan && includedLoan.borrower_id === item.client_id && includedLoan.status !== "paid";
+    });
     const client = clients.get(item.client_id);
     const phone = String(client?.phone || "").replace(/\D/g, "");
     const normalizedPhone = phone.startsWith("55") ? phone : `55${phone}`;
-    if (!loan || !client || alreadyCharged.has(item.client_id) || loan.borrower_id !== client.id || loan.status === "paid" || Number(loan.paid_installments) >= Number(item.installment_number) || !/^55\d{10,11}$/.test(normalizedPhone)) return [];
+    if (!loan || !client || !includedLoansAreValid || alreadyCharged.has(item.client_id) || loan.borrower_id !== client.id || loan.status === "paid" || Number(loan.paid_installments) >= Number(item.installment_number) || !/^55\d{10,11}$/.test(normalizedPhone)) return [];
     return [{
-      batch_id: batchId, user_id: ownerId, client_id: item.client_id, loan_id: item.loan_id,
+      batch_id: batchId, user_id: ownerId, client_id: item.client_id, loan_id: item.loan_id, loan_ids: includedLoanIds,
       installment_number: item.installment_number, phone: normalizedPhone, message: String(item.message || "").slice(0, 4096),
       amount: item.amount, due_date: item.due_date, force_resend: body.force_resend === true,
       scheduled_at: new Date(createdAt.getTime() + index * 30_000).toISOString(),

@@ -14,7 +14,7 @@ import { buildBillingCandidates, type BillingCandidate } from "../lib/billingCen
 import { toast } from "sonner";
 
 type Filter = "all" | "today" | "overdue" | "upcoming";
-type QueueRow = { id: string; batch_id: string; client_id: string; status: string; scheduled_at: string; sent_at?: string; error_message?: string; attempts: number };
+type QueueRow = { id: string; batch_id: string; client_id: string; loan_id: string; loan_ids?: string[] | null; status: string; scheduled_at: string; sent_at?: string; error_message?: string; attempts: number };
 type ClientBillingPreference = { id: string; name: string; openLoans: number; enabled: boolean };
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const date = (ymd: string) => ymd.split("-").reverse().join("/");
@@ -37,6 +37,7 @@ export function BillingCenter() {
   const [items, setItems] = React.useState<BillingCandidate[]>([]);
   const [queue, setQueue] = React.useState<QueueRow[]>([]);
   const [sentTodayClientIds, setSentTodayClientIds] = React.useState<Set<string>>(new Set());
+  const [sentTodayLoanIds, setSentTodayLoanIds] = React.useState<Set<string>>(new Set());
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [filter, setFilter] = React.useState<Filter>("all");
   const [confirm, setConfirm] = React.useState<BillingCandidate[] | null>(null);
@@ -68,8 +69,8 @@ export function BillingCenter() {
       supabase.from("loan_installments").select("*").eq("user_id", dataOwnerId),
       supabase.from("payments").select("*").eq("user_id", dataOwnerId),
       supabase.from("whatsapp_payment_promises").select("loan_id, installment_number, promised_date").eq("user_id", dataOwnerId),
-      supabase.from("whatsapp_billing_queue").select("id, batch_id, client_id, status, scheduled_at, sent_at, error_message, attempts").eq("user_id", dataOwnerId).order("created_at", { ascending: false }).limit(100),
-      supabase.from("whatsapp_billing_queue").select("client_id").eq("user_id", dataOwnerId).eq("status", "sent").gte("sent_at", todayStart).lt("sent_at", tomorrow.toISOString()),
+      supabase.from("whatsapp_billing_queue").select("id, batch_id, client_id, loan_id, loan_ids, status, scheduled_at, sent_at, error_message, attempts").eq("user_id", dataOwnerId).order("created_at", { ascending: false }).limit(100),
+      supabase.from("whatsapp_billing_queue").select("client_id, loan_id, loan_ids").eq("user_id", dataOwnerId).eq("status", "sent").gte("sent_at", todayStart).lt("sent_at", tomorrow.toISOString()),
       supabase.from("whatsapp_billing_messages").select("message_upcoming, message_due_today, message_overdue, message_very_overdue, message_center_single, message_center_multiple, very_overdue_days, pix_link").eq("owner_id", dataOwnerId).maybeSingle(),
     ]);
     const errors = [loans.error, clients.error, schedules.error, payments.error, promises.error, queued.error, sentClients.error].filter(Boolean);
@@ -116,6 +117,9 @@ export function BillingCenter() {
     });
     setQueue((queued.data || []) as QueueRow[]);
     setSentTodayClientIds(new Set((sentClients.data || []).map((row: any) => row.client_id)));
+    setSentTodayLoanIds(new Set((sentClients.data || []).flatMap((row: any) =>
+      Array.isArray(row.loan_ids) && row.loan_ids.length ? row.loan_ids : [row.loan_id]
+    ).filter(Boolean)));
     setLoading(false);
   }, [user, dataOwnerId]);
 
@@ -163,7 +167,7 @@ export function BillingCenter() {
     }, new Map<string, BillingCandidate[]>()).values());
     const queueItems = grouped.map((rows) => {
       const first = rows[0];
-      return { client_id: first.clientId, loan_id: first.loanId, installment_number: first.installmentNumber, phone: first.phone, message: rows.length > 1 ? consolidatedMessage(rows, centerTemplates.multiple, centerTemplates.pixLink) : singleContractMessage(first, centerTemplates.single, centerTemplates.pixLink), amount: rows.reduce((sum, item) => sum + item.amount, 0), due_date: first.dueDate };
+      return { client_id: first.clientId, loan_id: first.loanId, loan_ids: rows.map((item) => item.loanId), installment_number: first.installmentNumber, phone: first.phone, message: rows.length > 1 ? consolidatedMessage(rows, centerTemplates.multiple, centerTemplates.pixLink) : singleContractMessage(first, centerTemplates.single, centerTemplates.pixLink), amount: rows.reduce((sum, item) => sum + item.amount, 0), due_date: first.dueDate };
     });
     const { data, error } = await supabase.functions.invoke("create-whatsapp-billing-queue", { body: { owner_id: dataOwnerId, items: queueItems } });
     setCreating(false);
@@ -230,14 +234,18 @@ export function BillingCenter() {
     }, new Map<string, { clientId: string; clientName: string; rows: BillingCandidate[] }>()).values(),
   ).sort((a, b) => a.clientName.localeCompare(b.clientName, "pt-BR", { sensitivity: "base" }));
   const clientsSentToday = sentTodayClientIds;
-  const chargedTodayGroups = clientGroups.filter((group) => clientsSentToday.has(group.clientId));
-  const pendingClientGroups = clientGroups.filter((group) => !clientsSentToday.has(group.clientId));
+  const chargedTodayGroups = clientGroups
+    .map((group) => ({ ...group, rows: group.rows.filter((item) => sentTodayLoanIds.has(item.loanId)) }))
+    .filter((group) => group.rows.length > 0);
+  const pendingClientGroups = clientGroups
+    .map((group) => ({ ...group, rows: group.rows.filter((item) => !sentTodayLoanIds.has(item.loanId)) }))
+    .filter((group) => group.rows.length > 0);
 
   const upcomingDayGroups = React.useMemo(() => {
     if (filter !== "upcoming") return [];
     const dayMap = new Map<number, { dateYmd: string; items: BillingCandidate[] }>();
     for (const item of visible) {
-      if (clientsSentToday.has(item.clientId)) continue;
+      if (sentTodayLoanIds.has(item.loanId)) continue;
       const daysUntil = Math.max(1, getDaysUntil(item.billingDate, todayInBahia));
       const current = dayMap.get(daysUntil) || { dateYmd: item.billingDate, items: [] };
       current.items.push(item);
@@ -270,7 +278,7 @@ export function BillingCenter() {
         clientGroups: groups,
       };
     });
-  }, [filter, visible, todayInBahia, clientsSentToday]);
+  }, [filter, visible, todayInBahia, sentTodayLoanIds]);
 
   const activeQueue = queue.filter((q) => ["pending", "processing"].includes(q.status));
   const pausedQueue = queue.filter((q) => q.status === "paused");
@@ -369,7 +377,8 @@ export function BillingCenter() {
                 <ClientBillingFolder
                   key={`${dayGroup.daysUntil}-${group.clientId}`}
                   group={group}
-                  sentToday={clientsSentToday.has(group.clientId)}
+                  sentToday={false}
+                  blockedToday={clientsSentToday.has(group.clientId)}
                   selected={selected}
                   setSelected={setSelected}
                   onCharge={(item) => setConfirm([item])}
@@ -386,7 +395,8 @@ export function BillingCenter() {
           <ClientBillingFolder
             key={group.clientId}
             group={group}
-            sentToday={clientsSentToday.has(group.clientId)}
+            sentToday={false}
+            blockedToday={clientsSentToday.has(group.clientId)}
             selected={selected}
             setSelected={setSelected}
             onCharge={(item) => setConfirm([item])}
@@ -436,16 +446,17 @@ export function BillingCenter() {
   </div>;
 }
 
-function ClientBillingFolder({ group, sentToday, selected, setSelected, onCharge, onChargeMany }: {
+function ClientBillingFolder({ group, sentToday, blockedToday = sentToday, selected, setSelected, onCharge, onChargeMany }: {
   group: { clientId: string; clientName: string; rows: BillingCandidate[] };
   sentToday: boolean;
+  blockedToday?: boolean;
   selected: Set<string>;
   setSelected: React.Dispatch<React.SetStateAction<Set<string>>>;
   onCharge: (item: BillingCandidate) => void;
   onChargeMany: (items: BillingCandidate[]) => void;
 }) {
   const [open, setOpen] = React.useState(false);
-  const selectableKeys = sentToday ? [] : group.rows.filter((item) => item.validPhone).map((item) => item.key);
+  const selectableKeys = blockedToday ? [] : group.rows.filter((item) => item.validPhone).map((item) => item.key);
   const allSelected = selectableKeys.length > 0 && selectableKeys.every((key) => selected.has(key));
   const toggleGroup = () => setSelected((previous) => {
     const next = new Set(previous);
@@ -470,7 +481,7 @@ function ClientBillingFolder({ group, sentToday, selected, setSelected, onCharge
     </div>
     <CollapsibleContent className="border-t">
       {group.rows.map(item => <div key={item.key} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 border-b last:border-0 px-3 py-2.5">
-        <Checkbox checked={selected.has(item.key)} disabled={!item.validPhone || sentToday} onCheckedChange={(checked) => setSelected(prev => { const next = new Set(prev); checked ? next.add(item.key) : next.delete(item.key); return next; })}/>
+        <Checkbox checked={selected.has(item.key)} disabled={!item.validPhone || blockedToday} onCheckedChange={(checked) => setSelected(prev => { const next = new Set(prev); checked ? next.add(item.key) : next.delete(item.key); return next; })}/>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="max-w-full truncate text-[10px]">{item.contractLabel}</Badge>
@@ -479,9 +490,9 @@ function ClientBillingFolder({ group, sentToday, selected, setSelected, onCharge
           {item.promisedDate && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-primary"><CalendarClock className="h-3.5 w-3.5"/>Nova Data: {date(item.promisedDate)}</p>}
           {!item.validPhone && <p className="text-[11px] text-amber-600 flex items-center gap-1"><AlertTriangle className="h-3 w-3"/>Número de WhatsApp inválido</p>}
         </div>
-        <Button size="sm" variant="outline" disabled={!item.validPhone || sentToday} onClick={() => onCharge(item)}>Cobrar</Button>
+        <Button size="sm" variant="outline" disabled={!item.validPhone || blockedToday} onClick={() => onCharge(item)}>Cobrar</Button>
       </div>)}
-      <div className="flex justify-end bg-muted/20 p-3"><Button size="sm" className="w-full bg-emerald-600 hover:bg-emerald-700 sm:w-auto" disabled={sentToday || !group.rows.some(item => item.validPhone)} onClick={() => onChargeMany(group.rows.filter(item => item.validPhone))}><Send className="mr-1.5 h-3.5 w-3.5"/>{sentToday ? "Cobrado hoje" : `Cobrar todos (${group.rows.filter(item => item.validPhone).length})`}</Button></div>
+      <div className="flex justify-end bg-muted/20 p-3"><Button size="sm" className="w-full bg-emerald-600 hover:bg-emerald-700 sm:w-auto" disabled={blockedToday || !group.rows.some(item => item.validPhone)} onClick={() => onChargeMany(group.rows.filter(item => item.validPhone))}><Send className="mr-1.5 h-3.5 w-3.5"/>{sentToday ? "Cobrado hoje" : blockedToday ? "Cliente já cobrado hoje" : `Cobrar todos (${group.rows.filter(item => item.validPhone).length})`}</Button></div>
     </CollapsibleContent>
   </Collapsible>;
 }
