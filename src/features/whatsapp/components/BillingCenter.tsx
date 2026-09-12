@@ -49,6 +49,7 @@ export function BillingCenter() {
   const [clientsOpen, setClientsOpen] = React.useState(false);
   const [clientPreferences, setClientPreferences] = React.useState<ClientBillingPreference[]>([]);
   const [clientPreferenceDraft, setClientPreferenceDraft] = React.useState<Set<string>>(new Set());
+  const [clientPreferenceView, setClientPreferenceView] = React.useState<"all" | "selected" | "unselected">("all");
   const [savingClients, setSavingClients] = React.useState(false);
   const autoSelectionKeyRef = React.useRef("");
   const [centerTemplates, setCenterTemplates] = React.useState({
@@ -191,8 +192,15 @@ export function BillingCenter() {
 
   const openClientPreferences = () => {
     setClientPreferenceDraft(new Set(clientPreferences.filter((client) => client.enabled).map((client) => client.id)));
+    setClientPreferenceView("all");
     setClientsOpen(true);
   };
+
+  const filteredClientPreferences = clientPreferences.filter((client) =>
+    clientPreferenceView === "all"
+      || (clientPreferenceView === "selected" && clientPreferenceDraft.has(client.id))
+      || (clientPreferenceView === "unselected" && !clientPreferenceDraft.has(client.id))
+  );
 
   const saveClientPreferences = async () => {
     if (!dataOwnerId) return;
@@ -416,12 +424,32 @@ export function BillingCenter() {
           <DialogTitle>Clientes da cobrança automática</DialogTitle>
           <DialogDescription>Marque quem pode receber cobranças automáticas. A lista inclui clientes com pelo menos um empréstimo em aberto.</DialogDescription>
         </DialogHeader>
+        <div className="grid w-full grid-cols-3 rounded-xl bg-muted p-1" role="group" aria-label="Filtrar clientes da cobrança automática">
+          {([
+            ["all", "Todos", clientPreferences.length],
+            ["selected", "Marcados", clientPreferenceDraft.size],
+            ["unselected", "Desmarcados", clientPreferences.length - clientPreferenceDraft.size],
+          ] as const).map(([id, label, count]) => (
+            <Button
+              key={id}
+              type="button"
+              size="sm"
+              variant={clientPreferenceView === id ? "secondary" : "ghost"}
+              aria-pressed={clientPreferenceView === id}
+              onClick={() => setClientPreferenceView(id)}
+              className="h-auto min-w-0 rounded-lg px-1.5 py-2 text-[11px] sm:px-3 sm:text-xs"
+            >
+              <span className="truncate">{label}</span>
+              <Badge variant="outline" className="ml-1 h-5 min-w-5 shrink-0 justify-center px-1 text-[9px]">{count}</Badge>
+            </Button>
+          ))}
+        </div>
         <div className="flex items-center justify-between gap-2">
           <Button type="button" size="sm" variant="ghost" onClick={() => setClientPreferenceDraft(new Set(clientPreferences.map((client) => client.id)))}>Marcar todos</Button>
           <Button type="button" size="sm" variant="ghost" onClick={() => setClientPreferenceDraft(new Set())}>Desmarcar todos</Button>
         </div>
         <div className="max-h-[55vh] space-y-2 overflow-y-auto pr-1">
-          {clientPreferences.map((client) => {
+          {filteredClientPreferences.map((client) => {
             const checked = clientPreferenceDraft.has(client.id);
             return <button key={client.id} type="button" onClick={() => setClientPreferenceDraft((previous) => {
               const next = new Set(previous);
@@ -435,7 +463,7 @@ export function BillingCenter() {
               <Badge variant="outline" className="shrink-0 text-[10px]">{client.openLoans}<span className="hidden sm:inline">&nbsp;em aberto</span></Badge>
             </button>;
           })}
-          {!clientPreferences.length && <p className="py-8 text-center text-sm text-muted-foreground">Nenhum cliente com empréstimo em aberto.</p>}
+          {!filteredClientPreferences.length && <p className="py-8 text-center text-sm text-muted-foreground">{clientPreferences.length ? "Nenhum cliente neste filtro." : "Nenhum cliente com empréstimo em aberto."}</p>}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setClientsOpen(false)}>Cancelar</Button>
