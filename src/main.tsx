@@ -10,11 +10,10 @@ import {
   USER_SUPABASE_URL,
 } from "./integrations/supabase/userClient";
 import { ConfigErrorScreen } from "./components/ConfigErrorScreen";
-import { setupPWA, isStandaloneMode } from "./lib/pwa/registerPWA";
+import { setupPWA } from "./lib/pwa/registerPWA";
 import { trackPWAEvent } from "./lib/pwa/events";
 
 bootstrapAppTheme();
-
 
 
 
@@ -72,45 +71,6 @@ if (typeof window !== "undefined" && "scrollRestoration" in window.history) {
 // (preview/iframe nunca registram; kill switch `?sw=off`; reload único).
 trackPWAEvent("pwa_boot_started");
 setupPWA();
-
-const isInIframe = (() => {
-  try {
-    return window.self !== window.top;
-  } catch {
-    return true;
-  }
-})();
-
-const isInStandaloneMode = isStandaloneMode();
-
-// Imersivo: tenta entrar em fullscreen no Android quando rodando como PWA instalado
-if (isInStandaloneMode && !isInIframe) {
-  const requestImmersive = async () => {
-    try {
-      const el: any = document.documentElement;
-      const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
-      if (req && !document.fullscreenElement) {
-        await req.call(el, { navigationUI: "hide" }).catch(() => req.call(el));
-      }
-      // Trava orientação se suportado
-      if (screen.orientation && (screen.orientation as any).lock) {
-        (screen.orientation as any).lock("portrait").catch(() => {});
-      }
-    } catch {
-      // ignore
-    }
-  };
-  // Precisa de gesto do usuário em muitos browsers
-  const onFirstInteraction = () => {
-    requestImmersive();
-    window.removeEventListener("pointerdown", onFirstInteraction);
-    window.removeEventListener("touchstart", onFirstInteraction);
-    window.removeEventListener("keydown", onFirstInteraction);
-  };
-  window.addEventListener("pointerdown", onFirstInteraction, { once: true });
-  window.addEventListener("touchstart", onFirstInteraction, { once: true });
-  window.addEventListener("keydown", onFirstInteraction, { once: true });
-}
 
 const rootEl = document.getElementById("root")!;
 if (!IS_SUPABASE_CONFIGURED) {

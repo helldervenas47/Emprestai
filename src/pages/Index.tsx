@@ -1294,40 +1294,6 @@ const Index = () => {
     document.documentElement.classList.toggle("dark", dark);
   }, [dark]);
 
-  // Força fullscreen real via Fullscreen API quando o app está instalado como PWA.
-  // Necessário porque alguns navegadores/fabricantes Android (Samsung Internet,
-  // WebViews customizadas, etc.) não respeitam de forma confiável o
-  // "display": "fullscreen" do manifest.json, caindo para "standalone"
-  // (que mantém a barra de status visível). A Fullscreen API exige um gesto
-  // do usuário para ser acionada, então é disparada no primeiro toque/clique.
-  useEffect(() => {
-    const isStandaloneOrFullscreen =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      window.matchMedia("(display-mode: fullscreen)").matches;
-
-    if (!isStandaloneOrFullscreen) return;
-
-    const tryEnterFullscreen = () => {
-      const el = document.documentElement as any;
-      if (document.fullscreenElement) return; // já em fullscreen
-      const request = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-      if (request) {
-        request.call(el).catch(() => {
-          // Silenciosamente ignora falhas (ex: navegador não suporta,
-          // ou usuário já saiu do fullscreen manualmente).
-        });
-      }
-    };
-
-    document.addEventListener("click", tryEnterFullscreen, { once: true });
-    document.addEventListener("touchend", tryEnterFullscreen, { once: true });
-
-    return () => {
-      document.removeEventListener("click", tryEnterFullscreen);
-      document.removeEventListener("touchend", tryEnterFullscreen);
-    };
-  }, []);
-
   const [themeSwitching, setThemeSwitching] = useState(false);
   const [pendingNav, setPendingNav] = useState<string | null>(null);
   const toggleTheme = () => {
