@@ -71,6 +71,11 @@ export function WhatsappReportCard() {
           channel: "whatsapp",
           send_whatsapp: true,
           phone: destPhone,
+          whatsapp_config: {
+            provider: schedule.provider || "evolution",
+            base_url: schedule.base_url || "",
+            instance_id: schedule.instance_id || "",
+          },
         },
       });
 

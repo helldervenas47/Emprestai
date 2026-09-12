@@ -287,7 +287,8 @@ async function sendOperationalSummaryToWhatsapp(
   admin: any,
   ownerId: string,
   text: string,
-  customPhone?: string | null
+  customPhone?: string | null,
+  passedConfig?: { provider?: string; base_url?: string; instance_id?: string; api_key?: string } | null,
 ): Promise<{ sent: boolean; reason?: string }> {
   try {
     let phone = customPhone ? normalizePhoneBR(customPhone) : "";
@@ -324,15 +325,32 @@ async function sendOperationalSummaryToWhatsapp(
     }
 
     let sched: any = null;
-    const { data: directSched } = await admin
-      .from("whatsapp_billing_schedule")
-      .select("provider, base_url, instance_id, api_key")
-      .eq("owner_id", ownerId)
-      .maybeSingle();
 
-    if (directSched?.base_url?.trim() && directSched?.instance_id?.trim()) {
-      sched = directSched;
-    } else {
+    // 1. Prioriza configuração passada no body (frontend ativo)
+    if (passedConfig?.base_url?.trim() && passedConfig?.instance_id?.trim()) {
+      sched = {
+        provider: passedConfig.provider || "evolution",
+        base_url: passedConfig.base_url.trim(),
+        instance_id: passedConfig.instance_id.trim(),
+        api_key: passedConfig.api_key || "",
+      };
+    }
+
+    // 2. Busca na tabela whatsapp_billing_schedule pelo owner_id
+    if (!sched) {
+      const { data: directSched } = await admin
+        .from("whatsapp_billing_schedule")
+        .select("provider, base_url, instance_id, api_key")
+        .eq("owner_id", ownerId)
+        .maybeSingle();
+
+      if (directSched?.base_url?.trim() && directSched?.instance_id?.trim()) {
+        sched = directSched;
+      }
+    }
+
+    // 3. Fallback: busca qualquer registro com credenciais válidas na tabela
+    if (!sched) {
       const { data: fallbackSched } = await admin
         .from("whatsapp_billing_schedule")
         .select("provider, base_url, instance_id, api_key")
@@ -962,7 +980,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const text = await generateOperationalSummaryReport(admin, resolvedOwnerId, today);
 
         if (isWhatsapp) {
-          const wppRes = await sendOperationalSummaryToWhatsapp(admin, resolvedOwnerId, text, body?.phone);
+          const wppRes = await sendOperationalSummaryToWhatsapp(
+            admin,
+            resolvedOwnerId,
+            text,
+            body?.phone,
+            body?.whatsapp_config,
+          );
           return new Response(JSON.stringify({ ok: true, sent: wppRes.sent, reason: wppRes.reason, text, channel: "whatsapp" }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
