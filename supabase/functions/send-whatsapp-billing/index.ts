@@ -169,7 +169,7 @@ Deno.serve(async (req: Request) => {
 
       const { data: tplRow } = await admin
         .from("whatsapp_billing_messages")
-        .select("message_upcoming, message_due_today, message_overdue, message_very_overdue, pix_link, very_overdue_days")
+        .select("message_upcoming, message_due_today, message_overdue, message_very_overdue, message_center_multiple, pix_link, very_overdue_days")
         .eq("owner_id", ownerId)
         .maybeSingle();
       const veryOverdueDays = Number((tplRow as any)?.very_overdue_days ?? 30) || 30;
@@ -223,6 +223,7 @@ Deno.serve(async (req: Request) => {
       const sentTodayKey = new Set(
         (todayLogs ?? []).filter((l) => l.success).map((l) => `${l.loan_id}|${l.status_when_sent}`),
       );
+      const eligibleByClient = new Map<string, any[]>();
 
       for (const loan of loans) {
         try {
@@ -320,28 +321,44 @@ Deno.serve(async (req: Request) => {
 
           const phone = normalizePhoneBR(phoneRaw);
           if (!client?.id) continue;
-          const scheduledAt = new Date(Date.now() + queueIndex * 30_000).toISOString();
-          const { error: queueError } = await admin.from("whatsapp_billing_queue").insert({
-            batch_id: batchId,
-            user_id: ownerId,
-            client_id: client.id,
-            loan_id: loan.id,
-            loan_ids: [loan.id],
-            installment_number: installmentNumber,
-            phone,
-            message,
-            amount: valorTotal,
-            due_date: billingDate,
-            billing_status: status,
-            scheduled_at: scheduledAt,
-          });
-          if (queueError && queueError.code !== "23505") throw queueError;
-          if (!queueError) queueIndex += 1;
-
-          results.push({ owner_id: ownerId, loan_id: loan.id, status, queued: !queueError, duplicate: queueError?.code === "23505" });
+          const entries = eligibleByClient.get(client.id) ?? [];
+          entries.push({ loanId: loan.id, installmentNumber, phone, message, amount: valorTotal, dueDate: billingDate, status, label: etiqueta || client.name || loan.borrower_name || "Contrato" });
+          eligibleByClient.set(client.id, entries);
         } catch (e) {
           results.push({ owner_id: ownerId, loan_id: loan.id, error: String(e) });
         }
+      }
+
+      for (const [clientId, entries] of eligibleByClient) {
+        const first = entries[0];
+        const totalAmount = entries.reduce((sum: number, entry: any) => sum + entry.amount, 0);
+        let message = first.message;
+        if (entries.length > 1) {
+          const lines = entries.map((entry: any) => `• ${entry.label} — ${formatBRL(entry.amount)} — Venc. ${formatBR(entry.dueDate)}`).join("\n");
+          const client = clientById.get(clientId);
+          const groupedTemplate = (tplRow as any)?.message_center_multiple?.trim()
+            || "Olá {nome_cliente}!\n\nIdentificamos os seguintes contratos pendentes:\n\n{lista_contratos}\n\nTotal: {valor_total}\n\n{link_pagamento}";
+          message = groupedTemplate
+            .replace(/\{nome_cliente\}|\{nome\}/g, client?.name || "")
+            .replace(/\{lista_contratos\}/g, lines)
+            .replace(/\{quantidade_contratos\}/g, String(entries.length))
+            .replace(/\{valor_total\}|\{valor_cobranca\}|\{valor\}/g, formatBRL(totalAmount))
+            .replace(/\{etiquetas_contratos\}/g, entries.map((entry: any) => entry.label).join(", "))
+            .replace(/\{valores_contratos\}/g, entries.map((entry: any) => formatBRL(entry.amount)).join("; "))
+            .replace(/\{datas_priorizadas\}/g, entries.map((entry: any) => formatBR(entry.dueDate)).join("; "))
+            .replace(/\{link_pagamento\}/g, linkPagamento);
+        }
+        const scheduledAt = new Date(Date.now() + queueIndex * 30_000).toISOString();
+        const { error: queueError } = await admin.from("whatsapp_billing_queue").insert({
+          batch_id: batchId, user_id: ownerId, client_id: clientId,
+          loan_id: first.loanId, loan_ids: entries.map((entry: any) => entry.loanId),
+          installment_number: first.installmentNumber, phone: first.phone, message,
+          amount: totalAmount, due_date: first.dueDate, billing_status: first.status,
+          scheduled_at: scheduledAt,
+        });
+        if (queueError && queueError.code !== "23505") throw queueError;
+        if (!queueError) queueIndex += 1;
+        results.push({ owner_id: ownerId, client_id: clientId, loan_ids: entries.map((entry: any) => entry.loanId), queued: !queueError, duplicate: queueError?.code === "23505" });
       }
 
       await admin.from("whatsapp_billing_schedule")

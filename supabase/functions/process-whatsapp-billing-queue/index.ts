@@ -30,8 +30,9 @@ Deno.serve(async (req) => {
       await admin.from("whatsapp_billing_queue").update({ status: "cancelled", error_message: "Cliente já cobrado hoje" }).eq("id", item.id);
       return new Response(JSON.stringify({ ok: true, id: item.id, skipped: "client_already_charged_today" }), { headers: cors });
     }
-    const { data: loan } = await admin.from("loans").select("status, paid_installments").eq("id", item.loan_id).eq("user_id", item.user_id).single();
-    if (!loan || loan.status === "paid" || Number(loan.paid_installments) >= item.installment_number) throw new Error("Parcela já quitada ou indisponível");
+    const loanIds = Array.isArray(item.loan_ids) && item.loan_ids.length ? item.loan_ids : [item.loan_id];
+    const { data: loans } = await admin.from("loans").select("id, status, paid_installments").in("id", loanIds).eq("user_id", item.user_id);
+    if (!loans?.length || loans.some((loan: any) => loan.status === "paid") || (loanIds.length === 1 && Number(loans[0].paid_installments) >= item.installment_number)) throw new Error("Parcela já quitada ou indisponível");
     const { data: config } = await admin.from("whatsapp_billing_schedule").select("provider, base_url, instance_id").eq("owner_id", item.user_id).single();
     const apiKey = config?.provider === "wppconnect"
       ? Deno.env.get("WPPCONNECT_TOKEN") || ""
@@ -42,7 +43,7 @@ Deno.serve(async (req) => {
     const result = await sendWhatsappText({ provider: config.provider, baseUrl: config.base_url, instanceId: config.instance_id, apiKey }, item.phone, item.message);
     if (!result.ok) throw new Error(`HTTP ${result.status}: ${result.body.slice(0, 300)}`);
     await admin.from("whatsapp_billing_queue").update({ status: "sent", sent_at: new Date().toISOString(), error_message: null }).eq("id", item.id);
-    await admin.from("whatsapp_billing_log").insert({ owner_id: item.user_id, loan_id: item.loan_id, client_id: item.client_id, installment_number: item.installment_number, status_when_sent: item.billing_status || "central", phone: item.phone, message: item.message, success: true, sent_date: new Date().toISOString().slice(0, 10) });
+    await admin.from("whatsapp_billing_log").insert(loanIds.map((loanId: string) => ({ owner_id: item.user_id, loan_id: loanId, client_id: item.client_id, installment_number: loanId === item.loan_id ? item.installment_number : 0, status_when_sent: item.billing_status || "central", phone: item.phone, message: item.message, success: true, sent_date: new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bahia" }).format(new Date()) })));
     return new Response(JSON.stringify({ ok: true, id: item.id }), { headers: cors });
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause);
