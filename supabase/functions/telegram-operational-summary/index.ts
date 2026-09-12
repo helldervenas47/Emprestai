@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { requireCronOrAdmin, cronCors } from "../_shared/require-cron-or-admin.ts";
+import { dueSlotKeys } from "../_shared/schedule.ts";
 
 const corsHeaders = {
   ...cronCors,
@@ -799,17 +800,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
           { key: "send_time_1", time: (pref as any).send_time_1 },
           { key: "send_time_2", time: (pref as any).send_time_2 },
           { key: "send_time_3", time: (pref as any).send_time_3 },
-        ];
+        ] as const;
 
         const lastSent = ((pref as any).last_sent ?? {}) as Record<string, string>;
-
-        const firedSlots = slots.filter((slot) => {
-          if (!slot.time) return false;
-          const [sh, sm] = slot.time.split(":").map(Number);
-          const slotMin = sh * 60 + sm;
-          const diff = Math.abs(nowMin - slotMin);
-          return diff <= 8;
-        }).filter((slot) => lastSent[slot.key] !== today);
+        const firedSlots = dueSlotKeys(slots, nowMin, today, lastSent);
 
         if (firedSlots.length === 0) continue;
 
@@ -822,7 +816,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
         const merged = { ...lastSent };
         for (const slot of firedSlots) {
-          merged[slot.key] = today;
+          merged[slot] = today;
         }
 
         await admin

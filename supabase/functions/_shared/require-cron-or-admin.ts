@@ -3,7 +3,7 @@
 //   - An authenticated admin (via requireAdmin).
 // On failure returns a Response (401/403). On success returns { via }.
 import { requireAdmin, adminCors } from "./require-admin.ts";
-import { getExternalServiceRoleKey } from "./external-supabase.ts";
+import { getExternalServiceRoleKey, getExternalAdmin } from "./external-supabase.ts";
 
 export const cronCors = {
   ...adminCors,
@@ -25,6 +25,23 @@ export async function requireCronOrAdmin(
   const expected = Deno.env.get("CRON_SECRET") ?? "";
   if (expected && provided && safeEqual(provided, expected)) {
     return { via: "cron" };
+  }
+
+  // Fallback: se header x-cron-secret foi informado, valida contra app_internal_config
+  if (provided) {
+    try {
+      const admin = getExternalAdmin();
+      const { data } = await admin
+        .from("app_internal_config")
+        .select("value")
+        .eq("key", "cron_secret")
+        .maybeSingle();
+      if (data?.value && safeEqual(provided, String(data.value))) {
+        return { via: "cron" };
+      }
+    } catch {
+      // ignore
+    }
   }
 
   const authHeader = req.headers.get("Authorization") ?? "";

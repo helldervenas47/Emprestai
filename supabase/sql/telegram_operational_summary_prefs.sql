@@ -31,11 +31,16 @@ DO $$ BEGIN PERFORM cron.unschedule('telegram-operational-summary'); EXCEPTION W
 SELECT cron.schedule(
   'telegram-operational-summary',
   '*/10 * * * *',
-  $$ SELECT net.http_post(
-    url := 'https://lcjelojqxpnphupsnmuq.supabase.co/functions/v1/telegram-operational-summary',
-    headers := '{"Content-Type":"application/json"}'::jsonb,
+  $job$
+  SELECT net.http_post(
+    url := 'https://syyxnqzxqabeuqbuptkh.supabase.co/functions/v1/telegram-operational-summary',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'x-cron-secret', coalesce((select value from public.app_internal_config where key = 'cron_secret' limit 1), '')
+    ),
     body := '{}'::jsonb,
-    timeout_milliseconds := 45000
-  ); $$
+    timeout_milliseconds := 60000
+  );
+  $job$
 );
 

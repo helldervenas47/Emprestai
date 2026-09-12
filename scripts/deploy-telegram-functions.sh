@@ -60,6 +60,10 @@ FUNCTIONS=(
   send-personal-insights-telegram
   daily-planning-summary
   incomes-expenses-summary
+  telegram-operational-summary
+  telegram-daily-loans-summary
+  telegram-overdue-loans-summary
+  telegram-due-today-loans-summary
 )
 
 # ---- Deploy (sem verificação de JWT, igual ao webhook do Telegram) ----------
