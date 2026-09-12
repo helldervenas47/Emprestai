@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -8,40 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useWhatsappBillingSchedule } from "@/hooks/useWhatsappBillingSchedule";
 import { toast } from "sonner";
-import { Send, Loader2, CheckCircle2, XCircle, Clock, Zap, Eye, CalendarDays, AlertTriangle, Users } from "lucide-react";
+import { Send, Loader2, Clock, Zap, Eye, AlertTriangle } from "lucide-react";
 import { WppConnectStatus } from "@/features/whatsapp/components/WppConnectStatus";
-import { supabase } from "@/integrations/supabase/userClient";
-import { useAuth } from "@/hooks/useAuth";
 
 
 export function WhatsappAutoBillingCard() {
-  const { dataOwnerId } = useAuth();
   const { schedule, logs, loading, save, runNow, previewNextRun } = useWhatsappBillingSchedule();
   const [sending, setSending] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [preview, setPreview] = useState<any[]>([]);
-  const [clients, setClients] = useState<any[]>([]);
-  const [calendarRows, setCalendarRows] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (!dataOwnerId) return;
-    void (async () => {
-      const [{ data: loans }, { data: clientRows }, { data: queueRows }] = await Promise.all([
-        supabase.from("loans").select("borrower_id, status, paid_installments, installments").eq("user_id", dataOwnerId).neq("status", "paid"),
-        supabase.from("clients").select("id, name, auto_billing_enabled, auto_billing_send_time, auto_billing_repeat_days, auto_billing_weekdays").eq("user_id", dataOwnerId).order("name"),
-        supabase.from("whatsapp_billing_queue").select("id, client_id, due_date, scheduled_at, sent_at, amount, status").eq("user_id", dataOwnerId).order("scheduled_at", { ascending: false }).limit(100),
-      ]);
-      const openIds = new Set((loans || []).filter((loan: any) => Number(loan.paid_installments || 0) < Number(loan.installments || 1)).map((loan: any) => loan.borrower_id));
-      setClients((clientRows || []).filter((client: any) => openIds.has(client.id)));
-      setCalendarRows(queueRows || []);
-    })();
-  }, [dataOwnerId]);
-
-  const updateClientRule = async (id: string, patch: Record<string, unknown>) => {
-    setClients((rows) => rows.map((client) => client.id === id ? { ...client, ...patch } : client));
-    const { error } = await supabase.from("clients").update(patch).eq("id", id).eq("user_id", dataOwnerId);
-    if (error) toast.error("Não foi possível salvar a regra do cliente.");
-  };
 
   const loadPreview = async () => {
     setPreviewing(true);
@@ -56,21 +31,11 @@ export function WhatsappAutoBillingCard() {
   const alerts = useMemo(() => {
     const rows: string[] = [];
     if (!schedule.base_url || !schedule.instance_id) rows.push("A conexão do WhatsApp ainda não está completamente configurada.");
-    const failures = Math.max(logs.filter((log) => !log.success).length, calendarRows.filter((row) => row.status === "failed").length);
+    const failures = logs.filter((log) => !log.success).length;
     if (failures) rows.push(`${failures} falha(s) encontrada(s) nos últimos envios.`);
     if (schedule.enabled && schedule.last_run_at && Date.now() - new Date(schedule.last_run_at).getTime() > 36 * 60 * 60 * 1000) rows.push("A automação está ativa, mas não executa há mais de 36 horas.");
     return rows;
-  }, [calendarRows, logs, schedule]);
-
-  const calendarGroups = useMemo(() => Array.from(calendarRows.reduce((map, row) => {
-    const day = String(row.due_date || row.scheduled_at || "").slice(0, 10);
-    if (!day) return map;
-    const current = map.get(day) || { day, count: 0, amount: 0, sent: 0, failed: 0 };
-    current.count += 1; current.amount += Number(row.amount || 0);
-    if (row.status === "sent") current.sent += 1;
-    if (row.status === "failed") current.failed += 1;
-    map.set(day, current); return map;
-  }, new Map<string, any>()).values()).sort((a, b) => b.day.localeCompare(a.day)).slice(0, 14), [calendarRows]);
+  }, [logs, schedule]);
 
   const handleRunNow = async () => {
     if (!schedule.base_url || !schedule.instance_id) {
@@ -277,89 +242,6 @@ export function WhatsappAutoBillingCard() {
           {!previewing && preview.length === 0 && <p className="rounded-xl border border-dashed p-4 text-center text-xs text-muted-foreground">Gere uma prévia para conferir a próxima cobrança.</p>}
         </div>
 
-        <div className="space-y-3 rounded-2xl border border-border/40 bg-muted/20 p-3 sm:p-4">
-          <div className="flex items-center gap-2 text-sm font-bold"><Users className="h-4 w-4 text-primary"/>Regras por cliente</div>
-          <p className="text-xs text-muted-foreground">Ative o cliente e escolha entre a configuração geral ou uma configuração própria.</p>
-          <div className="max-h-[32rem] space-y-2 overflow-y-auto pr-1">{clients.map((client) => {
-            const custom = client.auto_billing_send_time != null || client.auto_billing_repeat_days != null || client.auto_billing_weekdays != null;
-            const weekdays = client.auto_billing_weekdays || schedule.allowed_weekdays;
-            const dayOptions = [[1, "Seg"], [2, "Ter"], [3, "Qua"], [4, "Qui"], [5, "Sex"], [6, "Sáb"], [0, "Dom"]] as const;
-            return <div key={client.id} className="rounded-xl border bg-background p-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0"><p className="truncate text-sm font-semibold">{client.name}</p><p className={`mt-0.5 text-[11px] ${client.auto_billing_enabled !== false ? "text-emerald-600" : "text-muted-foreground"}`}>{client.auto_billing_enabled !== false ? "Recebe cobranças automáticas" : "Cobrança automática desativada"}</p></div>
-                <Switch aria-label={`Cobrança automática para ${client.name}`} checked={client.auto_billing_enabled !== false} onCheckedChange={(value) => updateClientRule(client.id, { auto_billing_enabled: value })}/>
-              </div>
-              {client.auto_billing_enabled !== false && <>
-                <label className="mt-3 flex min-h-12 items-center justify-between gap-3 rounded-xl bg-muted/50 px-3 py-2">
-                  <div><p className="text-xs font-semibold">Usar regra geral</p><p className="text-[10px] text-muted-foreground">{schedule.send_time.slice(0, 5)} · a cada {schedule.overdue_repeat_days} dia(s)</p></div>
-                  <Switch checked={!custom} onCheckedChange={(useGeneral) => updateClientRule(client.id, useGeneral ? { auto_billing_send_time: null, auto_billing_repeat_days: null, auto_billing_weekdays: null } : { auto_billing_send_time: schedule.send_time.slice(0, 5), auto_billing_repeat_days: schedule.overdue_repeat_days, auto_billing_weekdays: schedule.allowed_weekdays })}/>
-                </label>
-                {custom && <div className="mt-3 space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
-                  <p className="text-xs font-bold text-primary">Regra personalizada</p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div><Label className="text-[11px]">Enviar às</Label><Input type="time" value={client.auto_billing_send_time || schedule.send_time.slice(0, 5)} onChange={(e) => updateClientRule(client.id, { auto_billing_send_time: e.target.value })} className="mt-1 h-10"/></div>
-                    <div><Label className="text-[11px]">Repetir atrasados a cada</Label><div className="relative mt-1"><Input type="number" min={1} max={30} value={client.auto_billing_repeat_days || schedule.overdue_repeat_days} onChange={(e) => updateClientRule(client.id, { auto_billing_repeat_days: Math.max(1, Number(e.target.value || 1)) })} className="h-10 pr-12"/><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">dias</span></div></div>
-                  </div>
-                  <div><Label className="text-[11px]">Dias de envio</Label><div className="mt-1.5 grid grid-cols-4 gap-1.5 sm:grid-cols-7">{dayOptions.map(([day, label]) => { const active = weekdays.includes(day); return <Button key={day} type="button" size="sm" variant={active ? "default" : "outline"} aria-pressed={active} className="h-9 min-w-0 px-1 text-[11px]" onClick={() => updateClientRule(client.id, { auto_billing_weekdays: active ? weekdays.filter((value: number) => value !== day) : [...weekdays, day].sort() })}>{label}</Button>; })}</div></div>
-                </div>}
-              </>}
-            </div>;
-          })}</div>
-        </div>
-
-        <div className="space-y-3 rounded-2xl border border-border/40 bg-muted/20 p-3 sm:p-4">
-          <div className="flex items-center gap-2 text-sm font-bold"><CalendarDays className="h-4 w-4 text-primary"/>Calendário de automações</div>
-          {calendarGroups.length ? <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{calendarGroups.map((group) => <div key={group.day} className="rounded-xl border bg-background p-3 text-center"><p className="text-xs font-semibold">{group.day.split("-").reverse().join("/")}</p><p className="mt-1 text-lg font-bold">{group.count}</p><p className="text-[11px] text-muted-foreground">{group.sent} enviadas · {group.failed} falhas</p><p className="mt-1 text-xs font-semibold">{group.amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p></div>)}</div> : <p className="rounded-xl border border-dashed p-4 text-center text-xs text-muted-foreground">Nenhuma execução registrada no calendário.</p>}
-        </div>
-
-        {/* Bloco 3: Histórico dos Últimos Envios */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-              <Clock className="h-4 w-4 text-primary" />
-              Histórico dos Últimos Envios ({logs.length})
-            </div>
-          </div>
-
-          {logs.length === 0 ? (
-            <div className="text-xs text-muted-foreground py-6 text-center rounded-2xl border border-dashed border-border/60 bg-muted/10">
-              Nenhum registro de envio automático até o momento.
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-              {logs.map((l) => (
-                <div
-                  key={l.id}
-                  className="flex items-start gap-2.5 rounded-xl border border-border/40 bg-card p-3 text-xs shadow-2xs transition-colors hover:bg-muted/20"
-                >
-                  {l.success ? (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
-                  ) : (
-                    <XCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-                      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                        <Badge variant="outline" className="text-[10px] font-semibold">
-                          {l.status_when_sent}
-                        </Badge>
-                        <span className="break-all font-mono font-medium text-foreground">{l.phone}</span>
-                      </div>
-                      <span className="text-[11px] text-muted-foreground tabular-nums">
-                        {new Date(l.created_at).toLocaleString("pt-BR")}
-                      </span>
-                    </div>
-                    {l.error_message && (
-                      <div className="text-destructive text-[11px] mt-1 break-all bg-destructive/10 p-1.5 rounded-lg border border-destructive/20">
-                        {l.error_message}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </CardContent>
     </Card>
   );
