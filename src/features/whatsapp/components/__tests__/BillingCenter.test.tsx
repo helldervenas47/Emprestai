@@ -136,4 +136,17 @@ describe("BillingCenter — Filtro de Futuras com separação por faixa de dias"
     expect(screen.getByText("Cliente Bruno")).toBeInTheDocument();
     expect(screen.getByText("Cliente Daniel")).toBeInTheDocument();
   });
+
+  it("renderiza os 6 cards de resumo: Total a receber, Juros a receber, Total cobranças, Cobranças realizadas, Clientes e Enviadas hoje", async () => {
+    render(<BillingCenter />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Total a receber")).toBeInTheDocument();
+      expect(screen.getByText("Juros a receber")).toBeInTheDocument();
+      expect(screen.getByText("Total cobranças")).toBeInTheDocument();
+      expect(screen.getByText("Cobranças realizadas")).toBeInTheDocument();
+      expect(screen.getAllByText("Clientes").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText("Enviadas hoje")).toBeInTheDocument();
+    });
+  });
 });

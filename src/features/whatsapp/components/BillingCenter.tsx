@@ -1,5 +1,5 @@
 import React from "react";
-import { AlertTriangle, CalendarClock, CheckCircle2, ChevronDown, Flag, ListChecks, Loader2, MessageCircle, Pause, RefreshCw, Send, Users, WalletCards } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckCheck, CheckCircle2, ChevronDown, Flag, ListChecks, Loader2, MessageCircle, Pause, RefreshCw, Send, TrendingUp, Users, WalletCards } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,11 +43,12 @@ export function BillingCenter() {
   const [confirm, setConfirm] = React.useState<BillingCandidate[] | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [creating, setCreating] = React.useState(false);
-  const [chargedTodayOpen, setChargedTodayOpen] = React.useState(true);
+  const [chargedTodayOpen, setChargedTodayOpen] = React.useState(false);
   const [clientsOpen, setClientsOpen] = React.useState(false);
   const [clientPreferences, setClientPreferences] = React.useState<ClientBillingPreference[]>([]);
   const [clientPreferenceDraft, setClientPreferenceDraft] = React.useState<Set<string>>(new Set());
   const [clientPreferenceView, setClientPreferenceView] = React.useState<"all" | "selected" | "unselected">("all");
+  const [clientPreferenceSearch, setClientPreferenceSearch] = React.useState("");
   const [savingClients, setSavingClients] = React.useState(false);
   const autoSelectionKeyRef = React.useRef("");
   const [centerTemplates, setCenterTemplates] = React.useState({
@@ -148,8 +149,16 @@ export function BillingCenter() {
   }, [filter, loading, visible, autoBillingClientIds, sentTodayClientIds]);
   const selectedItems = visible.filter((item) => selected.has(item.key));
   const visibleClientIds = new Set(visible.map((item) => item.clientId));
-  const sentToday = queue.filter((q) => q.status === "sent" && q.sent_at && bahiaDay(q.sent_at) === todayInBahia && visibleClientIds.has(q.client_id)).length;
+  const sentTodayQueueRows = queue.filter(
+    (q) => q.status === "sent" && q.sent_at && bahiaDay(q.sent_at) === todayInBahia && visibleClientIds.has(q.client_id)
+  );
+  const sentToday = sentTodayQueueRows.length;
+  const sentTodayLoansCount = sentTodayQueueRows.reduce((sum, q) => {
+    const ids = Array.isArray(q.loan_ids) && q.loan_ids.length ? q.loan_ids : (q.loan_id ? [q.loan_id] : []);
+    return sum + (ids.length || 1);
+  }, 0);
   const visibleAmount = visible.reduce((sum, item) => sum + item.amount, 0);
+  const visibleInterestAmount = visible.reduce((sum, item) => sum + (item.interestAmount || 0), 0);
 
   const enqueue = async () => {
     if (!confirm?.length) return;
@@ -337,9 +346,11 @@ export function BillingCenter() {
           <Users className="mr-1.5 h-3.5 w-3.5"/>Clientes
         </Button>
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
-        <SummaryCard icon={ListChecks} label="Cobranças" value={String(visible.length)} />
-        <SummaryCard icon={WalletCards} label="A receber" value={money.format(visibleAmount)} />
+      <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-6">
+        <SummaryCard icon={WalletCards} label="Total a receber" value={money.format(visibleAmount)} />
+        <SummaryCard icon={TrendingUp} label="Juros a receber" value={money.format(visibleInterestAmount)} />
+        <SummaryCard icon={ListChecks} label="Total cobranças" value={String(visible.length)} />
+        <SummaryCard icon={CheckCheck} label="Cobranças realizadas" value={String(sentTodayLoansCount)} />
         <SummaryCard icon={Users} label="Clientes" value={String(visibleClientIds.size)} />
         <SummaryCard icon={Send} label="Enviadas hoje" value={String(sentToday)} />
       </div>
