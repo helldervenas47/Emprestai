@@ -394,20 +394,28 @@ export function WhatsappReportCard() {
         return;
       }
 
-      if (!schedule.base_url?.trim() || !schedule.instance_id?.trim()) {
-        toast.error("WhatsApp não configurado", {
-          description: "Configure sua API do WhatsApp na aba 'Disparos & Automação' para habilitar os envios.",
-        });
-        return;
-      }
-
-      // Envio direto para a API do WhatsApp com o relatório de cobranças formatado
+      // 1. Tenta envio direto se a API estiver configurada
       const directRes = await sendWhatsappDirectly(schedule, destPhone, reportMessage);
       if (directRes.ok) {
         toast.success("Relatório de Cobranças enviado para o seu WhatsApp!");
+        return;
+      }
+
+      // 2. Se o envio direto falhar (ex: 401 por falta de api_key pública), utiliza a Edge Function com as credenciais do backend
+      const { data: edgeRes, error: edgeErr } = await supabase.functions.invoke("send-whatsapp-report", {
+        body: {
+          owner_id: ownerId,
+          phone: destPhone,
+          custom_text: reportMessage,
+        },
+      });
+
+      if (!edgeErr && edgeRes?.ok) {
+        toast.success("Relatório de Cobranças enviado para o seu WhatsApp!");
       } else {
+        const errorDesc = edgeRes?.error || edgeErr?.message || directRes.error || "O servidor de WhatsApp não autorizou o envio.";
         toast.error("Falha ao enviar pelo WhatsApp", {
-          description: directRes.error || `Erro ${directRes.status || ""} na comunicação com o servidor de WhatsApp.`,
+          description: errorDesc,
         });
       }
     } catch (e: any) {

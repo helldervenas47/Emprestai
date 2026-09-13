@@ -140,14 +140,15 @@ Deno.serve(async (req: Request) => {
 
     const { data: sched } = await admin
       .from("whatsapp_billing_schedule")
-      .select("base_url, instance_id").eq("owner_id", ownerId).maybeSingle();
+      .select("base_url, instance_id, api_key").eq("owner_id", ownerId).maybeSingle();
     if (!sched?.base_url || !sched?.instance_id) {
       return new Response(JSON.stringify({ error: "whatsapp_not_configured" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const text = await buildReport(admin, ownerId, reportType);
-    const sent = await sendWhatsapp(sched.base_url, sched.instance_id, API_KEY, normalizePhone(phone), text);
+    const effectiveApiKey = sched.api_key || API_KEY;
+    const text = body.custom_text || body.message || await buildReport(admin, ownerId, reportType);
+    const sent = await sendWhatsapp(sched.base_url, sched.instance_id, effectiveApiKey, normalizePhone(phone), text);
 
     return new Response(JSON.stringify({ ok: sent.ok, status: sent.status, preview: text }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } });
