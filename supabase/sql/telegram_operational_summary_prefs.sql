@@ -41,7 +41,8 @@ SELECT cron.schedule(
     url := 'https://syyxnqzxqabeuqbuptkh.supabase.co/functions/v1/telegram-operational-summary',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'x-cron-secret', coalesce((select value from public.app_internal_config where key = 'cron_secret' limit 1), '')
+      'x-cron-source', 'pg_cron',
+      'x-cron-secret', 'emprestai_cron_internal_secret_2026'
     ),
     body := '{}'::jsonb,
     timeout_milliseconds := 60000

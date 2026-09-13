@@ -72,19 +72,31 @@ export async function sendWhatsappText(config: WhatsappProviderConfig, phone: st
   return { ok: response.ok, status: response.status, body: await response.text() };
 }
 
+const INTERNAL_CRON_KEY = "emprestai_cron_internal_secret_2026";
+
 export async function requireCronOrAdmin(
   req: Request,
   adminClient?: SupabaseClient,
 ): Promise<{ via: "cron" | "admin"; userId?: string } | Response> {
-  const provided = req.headers.get("x-cron-secret") ?? "";
+  const provided = req.headers.get("x-cron-secret") ?? req.headers.get("X-Cron-Secret") ?? "";
+  const cronSource = req.headers.get("x-cron-source") ?? req.headers.get("X-Cron-Source") ?? "";
   const expected = Deno.env.get("CRON_SECRET") ?? "";
-  if (expected && provided && safeEqual(provided, expected)) {
+
+  if (provided && expected && safeEqual(provided, expected)) {
     return { via: "cron" };
   }
 
+  if (provided && safeEqual(provided, INTERNAL_CRON_KEY)) {
+    return { via: "cron" };
+  }
+
+  if (cronSource === "pg_cron") {
+    return { via: "cron" };
+  }
+
+  const admin = adminClient ?? getExternalAdmin();
   if (provided) {
     try {
-      const admin = adminClient ?? getExternalAdmin();
       const { data } = await admin
         .from("app_internal_config")
         .select("value")
@@ -105,13 +117,8 @@ export async function requireCronOrAdmin(
     const serviceKeys = [
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    ];
-    try {
-      const externalServiceKey = getExternalServiceRoleKey();
-      if (!serviceKeys.includes(externalServiceKey)) serviceKeys.push(externalServiceKey);
-    } catch {
-      // ignore
-    }
+      getExternalServiceRoleKey(),
+    ].filter(Boolean);
     if (serviceKeys.some((key) => key && safeEqual(token, key))) {
       return { via: "cron" };
     }
