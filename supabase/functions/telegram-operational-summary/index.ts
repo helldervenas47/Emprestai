@@ -353,7 +353,7 @@ async function sendOperationalSummaryToWhatsapp(
     if (!sched) {
       const { data: directSched } = await admin
         .from("whatsapp_billing_schedule")
-        .select("provider, base_url, instance_id, api_key")
+        .select("*")
         .eq("owner_id", ownerId)
         .maybeSingle();
 
@@ -362,19 +362,18 @@ async function sendOperationalSummaryToWhatsapp(
       }
     }
 
-    // 3. Fallback: busca qualquer registro com credenciais válidas na tabela
+    // 3. Fallback: busca registros com credenciais válidas configuradas
     if (!sched) {
-      const { data: fallbackSched } = await admin
+      const { data: allSchedRows } = await admin
         .from("whatsapp_billing_schedule")
-        .select("provider, base_url, instance_id, api_key")
-        .not("base_url", "is", null)
-        .neq("base_url", "")
-        .not("instance_id", "is", null)
-        .neq("instance_id", "")
-        .limit(1)
-        .maybeSingle();
-      if (fallbackSched?.base_url && fallbackSched?.instance_id) {
-        sched = fallbackSched;
+        .select("*")
+        .limit(10);
+
+      if (allSchedRows && allSchedRows.length > 0) {
+        const found = allSchedRows.find((r: any) => Boolean(r.base_url?.trim() && r.instance_id?.trim()));
+        if (found) {
+          sched = found;
+        }
       }
     }
 
@@ -1051,6 +1050,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     } catch (_) {}
 
     let sent = 0;
+    const debug_details: any[] = [];
     for (const pref of prefs) {
       try {
         let resolvedOwnerId = (pref as any).user_id;
@@ -1082,7 +1082,23 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const lastSent = ((pref as any).last_sent ?? {}) as Record<string, string>;
         const firedSlots = dueSlotKeys(slots, nowMin, today, lastSent);
 
-        if (firedSlots.length === 0) continue;
+        const debugItem: any = {
+          user_id: (pref as any).user_id,
+          today,
+          hhmm,
+          nowMin,
+          slots,
+          lastSent,
+          firedSlots,
+          send_whatsapp: (pref as any).send_whatsapp,
+          whatsapp_phone: (pref as any).whatsapp_phone,
+        };
+
+        if (firedSlots.length === 0) {
+          debugItem.skipped = "no_fired_slots";
+          debug_details.push(debugItem);
+          continue;
+        }
 
         let anySent = false;
         const text = await generateOperationalSummaryReport(admin, resolvedOwnerId, today);
@@ -1092,6 +1108,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           const link = await getReportsLinkForUser(admin, (pref as any).user_id);
           if (link) {
             const sendTg = await sendReportsMessage(admin, (pref as any).user_id, Number(link.chat_id), text);
+            debugItem.telegramResult = sendTg;
             if (sendTg.sent) anySent = true;
           }
         }
@@ -1104,8 +1121,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
             text,
             (pref as any).whatsapp_phone,
           );
+          debugItem.whatsappResult = sendWpp;
           if (sendWpp.sent) anySent = true;
         }
+
+        debug_details.push(debugItem);
 
         if (!anySent) continue;
 
@@ -1120,12 +1140,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
           .eq("user_id", (pref as any).user_id);
 
         sent += 1;
-      } catch (err) {
+      } catch (err: any) {
         console.error("[telegram-operational-summary] Error processing user", (pref as any).user_id, err);
+        debug_details.push({ error: err?.message || String(err) });
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, sent, checked: prefs.length }), {
+    return new Response(JSON.stringify({ ok: true, sent, checked: prefs.length, debug_details }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
