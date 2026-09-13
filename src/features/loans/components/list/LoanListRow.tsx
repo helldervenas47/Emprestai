@@ -660,118 +660,345 @@ function LoanRowView({
       <tr className="border-b border-border/30 bg-muted/10">
         <td colSpan={8} className="px-3 sm:px-6 py-4" onClick={(e) => e.stopPropagation()}>
           {editing ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-foreground">Editar Empréstimo</h3>
-                <div className="flex gap-1">
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={saveEdit} aria-label="Salvar alterações"><Check className="h-4 w-4 text-success" /></Button>
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={cancelEdit}><X className="w-[25px] h-[25px] text-destructive" /></Button>
+            <div className="space-y-4 rounded-2xl border border-primary/40 bg-card p-4 sm:p-6 shadow-xl animate-in fade-in-0 duration-200">
+              {/* Header Elegante */}
+              <div className="flex items-center justify-between border-b border-border/70 pb-3 sm:pb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 shadow-2xs">
+                    <Pencil className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-foreground leading-tight">Editar Empréstimo</h3>
+                    <p className="text-[11px] text-muted-foreground">Atualize as informações e condições do contrato</p>
+                  </div>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><Label className="text-xs">Nome do Devedor</Label><Input value={form.borrowerName} onChange={(e) => updateField("borrowerName", e.target.value)} className="h-8 text-sm" /></div>
-                <div><Label className="text-xs">Valor (R$)</Label><Input type="number" step="0.01" value={form.amount} onChange={(e) => updateField("amount", e.target.value)} className="h-8 text-sm" /></div>
-                <div><Label className="text-xs">Juros Mensal (%)</Label><Input type="number" step="0.1" value={form.interestRate} onChange={(e) => updateField("interestRate", e.target.value)} className="h-8 text-sm" /></div>
-                <div><Label className="text-xs">Valor do Juros (R$)</Label><Input type="number" step="0.01" value={form.interestValue} onChange={(e) => updateField("interestValue", e.target.value)} className="h-8 text-sm" /></div>
-                <div><Label className="text-xs">Valor da Parcela (R$)</Label><Input type="number" step="0.01" value={form.installmentValue} onChange={(e) => updateField("installmentValue", e.target.value)} className="h-8 text-sm" /></div>
-                <div><Label className="text-xs">Parcelas</Label><Input type="number" value={form.installments} onChange={(e) => updateField("installments", e.target.value)} className="h-8 text-sm" /></div>
-                <div><Label className="text-xs">Parcelas Pagas</Label><Input type="number" value={form.paidInstallments} onChange={(e) => updateField("paidInstallments", e.target.value)} className="h-8 text-sm" /></div>
-                <div><Label className="text-xs">Restante a Receber (R$)</Label><Input type="number" step="0.01" value={form.remainingAmount} onChange={(e) => updateField("remainingAmount", e.target.value)} className="h-8 text-sm" /></div>
-                <div><Label className="text-xs">Total a Receber (R$)</Label><p className="h-8 flex items-center text-sm font-bold text-primary">{formatCurrency((parseFloat(form.amount) || 0) + (parseFloat(form.interestValue) || 0))}</p></div>
-                <div><Label className="text-xs">Data Início</Label><DatePickerField value={form.startDate} onChange={(v) => updateField("startDate", v)} className="h-8 text-sm" /></div>
-                <div>
-                  <Label className="text-xs">Data 1ª Parcela</Label>
-                  <NativeDatePicker
-                    value={form.dueDate || ""}
-                    onChange={(v) => updateField("dueDate", v)}
-                    placeholder="Selecione"
-                    className="h-8 text-sm"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Tipo Contrato</Label>
-                  <Select value={form.interestType} onValueChange={(v) => updateField("interestType", v)}>
-                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Diário">Diário</SelectItem>
-                      <SelectItem value="Semanal">Semanal</SelectItem>
-                      <SelectItem value="Quinzenal">Quinzenal</SelectItem>
-                      <SelectItem value="Mensal">Mensal</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              {/* Manager edit block */}
-              <div className="border border-border rounded-lg p-3 space-y-2 bg-muted/20">
                 <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id={`row-edit-mgr-${loan.id}`}
-                    checked={editHasManager}
-                    onChange={(e) => {
-                      const checked = e.target.checked;
-                      setEditHasManager(checked);
-                      updateField("interestRate", checked ? "20" : "30");
-                    }}
-                    className="h-4 w-4 rounded border-border accent-primary"
-                  />
-                  <Label htmlFor={`row-edit-mgr-${loan.id}`} className="text-xs font-medium cursor-pointer">
-                    Empréstimo com gerente
-                  </Label>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={cancelEdit}
+                  >
+                    <X className="h-3.5 w-3.5 mr-1" />
+                    Cancelar
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-8 px-3 text-xs font-semibold bg-primary text-primary-foreground shadow-xs gap-1.5"
+                    onClick={saveEdit}
+                    aria-label="Salvar alterações"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    <span>Salvar</span>
+                  </Button>
                 </div>
-                {editHasManager && (
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    <div>
-                      <Label className="text-xs">Gerente</Label>
-                      <Select value={editManagerId} onValueChange={setEditManagerId}>
-                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                        <SelectContent>
-                          {managerOptions.map((m) => (
-                            <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-xs">Comissão (%)</Label>
-                      <Input type="number" step="0.1" value={editCommissionRate} onChange={(e) => setEditCommissionRate(e.target.value)} className="h-8 text-xs" />
+              </div>
+
+              {/* Bloco 1: Devedor e Valores Principais */}
+              <div className="rounded-xl border border-border/70 bg-muted/10 p-3.5 sm:p-4 space-y-3.5">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Nome do Devedor *
+                  </Label>
+                  <Input
+                    value={form.borrowerName}
+                    onChange={(e) => updateField("borrowerName", e.target.value)}
+                    placeholder="Nome completo do cliente"
+                    className="h-10 text-sm font-medium bg-background"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Valor (R$) *
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={form.amount}
+                      onChange={(e) => updateField("amount", e.target.value)}
+                      placeholder="0,00"
+                      className="h-10 text-sm font-semibold bg-background"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Juros Mensal (%)
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={form.interestRate}
+                      onChange={(e) => updateField("interestRate", e.target.value)}
+                      placeholder="0"
+                      className="h-10 text-sm font-semibold bg-background"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Valor do Juros (R$)
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={form.interestValue}
+                      onChange={(e) => updateField("interestValue", e.target.value)}
+                      placeholder="0,00"
+                      className="h-10 text-sm font-semibold bg-background"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Total a Receber (R$)
+                    </Label>
+                    <div className="h-10 px-3 rounded-lg border border-primary/25 bg-primary/5 flex items-center justify-between">
+                      <span className="text-sm font-bold text-primary tabular-nums">
+                        {formatCurrency((parseFloat(form.amount) || 0) + (parseFloat(form.interestValue) || 0))}
+                      </span>
                     </div>
                   </div>
-                )}
-              </div>
-              {/* Sale toggle */}
-              <div className="border border-border rounded-lg p-3 bg-muted/20">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id={`row-edit-sale-${loan.id}`}
-                    checked={editIsSale}
-                    onChange={(e) => setEditIsSale(e.target.checked)}
-                    className="h-4 w-4 rounded border-border accent-primary"
-                  />
-                  <Label htmlFor={`row-edit-sale-${loan.id}`} className="text-xs font-medium cursor-pointer">
-                    Contrato de venda
-                  </Label>
                 </div>
               </div>
-              <div className="rounded-lg border border-border/50 p-3 bg-muted/20">
-                <div className="flex items-center justify-between gap-2">
+
+              {/* Bloco 2: Parcelamento e Saldos a Receber */}
+              <div className="rounded-xl border border-border/70 bg-muted/10 p-3.5 sm:p-4 space-y-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Valor da Parcela (R$)
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={form.installmentValue}
+                      onChange={(e) => updateField("installmentValue", e.target.value)}
+                      placeholder="0,00"
+                      className="h-10 text-sm font-semibold bg-background"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Parcelas Totais
+                    </Label>
+                    <Input
+                      type="number"
+                      value={form.installments}
+                      onChange={(e) => updateField("installments", e.target.value)}
+                      placeholder="1"
+                      min="1"
+                      className="h-10 text-sm font-semibold bg-background"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                      Parcelas Pagas
+                    </Label>
+                    <Input
+                      type="number"
+                      value={form.paidInstallments}
+                      onChange={(e) => updateField("paidInstallments", e.target.value)}
+                      placeholder="0"
+                      min="0"
+                      className="h-10 text-sm font-semibold bg-background border-emerald-500/30 focus-visible:ring-emerald-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      Restante a Receber (R$)
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={form.remainingAmount}
+                      onChange={(e) => updateField("remainingAmount", e.target.value)}
+                      placeholder="0,00"
+                      className="h-10 text-sm font-semibold bg-background border-primary/30 focus-visible:ring-primary"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Bloco 3: Prazos e Modalidade de Contrato */}
+              <div className="rounded-xl border border-border/70 bg-muted/10 p-3.5 sm:p-4 space-y-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Data Início
+                    </Label>
+                    <DatePickerField
+                      value={form.startDate}
+                      onChange={(v) => updateField("startDate", v)}
+                      className="h-10 text-sm bg-background"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Data 1ª Parcela
+                    </Label>
+                    <NativeDatePicker
+                      value={form.dueDate || ""}
+                      onChange={(v) => updateField("dueDate", v)}
+                      placeholder="Selecione"
+                      className="h-10 text-sm bg-background"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Tipo Contrato
+                    </Label>
+                    <Select value={form.interestType} onValueChange={(v) => updateField("interestType", v)}>
+                      <SelectTrigger className="h-10 text-sm font-medium bg-background">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Diário">Diário</SelectItem>
+                        <SelectItem value="Semanal">Semanal</SelectItem>
+                        <SelectItem value="Quinzenal">Quinzenal</SelectItem>
+                        <SelectItem value="Mensal">Mensal</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Ajuste de Vencimento Integrado */}
+                <div className="rounded-lg border border-border/60 p-3 bg-background flex items-center justify-between gap-2">
                   <div>
-                    <p className="text-xs font-medium text-foreground">Vencimento atual</p>
-                    <p className="text-sm font-semibold tabular-nums text-foreground">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Vencimento atual</p>
+                    <p className="text-sm font-bold tabular-nums text-foreground">
                       {(() => {
                         const d = getFirstPendingDate(loan, installmentSchedules);
                         return d ? d.toLocaleDateString("pt-BR") : "—";
                       })()}
                     </p>
                   </div>
-                  <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setShowAdjustDueDateRow(true)}>
+                  <Button size="sm" variant="outline" className="h-8 text-xs font-medium" onClick={() => setShowAdjustDueDateRow(true)}>
                     Ajustar vencimento
                   </Button>
                 </div>
               </div>
-              <div><Label className="text-xs">Etiquetas (separar por vírgula)</Label><Input value={form.tags} onChange={(e) => updateField("tags", e.target.value)} className="h-8 text-sm" placeholder="Ex: VIP, Renovação, Garantia" /></div>
-              <div><Label className="text-xs">Observações</Label><Textarea value={form.notes} onChange={(e) => updateField("notes", e.target.value)} rows={2} className="text-sm" /></div>
+
+              {/* Bloco 4: Opções Avançadas */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Manager edit block */}
+                <div className="rounded-xl border border-border/70 p-3.5 bg-muted/10 space-y-3">
+                  <div className="flex items-center gap-2.5">
+                    <input
+                      type="checkbox"
+                      id={`row-edit-mgr-${loan.id}`}
+                      checked={editHasManager}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setEditHasManager(checked);
+                        updateField("interestRate", checked ? "20" : "30");
+                      }}
+                      className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                    />
+                    <Label htmlFor={`row-edit-mgr-${loan.id}`} className="text-xs font-semibold cursor-pointer">
+                      Empréstimo com gerente
+                    </Label>
+                  </div>
+                  {editHasManager && (
+                    <div className="grid grid-cols-2 gap-2.5 pt-1">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-medium text-muted-foreground">Gerente</Label>
+                        <Select value={editManagerId} onValueChange={setEditManagerId}>
+                          <SelectTrigger className="h-9 text-xs bg-background">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {managerOptions.map((m) => (
+                              <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-medium text-muted-foreground">Comissão (%)</Label>
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={editCommissionRate}
+                          onChange={(e) => setEditCommissionRate(e.target.value)}
+                          className="h-9 text-xs bg-background"
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Sale toggle */}
+                <div className="rounded-xl border border-border/70 p-3.5 bg-muted/10 flex items-center">
+                  <div className="flex items-center gap-2.5">
+                    <input
+                      type="checkbox"
+                      id={`row-edit-sale-${loan.id}`}
+                      checked={editIsSale}
+                      onChange={(e) => setEditIsSale(e.target.checked)}
+                      className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                    />
+                    <Label htmlFor={`row-edit-sale-${loan.id}`} className="text-xs font-semibold cursor-pointer">
+                      Contrato de venda
+                    </Label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bloco 5: Etiquetas e Observações */}
+              <div className="space-y-3">
+                <div className="rounded-xl border border-border/70 bg-muted/10 p-3.5 sm:p-4 space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Etiquetas (separar por vírgula)
+                  </Label>
+                  <Input
+                    value={form.tags}
+                    onChange={(e) => updateField("tags", e.target.value)}
+                    className="h-10 text-sm bg-background"
+                    placeholder="Ex: VIP, Renovação, Garantia"
+                  />
+                </div>
+
+                <div className="rounded-xl border border-border/70 bg-muted/10 p-3.5 sm:p-4 space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Observações
+                  </Label>
+                  <Textarea
+                    value={form.notes}
+                    onChange={(e) => updateField("notes", e.target.value)}
+                    rows={3}
+                    className="text-sm bg-background resize-none"
+                    placeholder="Anotações internas sobre este empréstimo..."
+                  />
+                </div>
+              </div>
+
+              {/* Footer de Ações */}
+              <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-border/70">
+                <Button
+                  variant="outline"
+                  onClick={cancelEdit}
+                  className="h-10 px-4 font-medium rounded-xl"
+                >
+                  <X className="h-4 w-4 mr-1.5" />
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={saveEdit}
+                  className="h-10 px-5 font-semibold rounded-xl bg-primary text-primary-foreground shadow-md transition-all active:scale-[0.99]"
+                >
+                  <Check className="h-4 w-4 mr-1.5" />
+                  Salvar Alterações
+                </Button>
+              </div>
             </div>
           ) : (
           <div className="space-y-3.5">

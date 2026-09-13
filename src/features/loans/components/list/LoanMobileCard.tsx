@@ -588,42 +588,215 @@ export function LoanCardView({
   };
 
   if (editing) {
+    const totalReceivable = (parseFloat(form.amount) || 0) + (parseFloat(form.interestValue) || 0);
+
     return (
-      <Card className="overflow-hidden border-primary/30">
-        <CardContent className="p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-foreground">Editar Empréstimo</h3>
-            <div className="flex gap-1">
-              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={saveEdit} disabled={savingEdit} aria-label="Salvar alterações">
-                <Check className="h-4 w-4 text-success" />
-              </Button>
-               <Button size="icon" variant="ghost" className="h-8 w-8" onClick={cancelEdit}><X className="w-[25px] h-[25px] text-destructive" /></Button>
+      <Card className="overflow-hidden border border-primary/40 shadow-xl bg-card rounded-2xl animate-in fade-in-0 duration-200">
+        {/* Header Elegante */}
+        <div className="bg-muted/40 border-b border-border/70 p-4 sm:p-5 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 shadow-2xs">
+              <Pencil className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="font-bold text-base text-foreground leading-tight">Editar Empréstimo</h3>
+              <p className="text-[11px] text-muted-foreground">Atualize as informações e condições do contrato</p>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><Label className="text-xs">Nome do Devedor</Label><Input value={form.borrowerName} onChange={(e) => updateField("borrowerName", e.target.value)} className="h-8 text-sm" /></div>
-            <div><Label className="text-xs">Valor (R$)</Label><Input type="number" step="0.01" value={form.amount} onChange={(e) => updateField("amount", e.target.value)} className="h-8 text-sm" /></div>
-            <div><Label className="text-xs">Juros Mensal (%)</Label><Input type="number" step="0.1" value={form.interestRate} onChange={(e) => updateField("interestRate", e.target.value)} className="h-8 text-sm" /></div>
-            <div><Label className="text-xs">Valor do Juros (R$)</Label><Input type="number" step="0.01" value={form.interestValue} onChange={(e) => updateField("interestValue", e.target.value)} className="h-8 text-sm" /></div>
-            <div><Label className="text-xs">Valor da Parcela (R$)</Label><Input type="number" step="0.01" value={form.installmentValue} onChange={(e) => updateField("installmentValue", e.target.value)} className="h-8 text-sm" /></div>
-            <div><Label className="text-xs">Parcelas</Label><Input type="number" value={form.installments} onChange={(e) => updateField("installments", e.target.value)} className="h-8 text-sm" /></div>
-            <div><Label className="text-xs">Parcelas Pagas</Label><Input type="number" value={form.paidInstallments} onChange={(e) => updateField("paidInstallments", e.target.value)} className="h-8 text-sm" /></div>
-            <div><Label className="text-xs">Restante a Receber (R$)</Label><Input type="number" step="0.01" value={form.remainingAmount} onChange={(e) => updateField("remainingAmount", e.target.value)} className="h-8 text-sm" /></div>
-            <div><Label className="text-xs">Total a Receber (R$)</Label><p className="h-8 flex items-center text-sm font-bold text-primary">{formatCurrency((parseFloat(form.amount) || 0) + (parseFloat(form.interestValue) || 0))}</p></div>
-            <div><Label className="text-xs">Data Início</Label><DatePickerField value={form.startDate} onChange={(v) => updateField("startDate", v)} className="h-8 text-sm" /></div>
-            <div>
-              <Label className="text-xs">Data 1ª Parcela</Label>
-              <NativeDatePicker
-                value={form.dueDate || ""}
-                onChange={(v) => updateField("dueDate", v)}
-                placeholder="Selecione"
-                className="h-8 text-sm"
+          <div className="flex items-center gap-1.5">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+              onClick={cancelEdit}
+            >
+              <X className="h-3.5 w-3.5 mr-1" />
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 px-3 text-xs font-semibold bg-primary text-primary-foreground shadow-xs gap-1.5"
+              onClick={saveEdit}
+              disabled={savingEdit}
+              aria-label="Salvar alterações"
+            >
+              {savingEdit ? (
+                <div className="h-3.5 w-3.5 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin" />
+              ) : (
+                <Check className="h-3.5 w-3.5" />
+              )}
+              <span>Salvar</span>
+            </Button>
+          </div>
+        </div>
+
+        <CardContent className="p-4 sm:p-6 space-y-4">
+          {/* Bloco 1: Devedor e Valores Principais */}
+          <div className="rounded-xl border border-border/70 bg-muted/10 p-3.5 sm:p-4 space-y-3.5">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Nome do Devedor *
+              </Label>
+              <Input
+                value={form.borrowerName}
+                onChange={(e) => updateField("borrowerName", e.target.value)}
+                placeholder="Nome completo do cliente"
+                className="h-10 text-sm font-medium bg-background"
               />
             </div>
-            <div>
-              <Label className="text-xs">Tipo Contrato</Label>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Valor (R$) *
+                </Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.amount}
+                  onChange={(e) => updateField("amount", e.target.value)}
+                  placeholder="0,00"
+                  className="h-10 text-sm font-semibold bg-background"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Juros Mensal (%)
+                </Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={form.interestRate}
+                  onChange={(e) => updateField("interestRate", e.target.value)}
+                  placeholder="0"
+                  className="h-10 text-sm font-semibold bg-background"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Valor do Juros (R$)
+                </Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.interestValue}
+                  onChange={(e) => updateField("interestValue", e.target.value)}
+                  placeholder="0,00"
+                  className="h-10 text-sm font-semibold bg-background"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Total a Receber (R$)
+                </Label>
+                <div className="h-10 px-3 rounded-lg border border-primary/25 bg-primary/5 flex items-center justify-between">
+                  <span className="text-sm font-bold text-primary tabular-nums">
+                    {formatCurrency(totalReceivable)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bloco 2: Parcelamento e Saldos a Receber */}
+          <div className="rounded-xl border border-border/70 bg-muted/10 p-3.5 sm:p-4 space-y-3.5">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Valor da Parcela (R$)
+                </Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.installmentValue}
+                  onChange={(e) => updateField("installmentValue", e.target.value)}
+                  placeholder="0,00"
+                  className="h-10 text-sm font-semibold bg-background"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Parcelas Totais
+                </Label>
+                <Input
+                  type="number"
+                  value={form.installments}
+                  onChange={(e) => updateField("installments", e.target.value)}
+                  placeholder="1"
+                  min="1"
+                  className="h-10 text-sm font-semibold bg-background"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  Parcelas Pagas
+                </Label>
+                <Input
+                  type="number"
+                  value={form.paidInstallments}
+                  onChange={(e) => updateField("paidInstallments", e.target.value)}
+                  placeholder="0"
+                  min="0"
+                  className="h-10 text-sm font-semibold bg-background border-emerald-500/30 focus-visible:ring-emerald-500"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-primary">
+                  Restante a Receber (R$)
+                </Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.remainingAmount}
+                  onChange={(e) => updateField("remainingAmount", e.target.value)}
+                  placeholder="0,00"
+                  className="h-10 text-sm font-semibold bg-background border-primary/30 focus-visible:ring-primary"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Bloco 3: Prazos e Modalidade de Contrato */}
+          <div className="rounded-xl border border-border/70 bg-muted/10 p-3.5 sm:p-4 space-y-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Data Início
+                </Label>
+                <DatePickerField
+                  value={form.startDate}
+                  onChange={(v) => updateField("startDate", v)}
+                  className="h-10 text-sm bg-background"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Data 1ª Parcela
+                </Label>
+                <NativeDatePicker
+                  value={form.dueDate || ""}
+                  onChange={(v) => updateField("dueDate", v)}
+                  placeholder="Selecione"
+                  className="h-10 text-sm bg-background"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Tipo Contrato
+              </Label>
               <Select value={form.interestType} onValueChange={(v) => updateField("interestType", v)}>
-                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10 text-sm font-medium bg-background">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Diário">Diário</SelectItem>
                   <SelectItem value="Semanal">Semanal</SelectItem>
@@ -632,113 +805,121 @@ export function LoanCardView({
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          {/* Ajuste de vencimento */}
-          <div className="rounded-lg border border-border/50 p-3 bg-muted/20 space-y-2">
-            <div className="flex items-center justify-between gap-2">
+            {/* Ajuste de Vencimento Integrado */}
+            <div className="rounded-lg border border-border/60 p-3 bg-background flex items-center justify-between gap-2">
               <div>
-                <p className="text-xs font-medium text-foreground">Vencimento atual</p>
-                <p className="text-sm font-semibold tabular-nums text-foreground">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Vencimento atual</p>
+                <p className="text-sm font-bold tabular-nums text-foreground">
                   {(() => {
                     const d = getFirstPendingDate(loan, installmentSchedules);
                     return d ? d.toLocaleDateString("pt-BR") : "—";
                   })()}
                 </p>
               </div>
-              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setShowAdjustDueDate(true)}>
+              <Button size="sm" variant="outline" className="h-8 text-xs font-medium" onClick={() => setShowAdjustDueDate(true)}>
                 Ajustar vencimento
               </Button>
             </div>
           </div>
 
-
-
-          {/* Manager edit block */}
-          <div className="border border-border rounded-lg p-3 space-y-2 bg-muted/20">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id={`edit-mgr-${loan.id}`}
-                checked={editHasManager}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setEditHasManager(checked);
-                  updateField("interestRate", checked ? "20" : "30");
-                }}
-                className="h-4 w-4 rounded border-border accent-primary"
-              />
-              <Label htmlFor={`edit-mgr-${loan.id}`} className="text-xs font-medium cursor-pointer">
-                Empréstimo com gerente
-              </Label>
-            </div>
-            {editHasManager && (
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <div>
-                  <Label className="text-xs">Gerente</Label>
-                  <Select value={editManagerId} onValueChange={setEditManagerId}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      {managerOptions.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-xs">Comissão (%)</Label>
-                  <Input type="number" step="0.1" value={editCommissionRate} onChange={(e) => setEditCommissionRate(e.target.value)} className="h-8 text-xs" />
-                </div>
+          {/* Bloco 4: Opções Avançadas */}
+          <div className="space-y-2.5">
+            {/* Manager edit block */}
+            <div className="rounded-xl border border-border/70 p-3.5 bg-muted/10 space-y-3">
+              <div className="flex items-center gap-2.5">
+                <input
+                  type="checkbox"
+                  id={`edit-mgr-${loan.id}`}
+                  checked={editHasManager}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setEditHasManager(checked);
+                    updateField("interestRate", checked ? "20" : "30");
+                  }}
+                  className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                />
+                <Label htmlFor={`edit-mgr-${loan.id}`} className="text-xs font-semibold cursor-pointer">
+                  Empréstimo com gerente
+                </Label>
               </div>
-            )}
-          </div>
+              {editHasManager && (
+                <div className="grid grid-cols-2 gap-2.5 pt-1">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-medium text-muted-foreground">Gerente</Label>
+                    <Select value={editManagerId} onValueChange={setEditManagerId}>
+                      <SelectTrigger className="h-9 text-xs bg-background">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {managerOptions.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-medium text-muted-foreground">Comissão (%)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={editCommissionRate}
+                      onChange={(e) => setEditCommissionRate(e.target.value)}
+                      className="h-9 text-xs bg-background"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
 
-          {/* Sale toggle */}
-          <div className="border border-border rounded-lg p-3 bg-muted/20">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id={`edit-sale-${loan.id}`}
-                checked={editIsSale}
-                onChange={(e) => setEditIsSale(e.target.checked)}
-                className="h-4 w-4 rounded border-border accent-primary"
-              />
-              <Label htmlFor={`edit-sale-${loan.id}`} className="text-xs font-medium cursor-pointer">
-                Contrato de venda
-              </Label>
+            {/* Sale toggle */}
+            <div className="rounded-xl border border-border/70 p-3.5 bg-muted/10">
+              <div className="flex items-center gap-2.5">
+                <input
+                  type="checkbox"
+                  id={`edit-sale-${loan.id}`}
+                  checked={editIsSale}
+                  onChange={(e) => setEditIsSale(e.target.checked)}
+                  className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                />
+                <Label htmlFor={`edit-sale-${loan.id}`} className="text-xs font-semibold cursor-pointer">
+                  Contrato de venda
+                </Label>
+              </div>
             </div>
           </div>
 
-          {/* Installment Schedule */}
+          {/* Bloco 5: Cronograma de Parcelas */}
           {(parseInt(form.installments) || 0) >= 2 && editScheduleRows.length > 0 && (
-            <div className="rounded-lg border border-border/50 overflow-hidden">
+            <div className="rounded-xl border border-border/70 overflow-hidden bg-card">
               <button
                 type="button"
                 onClick={() => setShowEditSchedule(!showEditSchedule)}
-                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted/50 transition-colors"
+                className="flex items-center gap-2 w-full px-4 py-3 text-xs sm:text-sm font-semibold text-foreground hover:bg-muted/40 transition-colors"
               >
-                {showEditSchedule ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                Parcelas ({editScheduleRows.length}x)
-                <Badge variant="outline" className="ml-auto text-xs">
+                {showEditSchedule ? <ChevronDown className="h-4 w-4 text-primary" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                Cronograma de Parcelas ({editScheduleRows.length}x)
+                <Badge variant="outline" className="ml-auto text-[10px] font-normal">
                   {form.interestType}
                 </Badge>
               </button>
               {showEditSchedule && (
                 <div>
-                  <div className="flex items-center justify-between px-3 py-2 bg-muted/20">
-                    <div className="flex gap-3">
-                      <span className="text-xs font-medium text-success">{parseInt(form.paidInstallments) || 0} pagas</span>
-                      <span className="text-xs font-medium text-warning">{Math.max(0, editScheduleRows.length - (parseInt(form.paidInstallments) || 0))} pendentes</span>
+                  <div className="flex items-center justify-between px-3.5 py-2 bg-muted/30 border-t border-b border-border/50">
+                    <div className="flex gap-3 text-xs font-medium">
+                      <span className="text-emerald-600 dark:text-emerald-400">{parseInt(form.paidInstallments) || 0} pagas</span>
+                      <span className="text-amber-600 dark:text-amber-400">{Math.max(0, editScheduleRows.length - (parseInt(form.paidInstallments) || 0))} pendentes</span>
                     </div>
                   </div>
-                  <div className="divide-y divide-border/30 max-h-64 overflow-y-auto">
+                  <div className="divide-y divide-border/40 max-h-64 overflow-y-auto">
                     {editScheduleRows.map((row, idx) => {
                       const paidCount = parseInt(form.paidInstallments) || 0;
                       const isPaid = idx < paidCount;
                       return (
-                        <div key={idx} className={`flex items-center gap-2 px-3 py-2.5 ${isPaid ? "opacity-60" : ""}`}>
+                        <div key={idx} className={`flex items-center gap-2 px-3 py-2.5 ${isPaid ? "opacity-60 bg-muted/20" : "bg-card"}`}>
                           <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                            isPaid ? "bg-success/20 text-success" : "bg-muted/40 text-muted-foreground"
+                            isPaid ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground"
                           }`}>
                             {idx + 1}ª
                           </span>
@@ -760,7 +941,7 @@ export function LoanCardView({
                                 });
                               }}
                               disabled={isPaid}
-                              className="h-8 text-xs"
+                              className="h-8 text-xs bg-background"
                             />
                           </div>
                           <Input
@@ -786,16 +967,17 @@ export function LoanCardView({
                                 return rows;
                               });
                             }}
-                            className="h-8 w-24 text-xs text-right"
+                            className="h-8 w-24 text-xs text-right font-medium bg-background"
                           />
-                          {isPaid && <Badge variant="outline" className="text-[10px] border-success/30 text-success shrink-0">Pago</Badge>}
+                          {isPaid && <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-600 dark:text-emerald-400 shrink-0">Pago</Badge>}
                         </div>
                       );
                     })}
-                    <div className="px-3 py-2 bg-muted/20">
-                      <p className="text-xs text-muted-foreground">
-                        Total: <span className="font-bold text-foreground">{rawFormatCurrency(editScheduleRows.reduce((s, r) => s + (parseFloat(r.value) || 0), 0))}</span>
-                      </p>
+                    <div className="px-3.5 py-2.5 bg-muted/30 border-t border-border/50 flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Soma das parcelas:</span>
+                      <span className="text-xs font-bold text-foreground">
+                        {rawFormatCurrency(editScheduleRows.reduce((s, r) => s + (parseFloat(r.value) || 0), 0))}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -803,13 +985,15 @@ export function LoanCardView({
             </div>
           )}
 
-          {/* Tags */}
-          <div className="grid grid-cols-1 gap-3">
-            <div>
-              <Label className="text-xs">Etiquetas</Label>
-              <div className="flex flex-wrap gap-1.5 mb-2">
+          {/* Bloco 6: Etiquetas */}
+          <div className="rounded-xl border border-border/70 bg-muted/10 p-3.5 sm:p-4 space-y-2.5">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Etiquetas
+            </Label>
+            {form.tags.split(",").map((t) => t.trim()).filter(Boolean).length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-1">
                 {form.tags.split(",").map((t) => t.trim()).filter(Boolean).map((tag, i) => (
-                  <Badge key={i} variant="secondary" className="gap-1 text-xs">
+                  <Badge key={i} variant="secondary" className="gap-1 text-xs py-1 px-2.5 bg-secondary/80">
                     {tag}
                     <button
                       type="button"
@@ -817,52 +1001,95 @@ export function LoanCardView({
                         const currentTags = form.tags.split(",").map((t) => t.trim()).filter((t) => t !== tag);
                         updateField("tags", currentTags.join(", "));
                       }}
-                      className="ml-0.5 hover:text-destructive"
+                      className="ml-0.5 hover:text-destructive transition-colors"
                     >
                       <X className="h-3 w-3" />
                     </button>
                   </Badge>
                 ))}
               </div>
-              <div className="flex gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8 text-xs shrink-0">
-                      <ChevronDown className="h-3.5 w-3.5 mr-1" />
-                      Existentes
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-48 p-1" align="start">
-                    <div className="flex flex-col max-h-40 overflow-y-auto">
-                      {existingTags
-                        .filter((t: string) => !form.tags.split(",").map((x: string) => x.trim()).filter(Boolean).includes(t))
-                        .sort((a: string, b: string) => a.localeCompare(b, "pt-BR"))
-                        .map((tag: string) => (
-                          <button
-                            key={tag}
-                            type="button"
-                            className="text-left text-sm px-3 py-1.5 hover:bg-muted rounded-sm"
-                            onClick={() => {
-                              const currentTags = form.tags.split(",").map((t: string) => t.trim()).filter(Boolean);
-                              updateField("tags", [...currentTags, tag].join(", "));
-                            }}
-                          >
-                            {tag}
-                          </button>
-                        ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                <Input
-                  value={form.tags}
-                  onChange={(e) => updateField("tags", e.target.value)}
-                  className="h-8 text-sm flex-1"
-                  placeholder="Digite etiquetas separadas por vírgula"
-                />
-              </div>
+            )}
+            <div className="flex gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-10 text-xs shrink-0 bg-background">
+                    <ChevronDown className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                    Existentes
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-1" align="start">
+                  <div className="flex flex-col max-h-40 overflow-y-auto">
+                    {existingTags
+                      .filter((t: string) => !form.tags.split(",").map((x: string) => x.trim()).filter(Boolean).includes(t))
+                      .sort((a: string, b: string) => a.localeCompare(b, "pt-BR"))
+                      .map((tag: string) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          className="text-left text-sm px-3 py-1.5 hover:bg-muted rounded-sm"
+                          onClick={() => {
+                            const currentTags = form.tags.split(",").map((t: string) => t.trim()).filter(Boolean);
+                            updateField("tags", [...currentTags, tag].join(", "));
+                          }}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <Input
+                value={form.tags}
+                onChange={(e) => updateField("tags", e.target.value)}
+                className="h-10 text-sm flex-1 bg-background"
+                placeholder="Digite etiquetas separadas por vírgula (Ex: VIP, Renovação)"
+              />
             </div>
           </div>
-          <div><Label className="text-xs">Observações</Label><Textarea value={form.notes} onChange={(e) => updateField("notes", e.target.value)} rows={2} className="text-sm" /></div>
+
+          {/* Bloco 7: Observações */}
+          <div className="rounded-xl border border-border/70 bg-muted/10 p-3.5 sm:p-4 space-y-1.5">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Observações
+            </Label>
+            <Textarea
+              value={form.notes}
+              onChange={(e) => updateField("notes", e.target.value)}
+              rows={3}
+              placeholder="Anotações internas sobre este empréstimo..."
+              className="text-sm bg-background resize-none"
+            />
+          </div>
+
+          {/* Footer de Ações Mobile & Desktop */}
+          <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5">
+            <Button
+              variant="outline"
+              onClick={cancelEdit}
+              disabled={savingEdit}
+              className="h-11 font-medium rounded-xl order-2 sm:order-1"
+            >
+              <X className="h-4 w-4 mr-2" />
+              Cancelar
+            </Button>
+            <Button
+              onClick={saveEdit}
+              disabled={savingEdit}
+              className="h-11 font-semibold rounded-xl bg-primary text-primary-foreground shadow-md transition-all active:scale-[0.99] order-1 sm:order-2"
+            >
+              {savingEdit ? (
+                <>
+                  <div className="h-4 w-4 mr-2 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin" />
+                  Salvando Alterações...
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Salvar Alterações
+                </>
+              )}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );
