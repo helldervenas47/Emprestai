@@ -372,12 +372,12 @@ export function PayrollManager({ readOnly }: Props) {
                   </div>
 
                   {/* Botões de Ação */}
-                  <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap justify-end shrink-0">
+                  <div className="flex items-center gap-1.5 overflow-x-auto sm:overflow-visible flex-nowrap justify-start sm:justify-end shrink-0 w-full sm:w-auto scrollbar-hide py-0.5">
                     {!readOnly && remaining > 0 && (
                       <Button
                         data-mutation
                         size="sm"
-                        className="rounded-xl font-medium gap-1.5 h-9 px-3"
+                        className="rounded-xl font-medium gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 text-xs shrink-0"
                         onClick={() => setPayingId(p.id)}
                       >
                         <Wallet className="h-3.5 w-3.5" />
@@ -389,7 +389,7 @@ export function PayrollManager({ readOnly }: Props) {
                         data-mutation
                         size="sm"
                         variant="outline"
-                        className="rounded-xl font-medium gap-1.5 h-9 px-3"
+                        className="rounded-xl font-medium gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 text-xs shrink-0"
                         onClick={() => setEditingId(p.id)}
                       >
                         <Pencil className="h-3.5 w-3.5" />
@@ -400,7 +400,7 @@ export function PayrollManager({ readOnly }: Props) {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="rounded-xl font-medium gap-1.5 h-9 px-3"
+                        className="rounded-xl font-medium gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 text-xs shrink-0"
                         onClick={() => setHistoryId(p.id)}
                       >
                         <History className="h-3.5 w-3.5" />
@@ -410,7 +410,7 @@ export function PayrollManager({ readOnly }: Props) {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="rounded-xl font-medium gap-1.5 h-9 px-3"
+                      className="rounded-xl font-medium gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 text-xs shrink-0"
                       onClick={() => emp && generatePayslipPdf(p, emp, { brandName: branding.brand_name })}
                     >
                       <FileText className="h-3.5 w-3.5 text-primary" />
@@ -421,7 +421,7 @@ export function PayrollManager({ readOnly }: Props) {
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground shrink-0"
+                          className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl text-muted-foreground hover:text-foreground shrink-0"
                           title="Reabrir folha"
                           onClick={() => reopenPayroll(p)}
                         >
@@ -431,7 +431,7 @@ export function PayrollManager({ readOnly }: Props) {
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground shrink-0"
+                          className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl text-muted-foreground hover:text-foreground shrink-0"
                           title="Fechar folha"
                           onClick={() => closePayroll(p)}
                         >
@@ -443,7 +443,7 @@ export function PayrollManager({ readOnly }: Props) {
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-9 w-9 rounded-xl text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 shrink-0"
+                        className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 shrink-0"
                         title="Excluir folha"
                         onClick={async () => {
                           if (confirmWithScroll("Excluir esta folha?")) {
