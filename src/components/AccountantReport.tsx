@@ -1414,87 +1414,87 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
               {/* Linha 1: Receita Operacional Bruta */}
               <div
                 onClick={() => setDreCategory((c) => (c === "interest" ? null : "interest"))}
-                className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                   dreCategory === "interest" ? "border-emerald-500 bg-emerald-500/5 shadow-xs" : "border-border/60 hover:bg-muted/40"
                 }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className="h-8 w-8 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm shrink-0">
                     (+)
                   </div>
-                  <div>
-                    <p className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5">
-                      Receita Operacional Bruta (Juros e Encargos)
-                      <ChevronDown className={`h-3.5 w-3.5 transition-transform ${dreCategory === "interest" ? "rotate-180" : ""}`} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5 flex-wrap">
+                      <span>Receita Operacional Bruta (Juros e Encargos)</span>
+                      <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform ${dreCategory === "interest" ? "rotate-180" : ""}`} />
                     </p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-[11px] text-muted-foreground line-clamp-1">
                       Ganho efetivo gerado pelos empréstimos ({dre.breakdown.length} pagamentos)
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-sm sm:text-base font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                <div className="text-right shrink-0 whitespace-nowrap pl-2">
+                  <span className="text-sm sm:text-base font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums whitespace-nowrap">
                     {fmt(dre.interestRevenue, hidden)}
                   </span>
-                  <span className="block text-[10px] text-muted-foreground">100% da receita</span>
+                  <span className="block text-[10px] text-muted-foreground whitespace-nowrap">100% da receita</span>
                 </div>
               </div>
 
               {/* Linha 2: Despesas Operacionais */}
               <div
                 onClick={() => setDreCategory((c) => (c === "expenses" ? null : "expenses"))}
-                className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                   dreCategory === "expenses" ? "border-destructive bg-destructive/5 shadow-xs" : "border-border/60 hover:bg-muted/40"
                 }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-lg bg-destructive/15 text-destructive flex items-center justify-center font-bold text-sm">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className="h-8 w-8 rounded-lg bg-destructive/15 text-destructive flex items-center justify-center font-bold text-sm shrink-0">
                     (−)
                   </div>
-                  <div>
-                    <p className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5">
-                      Despesas Operacionais e Administrativas PJ
-                      <ChevronDown className={`h-3.5 w-3.5 transition-transform ${dreCategory === "expenses" ? "rotate-180" : ""}`} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5 flex-wrap">
+                      <span>Despesas Operacionais e Administrativas PJ</span>
+                      <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform ${dreCategory === "expenses" ? "rotate-180" : ""}`} />
                     </p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-[11px] text-muted-foreground line-clamp-1">
                       Custos dedutíveis da operação ({dre.periodExpenses.length} despesas)
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-sm sm:text-base font-extrabold text-destructive tabular-nums">
+                <div className="text-right shrink-0 whitespace-nowrap pl-2">
+                  <span className="text-sm sm:text-base font-extrabold text-destructive tabular-nums whitespace-nowrap">
                     {fmt(dre.businessExp, hidden)}
                   </span>
-                  <span className="block text-[10px] text-muted-foreground">
+                  <span className="block text-[10px] text-muted-foreground whitespace-nowrap">
                     {dre.totalRevenue > 0 ? `${((dre.businessExp / dre.totalRevenue) * 100).toFixed(1)}% da receita` : "—"}
                   </span>
                 </div>
               </div>
 
               {/* Linha 3: Lucro Líquido Contábil */}
-              <div className="p-4 rounded-xl border-2 border-primary/30 bg-primary/5 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-lg bg-primary/20 text-primary flex items-center justify-center font-bold text-sm">
+              <div className="p-4 rounded-xl border-2 border-primary/30 bg-primary/5 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className="h-8 w-8 rounded-lg bg-primary/20 text-primary flex items-center justify-center font-bold text-sm shrink-0">
                     (=)
                   </div>
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm sm:text-base font-extrabold text-foreground">
                       Lucro Líquido do Exercício
                     </p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-[11px] text-muted-foreground line-clamp-1">
                       Resultado contábil antes dos tributos corporativos
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-right shrink-0 whitespace-nowrap pl-2">
                   <span
-                    className={`text-base sm:text-xl font-extrabold tabular-nums ${
+                    className={`text-base sm:text-xl font-extrabold tabular-nums whitespace-nowrap ${
                       dre.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"
                     }`}
                   >
                     {fmt(dre.netProfit, hidden)}
                   </span>
-                  <span className="block text-[10px] font-semibold text-primary">
+                  <span className="block text-[10px] font-semibold text-primary whitespace-nowrap">
                     Margem Líquida: {dre.profitMargin.toFixed(1)}%
                   </span>
                 </div>
@@ -1505,7 +1505,7 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                 <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                 <span>
                   <strong>Nota Contábil:</strong> A recuperação do principal emprestado (
-                  <strong>{fmt(dre.principalReceived, hidden)}</strong> no período) representa devolução de capital e
+                  <strong className="whitespace-nowrap">{fmt(dre.principalReceived, hidden)}</strong> no período) representa devolução de capital e
                   não compõe receita nem base de cálculo de impostos, de acordo com as normas da Receita Federal do Brasil.
                 </span>
               </div>
@@ -1524,15 +1524,15 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                   </div>
 
                   {dreCategory === "interest" && (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
+                    <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                      <table className="w-full text-xs min-w-[540px]">
                         <thead>
                           <tr className="text-left text-muted-foreground border-b pb-2">
-                            <th className="py-2 pr-2">Data</th>
-                            <th className="py-2 pr-2">Cliente / Contrato</th>
-                            <th className="py-2 pr-2">Tipo</th>
-                            <th className="py-2 pr-2 text-right">Valor Pago</th>
-                            <th className="py-2 text-right text-emerald-600 font-bold">Juros (Receita)</th>
+                            <th className="py-2 pr-3 whitespace-nowrap">Data</th>
+                            <th className="py-2 pr-3 whitespace-nowrap">Cliente / Contrato</th>
+                            <th className="py-2 pr-3 whitespace-nowrap">Tipo</th>
+                            <th className="py-2 pr-3 text-right whitespace-nowrap">Valor Pago</th>
+                            <th className="py-2 text-right text-emerald-600 font-bold whitespace-nowrap">Juros (Receita)</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1540,15 +1540,15 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                             .filter((b) => b.interest > 0)
                             .map((b) => (
                               <tr key={b.id} className="border-b last:border-0 hover:bg-muted/40">
-                                <td className="py-2 pr-2 whitespace-nowrap">
+                                <td className="py-2 pr-3 whitespace-nowrap font-medium">
                                   {b.date ? new Date(b.date + "T00:00:00").toLocaleDateString("pt-BR") : "—"}
                                 </td>
-                                <td className="py-2 pr-2 font-medium">{b.borrowerName}</td>
-                                <td className="py-2 pr-2">
+                                <td className="py-2 pr-3 font-medium min-w-[140px]">{b.borrowerName}</td>
+                                <td className="py-2 pr-3 whitespace-nowrap">
                                   <Badge variant="outline" className="text-[10px] py-0">{b.kindLabel}</Badge>
                                 </td>
-                                <td className="py-2 pr-2 text-right tabular-nums">{fmt(b.amount, hidden)}</td>
-                                <td className="py-2 text-right tabular-nums text-emerald-600 font-bold">{fmt(b.interest, hidden)}</td>
+                                <td className="py-2 pr-3 text-right tabular-nums whitespace-nowrap">{fmt(b.amount, hidden)}</td>
+                                <td className="py-2 text-right tabular-nums text-emerald-600 font-bold whitespace-nowrap">{fmt(b.interest, hidden)}</td>
                               </tr>
                             ))}
                         </tbody>
@@ -1557,14 +1557,14 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                   )}
 
                   {dreCategory === "expenses" && (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
+                    <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                      <table className="w-full text-xs min-w-[500px]">
                         <thead>
                           <tr className="text-left text-muted-foreground border-b pb-2">
-                            <th className="py-2 pr-2">Data</th>
-                            <th className="py-2 pr-2">Descrição</th>
-                            <th className="py-2 pr-2">Categoria</th>
-                            <th className="py-2 text-right text-destructive font-bold">Valor</th>
+                            <th className="py-2 pr-3 whitespace-nowrap">Data</th>
+                            <th className="py-2 pr-3 whitespace-nowrap">Descrição</th>
+                            <th className="py-2 pr-3 whitespace-nowrap">Categoria</th>
+                            <th className="py-2 text-right text-destructive font-bold whitespace-nowrap">Valor</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1572,14 +1572,14 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                             const d = e.paidDate ?? e.paid_date ?? e.dueDate ?? e.due_date;
                             return (
                               <tr key={e.id} className="border-b last:border-0 hover:bg-muted/40">
-                                <td className="py-2 pr-2 whitespace-nowrap">
+                                <td className="py-2 pr-3 whitespace-nowrap font-medium">
                                   {d ? new Date(d + "T00:00:00").toLocaleDateString("pt-BR") : "—"}
                                 </td>
-                                <td className="py-2 pr-2 font-medium">{e.description ?? e.name ?? "—"}</td>
-                                <td className="py-2 pr-2">
+                                <td className="py-2 pr-3 font-medium min-w-[140px]">{e.description ?? e.name ?? "—"}</td>
+                                <td className="py-2 pr-3 whitespace-nowrap">
                                   <Badge variant="outline" className="text-[10px] py-0">{e.category ?? "Geral"}</Badge>
                                 </td>
-                                <td className="py-2 text-right tabular-nums text-destructive font-bold">
+                                <td className="py-2 text-right tabular-nums text-destructive font-bold whitespace-nowrap">
                                   {fmt(Number(e.amount) || 0, hidden)}
                                 </td>
                               </tr>
@@ -1618,16 +1618,16 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
               </div>
             </CardHeader>
             <CardContent className="p-4 sm:p-5 pt-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
+              <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                <table className="w-full text-xs min-w-[620px]">
                   <thead>
                     <tr className="text-left text-muted-foreground border-b pb-2">
-                      <th className="py-2 pr-2">Data</th>
-                      <th className="py-2 pr-2">Cliente / Contrato</th>
-                      <th className="py-2 pr-2">Tipo</th>
-                      <th className="py-2 pr-2 text-right">Valor Total</th>
-                      <th className="py-2 pr-2 text-right text-emerald-600 font-bold">Juros (Receita)</th>
-                      <th className="py-2 text-right font-semibold">Principal (Amort.)</th>
+                      <th className="py-2.5 pr-3 whitespace-nowrap">Data</th>
+                      <th className="py-2.5 pr-3 whitespace-nowrap">Cliente / Contrato</th>
+                      <th className="py-2.5 pr-3 whitespace-nowrap text-center">Tipo</th>
+                      <th className="py-2.5 pr-3 text-right whitespace-nowrap">Valor Total</th>
+                      <th className="py-2.5 pr-3 text-right text-emerald-600 font-bold whitespace-nowrap">Juros (Receita)</th>
+                      <th className="py-2.5 text-right font-semibold whitespace-nowrap">Principal (Amort.)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1640,25 +1640,27 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                     ) : (
                       filteredBreakdown.map((b) => (
                         <tr key={b.id} className="border-b last:border-0 hover:bg-muted/40 transition-colors">
-                          <td className="py-2 pr-2 whitespace-nowrap">
+                          <td className="py-2.5 pr-3 whitespace-nowrap font-medium">
                             {b.date ? new Date(b.date + "T00:00:00").toLocaleDateString("pt-BR") : "—"}
                           </td>
-                          <td className="py-2 pr-2">
-                            <p className="font-semibold text-foreground">{b.borrowerName}</p>
-                            <p className="text-[10px] text-muted-foreground truncate max-w-[200px]">
+                          <td className="py-2.5 pr-3 min-w-[140px] max-w-[220px]">
+                            <p className="font-semibold text-foreground truncate">{b.borrowerName}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">
                               {b.paymentMethodName} {b.description ? `· ${b.description}` : ""}
                             </p>
                           </td>
-                          <td className="py-2 pr-2">
+                          <td className="py-2.5 pr-3 text-center whitespace-nowrap">
                             <Badge variant="outline" className="text-[10px] py-0 font-medium">
                               {b.kindLabel}
                             </Badge>
                           </td>
-                          <td className="py-2 pr-2 text-right font-medium tabular-nums">{fmt(b.amount, hidden)}</td>
-                          <td className="py-2 pr-2 text-right text-emerald-600 font-bold tabular-nums">
+                          <td className="py-2.5 pr-3 text-right font-medium tabular-nums whitespace-nowrap">
+                            {fmt(b.amount, hidden)}
+                          </td>
+                          <td className="py-2.5 pr-3 text-right text-emerald-600 font-bold tabular-nums whitespace-nowrap">
                             {fmt(b.interest, hidden)}
                           </td>
-                          <td className="py-2 text-right font-medium tabular-nums text-muted-foreground">
+                          <td className="py-2.5 text-right font-medium tabular-nums text-muted-foreground whitespace-nowrap">
                             {fmt(b.principal, hidden)}
                           </td>
                         </tr>
@@ -1719,22 +1721,22 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                     </div>
                     <p className="text-xs text-muted-foreground">Anexo III (Serviços / Intermediação)</p>
                     <div className="my-3">
-                      <p className="text-2xl font-black text-foreground tabular-nums">
+                      <p className="text-xl sm:text-2xl font-black text-foreground tabular-nums whitespace-nowrap">
                         {fmt(taxSim.simples.total, hidden)}
                       </p>
-                      <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                      <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5 whitespace-nowrap">
                         Alíquota Efetiva: {(taxSim.simples.aliquotaEfetiva * 100).toFixed(2)}% (Faixa {taxSim.simples.faixa})
                       </p>
                     </div>
                   </div>
                   <div className="pt-3 border-t border-border/40 text-xs space-y-1">
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>RBT12 (Anualizada)</span>
-                      <span>{fmt(taxSim.rbt12, hidden)}</span>
+                    <div className="flex justify-between text-muted-foreground gap-2">
+                      <span className="truncate">RBT12 (Anualizada)</span>
+                      <span className="whitespace-nowrap tabular-nums">{fmt(taxSim.rbt12, hidden)}</span>
                     </div>
-                    <div className="flex justify-between font-bold text-foreground">
-                      <span>Líquido após DAS</span>
-                      <span>{fmt(taxSim.simples.liquido, hidden)}</span>
+                    <div className="flex justify-between font-bold text-foreground gap-2">
+                      <span className="truncate">Líquido após DAS</span>
+                      <span className="whitespace-nowrap tabular-nums">{fmt(taxSim.simples.liquido, hidden)}</span>
                     </div>
                   </div>
                 </div>
@@ -1760,22 +1762,22 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                     </div>
                     <p className="text-xs text-muted-foreground">Presunção de 32% (IRPJ + CSLL + PIS/COFINS + ISS)</p>
                     <div className="my-3">
-                      <p className="text-2xl font-black text-foreground tabular-nums">
+                      <p className="text-xl sm:text-2xl font-black text-foreground tabular-nums whitespace-nowrap">
                         {fmt(taxSim.presumido.total, hidden)}
                       </p>
-                      <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mt-0.5">
+                      <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mt-0.5 whitespace-nowrap">
                         Alíquota Efetiva: {(taxSim.presumido.aliquotaEfetiva * 100).toFixed(2)}%
                       </p>
                     </div>
                   </div>
                   <div className="pt-3 border-t border-border/40 text-xs space-y-1">
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Base de Cálculo (32%)</span>
-                      <span>{fmt(taxSim.presumido.baseCalculo, hidden)}</span>
+                    <div className="flex justify-between text-muted-foreground gap-2">
+                      <span className="truncate">Base de Cálculo (32%)</span>
+                      <span className="whitespace-nowrap tabular-nums">{fmt(taxSim.presumido.baseCalculo, hidden)}</span>
                     </div>
-                    <div className="flex justify-between font-bold text-foreground">
-                      <span>Líquido após Tributos</span>
-                      <span>{fmt(taxSim.presumido.liquido, hidden)}</span>
+                    <div className="flex justify-between font-bold text-foreground gap-2">
+                      <span className="truncate">Líquido após Tributos</span>
+                      <span className="whitespace-nowrap tabular-nums">{fmt(taxSim.presumido.liquido, hidden)}</span>
                     </div>
                   </div>
                 </div>
@@ -1801,22 +1803,22 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                     </div>
                     <p className="text-xs text-muted-foreground">Carnê-Leão Mensal (Tabela Progressiva)</p>
                     <div className="my-3">
-                      <p className="text-2xl font-black text-foreground tabular-nums">
+                      <p className="text-xl sm:text-2xl font-black text-foreground tabular-nums whitespace-nowrap">
                         {fmt(taxSim.irpf.total, hidden)}
                       </p>
-                      <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 mt-0.5">
+                      <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 mt-0.5 whitespace-nowrap">
                         Alíquota Efetiva: {(taxSim.irpf.aliquotaEfetiva * 100).toFixed(2)}%
                       </p>
                     </div>
                   </div>
                   <div className="pt-3 border-t border-border/40 text-xs space-y-1">
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Parcela a Deduzir</span>
-                      <span>{fmt(taxSim.irpf.deducao, hidden)}</span>
+                    <div className="flex justify-between text-muted-foreground gap-2">
+                      <span className="truncate">Parcela a Deduzir</span>
+                      <span className="whitespace-nowrap tabular-nums">{fmt(taxSim.irpf.deducao, hidden)}</span>
                     </div>
-                    <div className="flex justify-between font-bold text-foreground">
-                      <span>Líquido após IRPF</span>
-                      <span>{fmt(taxSim.irpf.liquido, hidden)}</span>
+                    <div className="flex justify-between font-bold text-foreground gap-2">
+                      <span className="truncate">Líquido após IRPF</span>
+                      <span className="whitespace-nowrap tabular-nums">{fmt(taxSim.irpf.liquido, hidden)}</span>
                     </div>
                   </div>
                 </div>
@@ -1848,7 +1850,7 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
                   <span className="text-xs font-semibold text-muted-foreground">Total de Entradas</span>
-                  <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                  <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums whitespace-nowrap">
                     {fmt(cashflow.totalIn, hidden)}
                   </p>
                   <span className="text-[10px] text-muted-foreground">{cashflow.paymentCount} recebimento(s)</span>
@@ -1856,7 +1858,7 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
 
                 <div className="p-3.5 rounded-xl border border-destructive/30 bg-destructive/5">
                   <span className="text-xs font-semibold text-muted-foreground">Total de Saídas</span>
-                  <p className="text-lg font-bold text-destructive tabular-nums">
+                  <p className="text-lg font-bold text-destructive tabular-nums whitespace-nowrap">
                     {fmt(cashflow.totalOut, hidden)}
                   </p>
                   <span className="text-[10px] text-muted-foreground">
@@ -1867,7 +1869,7 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                 <div className="p-3.5 rounded-xl border border-primary/30 bg-primary/5">
                   <span className="text-xs font-semibold text-muted-foreground">Saldo Líquido</span>
                   <p
-                    className={`text-lg font-bold tabular-nums ${
+                    className={`text-lg font-bold tabular-nums whitespace-nowrap ${
                       cashflow.net >= 0 ? "text-primary" : "text-destructive"
                     }`}
                   >
@@ -1877,14 +1879,14 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
+              <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                <table className="w-full text-xs min-w-[480px]">
                   <thead>
                     <tr className="text-left text-muted-foreground border-b pb-2">
-                      <th className="py-2 pr-2">Data</th>
-                      <th className="py-2 pr-2 text-right text-emerald-600 font-bold">Entradas</th>
-                      <th className="py-2 pr-2 text-right text-destructive font-bold">Saídas</th>
-                      <th className="py-2 text-right font-bold">Saldo do Dia</th>
+                      <th className="py-2.5 pr-3 whitespace-nowrap">Data</th>
+                      <th className="py-2.5 pr-3 text-right text-emerald-600 font-bold whitespace-nowrap">Entradas</th>
+                      <th className="py-2.5 pr-3 text-right text-destructive font-bold whitespace-nowrap">Saídas</th>
+                      <th className="py-2.5 text-right font-bold whitespace-nowrap">Saldo do Dia</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1897,17 +1899,17 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                     ) : (
                       cashflow.rows.map((r) => (
                         <tr key={r.key} className="border-b last:border-0 hover:bg-muted/40">
-                          <td className="py-2 pr-2 whitespace-nowrap font-medium capitalize">
+                          <td className="py-2.5 pr-3 whitespace-nowrap font-medium capitalize">
                             {formatDate(r.key)}
                           </td>
-                          <td className="py-2 pr-2 text-right text-emerald-600 font-medium tabular-nums">
+                          <td className="py-2.5 pr-3 text-right text-emerald-600 font-medium tabular-nums whitespace-nowrap">
                             {fmt(r.in, hidden)}
                           </td>
-                          <td className="py-2 pr-2 text-right text-destructive font-medium tabular-nums">
+                          <td className="py-2.5 pr-3 text-right text-destructive font-medium tabular-nums whitespace-nowrap">
                             {fmt(r.out, hidden)}
                           </td>
                           <td
-                            className={`py-2 text-right font-bold tabular-nums ${
+                            className={`py-2.5 text-right font-bold tabular-nums whitespace-nowrap ${
                               r.net >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"
                             }`}
                           >
