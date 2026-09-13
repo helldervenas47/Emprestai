@@ -30,6 +30,36 @@ import {
 type SlotKey = "send_time_1" | "send_time_2" | "send_time_3";
 const slots: SlotKey[] = ["send_time_1", "send_time_2", "send_time_3"];
 
+interface GroupedClientBilling {
+  clientName: string;
+  amount: number;
+  interestAmount: number;
+  count: number;
+}
+
+function groupCandidatesByClient(candidates: BillingCandidate[]): GroupedClientBilling[] {
+  const map = new Map<string, GroupedClientBilling>();
+  for (const item of candidates) {
+    const key = item.clientId || item.clientName;
+    const existing = map.get(key);
+    if (existing) {
+      existing.amount += item.amount;
+      existing.interestAmount += (item.interestAmount || 0);
+      existing.count += 1;
+    } else {
+      map.set(key, {
+        clientName: item.clientName,
+        amount: item.amount,
+        interestAmount: item.interestAmount || 0,
+        count: 1,
+      });
+    }
+  }
+  return Array.from(map.values()).sort((a, b) =>
+    a.clientName.localeCompare(b.clientName, "pt-BR", { sensitivity: "base" })
+  );
+}
+
 export function formatBillingReportForWhatsapp(
   aCobrar: BillingCandidate[],
   sentIds: Set<string>,
@@ -56,6 +86,9 @@ export function formatBillingReportForWhatsapp(
         .replace(/\u00a0/g, " "),
   };
 
+  const groupedEnviadas = groupCandidatesByClient(enviadas);
+  const groupedNaoEnviadas = groupCandidatesByClient(naoEnviadas);
+
   const lines: string[] = [
     `📊 *RESUMO DAS COBRANÇAS — HOJE*`,
     ``,
@@ -74,11 +107,11 @@ export function formatBillingReportForWhatsapp(
     ``,
   ];
 
-  if (enviadas.length === 0) {
+  if (groupedEnviadas.length === 0) {
     lines.push(`Nenhuma cobrança enviada.`);
   } else {
-    enviadas.forEach((item) => {
-      lines.push(`${item.clientName} / Juros: ${moneyFmt.format(item.interestAmount || 0)} / Total: ${moneyFmt.format(item.amount)}`);
+    groupedEnviadas.forEach((item) => {
+      lines.push(`${item.clientName} / Juros: ${moneyFmt.format(item.interestAmount)} / Total: ${moneyFmt.format(item.amount)}`);
     });
   }
 
@@ -92,11 +125,11 @@ export function formatBillingReportForWhatsapp(
     ``,
   );
 
-  if (naoEnviadas.length === 0) {
+  if (groupedNaoEnviadas.length === 0) {
     lines.push(`Nenhuma cobrança pendente.`);
   } else {
-    naoEnviadas.forEach((item) => {
-      lines.push(`${item.clientName} / Juros: ${moneyFmt.format(item.interestAmount || 0)} / Total: ${moneyFmt.format(item.amount)}`);
+    groupedNaoEnviadas.forEach((item) => {
+      lines.push(`${item.clientName} / Juros: ${moneyFmt.format(item.interestAmount)} / Total: ${moneyFmt.format(item.amount)}`);
     });
   }
 

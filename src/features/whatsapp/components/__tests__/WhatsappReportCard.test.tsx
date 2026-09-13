@@ -179,4 +179,59 @@ describe("WhatsappReportCard — Envio de Relatórios e Resumo Operacional pelo 
     expect(message).toContain("*Total: 3 / R$ 120,00 / R$ 1.220,00*");
     expect(message).toContain("*Resumo gerado automaticamente pelo EmprestAI.*");
   });
+
+  it("consolida múltiplos empréstimos do mesmo cliente em apenas uma linha com juros e valor total somados", () => {
+    const candidates: BillingCandidate[] = [
+      {
+        key: "loan-1:1",
+        loanId: "loan-1",
+        clientId: "client-1",
+        clientName: "João da Silva",
+        phone: "5511999991111",
+        validPhone: true,
+        installmentNumber: 1,
+        contractLabel: "Empréstimo A",
+        amount: 300,
+        baseAmount: 270,
+        lateFees: 0,
+        interestAmount: 30,
+        overdueInstallmentCount: 0,
+        dueDate: "2026-09-13",
+        billingDate: "2026-09-13",
+        daysOverdue: 0,
+        priority: "today",
+        message: "",
+      },
+      {
+        key: "loan-2:1",
+        loanId: "loan-2",
+        clientId: "client-1",
+        clientName: "João da Silva",
+        phone: "5511999991111",
+        validPhone: true,
+        installmentNumber: 1,
+        contractLabel: "Empréstimo B",
+        amount: 200,
+        baseAmount: 180,
+        lateFees: 0,
+        interestAmount: 20,
+        overdueInstallmentCount: 0,
+        dueDate: "2026-09-13",
+        billingDate: "2026-09-13",
+        daysOverdue: 0,
+        priority: "today",
+        message: "",
+      },
+    ];
+
+    const sentIds = new Set(["loan-1", "loan-2"]);
+    const message = formatBillingReportForWhatsapp(candidates, sentIds);
+
+    // Deve ter apenas UMA ocorrência de João da Silva com a soma R$ 50,00 e R$ 500,00
+    expect(message).toContain("João da Silva / Juros: R$ 50,00 / Total: R$ 500,00");
+    const count = (message.match(/João da Silva/g) || []).length;
+    expect(count).toBe(1);
+    expect(message).toContain("Total de cobranças: *2*");
+    expect(message).toContain("*Total enviado: 2 / R$ 50,00 / R$ 500,00*");
+  });
 });
