@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NativeDatePicker } from "@/components/ui/native-date-picker";
-import { Plus, X, Calendar as CalendarIcon } from "lucide-react";
+import { Plus, X, Calendar as CalendarIcon, ShoppingBag, Car, Tv, Loader2, Sparkles } from "lucide-react";
 import { Sale, BusinessType, PaymentMode, Client, Product } from "@/types/loan";
 import { format, addMonths, addWeeks, addDays } from "date-fns";
 import { VehicleInfo } from "@/features/vehicles/hooks/useVehicleRegistry";
@@ -433,20 +433,51 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
         { value: "Mensal", label: "Mensal" },
       ];
 
+  const getHeaderIcon = () => {
+    if (isVehicleRental) return <Car className="w-4 h-4" />;
+    if (form.businessType === "streaming") return <Tv className="w-4 h-4" />;
+    return <ShoppingBag className="w-4 h-4" />;
+  };
+
   return (
-    <div className="fixed inset-0 bg-foreground/40 backdrop-blur-sm z-50 flex items-stretch justify-center p-0 sm:items-center sm:p-4">
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-0 sm:p-4 animate-in fade-in-0">
       <SuccessAnimation show={showSuccess} onComplete={onClose} message={isVehicleRental ? "Aluguel registrado!" : "Lançamento registrado!"} />
-      <Card className="modal-form-scrollable !bg-card !backdrop-blur-none supports-[backdrop-filter]:!bg-card dark:!bg-card w-full h-[100dvh] max-h-[100dvh] rounded-none border-0 overflow-y-auto pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-2xl sm:border sm:pt-0 sm:pb-0">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-xl">{formTitle}</CardTitle>
-          <Button variant="ghost" size="icon" onClick={onClose}><X className="h-5 w-5" /></Button>
-        </CardHeader>
-        <CardContent className="pb-8 sm:pb-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+      <Card no3d className="modal-form-scrollable w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-lg rounded-none sm:rounded-2xl border-0 sm:border border-border/80 shadow-2xl flex flex-col bg-card overflow-hidden">
+        {/* Sticky Header */}
+        <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-md border-b border-border/60 px-4 py-3.5 sm:px-6 sm:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shadow-xs">
+              {getHeaderIcon()}
+            </div>
             <div>
-              <Label>Tipo de Negócio</Label>
+              <h2 className="text-base sm:text-lg font-bold text-foreground leading-tight">
+                {formTitle}
+              </h2>
+              <p className="text-[11px] sm:text-xs text-muted-foreground">
+                {isVehicleRental ? "Contrato e cobranças de locação de veículo" : "Cadastre uma nova venda ou serviço"}
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-8 w-8 rounded-full hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+          <form id="sale-form" onSubmit={handleSubmit} className="space-y-4">
+            {/* Bloco 1: Tipo de Negócio */}
+            <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Tipo de Negócio *
+              </Label>
               <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-medium"
                 value={form.businessType}
                 onChange={(e) => handleBusinessTypeChange(e.target.value)}
               >
@@ -457,92 +488,131 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
             </div>
 
             {isVehicleRental ? (
-              <>
-              <div>
-                <Label>Veículo</Label>
-                <Select value={form.description} onValueChange={(v) => update("description", v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um veículo cadastrado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {registeredVehicles.map((v) => (
-                      <SelectItem key={v.id} value={v.marcaModelo}>
-                        {v.marcaModelo}{v.placa ? ` - ${v.placa}` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {locadores.length > 0 && (
-                <div>
-                  <Label>Locador</Label>
-                  <Select
-                    value={form.locadorId}
-                    onValueChange={(v) => {
-                      const loc = locadores.find((l) => l.id === v);
-                      setForm((prev) => {
-                        let autoForo = prev.foroCity;
-                        if (!prev.foroCity && loc?.cidade) {
-                          autoForo = `${loc.cidade}${loc.estado ? ` - ${loc.estado}` : ""}`;
-                        }
-                        return { ...prev, locadorId: v, foroCity: autoForo };
-                      });
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o locador" />
+              /* Bloco: Aluguel de Veículos */
+              <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-3.5">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Veículo *
+                  </Label>
+                  <Select value={form.description} onValueChange={(v) => update("description", v)}>
+                    <SelectTrigger className="h-10 text-sm font-medium">
+                      <SelectValue placeholder="Selecione um veículo cadastrado" />
                     </SelectTrigger>
                     <SelectContent>
-                      {locadores.map((l) => (
-                        <SelectItem key={l.id} value={l.id!}>
-                          {l.nome}{l.cpf ? ` - ${formatCPF(l.cpf)}` : ""}
+                      {registeredVehicles.map((v) => (
+                        <SelectItem key={v.id} value={v.marcaModelo}>
+                          {v.marcaModelo}{v.placa ? ` - ${v.placa}` : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-              )}
-              <div>
-                <Label>Locatário *</Label>
-                <ClientCombobox
-                  value={form.customerName}
-                  onChange={(v) => {
-                    const matched = clients.find((c) => c.name.toLowerCase() === v.toLowerCase());
-                    setForm((prev) => {
-                      let autoForo = prev.foroCity;
-                      if (!prev.foroCity && matched?.city) {
-                        autoForo = `${matched.city}${matched.state ? ` - ${matched.state}` : ""}`;
-                      }
-                      return { ...prev, customerName: v, foroCity: autoForo };
-                    });
-                  }}
-                  options={clients
-                    .filter((c) => c.active)
-                    .map((c) => ({ id: c.id, name: c.name }))}
-                  placeholder="Digite ou selecione o locatário"
-                  emptyHint="Nenhum cliente cadastrado. Digite um nome para adicionar."
-                />
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  Busque um cliente cadastrado ou digite um novo nome.
-                </p>
-              </div>
 
-              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
-                <Label className="text-xs font-semibold text-primary">📍 Comarca do Foro (Contrato) *</Label>
-                <CityCombobox
-                  value={form.foroCity}
-                  onChange={(v) => update("foroCity", v)}
-                  placeholder="Selecione ou digite a cidade..."
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Comarca obrigatória que constará na <strong>Cláusula 8ª</strong> e na <strong>data</strong> do contrato.
-                </p>
+                {locadores.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Locador *
+                    </Label>
+                    <Select
+                      value={form.locadorId}
+                      onValueChange={(v) => {
+                        const loc = locadores.find((l) => l.id === v);
+                        setForm((prev) => {
+                          let autoForo = prev.foroCity;
+                          if (!prev.foroCity && loc?.cidade) {
+                            autoForo = `${loc.cidade}${loc.estado ? ` - ${loc.estado}` : ""}`;
+                          }
+                          return { ...prev, locadorId: v, foroCity: autoForo };
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="h-10 text-sm">
+                        <SelectValue placeholder="Selecione o locador" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locadores.map((l) => (
+                          <SelectItem key={l.id} value={l.id!}>
+                            {l.nome}{l.cpf ? ` - ${formatCPF(l.cpf)}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Locatário *
+                  </Label>
+                  <ClientCombobox
+                    value={form.customerName}
+                    onChange={(v) => {
+                      const matched = clients.find((c) => c.name.toLowerCase() === v.toLowerCase());
+                      setForm((prev) => {
+                        let autoForo = prev.foroCity;
+                        if (!prev.foroCity && matched?.city) {
+                          autoForo = `${matched.city}${matched.state ? ` - ${matched.state}` : ""}`;
+                        }
+                        return { ...prev, customerName: v, foroCity: autoForo };
+                      });
+                    }}
+                    options={clients
+                      .filter((c) => c.active)
+                      .map((c) => ({ id: c.id, name: c.name }))}
+                    placeholder="Digite ou selecione o locatário"
+                    emptyHint="Nenhum cliente cadastrado. Digite um nome para adicionar."
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Busque um cliente cadastrado ou digite um novo nome.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 space-y-2">
+                  <Label className="text-xs font-semibold text-primary uppercase tracking-wider">
+                    📍 Comarca do Foro (Contrato) *
+                  </Label>
+                  <CityCombobox
+                    value={form.foroCity}
+                    onChange={(v) => update("foroCity", v)}
+                    placeholder="Selecione ou digite a cidade..."
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Comarca obrigatória que constará na <strong>Cláusula 8ª</strong> e na <strong>data</strong> do contrato.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {totalLabel} *
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={form.total}
+                    onChange={(e) => {
+                      update("total", e.target.value);
+                      const totalVal = parseFloat(e.target.value) || 0;
+                      const count = parseInt(form.installments) || 1;
+                      if (totalVal > 0 && count > 0) {
+                        const newInstVal = (totalVal / count).toFixed(2);
+                        update("installmentValue", newInstVal);
+                        setInstallmentRows((prev) => prev.map((r) => r.manualValue ? r : { ...r, value: newInstVal }));
+                      }
+                    }}
+                    placeholder="0,00"
+                    className="h-10 text-sm font-medium"
+                    required
+                  />
+                </div>
               </div>
-              </>
             ) : form.businessType === "venda" ? (
-              <div className="space-y-3">
-                <div>
-                  <Label>Produto</Label>
+              /* Bloco: Vendas */
+              <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-3.5">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Produto *
+                  </Label>
                   {(() => {
                     const available = products
                       .filter((p) => p.stock > 0)
@@ -581,7 +651,7 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
                           }
                         }}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="h-10 text-sm font-medium">
                           <SelectValue placeholder="Selecione um produto ou venda avulsa" />
                         </SelectTrigger>
                         <SelectContent>
@@ -602,34 +672,31 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
                     );
                   })()}
                 </div>
+
                 {isAvulsa && (
-                  <div>
-                    <Label>Descrição do item</Label>
+                  <div className="space-y-1.5 animate-in fade-in-50 duration-200">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Descrição do item *
+                    </Label>
                     <Input
                       value={form.description}
                       onChange={(e) => update("description", e.target.value)}
                       placeholder="Ex: Serviço de instalação, item sem cadastro..."
+                      className="h-10 text-sm font-medium"
                       required
                     />
-                    <p className="text-[11px] text-muted-foreground mt-1">
+                    <p className="text-[11px] text-muted-foreground">
                       Venda avulsa não consome estoque nem exige cadastro de produto.
                     </p>
                   </div>
                 )}
-              </div>
-            ) : (
-              <div>
-                <Label>{descriptionLabel}</Label>
-                <Input value={form.description} onChange={(e) => update("description", e.target.value)} placeholder={descriptionPlaceholder} required />
-              </div>
-            )}
 
-            {!isVehicleRental && (
-              <>
-              {!(isVenda && !isAvulsa && form.productId) && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Quantidade</Label>
+                {/* Grid 2x2 no mobile: Quantidade e Valor Total */}
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Quantidade *
+                    </Label>
                     {(() => {
                       const mainQty = parseInt(form.quantity) || 0;
                       const extrasQty = extraItems.reduce((s, it) => s + it.quantity, 0);
@@ -641,6 +708,7 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
                           min="0"
                           value={displayQty}
                           readOnly={hasExtras}
+                          className="h-10 text-sm font-medium"
                           onChange={(e) => {
                             const qStr = e.target.value;
                             const qty = parseInt(qStr) || 1;
@@ -662,14 +730,12 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
                         />
                       );
                     })()}
-                    {extraItems.length > 0 && (
-                      <p className="text-[11px] text-muted-foreground mt-1">
-                        Total de itens (principal + adicionais).
-                      </p>
-                    )}
                   </div>
-                  <div>
-                    <Label>{totalLabel}</Label>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {totalLabel} *
+                    </Label>
                     {(() => {
                       const mainVal = parseFloat(form.total) || 0;
                       const extrasSum = extraItems.reduce((s, it) => s + it.total, 0);
@@ -685,6 +751,7 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
                           min="0.01"
                           value={displayValue}
                           readOnly={hasAdjustments}
+                          className="h-10 text-sm font-medium"
                           onChange={(e) => {
                             update("total", e.target.value);
                             const totalVal = parseFloat(e.target.value) || 0;
@@ -700,17 +767,14 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
                         />
                       );
                     })()}
-                    {(extraItems.length > 0 || (parseFloat(form.discount) || 0) > 0) && (
-                      <p className="text-[11px] text-muted-foreground mt-1">
-                        Calculado automaticamente (itens + mercadoria − desconto).
-                      </p>
-                    )}
                   </div>
                 </div>
-              )}
-              {isVenda && (
-                <div>
-                  <Label>Desconto (R$)</Label>
+
+                {/* Desconto */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Desconto (R$)
+                  </Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -718,95 +782,128 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
                     value={form.discount}
                     onChange={(e) => update("discount", e.target.value)}
                     placeholder="0,00"
+                    className="h-10"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    O desconto é aplicado sobre o valor total da venda.
-                  </p>
                 </div>
-              )}
-              {canAddExtra && extraItems.length > 0 && (
-                <div className="space-y-2">
-                  <div className="border border-border/50 rounded-lg overflow-hidden">
-                    <div className="px-3 py-2 bg-muted/20 text-sm font-medium">
-                      Itens adicionais ({extraItems.length})
-                    </div>
-                    <div className="divide-y divide-border/30">
-                      {extraItems.map((it, idx) => (
-                        <div key={idx} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
-                          <div className="flex-1 min-w-0">
-                            <p className="truncate font-medium">{it.description}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {it.quantity}x · {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(it.total)}
-                              {it.isAvulsa ? " · avulsa" : ""}
-                            </p>
-                          </div>
-                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeExtraItem(idx)}>
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-              {canAddExtra && (
-                <Button type="button" variant="outline" size="sm" className="w-full" onClick={handleAddExtraItem}>
-                  <Plus className="h-4 w-4 mr-2" /> Adicionar outro produto à venda
-                </Button>
-              )}
-              {isVenda && (() => {
-                const mainVal = parseFloat(form.total) || 0;
-                const extrasSum = extraItems.reduce((s, it) => s + it.total, 0);
-                const merchVal = merchEnabled ? (parseFloat(merchValor) || 0) : 0;
-                const disc = parseFloat(form.discount) || 0;
-                const subtotal = mainVal + extrasSum + merchVal;
-                const finalTotal = Math.max(0, subtotal - disc);
-                const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
-                return (
-                  <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 space-y-1">
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Subtotal</span>
-                      <span>{fmt(subtotal)}</span>
-                    </div>
-                    {disc > 0 && (
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Desconto</span>
-                        <span>− {fmt(disc)}</span>
+
+                {/* Itens adicionais */}
+                {canAddExtra && extraItems.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="border border-border/70 rounded-xl overflow-hidden shadow-xs">
+                      <div className="px-3 py-2 bg-muted/40 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Itens adicionais ({extraItems.length})
                       </div>
-                    )}
-                    <div className="flex justify-between text-sm font-bold text-foreground pt-1 border-t border-border/40">
-                      <span>Valor total da venda</span>
-                      <span>{fmt(finalTotal)}</span>
+                      <div className="divide-y divide-border/40">
+                        {extraItems.map((it, idx) => (
+                          <div key={idx} className="flex items-center justify-between gap-2 px-3 py-2 text-sm bg-card">
+                            <div className="flex-1 min-w-0">
+                              <p className="truncate font-medium text-foreground">{it.description}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {it.quantity}x · {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(it.total)}
+                                {it.isAvulsa ? " · avulsa" : ""}
+                              </p>
+                            </div>
+                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeExtraItem(idx)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                );
-              })()}
-              </>
-            )}
+                )}
 
+                {canAddExtra && (
+                  <Button type="button" variant="outline" size="sm" className="w-full h-9 rounded-xl border-dashed" onClick={handleAddExtraItem}>
+                    <Plus className="h-4 w-4 mr-2" /> Adicionar outro produto à venda
+                  </Button>
+                )}
 
-            {isVehicleRental && (
-              <div>
-                <Label>{totalLabel}</Label>
-                <Input type="number" step="0.01" min="0.01" value={form.total} onChange={(e) => {
-                  update("total", e.target.value);
-                  const totalVal = parseFloat(e.target.value) || 0;
-                  const count = parseInt(form.installments) || 1;
-                  if (totalVal > 0 && count > 0) {
-                    const newInstVal = (totalVal / count).toFixed(2);
-                    update("installmentValue", newInstVal);
-                    setInstallmentRows((prev) => prev.map((r) => r.manualValue ? r : { ...r, value: newInstVal }));
-                  }
-                }} placeholder="0,00" required />
+                {/* Resumo da Venda */}
+                {(() => {
+                  const mainVal = parseFloat(form.total) || 0;
+                  const extrasSum = extraItems.reduce((s, it) => s + it.total, 0);
+                  const merchVal = merchEnabled ? (parseFloat(merchValor) || 0) : 0;
+                  const disc = parseFloat(form.discount) || 0;
+                  const subtotal = mainVal + extrasSum + merchVal;
+                  const finalTotal = Math.max(0, subtotal - disc);
+                  const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+                  return (
+                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 space-y-1.5 shadow-xs">
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Subtotal</span>
+                        <span>{fmt(subtotal)}</span>
+                      </div>
+                      {disc > 0 && (
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Desconto</span>
+                          <span className="text-destructive">− {fmt(disc)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-sm font-bold text-foreground pt-1.5 border-t border-border/40">
+                        <span>Valor total da venda</span>
+                        <span className="text-primary text-base">{fmt(finalTotal)}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            ) : (
+              /* Bloco: Outros tipos (ex: Streaming) */
+              <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-3.5">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {descriptionLabel} *
+                  </Label>
+                  <Input
+                    value={form.description}
+                    onChange={(e) => update("description", e.target.value)}
+                    placeholder={descriptionPlaceholder}
+                    className="h-10 text-sm font-medium"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Quantidade *
+                    </Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={form.quantity}
+                      onChange={(e) => update("quantity", e.target.value)}
+                      className="h-10 text-sm font-medium"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {totalLabel} *
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={form.total}
+                      onChange={(e) => update("total", e.target.value)}
+                      placeholder="0,00"
+                      className="h-10 text-sm font-medium"
+                      required
+                    />
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* Tipo de pagamento - para venda e streaming */}
+            {/* Bloco: Tipo de Pagamento */}
             {!isVehicleRental && (
-              <div>
-                <Label>Tipo de Pagamento</Label>
+              <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Tipo de Pagamento *
+                </Label>
                 <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring font-medium"
                   value={form.paymentMode}
                   onChange={(e) => update("paymentMode", e.target.value)}
                 >
@@ -816,33 +913,39 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
               </div>
             )}
 
-            {/* Status de pagamento (somente para vendas/streaming à vista) */}
+            {/* Status de pagamento (à vista) */}
             {!isVehicleRental && form.paymentMode === "fixa" && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Data de Pagamento</Label>
-                  <NativeDatePicker
-                    value={form.paymentDate}
-                    onChange={(v) => { if (v) handlePaymentDateChange(v); }}
-                  />
-                </div>
-                <div>
-                  <Label>Status</Label>
-                  <Select
-                    value={form.paymentStatus}
-                    onValueChange={(v) => update("paymentStatus", v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pago">Pago</SelectItem>
-                      <SelectItem value="pendente">Pendente</SelectItem>
-                    </SelectContent>
-                  </Select>
+              <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-3.5">
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Data de Pagamento *
+                    </Label>
+                    <NativeDatePicker
+                      value={form.paymentDate}
+                      onChange={(v) => { if (v) handlePaymentDateChange(v); }}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Status *
+                    </Label>
+                    <Select
+                      value={form.paymentStatus}
+                      onValueChange={(v) => update("paymentStatus", v)}
+                    >
+                      <SelectTrigger className="h-10 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pago">Pago</SelectItem>
+                        <SelectItem value="pendente">Pendente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 {form.paymentDate > todayInAppTz() && form.paymentStatus === "pendente" && (
-                  <p className="col-span-2 text-[11px] text-muted-foreground">
+                  <p className="text-[11px] text-muted-foreground">
                     Data futura: a venda será registrada como valor a receber.
                   </p>
                 )}
@@ -851,82 +954,108 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
 
             {/* Campos de parcelamento/recorrência */}
             {(form.paymentMode === "recorrente" || isVehicleRental) && (
-              <>
-                <div>
-                  <Label>{isVehicleRental ? "Período de Cobrança" : "Frequência"}</Label>
-                  <Select value={form.frequency} onValueChange={(v) => {
-                    update("frequency", v);
-                    rebuildRows(installmentsNum, firstDate, v, totalNum);
-                  }}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {frequencyOptions.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>{isVehicleRental ? "Data de Início" : "Data da 1ª Parcela"}</Label>
-                  <NativeDatePicker
-                    value={format(firstDate, "yyyy-MM-dd")}
-                    onChange={(v) => {
-                      if (!v) return;
-                      const d = new Date(`${v}T00:00:00`);
-                      update("firstInstallmentDate", v);
-                      rebuildRows(installmentsNum, d, form.frequency, totalNum);
-                    }}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>{isVehicleRental ? "Quantidade de Períodos" : "Quantidade de Parcelas"}</Label>
-                    <Input type="number" min="1" value={form.installments} onChange={(e) => {
-                      const newCount = parseInt(e.target.value) || 1;
-                      update("installments", e.target.value);
-                      rebuildRows(newCount, firstDate, form.frequency, totalNum);
-                    }} required />
+              <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-3.5">
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {isVehicleRental ? "Período" : "Frequência"} *
+                    </Label>
+                    <Select value={form.frequency} onValueChange={(v) => {
+                      update("frequency", v);
+                      rebuildRows(installmentsNum, firstDate, v, totalNum);
+                    }}>
+                      <SelectTrigger className="h-10 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {frequencyOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div>
-                    <Label>{isVehicleRental ? "Valor por Período (R$)" : "Valor da Parcela (R$)"}</Label>
-                    <Input type="number" step="0.01" min="0.01" value={form.installmentValue} onChange={(e) => {
-                      const parcVal = parseFloat(e.target.value) || 0;
-                      const count = parseInt(form.installments) || 1;
-                      update("installmentValue", e.target.value);
-                      if (parcVal > 0) {
-                        update("total", (parcVal * count).toFixed(2));
-                        setInstallmentRows((prev) => prev.map((r) => r.manualValue ? r : { ...r, value: parcVal.toFixed(2) }));
-                      }
-                    }} placeholder="0,00" />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {isVehicleRental ? "Início" : "1ª Parcela"} *
+                    </Label>
+                    <NativeDatePicker
+                      value={format(firstDate, "yyyy-MM-dd")}
+                      onChange={(v) => {
+                        if (!v) return;
+                        const d = new Date(`${v}T00:00:00`);
+                        update("firstInstallmentDate", v);
+                        rebuildRows(installmentsNum, d, form.frequency, totalNum);
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {isVehicleRental ? "Nº de Períodos" : "Nº de Parcelas"} *
+                    </Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={form.installments}
+                      onChange={(e) => {
+                        const newCount = parseInt(e.target.value) || 1;
+                        update("installments", e.target.value);
+                        rebuildRows(newCount, firstDate, form.frequency, totalNum);
+                      }}
+                      className="h-10"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {isVehicleRental ? "Valor Período (R$)" : "Valor Parcela (R$)"}
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={form.installmentValue}
+                      onChange={(e) => {
+                        const parcVal = parseFloat(e.target.value) || 0;
+                        const count = parseInt(form.installments) || 1;
+                        update("installmentValue", e.target.value);
+                        if (parcVal > 0) {
+                          update("total", (parcVal * count).toFixed(2));
+                          setInstallmentRows((prev) => prev.map((r) => r.manualValue ? r : { ...r, value: parcVal.toFixed(2) }));
+                        }
+                      }}
+                      placeholder="0,00"
+                      className="h-10"
+                    />
                   </div>
                 </div>
 
                 {isVehicleRental && installmentsNum > 0 && (
-                  <div className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2 flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm">
+                  <div className="rounded-xl border border-border/70 bg-muted/30 px-3.5 py-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <CalendarIcon className="h-4 w-4 text-primary" />
-                      <span className="text-muted-foreground">Data fim do contrato:</span>
+                      <span>Término do contrato:</span>
                     </div>
-                    <span className="text-sm font-semibold text-foreground">
+                    <span className="text-xs font-semibold text-foreground">
                       {format(addByFrequency(firstDate, form.frequency, installmentsNum), "dd/MM/yyyy")}
                     </span>
                   </div>
                 )}
 
-                {/* Editable installment rows */}
+                {/* Parcelas editáveis */}
                 {installmentsNum >= 2 && installmentRows.length > 0 && (
-                  <div className="border border-border/50 rounded-lg overflow-hidden">
-                    <div className="px-3 py-2 bg-muted/20">
-                      <span className="text-sm font-medium text-foreground">
+                  <div className="border border-border/70 rounded-xl overflow-hidden shadow-xs">
+                    <div className="px-3.5 py-2 bg-muted/40">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         {isVehicleRental ? `Cobranças (${installmentRows.length})` : `Parcelas (${installmentRows.length})`}
                       </span>
                     </div>
-                    <div className="divide-y divide-border/30 max-h-48 overflow-y-auto">
+                    <div className="divide-y divide-border/40 max-h-48 overflow-y-auto">
                       {installmentRows.map((row, idx) => (
-                        <div key={idx} className="flex items-center gap-2 px-3 py-2">
-                          <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold bg-muted/40 text-muted-foreground shrink-0">
+                        <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-card">
+                          <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-muted/60 text-muted-foreground shrink-0">
                             {idx + 1}ª
                           </span>
                           <NativeDatePicker
@@ -969,7 +1098,7 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
                         </div>
                       ))}
                     </div>
-                    <div className="px-3 py-2 bg-muted/20">
+                    <div className="px-3.5 py-2 bg-muted/40">
                       <p className="text-xs text-muted-foreground">
                         Total: <span className="font-bold text-foreground">
                           {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
@@ -980,12 +1109,15 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
                     </div>
                   </div>
                 )}
-              </>
+              </div>
             )}
 
+            {/* Cliente */}
             {!isVehicleRental && (
-              <div>
-                <Label>Cliente</Label>
+              <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Cliente *
+                </Label>
                 <ClientCombobox
                   value={form.customerName}
                   onChange={(v) => update("customerName", v)}
@@ -995,15 +1127,21 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
                   placeholder="Digite ou selecione um cliente"
                   emptyHint="Nenhum cliente cadastrado. Digite um nome para adicionar."
                 />
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  Busque, selecione um existente ou digite um novo nome.
-                </p>
               </div>
             )}
+
+            {/* Mercadoria como Pagamento */}
             {isVenda && (
-              <div className="border border-border/50 rounded-lg p-3 space-y-3 bg-muted/10">
+              <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">Mercadoria como pagamento</Label>
+                  <div>
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-foreground">
+                      Mercadoria como parte do pagamento
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Abate o valor da venda com um produto dado em troca
+                    </p>
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
@@ -1011,7 +1149,7 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
                       setMerchError(null);
                     }}
                     className={cn(
-                      "text-xs px-2 py-1 rounded-md border transition-colors",
+                      "text-xs px-2.5 py-1.5 rounded-lg border font-medium transition-colors",
                       merchEnabled
                         ? "bg-primary text-primary-foreground border-primary"
                         : "bg-background text-muted-foreground border-border hover:bg-muted/40"
@@ -1021,17 +1159,18 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
                   </button>
                 </div>
                 {merchEnabled && (
-                  <>
-                    <div>
-                      <Label className="text-xs">Descrição do produto</Label>
+                  <div className="space-y-3 pt-2 border-t border-border/40 animate-in fade-in-50 duration-200">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground">Descrição do produto</Label>
                       <Input
                         value={merchDescricao}
                         onChange={(e) => setMerchDescricao(e.target.value)}
                         placeholder="Ex: Celular usado, bicicleta..."
+                        className="h-10"
                       />
                     </div>
-                    <div>
-                      <Label className="text-xs">Valor da mercadoria (R$)</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground">Valor da mercadoria (R$)</Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -1039,6 +1178,7 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
                         value={merchValor}
                         onChange={(e) => setMerchValor(e.target.value)}
                         placeholder="0,00"
+                        className="h-10"
                       />
                     </div>
                     {merchError && (
@@ -1051,33 +1191,57 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
                         <p>Total da venda: <span className="font-bold text-primary">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format((parseFloat(form.total) || 0) + (parseFloat(merchValor) || 0))}</span></p>
                       </div>
                     )}
-                  </>
+                  </div>
                 )}
               </div>
             )}
-            <div>
-              <Label>Categoria</Label>
+
+            {/* Categoria */}
+            <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Categoria
+              </Label>
               <SaleCategoryPicker value={form.category} onChange={(v) => update("category", v)} />
             </div>
-            <div>
-              <Label>Observações</Label>
-              <Input value={form.notes} onChange={(e) => update("notes", e.target.value)} placeholder="Notas..." />
-            </div>
 
-            <div className="relative w-full h-11">
-              {submitting ? (
-                <div className="flex items-center justify-center h-11">
-                  <div className="h-8 w-8 rounded-full border-[3px] border-primary border-t-transparent animate-spin" />
-                </div>
-              ) : (
-                <Button type="submit" className="w-full">
-                  <Plus className="h-4 w-4 mr-2" /> {isVehicleRental ? "Registrar Aluguel" : "Registrar Lançamento"}
-                </Button>
-              )}
+            {/* Observações */}
+            <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Observações
+              </Label>
+              <Input
+                value={form.notes}
+                onChange={(e) => update("notes", e.target.value)}
+                placeholder="Notas ou detalhes desta venda..."
+                className="h-10"
+              />
             </div>
           </form>
-        </CardContent>
+        </div>
+
+        {/* Sticky Footer */}
+        <div className="sticky bottom-0 z-20 bg-card/95 backdrop-blur-md border-t border-border/60 p-4 sm:p-6">
+          <Button
+            type="submit"
+            form="sale-form"
+            className="w-full h-12 text-sm font-semibold rounded-xl shadow-md transition-all active:scale-[0.99]"
+            disabled={submitting}
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Registrando...
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4 mr-2" />
+                {isVehicleRental ? "Registrar Aluguel" : "Registrar Lançamento"}
+              </>
+            )}
+          </Button>
+        </div>
       </Card>
     </div>
   );
 }
+

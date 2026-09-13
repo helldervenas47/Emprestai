@@ -200,178 +200,227 @@ export function ExpenseForm({ onAdd, onClose, scope = "business", defaults }: Pr
     form.kind === "fixa" || form.kind === "recorrente_pos_pagamento" ? "Valor Mensal (R$)" : "Valor (R$)";
 
   return (
-    <div className="fixed inset-0 bg-foreground/40 backdrop-blur-sm z-50 flex items-stretch justify-center p-0 sm:items-center sm:p-4">
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-0 sm:p-4 animate-in fade-in-0">
       <SuccessAnimation show={showSuccess} onComplete={onClose} message="Despesa cadastrada!" />
-      <Card no3d className="modal-form-scrollable !bg-card !backdrop-blur-none supports-[backdrop-filter]:!bg-card dark:!bg-card w-full h-[100dvh] max-h-[100dvh] rounded-none border-0 overflow-y-auto pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-2xl sm:border sm:pt-0 sm:pb-0">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-xl">Nova Despesa</CardTitle>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-5 w-5" />
-          </Button>
-        </CardHeader>
-        <CardContent className="pb-8 sm:pb-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="description">Descrição</Label>
-              <Input
-                id="description"
-                value={form.description}
-                onChange={(e) => {
-                  update("description", e.target.value);
-                  // datalist selection fires onChange with the chosen value
-                  if (findTemplate(e.target.value)) {
-                    applyTemplateFromDescription(e.target.value);
-                  }
-                }}
-                onBlur={(e) => applyTemplateFromDescription(e.target.value)}
-                placeholder="Ex: Aluguel do escritório"
-                list="expense-desc-history"
-                required
-              />
-              <datalist id="expense-desc-history">
-                {suggestions.map((s) => <option key={s} value={s} />)}
-              </datalist>
+      <Card no3d className="modal-form-scrollable w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-lg rounded-none sm:rounded-2xl border-0 sm:border border-border/80 shadow-2xl flex flex-col bg-card overflow-hidden">
+        {/* Sticky Header */}
+        <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-md border-b border-border/60 px-4 py-3.5 sm:px-6 sm:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center shadow-xs">
+              <Tag className="w-4 h-4" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="amount">{amountLabel}</Label>
-                <MoneyInput
-                  id="amount"
-                  value={form.amount}
-                  onChange={(v) => update("amount", v)}
-                  placeholder="R$ 0,00"
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-foreground leading-tight">
+                Nova Despesa {scope === "personal" ? "Pessoal" : "da Empresa"}
+              </h2>
+              <p className="text-[11px] sm:text-xs text-muted-foreground">
+                Cadastre e controle pagamentos empresariais
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-8 w-8 rounded-full hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+          <form id="expense-form" onSubmit={handleSubmit} className="space-y-4">
+            {/* Bloco 1: Detalhes da Despesa */}
+            <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-3.5">
+              <div className="space-y-1.5">
+                <Label htmlFor="description" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Descrição *
+                </Label>
+                <Input
+                  id="description"
+                  value={form.description}
+                  onChange={(e) => {
+                    update("description", e.target.value);
+                    if (findTemplate(e.target.value)) {
+                      applyTemplateFromDescription(e.target.value);
+                    }
+                  }}
+                  onBlur={(e) => applyTemplateFromDescription(e.target.value)}
+                  placeholder="Ex: Aluguel do escritório, Fornecedor..."
+                  list="expense-desc-history"
+                  className="h-10 text-sm font-medium"
                   required
                 />
+                <datalist id="expense-desc-history">
+                  {suggestions.map((s) => <option key={s} value={s} />)}
+                </datalist>
               </div>
-              <div>
-                <Label>Tipo</Label>
-                <Select value={form.kind} onValueChange={(v) => update("kind", v)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unica">Única</SelectItem>
-                    <SelectItem value="parcelada">Parcelada</SelectItem>
-                    <SelectItem value="fixa">Fixa (mensal)</SelectItem>
-                    <SelectItem value="recorrente_pos_pagamento">Recorrente após pagamento</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            {form.kind === "parcelada" && (
-              <div>
-                <Label htmlFor="installments">Parcelas</Label>
-                <Input
-                  id="installments"
-                  type="number"
-                  min="1"
-                  value={form.installments}
-                  onChange={(e) => update("installments", e.target.value)}
-                  placeholder="12"
-                />
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <Label className="text-xs font-semibold">Categoria</Label>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-1.5 text-[11px] text-primary hover:text-primary/80 hover:bg-primary/10"
-                    onClick={() => setCreatorOpen(true)}
-                  >
-                    <PlusCircle className="mr-1 h-3 w-3" />
-                    Nova
-                  </Button>
+
+              {/* Grid 2x2 no mobile: Valor e Tipo */}
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5">
+                <div className="space-y-1.5">
+                  <Label htmlFor="amount" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {amountLabel} *
+                  </Label>
+                  <MoneyInput
+                    id="amount"
+                    value={form.amount}
+                    onChange={(v) => update("amount", v)}
+                    placeholder="R$ 0,00"
+                    required
+                  />
                 </div>
-                <Select
-                  value={form.category}
-                  onValueChange={(v) => {
-                    if (v === "__create_new__") {
-                      setCreatorOpen(true);
-                      return;
-                    }
-                    update("category", v);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                    <div className="my-1 border-t border-border/50" />
-                    <SelectItem
-                      value="__create_new__"
-                      className="text-primary font-medium focus:text-primary focus:bg-primary/10 cursor-pointer"
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <PlusCircle className="h-3.5 w-3.5" />
-                        + Criar nova categoria...
-                      </span>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Tipo *
+                  </Label>
+                  <Select value={form.kind} onValueChange={(v) => update("kind", v)}>
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unica">Única</SelectItem>
+                      <SelectItem value="parcelada">Parcelada</SelectItem>
+                      <SelectItem value="fixa">Fixa (mensal)</SelectItem>
+                      <SelectItem value="recorrente_pos_pagamento">Recorrente após pgto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="dueDate">Data de Pagamento</Label>
-                <DatePickerField
-                  id="dueDate"
-                  value={form.dueDate}
-                  onChange={(v) => update("dueDate", v)}
-                />
+
+              {form.kind === "parcelada" && (
+                <div className="space-y-1.5 animate-in fade-in-50 duration-200">
+                  <Label htmlFor="installments" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Número de Parcelas *
+                  </Label>
+                  <Input
+                    id="installments"
+                    type="number"
+                    min="1"
+                    value={form.installments}
+                    onChange={(e) => update("installments", e.target.value)}
+                    placeholder="12"
+                    className="h-10"
+                  />
+                </div>
+              )}
+
+              {/* Grid 2x2 no mobile: Categoria e Data de Pagamento */}
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Categoria *
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 px-1 text-[11px] text-primary hover:text-primary/80 hover:bg-primary/10"
+                      onClick={() => setCreatorOpen(true)}
+                    >
+                      <PlusCircle className="mr-1 h-3 w-3" />
+                      Nova
+                    </Button>
+                  </div>
+                  <Select
+                    value={form.category}
+                    onValueChange={(v) => {
+                      if (v === "__create_new__") {
+                        setCreatorOpen(true);
+                        return;
+                      }
+                      update("category", v);
+                    }}
+                  >
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                      <div className="my-1 border-t border-border/50" />
+                      <SelectItem
+                        value="__create_new__"
+                        className="text-primary font-medium focus:text-primary focus:bg-primary/10 cursor-pointer"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <PlusCircle className="h-3.5 w-3.5" />
+                          + Criar nova categoria...
+                        </span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="dueDate" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Data de Pagamento *
+                  </Label>
+                  <DatePickerField
+                    id="dueDate"
+                    value={form.dueDate}
+                    onChange={(v) => update("dueDate", v)}
+                  />
+                </div>
               </div>
             </div>
-            <PaymentMethodPicker
-              value={paymentMethodId}
-              onChange={(id) => { 
-                setPaymentMethodId(id); 
-                setShowFormError(false);
-                const method = activeMethods.find(m => m.id === id);
-                if (!method?.name.toLowerCase().includes("crédito")) {
-                  update("creditCardId", "");
-                }
-              }}
-              required
-              showError={showFormError}
-            />
 
-            {activeMethods.find(m => m.id === paymentMethodId)?.name.toLowerCase().includes("crédito") && (
-              <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                <Label>Cartão de Crédito</Label>
-                <Select value={form.creditCardId} onValueChange={(v) => update("creditCardId", v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o cartão" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cards.length === 0 && (
-                      <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                        Nenhum cartão ativo encontrado
-                      </div>
-                    )}
-                    {cards.filter(c => c.active !== false).map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.nickname || c.bank} {c.lastFour ? `(**** ${c.lastFour})` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            {/* Bloco 2: Forma de Pagamento e Cartão */}
+            <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-3.5">
+              <PaymentMethodPicker
+                value={paymentMethodId}
+                onChange={(id) => { 
+                  setPaymentMethodId(id); 
+                  setShowFormError(false);
+                  const method = activeMethods.find(m => m.id === id);
+                  if (!method?.name.toLowerCase().includes("crédito")) {
+                    update("creditCardId", "");
+                  }
+                }}
+                required
+                showError={showFormError}
+              />
 
+              {activeMethods.find(m => m.id === paymentMethodId)?.name.toLowerCase().includes("crédito") && (
+                <div className="space-y-1.5 animate-in fade-in-50 slide-in-from-top-1 duration-200">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Cartão de Crédito *
+                  </Label>
+                  <Select value={form.creditCardId} onValueChange={(v) => update("creditCardId", v)}>
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue placeholder="Selecione o cartão" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cards.length === 0 && (
+                        <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                          Nenhum cartão ativo encontrado
+                        </div>
+                      )}
+                      {cards.filter(c => c.active !== false).map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.nickname || c.bank} {c.lastFour ? `(**** ${c.lastFour})` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            {/* Bloco 3: Gerar Receita ao Pagar (Se Business) */}
             {scope === "business" && (
-              <div className="flex items-start justify-between gap-3 rounded-lg border bg-muted/40 p-3">
-                <div className="space-y-0.5">
-                  <Label htmlFor="generate-income" className="text-sm font-medium">
+              <div className="flex items-start justify-between gap-3 rounded-xl border border-border/70 bg-muted/30 p-3.5 sm:p-4 shadow-xs">
+                <div className="space-y-0.5 pr-2">
+                  <Label htmlFor="generate-income" className="text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer">
                     Gerar receita ao pagar
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Ao marcar como paga, cria automaticamente uma receita do mesmo valor que entra no saldo em conta.
+                    Ao marcar como paga, cria automaticamente uma receita do mesmo valor no saldo em conta.
                   </p>
                 </div>
                 <Switch
@@ -382,61 +431,72 @@ export function ExpenseForm({ onAdd, onClose, scope = "business", defaults }: Pr
               </div>
             )}
 
-
-
-            <div>
-              <Label htmlFor="notes">Observações</Label>
+            {/* Bloco 4: Observações */}
+            <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-1.5">
+              <Label htmlFor="notes" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Observações
+              </Label>
               <Textarea
                 id="notes"
                 value={form.notes}
                 onChange={(e) => update("notes", e.target.value)}
-                placeholder="Notas sobre a despesa..."
+                placeholder="Notas ou detalhes sobre esta despesa..."
                 rows={2}
+                className="resize-none"
               />
             </div>
 
+            {/* Resumo Dinâmico do Valor */}
             {parseFloat(form.amount) > 0 && (
-              <div className="rounded-lg bg-muted p-4 space-y-1">
+              <div className="rounded-xl bg-primary/5 border border-primary/20 p-3.5 space-y-1 text-xs sm:text-sm">
                 {form.kind === "parcelada" && parseInt(form.installments) > 1 && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-muted-foreground">
                     Valor total: <span className="font-semibold text-foreground">
                       {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(parseFloat(form.amount) * (parseInt(form.installments) || 1))}
                     </span> ({form.installments}x de {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(parseFloat(form.amount))})
                   </p>
                 )}
                 {form.kind === "fixa" && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-muted-foreground">
                     Despesa mensal recorrente sem prazo final.
                   </p>
                 )}
                 {form.kind === "recorrente_pos_pagamento" && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-muted-foreground">
                     A próxima despesa será gerada somente após o pagamento desta.
                   </p>
                 )}
-                <p className="text-sm text-muted-foreground">
+                <p className="text-muted-foreground">
                   Ao pagar, <span className="font-semibold text-destructive">
                     {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(parseFloat(form.amount))}
                   </span> será debitado do saldo em conta.
                 </p>
               </div>
             )}
-
-            <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Cadastrando...
-                </>
-              ) : (
-                <>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Cadastrar Despesa
-                </>
-              )}
-            </Button>
           </form>
-        </CardContent>
+        </div>
+
+        {/* Sticky Footer */}
+        <div className="sticky bottom-0 z-20 bg-card/95 backdrop-blur-md border-t border-border/60 p-4 sm:p-6">
+          <Button
+            type="submit"
+            form="expense-form"
+            className="w-full h-12 text-sm font-semibold rounded-xl shadow-md transition-all active:scale-[0.99]"
+            disabled={submitting}
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Cadastrando...
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4 mr-2" />
+                Cadastrar Despesa
+              </>
+            )}
+          </Button>
+        </div>
       </Card>
 
       <BusinessCategoryCreatorDialog
