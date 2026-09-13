@@ -501,7 +501,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                 </Label>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5">
                 {/* 1. Valor (R$) */}
                 <div>
                   <Label htmlFor="amount" className="text-xs font-medium">Valor do Empréstimo (R$) *</Label>
@@ -522,7 +522,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                   <div className="flex items-center justify-between">
                     <Label htmlFor="interestRate" className="text-xs font-medium">Taxa de Juros (%) *</Label>
                     {installments > 0 && rate > 0 && (
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-[10px] text-muted-foreground hidden sm:inline">
                         {(rate / installments).toFixed(2)}% / ciclo
                       </span>
                     )}
@@ -552,7 +552,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                     value={interestOverride !== "" ? interestOverride : (calcInterest > 0 ? calcInterest.toFixed(2) : "")}
                     onChange={(e) => handleInterestChange(e.target.value)}
                     placeholder="R$ 0,00"
-                    className="h-10 text-sm font-semibold text-emerald-600 dark:text-emerald-400"
+                    className="h-10 text-sm font-semibold"
                   />
                 </div>
 
@@ -570,7 +570,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                     }
                     onChange={(e) => handleTotalChange(e.target.value)}
                     placeholder="R$ 0,00"
-                    className="h-10 text-sm font-semibold text-primary"
+                    className="h-10 text-sm font-semibold"
                   />
                 </div>
 
