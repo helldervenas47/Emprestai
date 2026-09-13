@@ -735,9 +735,14 @@ function ClientBillingFolder({ group, sentToday, blockedToday = sentToday, selec
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="max-w-full truncate text-[10px]">{item.contractLabel}</Badge>
+            {item.promisedDate && (
+              <span className="flex items-center gap-1 text-xs font-medium text-primary">
+                <CalendarClock className="h-3.5 w-3.5" />
+                Nova Data: {date(item.promisedDate)}
+              </span>
+            )}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">{money.format(item.amount)} · vencimento original {date(item.dueDate)}{item.daysOverdue ? ` · ${item.daysOverdue} dias de atraso` : ""}</p>
-          {item.promisedDate && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-primary"><CalendarClock className="h-3.5 w-3.5"/>Nova Data: {date(item.promisedDate)}</p>}
           {!item.validPhone && <p className="text-[11px] text-amber-600 flex items-center gap-1"><AlertTriangle className="h-3 w-3"/>Número de WhatsApp inválido</p>}
         </div>
         <Button size="sm" variant="outline" disabled={!item.validPhone || blockedToday} onClick={() => onCharge(item)}>Cobrar</Button>
