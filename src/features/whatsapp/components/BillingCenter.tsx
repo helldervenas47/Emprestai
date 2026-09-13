@@ -733,10 +733,10 @@ function ClientBillingFolder({ group, sentToday, blockedToday = sentToday, selec
       {group.rows.map(item => <div key={item.key} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 border-b last:border-0 px-3 py-2.5">
         <Checkbox checked={selected.has(item.key)} disabled={!item.validPhone || blockedToday} onCheckedChange={(checked) => setSelected(prev => { const next = new Set(prev); checked ? next.add(item.key) : next.delete(item.key); return next; })}/>
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="max-w-full truncate text-[10px]">{item.contractLabel}</Badge>
+          <div className="flex items-center gap-2 min-w-0">
+            <Badge variant="outline" className="truncate text-[10px] min-w-0 shrink" title={item.contractLabel}>{item.contractLabel}</Badge>
             {item.promisedDate && (
-              <span className="flex items-center gap-1 text-xs font-medium text-primary">
+              <span className="flex items-center gap-1 text-xs font-medium text-primary shrink-0">
                 <CalendarClock className="h-3.5 w-3.5" />
                 Nova Data: {date(item.promisedDate)}
               </span>
