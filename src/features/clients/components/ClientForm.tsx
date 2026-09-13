@@ -101,7 +101,7 @@ export function ClientForm({ onAdd, onClose }: Props) {
         </CardHeader>
 
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <CardContent className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+          <CardContent className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4">
             {/* Bloco 1: Identificação & Contato */}
             <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3.5 shadow-xs">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground pb-1 border-b border-border/40">

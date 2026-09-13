@@ -76,8 +76,8 @@ export function ProductForm({ onAdd, onUpdate, onClose, product }: Props) {
           <CardTitle className="text-lg font-bold">{isEdit ? "Editar Produto" : "Novo Produto"}</CardTitle>
           <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={onClose}><X className="h-4 w-4" /></Button>
         </CardHeader>
-        <CardContent className="flex-1 overflow-y-auto p-4 sm:p-6 pb-[max(env(safe-area-inset-bottom),1.5rem)] sm:pb-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <CardContent className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4">
             <div>
               <Label>Nome do Produto</Label>
               <Input value={form.name} onChange={(e) => update("name", e.target.value)} placeholder="Ex: Celular Samsung" required />
@@ -121,12 +121,15 @@ export function ProductForm({ onAdd, onUpdate, onClose, product }: Props) {
               <Label>Estoque atual</Label>
               <Input type="number" value={form.stock} onChange={(e) => update("stock", e.target.value)} placeholder="0" />
             </div>
+          </CardContent>
 
-            <Button type="submit" className="w-full" disabled={submitting}>
+          {/* Rodapé Fixo */}
+          <div className="sticky bottom-0 z-20 bg-card border-t border-border/60 p-4 sm:p-6 pb-[max(env(safe-area-inset-bottom),1rem)] sm:pb-6 shrink-0">
+            <Button type="submit" className="w-full h-12 text-sm font-semibold rounded-xl shadow-md" disabled={submitting}>
               {isEdit ? <><Save className="h-4 w-4 mr-2" /> Salvar alterações</> : <><Plus className="h-4 w-4 mr-2" /> Cadastrar Produto</>}
             </Button>
-          </form>
-        </CardContent>
+          </div>
+        </form>
       </Card>
     </FormModalOverlay>
   );

@@ -91,8 +91,8 @@ export function VehicleExpenseForm({ onAdd, onClose }: Props) {
             <X className="h-4 w-4" />
           </Button>
         </CardHeader>
-        <CardContent className="flex-1 overflow-y-auto p-4 sm:p-6 pb-[max(env(safe-area-inset-bottom),1.5rem)] sm:pb-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <CardContent className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4">
             <div>
               <Label htmlFor="description">Descrição</Label>
               <Input
@@ -194,21 +194,22 @@ export function VehicleExpenseForm({ onAdd, onClose }: Props) {
                 </p>
               </div>
             )}
+          </CardContent>
 
-            <div className="relative w-full h-11">
-              {submitting ? (
-                <div className="flex items-center justify-center h-11">
-                  <div className="h-8 w-8 rounded-full border-[3px] border-primary border-t-transparent animate-spin" />
-                </div>
-              ) : (
-                <Button type="submit" className="w-full">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Cadastrar Despesa
-                </Button>
-              )}
-            </div>
-          </form>
-        </CardContent>
+          {/* Rodapé Fixo */}
+          <div className="sticky bottom-0 z-20 bg-card border-t border-border/60 p-4 sm:p-6 pb-[max(env(safe-area-inset-bottom),1rem)] sm:pb-6 shrink-0">
+            {submitting ? (
+              <div className="flex items-center justify-center h-11">
+                <div className="h-8 w-8 rounded-full border-[3px] border-primary border-t-transparent animate-spin" />
+              </div>
+            ) : (
+              <Button type="submit" className="w-full h-12 text-sm font-semibold rounded-xl shadow-md">
+                <Plus className="h-4 w-4 mr-2" />
+                Cadastrar Despesa
+              </Button>
+            )}
+          </div>
+        </form>
       </Card>
     </FormModalOverlay>
   );

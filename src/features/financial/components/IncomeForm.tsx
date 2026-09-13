@@ -193,7 +193,7 @@ export function IncomeForm({ open, onClose, onSubmit, initial }: Props) {
         </div>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4">
           <form id="income-form" onSubmit={handleSave} className="space-y-4">
             {/* Bloco 1: Detalhes da Receita */}
             <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-3.5">

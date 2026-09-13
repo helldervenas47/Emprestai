@@ -379,7 +379,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
         </CardHeader>
 
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <CardContent className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+          <CardContent className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-6">
             {/* SEÇÃO 1: CLIENTE & RISCO */}
             <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3 shadow-xs">
               <div className="flex items-center justify-between gap-2">
