@@ -11,11 +11,11 @@ export interface SchedulePrefs {
   whatsapp_phone?: string | null;
 }
 
-export function useScheduledReportPrefs(table: string, defaultTime: string) {
+export function useScheduledReportPrefs(table: string, defaultTime?: string) {
   const { user } = useAuth();
   const [prefs, setPrefs] = useState<SchedulePrefs>({
     enabled: false,
-    send_time_1: defaultTime,
+    send_time_1: null,
     send_time_2: null,
     send_time_3: null,
     send_whatsapp: false,
@@ -47,7 +47,7 @@ export function useScheduledReportPrefs(table: string, defaultTime: string) {
           setPrefs((prev) => ({
             ...prev,
             enabled: Boolean((fallbackData as any).enabled),
-            send_time_1: (fallbackData as any).send_time_1 ?? defaultTime,
+            send_time_1: (fallbackData as any).send_time_1 ?? null,
             send_time_2: (fallbackData as any).send_time_2 ?? null,
             send_time_3: (fallbackData as any).send_time_3 ?? null,
           }));
@@ -55,7 +55,7 @@ export function useScheduledReportPrefs(table: string, defaultTime: string) {
       } else if (data) {
         setPrefs({
           enabled: Boolean((data as any).enabled),
-          send_time_1: (data as any).send_time_1 ?? defaultTime,
+          send_time_1: (data as any).send_time_1 ?? null,
           send_time_2: (data as any).send_time_2 ?? null,
           send_time_3: (data as any).send_time_3 ?? null,
           send_whatsapp: Boolean((data as any).send_whatsapp),
@@ -67,7 +67,7 @@ export function useScheduledReportPrefs(table: string, defaultTime: string) {
     } finally {
       setLoading(false);
     }
-  }, [user, table, defaultTime]);
+  }, [user, table]);
 
   useEffect(() => {
     load();
