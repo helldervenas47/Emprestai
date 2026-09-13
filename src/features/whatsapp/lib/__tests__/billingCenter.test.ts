@@ -54,6 +54,18 @@ describe("Central de Cobranças", () => {
     });
   });
 
+  it("elimina resíduos de ponto flutuante nos juros exibidos na Central", () => {
+    const result = buildBillingCandidates({
+      loans: [
+        { ...loan("lucas", "2026-09-10"), amount: 1099.96, remainingAmount: 1150, installments: 2 },
+        { ...loan("thiago", "2026-09-10"), amount: 299.98, remainingAmount: 1000, installments: 2 },
+      ],
+      clients: [client], schedules: [], payments: [], today: "2026-09-10",
+    });
+    expect(result.find((i) => i.loanId === "lucas")?.interestAmount % 1).toBe(0);
+    expect(result.find((i) => i.loanId === "thiago")?.interestAmount % 1).toBe(0);
+  });
+
   it("organiza Nova Data futura pela data prevista", () => {
     const result = buildBillingCandidates({
       loans: [loan("future-date", "2026-09-01")],

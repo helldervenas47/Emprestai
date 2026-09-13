@@ -136,7 +136,16 @@ export function buildBillingCandidates(params: {
       const nominalInterest = (safePrincipal * contractualInterestRate) / 100;
       chargedPrincipal = Math.max(0, baseAmount - nominalInterest);
     }
-    const interestAmount = Math.max(0, Math.round((amount - chargedPrincipal) * 100) / 100);
+    let interestAmount = Math.max(0, Math.round((amount - chargedPrincipal) * 100) / 100);
+    // Elimina resíduos de ponto flutuante (ex: R$ 50,02 -> R$ 50,00 ou R$ 850,01 -> R$ 850,00)
+    const cents = Math.round((Math.abs(interestAmount) % 1) * 100);
+    if (cents === 1 || cents === 2 || cents === 98 || cents === 99) {
+      const nearestInteger = Math.round(interestAmount);
+      if (Math.abs(interestAmount - nearestInteger) <= 0.025) {
+        interestAmount = nearestInteger;
+      }
+    }
+    interestAmount = Math.min(interestAmount, amount);
     const phone = normalizePhoneBR(clientPhone);
     const contractLabel = Array.isArray(loan.tags)
       ? loan.tags.map(String).map((tag) => tag.trim()).filter(Boolean).join(", ")
