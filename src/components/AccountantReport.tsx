@@ -211,6 +211,7 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
       date: p.date,
       installmentNumber: Number(p.installmentNumber ?? p.installment_number ?? 0),
       createdAt: p.createdAt ?? p.created_at,
+      metadata: p.metadata ?? (p as any).metadata ?? null,
     }));
 
     const periodCutoff =
