@@ -644,7 +644,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  <div className="p-3 rounded-lg bg-card border border-border/60 shadow-2xs">
+                  <div className="p-3 rounded-lg bg-card border border-border/60 shadow-2xs text-center flex flex-col items-center justify-center">
                     <span className="text-[10px] font-medium text-muted-foreground uppercase block mb-1">
                       Capital
                     </span>
@@ -653,7 +653,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                     </span>
                   </div>
 
-                  <div className="p-3 rounded-lg bg-card border border-border/60 shadow-2xs">
+                  <div className="p-3 rounded-lg bg-card border border-border/60 shadow-2xs text-center flex flex-col items-center justify-center">
                     <span className="text-[10px] font-medium text-muted-foreground uppercase block mb-1">
                       Lucro (Juros)
                     </span>
@@ -662,7 +662,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                     </span>
                   </div>
 
-                  <div className="p-3 rounded-lg bg-card border border-border/60 shadow-2xs">
+                  <div className="p-3 rounded-lg bg-card border border-border/60 shadow-2xs text-center flex flex-col items-center justify-center">
                     <span className="text-[10px] font-medium text-muted-foreground uppercase block mb-1">
                       Total a Receber
                     </span>
@@ -671,7 +671,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                     </span>
                   </div>
 
-                  <div className="p-3 rounded-lg bg-card border border-border/60 shadow-2xs">
+                  <div className="p-3 rounded-lg bg-card border border-border/60 shadow-2xs text-center flex flex-col items-center justify-center">
                     <span className="text-[10px] font-medium text-muted-foreground uppercase block mb-1">
                       {installments > 1 ? "Valor Parcela" : "Retorno"}
                     </span>
