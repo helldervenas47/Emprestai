@@ -908,7 +908,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-9 shrink-0 px-3"
+                      className="h-9 shrink-0 px-2.5 sm:px-3"
                       onClick={() => {
                         if (tagInput.trim() && !tags.includes(tagInput.trim())) {
                           setTags([...tags, tagInput.trim()]);
@@ -916,8 +916,8 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                         }
                       }}
                     >
-                      <Plus className="h-3.5 w-3.5 mr-1" />
-                      Adicionar
+                      <Plus className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline ml-1">Adicionar</span>
                     </Button>
                     {existingTags.filter(t => !tags.includes(t)).length > 0 && (
                       <Popover>
