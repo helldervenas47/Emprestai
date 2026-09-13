@@ -316,33 +316,14 @@ export function LoanEditModal({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onClose}
-              disabled={saving}
-              className="h-8 sm:h-9 px-2.5 sm:px-3 text-xs font-medium gap-1"
-            >
-              <X className="h-3.5 w-3.5" />
-              <span>Cancelar</span>
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleSave}
-              disabled={saving}
-              className="h-8 sm:h-9 px-3 sm:px-4 text-xs font-semibold bg-primary text-primary-foreground shadow-xs gap-1.5"
-            >
-              {saving ? (
-                <div className="h-3.5 w-3.5 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin" />
-              ) : (
-                <Check className="h-3.5 w-3.5" />
-              )}
-              <span>Salvar</span>
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-8 w-8 rounded-full hover:bg-muted/80 text-muted-foreground hover:text-foreground shrink-0"
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
 
         {/* Scrollable Body com Safe Area Bottom */}
