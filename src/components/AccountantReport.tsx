@@ -1412,7 +1412,7 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
           {/* Card em Cascata de Resultado */}
           <Card className="rounded-2xl border-border/60 shadow-xs overflow-hidden">
             <CardHeader className="p-4 sm:p-5 pb-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center justify-between gap-3">
                 <div>
                   <CardTitle className="text-base sm:text-lg font-bold">
                     Demonstração do Resultado do Exercício (DRE)
@@ -1421,7 +1421,7 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                     Visão estruturada oficial do faturamento líquido de juros e custos operacionais.
                   </CardDescription>
                 </div>
-                <Button size="sm" variant="outline" onClick={exportDREPDF} className="h-8 gap-1 rounded-xl text-xs self-start sm:self-auto">
+                <Button size="sm" variant="outline" onClick={exportDREPDF} className="hidden sm:inline-flex h-8 gap-1 rounded-xl text-xs shrink-0">
                   <Download className="h-3.5 w-3.5" />
                   <span>PDF DRE</span>
                 </Button>
@@ -1526,6 +1526,17 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                   não compõe receita nem base de cálculo de impostos, de acordo com as normas da Receita Federal do Brasil.
                 </span>
               </div>
+
+              {/* Botão Baixar PDF DRE no Mobile (Largura Total abaixo dos cards) */}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={exportDREPDF}
+                className="w-full sm:hidden h-9 gap-2 rounded-xl text-xs font-semibold border-border/60 hover:bg-muted shadow-xs justify-center"
+              >
+                <Download className="h-4 w-4 shrink-0 text-primary" />
+                <span>Baixar PDF DRE</span>
+              </Button>
 
               {/* Detalhamento Expandido de Receita ou Despesa */}
               {dreCategory && (
@@ -1736,7 +1747,7 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                     Comparação do imposto a pagar sobre os juros auferidos de <strong>{fmt(taxSim.base, hidden)}</strong>.
                   </CardDescription>
                 </div>
-                <Button size="sm" variant="outline" onClick={exportTaxSimulationPDF} className="h-8 gap-1 rounded-xl text-xs self-start sm:self-auto">
+                <Button size="sm" variant="outline" onClick={exportTaxSimulationPDF} className="hidden sm:inline-flex h-8 gap-1 rounded-xl text-xs shrink-0">
                   <Download className="h-3.5 w-3.5" />
                   <span>PDF Tributos</span>
                 </Button>
@@ -1868,6 +1879,17 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                   </div>
                 </div>
               </div>
+
+              {/* Botão Baixar PDF Tributos no Mobile (Largura Total abaixo dos cards) */}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={exportTaxSimulationPDF}
+                className="w-full sm:hidden h-9 gap-2 rounded-xl text-xs font-semibold border-border/60 hover:bg-muted shadow-xs justify-center"
+              >
+                <Download className="h-4 w-4 shrink-0 text-primary" />
+                <span>Baixar PDF Tributos</span>
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1876,7 +1898,7 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
         <TabsContent value="cashflow" className="space-y-4 mt-4">
           <Card className="rounded-2xl border-border/60 shadow-xs">
             <CardHeader className="p-4 sm:p-5 pb-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center justify-between gap-3">
                 <div>
                   <CardTitle className="text-base sm:text-lg font-bold">
                     Livro Caixa & Conciliação de Entradas e Saídas
@@ -1885,7 +1907,7 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                     Registro cronológico completo de toda a movimentação de recursos no período.
                   </CardDescription>
                 </div>
-                <Button size="sm" variant="outline" onClick={exportCashflowPDF} className="h-8 gap-1 rounded-xl text-xs self-start sm:self-auto">
+                <Button size="sm" variant="outline" onClick={exportCashflowPDF} className="hidden sm:inline-flex h-8 gap-1 rounded-xl text-xs shrink-0">
                   <Download className="h-3.5 w-3.5" />
                   <span>PDF Livro Caixa</span>
                 </Button>
@@ -1923,6 +1945,17 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                   <span className="text-[10px] text-muted-foreground">Variação de disponibilidades</span>
                 </div>
               </div>
+
+              {/* Botão Baixar PDF Livro Caixa no Mobile (Largura Total abaixo dos cards) */}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={exportCashflowPDF}
+                className="w-full sm:hidden h-9 gap-2 rounded-xl text-xs font-semibold border-border/60 hover:bg-muted shadow-xs justify-center"
+              >
+                <Download className="h-4 w-4 shrink-0 text-primary" />
+                <span>Baixar PDF Livro Caixa</span>
+              </Button>
 
               <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
                 <table className="w-full text-xs min-w-[480px]">
