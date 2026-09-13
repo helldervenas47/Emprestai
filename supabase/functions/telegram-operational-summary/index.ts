@@ -1000,7 +1000,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
         const isWhatsapp = body?.channel === "whatsapp" || body?.send_whatsapp === true;
         const { today } = nowParts(tz);
-        const text = await generateOperationalSummaryReport(admin, resolvedOwnerId, today);
+        const text = body?.custom_text || body?.text || await generateOperationalSummaryReport(admin, resolvedOwnerId, today);
 
         if (isWhatsapp) {
           const wppRes = await sendOperationalSummaryToWhatsapp(

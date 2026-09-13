@@ -1,78 +1,223 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/userClient";
 import { useAuth } from "@/hooks/useAuth";
+import { useScheduledReportPrefs } from "@/hooks/useScheduledReportPrefs";
+import { supabase } from "@/integrations/supabase/userClient";
 import { buildBillingCandidates, type BillingCandidate } from "@/features/whatsapp/lib/billingCenter";
-import { DEFAULT_WHATSAPP_MESSAGES } from "@/lib/whatsappBilling";
 import { toast } from "sonner";
 import {
+  MessageCircle,
+  Clock,
+  Send,
+  Plus,
+  X,
   Loader2,
   CheckCircle2,
-  Clock,
-  RefreshCw,
-  Search,
-  Send,
-  AlertCircle,
+  AlertTriangle,
+  FileSpreadsheet,
+  Smartphone,
   TrendingUp,
-  WalletCards,
   ListChecks,
-  XCircle,
-  Users,
 } from "lucide-react";
 
-const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+type SlotKey = "send_time_1" | "send_time_2" | "send_time_3";
+const slots: SlotKey[] = ["send_time_1", "send_time_2", "send_time_3"];
 
-const bahiaDay = (dateInput: Date | string) => {
-  const d = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bahia" }).format(d);
-};
+function formatBillingReportForWhatsapp(
+  aCobrar: BillingCandidate[],
+  sentIds: Set<string>,
+  dateStr: string
+): string {
+  const enviadas = aCobrar.filter((item) => sentIds.has(item.loanId));
+  const naoEnviadas = aCobrar.filter((item) => !sentIds.has(item.loanId));
+
+  const totalCount = aCobrar.length;
+  const totalAmount = aCobrar.reduce((s, i) => s + i.amount, 0);
+  const totalInterest = aCobrar.reduce((s, i) => s + (i.interestAmount || 0), 0);
+
+  const envCount = enviadas.length;
+  const envAmount = enviadas.reduce((s, i) => s + i.amount, 0);
+  const envInterest = enviadas.reduce((s, i) => s + (i.interestAmount || 0), 0);
+
+  const naoCount = naoEnviadas.length;
+  const naoAmount = naoEnviadas.reduce((s, i) => s + i.amount, 0);
+  const naoInterest = naoEnviadas.reduce((s, i) => s + (i.interestAmount || 0), 0);
+
+  const moneyFmt = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+  const [y, m, d] = dateStr.split("-");
+  const dataBr = d && m && y ? `${d}/${m}/${y}` : dateStr;
+
+  const lines: string[] = [
+    `📊 *RESUMO DE COBRANÇAS - WHATSAPP*`,
+    `📅 Data: ${dataBr}`,
+    ``,
+    `📋 *Resumo Geral:*`,
+    `• Total a cobrar: ${totalCount} (${moneyFmt.format(totalAmount)})`,
+    `• Cobranças enviadas: ${envCount} (${moneyFmt.format(envAmount)})`,
+    `• Cobranças não enviadas: ${naoCount} (${moneyFmt.format(naoAmount)})`,
+    `• Total de juros: ${moneyFmt.format(totalInterest)}`,
+    `• Valor total das cobranças: ${moneyFmt.format(totalAmount)}`,
+    ``,
+    `━━━━━━━━━━━━━━━━━━━━`,
+    ``,
+    `✅ *Cobranças Enviadas (${envCount}):*`,
+  ];
+
+  if (enviadas.length === 0) {
+    lines.push(`_Nenhuma cobrança enviada pelo WhatsApp hoje._`);
+  } else {
+    enviadas.forEach((item) => {
+      lines.push(`• *${item.clientName}* — Juros: ${moneyFmt.format(item.interestAmount || 0)} | Total: ${moneyFmt.format(item.amount)}`);
+    });
+  }
+
+  lines.push(
+    ``,
+    `Total de cobranças enviadas: ${envCount}`,
+    `Total de juros: ${moneyFmt.format(envInterest)}`,
+    `Total enviado: ${moneyFmt.format(envAmount)}`,
+    ``,
+    `━━━━━━━━━━━━━━━━━━━━`,
+    ``,
+    `⏳ *Cobranças Não Enviadas (${naoCount}):*`
+  );
+
+  if (naoEnviadas.length === 0) {
+    lines.push(`_Todas as cobranças foram enviadas com sucesso!_`);
+  } else {
+    naoEnviadas.forEach((item) => {
+      lines.push(`• *${item.clientName}* — Juros: ${moneyFmt.format(item.interestAmount || 0)} | Total: ${moneyFmt.format(item.amount)}`);
+    });
+  }
+
+  lines.push(
+    ``,
+    `Total de cobranças não enviadas: ${naoCount}`,
+    `Total de juros: ${moneyFmt.format(naoInterest)}`,
+    `Total não enviado: ${moneyFmt.format(naoAmount)}`
+  );
+
+  return lines.join("\n");
+}
 
 export function WhatsappReportCard() {
   const { user, dataOwnerId } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [items, setItems] = useState<BillingCandidate[]>([]);
-  const [sentQueueRows, setSentQueueRows] = useState<any[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const ownerId = dataOwnerId || user?.id;
 
-  const loadData = useCallback(async (isManualRefresh = false) => {
-    if (!user || !dataOwnerId) return;
-    if (isManualRefresh) setRefreshing(true);
-    else setLoading(true);
+  const { prefs, loading: loadingPrefs, save: savePrefs } = useScheduledReportPrefs(
+    "telegram_operational_summary_prefs"
+  );
 
+  const [schedule, setSchedule] = useState<{
+    provider?: string;
+    base_url?: string;
+    instance_id?: string;
+    api_key?: string;
+  }>({});
+  const [profilePhone, setProfilePhone] = useState("");
+  const [whatsappPhone, setWhatsappPhone] = useState("");
+  const [sendingReport, setSendingReport] = useState(false);
+
+  // Carrega configurações da API WhatsApp e perfil do usuário
+  const loadWhatsappAndProfile = useCallback(async () => {
+    if (!ownerId) return;
+    try {
+      const [{ data: sched }, { data: prof }] = await Promise.all([
+        supabase
+          .from("whatsapp_billing_schedule")
+          .select("provider, base_url, instance_id, api_key")
+          .eq("owner_id", ownerId)
+          .maybeSingle(),
+        supabase
+          .from("profiles")
+          .select("phone")
+          .eq("user_id", ownerId)
+          .maybeSingle(),
+      ]);
+
+      if (sched) {
+        setSchedule(sched);
+      }
+      if (prof?.phone) {
+        setProfilePhone(prof.phone);
+      }
+    } catch (e) {
+      console.error("[WhatsappReportCard] Erro ao carregar configurações:", e);
+    }
+  }, [ownerId]);
+
+  useEffect(() => {
+    loadWhatsappAndProfile();
+  }, [loadWhatsappAndProfile]);
+
+  useEffect(() => {
+    if (prefs.whatsapp_phone !== undefined) {
+      setWhatsappPhone(prefs.whatsapp_phone || "");
+    }
+  }, [prefs.whatsapp_phone]);
+
+  const isWhatsappConfigured = Boolean(
+    schedule.base_url?.trim() && schedule.instance_id?.trim()
+  );
+
+  const handleTimeChange = async (key: SlotKey, value: string | null) => {
+    try {
+      await savePrefs({ [key]: value });
+      toast.success("Horário de envio salvo!");
+    } catch {
+      toast.error("Erro ao salvar horário.");
+    }
+  };
+
+  const handlePhoneBlur = async () => {
+    if (whatsappPhone !== (prefs.whatsapp_phone || "")) {
+      try {
+        await savePrefs({ whatsapp_phone: whatsappPhone.trim() || null });
+        toast.success("Telefone do WhatsApp salvo!");
+      } catch {
+        toast.error("Erro ao salvar telefone.");
+      }
+    }
+  };
+
+  const activeSlots = slots.filter((s) => Boolean(prefs[s]));
+  const canAddMoreSlots = activeSlots.length < 3;
+
+  // Disparo manual do relatório de cobranças diretamente no WhatsApp
+  const sendBillingReportNow = async () => {
+    if (!ownerId) return;
+    setSendingReport(true);
     try {
       const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bahia" }).format(new Date());
       const todayStart = new Date(`${today}T00:00:00-03:00`).toISOString();
       const tomorrow = new Date(`${today}T00:00:00-03:00`);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
-      const [loans, clients, schedules, payments, promises, sentQueueRes, templates] = await Promise.all([
-        supabase.from("loans").select("*").eq("user_id", dataOwnerId),
-        supabase.from("clients").select("*").eq("user_id", dataOwnerId),
-        supabase.from("loan_installments").select("*").eq("user_id", dataOwnerId),
-        supabase.from("payments").select("*").eq("user_id", dataOwnerId),
-        supabase.from("whatsapp_payment_promises").select("loan_id, installment_number, promised_date").eq("user_id", dataOwnerId),
+      // Busca dados necessários para calcular estritamente a subaba "A cobrar"
+      const [loans, clients, schedulesRes, payments, promises, sentQueueRes, templates] = await Promise.all([
+        supabase.from("loans").select("*").eq("user_id", ownerId),
+        supabase.from("clients").select("*").eq("user_id", ownerId),
+        supabase.from("loan_installments").select("*").eq("user_id", ownerId),
+        supabase.from("payments").select("*").eq("user_id", ownerId),
+        supabase.from("whatsapp_payment_promises").select("loan_id, installment_number, promised_date").eq("user_id", ownerId),
         supabase
           .from("whatsapp_billing_queue")
-          .select("id, client_id, loan_id, loan_ids, status, scheduled_at, sent_at, error_message, attempts")
-          .eq("user_id", dataOwnerId)
+          .select("id, loan_id, loan_ids, status, sent_at")
+          .eq("user_id", ownerId)
           .eq("status", "sent")
           .gte("sent_at", todayStart)
           .lt("sent_at", tomorrow.toISOString()),
         supabase
           .from("whatsapp_billing_messages")
           .select("message_upcoming, message_due_today, message_overdue, message_very_overdue, message_center_single, message_center_multiple, very_overdue_days, pix_link")
-          .eq("owner_id", dataOwnerId)
+          .eq("owner_id", ownerId)
           .maybeSingle(),
       ]);
-
-      const errors = [loans.error, clients.error, schedules.error, payments.error, promises.error, sentQueueRes.error].filter(Boolean);
-      if (errors.length) {
-        toast.error("Não foi possível carregar os dados completos do relatório.");
-      }
 
       const mappedLoans = (loans.data || []).map((l: any) => ({
         ...l,
@@ -92,7 +237,7 @@ export function WhatsappReportCard() {
       }));
 
       const mappedClients = (clients.data || []).map((c: any) => ({ ...c, createdAt: c.created_at }));
-      const mappedSchedules = (schedules.data || []).map((s: any) => ({
+      const mappedSchedules = (schedulesRes.data || []).map((s: any) => ({
         ...s,
         loanId: s.loan_id,
         installmentNumber: Number(s.installment_number),
@@ -116,433 +261,345 @@ export function WhatsappReportCard() {
         messages: (templates.data as any) || undefined,
       });
 
-      setItems(candidates);
-      setSentQueueRows((sentQueueRes.data || []) as any[]);
-    } catch (e) {
-      console.error("[WhatsappReportCard] Erro ao carregar relatório:", e);
-      toast.error("Erro ao processar relatório de cobranças.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [user, dataOwnerId]);
+      // Filtro oficial da subaba "A cobrar" (billingDate <= hoje na Bahia)
+      const aCobrarCandidates = candidates.filter((c) => c.billingDate <= today);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+      // Conjunto de loanIds enviados com sucesso hoje
+      const sentIds = new Set<string>();
+      (sentQueueRes.data || []).forEach((row: any) => {
+        const loanList = Array.isArray(row.loan_ids) && row.loan_ids.length ? row.loan_ids : (row.loan_id ? [row.loan_id] : []);
+        loanList.forEach((id: string) => { if (id) sentIds.add(id); });
+      });
 
-  // Fonte oficial: estritamente os registros da subaba "A cobrar" (billingDate <= hoje)
-  const todayInBahia = bahiaDay(new Date());
-  const aCobrarItems = useMemo(() => {
-    return items.filter((item) => item.billingDate <= todayInBahia);
-  }, [items, todayInBahia]);
+      // Monta a mensagem completa formatada para o WhatsApp
+      const reportMessage = formatBillingReportForWhatsapp(aCobrarCandidates, sentIds, today);
 
-  // Mapa de empréstimos enviados com sucesso pelo WhatsApp hoje
-  const { sentLoanIds, loanSentAtMap } = useMemo(() => {
-    const ids = new Set<string>();
-    const sentAtMap = new Map<string, string>();
-    for (const row of sentQueueRows) {
-      const loanList = Array.isArray(row.loan_ids) && row.loan_ids.length ? row.loan_ids : (row.loan_id ? [row.loan_id] : []);
-      for (const id of loanList) {
-        if (id) {
-          ids.add(id);
-          if (row.sent_at) sentAtMap.set(id, row.sent_at);
+      const destPhone = whatsappPhone.trim() || profilePhone || undefined;
+      const { data, error } = await supabase.functions.invoke("telegram-operational-summary", {
+        body: {
+          owner_id: ownerId,
+          channel: "whatsapp",
+          send_whatsapp: true,
+          phone: destPhone,
+          custom_text: reportMessage,
+          whatsapp_config: {
+            provider: schedule.provider || "evolution",
+            base_url: schedule.base_url || "",
+            instance_id: schedule.instance_id || "",
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.sent) {
+        toast.success("Relatório de Cobranças enviado para o seu WhatsApp!");
+      } else {
+        const reason = data?.reason;
+        if (reason === "whatsapp_not_configured") {
+          toast.error("WhatsApp não configurado", {
+            description: "Configure sua API do WhatsApp na aba 'Disparos & Automação'.",
+          });
+        } else if (reason === "no_phone_configured") {
+          toast.error("Nenhum telefone configurado", {
+            description: "Informe o telefone de destino para o envio.",
+          });
+        } else {
+          toast.error("Falha no envio do relatório", {
+            description: reason || "O provedor de WhatsApp não confirmou o envio.",
+          });
         }
       }
+    } catch (e: any) {
+      console.error("[WhatsappReportCard] Erro ao enviar relatório no WhatsApp:", e);
+      toast.error("Erro ao enviar relatório", {
+        description: e?.message || "Ocorreu um problema de comunicação com a API.",
+      });
+    } finally {
+      setSendingReport(false);
     }
-    return { sentLoanIds: ids, loanSentAtMap: sentAtMap };
-  }, [sentQueueRows]);
-
-  // Separação em Enviadas e Não Enviadas
-  const enviadas = useMemo(() => {
-    return aCobrarItems.filter((item) => sentLoanIds.has(item.loanId));
-  }, [aCobrarItems, sentLoanIds]);
-
-  const naoEnviadas = useMemo(() => {
-    return aCobrarItems.filter((item) => !sentLoanIds.has(item.loanId));
-  }, [aCobrarItems, sentLoanIds]);
-
-  // Totais Gerais do Resumo (exclusivos de "A cobrar")
-  const totalCobrarCount = aCobrarItems.length;
-  const totalCobrarAmount = aCobrarItems.reduce((sum, item) => sum + item.amount, 0);
-  const totalCobrarInterest = aCobrarItems.reduce((sum, item) => sum + (item.interestAmount || 0), 0);
-
-  // Totais das Enviadas
-  const enviadasCount = enviadas.length;
-  const enviadasAmount = enviadas.reduce((sum, item) => sum + item.amount, 0);
-  const enviadasInterest = enviadas.reduce((sum, item) => sum + (item.interestAmount || 0), 0);
-
-  // Totais das Não Enviadas
-  const naoEnviadasCount = naoEnviadas.length;
-  const naoEnviadasAmount = naoEnviadas.reduce((sum, item) => sum + item.amount, 0);
-  const naoEnviadasInterest = naoEnviadas.reduce((sum, item) => sum + (item.interestAmount || 0), 0);
-
-  // Filtro de busca por nome
-  const filteredEnviadas = useMemo(() => {
-    if (!searchTerm.trim()) return enviadas;
-    const term = searchTerm.toLowerCase();
-    return enviadas.filter((item) => item.clientName.toLowerCase().includes(term));
-  }, [enviadas, searchTerm]);
-
-  const filteredNaoEnviadas = useMemo(() => {
-    if (!searchTerm.trim()) return naoEnviadas;
-    const term = searchTerm.toLowerCase();
-    return naoEnviadas.filter((item) => item.clientName.toLowerCase().includes(term));
-  }, [naoEnviadas, searchTerm]);
-
-  if (loading) {
-    return (
-      <div className="py-16 text-center space-y-3">
-        <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-        <p className="text-sm font-medium text-muted-foreground">
-          Carregando relatório de cobranças via WhatsApp...
-        </p>
-      </div>
-    );
-  }
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Cabeçalho do Relatório */}
+    <div className="space-y-5">
+      {/* Card 1: Configurações de Telefone e Ativação do WhatsApp */}
       <Card no3d className="border-border/60 shadow-xs rounded-2xl overflow-hidden">
-        <CardHeader className="p-4 sm:p-5 pb-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-start sm:items-center gap-3">
-              <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold shadow-xs shrink-0 ring-1 ring-emerald-500/20">
-                <Send className="h-5 w-5 sm:h-6 sm:w-6" />
+        <CardHeader className="p-4 sm:p-5 pb-3">
+          <div className="flex items-start sm:items-center justify-between gap-3">
+            <div className="flex items-start sm:items-center gap-3 min-w-0">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold shadow-xs shrink-0 ring-1 ring-primary/20">
+                <MessageCircle className="h-5 w-5" />
               </div>
-              <div>
-                <CardTitle className="text-base sm:text-lg font-bold flex items-center gap-2">
-                  Resumo de Cobranças pelo WhatsApp
+              <div className="min-w-0">
+                <CardTitle className="text-base font-bold text-foreground leading-tight">
+                  Telefone e Destino no WhatsApp
                 </CardTitle>
-                <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                  Conferência exclusiva das cobranças da subaba <strong>&quot;A cobrar&quot;</strong> e seus disparos automáticos no WhatsApp.
+                <CardDescription className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                  Defina o número de destino e habilite o envio automatizado dos relatórios.
                 </CardDescription>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 self-end sm:self-auto">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => loadData(true)}
-                disabled={refreshing}
-                className="h-8 rounded-xl text-xs gap-1.5"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
-                <span>Atualizar</span>
-              </Button>
+            <div className="shrink-0">
+              {isWhatsappConfigured ? (
+                <Badge
+                  variant="outline"
+                  className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25 text-[10px] font-semibold gap-1.5 py-1 px-2.5 rounded-lg whitespace-nowrap"
+                >
+                  <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                  <span className="hidden sm:inline">API WhatsApp Conectada</span>
+                  <span className="sm:hidden">Conectado</span>
+                </Badge>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] font-semibold gap-1.5 py-1 px-2.5 rounded-lg whitespace-nowrap"
+                >
+                  <AlertTriangle className="h-3 w-3 text-amber-500" />
+                  <span className="hidden sm:inline">API Pendente</span>
+                  <span className="sm:hidden">Pendente</span>
+                </Badge>
+              )}
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="p-4 sm:p-5 pt-0 space-y-4">
-          {/* Métricas do Topo (Resumo Geral) */}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-            {/* Total de Cobranças */}
-            <div className="p-3.5 rounded-xl border border-border/50 bg-muted/20 space-y-1">
-              <div className="flex items-center justify-between text-muted-foreground">
-                <span className="text-[11px] font-medium uppercase tracking-wider">Total a Cobrar</span>
-                <ListChecks className="h-3.5 w-3.5 text-primary" />
-              </div>
-              <p className="text-lg sm:text-xl font-bold text-foreground">{totalCobrarCount}</p>
-              <p className="text-[11px] text-muted-foreground">{money.format(totalCobrarAmount)}</p>
-            </div>
-
-            {/* Total de Juros */}
-            <div className="p-3.5 rounded-xl border border-border/50 bg-muted/20 space-y-1">
-              <div className="flex items-center justify-between text-muted-foreground">
-                <span className="text-[11px] font-medium uppercase tracking-wider">Total de Juros</span>
-                <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
-              </div>
-              <p className="text-lg sm:text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                {money.format(totalCobrarInterest)}
-              </p>
-              <p className="text-[11px] text-muted-foreground">Juros previstos hoje</p>
-            </div>
-
-            {/* Enviadas pelo WhatsApp */}
-            <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 space-y-1">
-              <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
-                <span className="text-[11px] font-medium uppercase tracking-wider">Enviadas</span>
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-              </div>
-              <p className="text-lg sm:text-xl font-bold text-emerald-700 dark:text-emerald-400">{enviadasCount}</p>
-              <p className="text-[11px] text-emerald-600/80 dark:text-emerald-400/80">{money.format(enviadasAmount)}</p>
-            </div>
-
-            {/* Não Enviadas */}
-            <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-1">
-              <div className="flex items-center justify-between text-amber-600 dark:text-amber-400">
-                <span className="text-[11px] font-medium uppercase tracking-wider">Não Enviadas</span>
-                <Clock className="h-3.5 w-3.5 text-amber-500" />
-              </div>
-              <p className="text-lg sm:text-xl font-bold text-amber-700 dark:text-amber-400">{naoEnviadasCount}</p>
-              <p className="text-[11px] text-amber-600/80 dark:text-amber-400/80">{money.format(naoEnviadasAmount)}</p>
-            </div>
-
-            {/* Valor Total das Cobranças */}
-            <div className="p-3.5 rounded-xl border border-border/50 bg-muted/20 space-y-1 col-span-2 sm:col-span-1">
-              <div className="flex items-center justify-between text-muted-foreground">
-                <span className="text-[11px] font-medium uppercase tracking-wider">Valor Total</span>
-                <WalletCards className="h-3.5 w-3.5 text-primary" />
-              </div>
-              <p className="text-lg sm:text-xl font-bold text-foreground">{money.format(totalCobrarAmount)}</p>
-              <p className="text-[11px] text-muted-foreground">
-                {totalCobrarCount > 0
-                  ? `${Math.round((enviadasCount / totalCobrarCount) * 100)}% processadas`
-                  : "0% processadas"}
+        <CardContent className="p-4 sm:p-5 pt-2 space-y-4">
+          {/* Toggle de Ativação */}
+          <div className="flex items-center justify-between p-3.5 rounded-xl bg-muted/40 border border-border/40 gap-3">
+            <div className="space-y-0.5 flex-1 min-w-0 pr-1">
+              <Label className="text-xs sm:text-sm font-semibold text-foreground cursor-pointer block">
+                Ativar envio automático no WhatsApp
+              </Label>
+              <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight">
+                Dispara os relatórios de cobrança diários para o número configurado abaixo.
               </p>
             </div>
+            <Switch
+              checked={prefs.send_whatsapp ?? false}
+              disabled={loadingPrefs}
+              onCheckedChange={async (checked) => {
+                try {
+                  await savePrefs({ send_whatsapp: checked });
+                  toast.success(checked ? "Envio automático no WhatsApp ativado!" : "Envio automático no WhatsApp desativado.");
+                } catch {
+                  toast.error("Erro ao salvar configuração de envio.");
+                }
+              }}
+              className="shrink-0"
+            />
           </div>
 
-          {/* Campo de Busca Rápida */}
-          {totalCobrarCount > 0 && (
-            <div className="relative pt-1">
-              <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          {/* Telefone de Destino */}
+          <div className="space-y-2 pt-0.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <Label className="text-xs font-semibold text-foreground">
+                Telefone WhatsApp de Destino
+              </Label>
+              {profilePhone && whatsappPhone !== profilePhone && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setWhatsappPhone(profilePhone);
+                    try {
+                      await savePrefs({ whatsapp_phone: profilePhone });
+                      toast.success("Telefone do perfil aplicado!");
+                    } catch {
+                      toast.error("Erro ao salvar telefone.");
+                    }
+                  }}
+                  className="text-[11px] font-medium text-primary hover:underline cursor-pointer"
+                >
+                  Usar telefone do perfil ({profilePhone})
+                </button>
+              )}
+            </div>
+
+            <div className="relative">
+              <Smartphone className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               <Input
-                placeholder="Buscar cliente nas listas abaixo..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-9 text-xs rounded-xl bg-background"
+                placeholder={profilePhone || "Ex.: (11) 99999-8888"}
+                value={whatsappPhone}
+                onChange={(e) => setWhatsappPhone(e.target.value)}
+                onBlur={handlePhoneBlur}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handlePhoneBlur();
+                }}
+                className="text-sm rounded-xl h-11 pl-9 pr-3 bg-background"
               />
             </div>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* SEÇÃO 1: Cobranças enviadas pelo WhatsApp */}
-      <Card no3d className="border-emerald-500/25 shadow-xs rounded-2xl overflow-hidden bg-card">
-        <CardHeader className="p-4 sm:p-5 pb-3 bg-emerald-500/5 border-b border-emerald-500/20">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-xs">
-                <CheckCircle2 className="h-4 w-4" />
-              </span>
-              <div>
-                <CardTitle className="text-sm sm:text-base font-bold text-foreground flex items-center gap-2">
-                  Cobranças enviadas pelo WhatsApp
-                </CardTitle>
-                <CardDescription className="text-xs text-muted-foreground">
-                  Registros da aba &quot;A cobrar&quot; com envio automático confirmado com sucesso hoje.
-                </CardDescription>
-              </div>
-            </div>
-
-            <Badge
-              variant="outline"
-              className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-xs font-bold px-2.5 py-1 rounded-lg shrink-0"
-            >
-              {enviadasCount} {enviadasCount === 1 ? "enviada" : "enviadas"}
-            </Badge>
-          </div>
-        </CardHeader>
-
-        <CardContent className="p-0">
-          {filteredEnviadas.length === 0 ? (
-            <div className="p-8 text-center text-xs text-muted-foreground space-y-1">
-              <CheckCircle2 className="h-6 w-6 mx-auto text-muted-foreground/50 mb-1.5" />
-              <p className="font-medium text-foreground">
-                {searchTerm ? "Nenhuma cobrança enviada encontrada para esta busca." : "Nenhuma cobrança foi enviada pelo WhatsApp hoje."}
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                {searchTerm ? "Tente outro nome de cliente." : "Assim que o envio automático for processado, as cobranças confirmadas aparecerão aqui."}
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y divide-border/40">
-              {/* Header da Tabela em Desktop */}
-              <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2.5 bg-muted/20 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                <div className="col-span-6">Nome do Cliente</div>
-                <div className="col-span-3 text-right">Valor dos Juros</div>
-                <div className="col-span-3 text-right">Valor Total da Cobrança</div>
-              </div>
-
-              {/* Lista de Registros */}
-              {filteredEnviadas.map((item) => {
-                const sentAt = loanSentAtMap.get(item.loanId);
-                const sentTimeFormatted = sentAt
-                  ? new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Bahia" }).format(new Date(sentAt))
-                  : null;
-
-                return (
-                  <div
-                    key={`sent-${item.key}`}
-                    className="flex flex-col sm:grid sm:grid-cols-12 gap-1.5 sm:gap-3 px-4 py-3 hover:bg-muted/15 transition-colors items-start sm:items-center"
-                  >
-                    <div className="col-span-6 flex items-center gap-2 min-w-0 w-full">
-                      <div className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold text-foreground truncate">{item.clientName}</p>
-                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5">
-                          <span>{item.contractLabel || "Contrato"}</span>
-                          {sentTimeFormatted && (
-                            <>
-                              <span>•</span>
-                              <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                                Enviado às {sentTimeFormatted}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="col-span-3 flex sm:block justify-between w-full sm:text-right pt-1 sm:pt-0">
-                      <span className="sm:hidden text-xs text-muted-foreground">Valor dos Juros:</span>
-                      <span className="text-xs sm:text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                        {money.format(item.interestAmount || 0)}
-                      </span>
-                    </div>
-
-                    <div className="col-span-3 flex sm:block justify-between w-full sm:text-right">
-                      <span className="sm:hidden text-xs text-muted-foreground font-medium">Valor Total:</span>
-                      <span className="text-sm font-bold text-foreground">
-                        {money.format(item.amount)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Rodapé e Totalizadores da Seção 1 */}
-          <div className="p-3.5 sm:p-4 bg-emerald-500/10 border-t border-emerald-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-300">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-              <span>
-                Total de cobranças enviadas: <strong>{enviadasCount}</strong>
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-6 font-semibold pt-1 sm:pt-0 border-t sm:border-t-0 border-emerald-500/20">
-              <span className="text-muted-foreground">
-                Total de juros:{" "}
-                <strong className="text-emerald-600 dark:text-emerald-400">
-                  {money.format(enviadasInterest)}
-                </strong>
-              </span>
-              <span className="text-muted-foreground">
-                Total enviado:{" "}
-                <strong className="text-foreground">
-                  {money.format(enviadasAmount)}
-                </strong>
-              </span>
-            </div>
+            <p className="text-[11px] text-muted-foreground leading-tight">
+              {profilePhone
+                ? `Se em branco, usará o telefone cadastrado no perfil (${profilePhone}).`
+                : "Informe o número com DDD (ex: 11999998888)."}
+            </p>
           </div>
         </CardContent>
       </Card>
 
-      {/* SEÇÃO 2: Cobranças não enviadas pelo WhatsApp */}
-      <Card no3d className="border-amber-500/25 shadow-xs rounded-2xl overflow-hidden bg-card">
-        <CardHeader className="p-4 sm:p-5 pb-3 bg-amber-500/5 border-b border-amber-500/20">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs">
-                <Clock className="h-4 w-4" />
-              </span>
-              <div>
-                <CardTitle className="text-sm sm:text-base font-bold text-foreground flex items-center gap-2">
-                  Cobranças não enviadas pelo WhatsApp
-                </CardTitle>
-                <CardDescription className="text-xs text-muted-foreground">
-                  Registros da aba &quot;A cobrar&quot; que ainda não tiveram o envio automático realizado hoje.
-                </CardDescription>
-              </div>
+      {/* Card 2: Relatório de Cobranças pelo WhatsApp */}
+      <Card no3d className="border-border/60 shadow-xs rounded-2xl overflow-hidden">
+        <CardHeader className="p-4 sm:p-5 pb-3">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold shadow-xs shrink-0 ring-1 ring-emerald-500/20">
+              <FileSpreadsheet className="h-5 w-5" />
             </div>
-
-            <Badge
-              variant="outline"
-              className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-xs font-bold px-2.5 py-1 rounded-lg shrink-0"
-            >
-              {naoEnviadasCount} {naoEnviadasCount === 1 ? "pendente" : "pendentes"}
-            </Badge>
+            <div>
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                Relatório de Cobranças pelo WhatsApp
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                Resumo diário exclusivo das cobranças da aba <strong>&quot;A cobrar&quot;</strong> enviado diretamente para o seu WhatsApp.
+              </CardDescription>
+            </div>
           </div>
         </CardHeader>
 
-        <CardContent className="p-0">
-          {filteredNaoEnviadas.length === 0 ? (
-            <div className="p-8 text-center text-xs text-muted-foreground space-y-1">
-              <CheckCircle2 className="h-6 w-6 mx-auto text-emerald-500 mb-1.5" />
-              <p className="font-medium text-foreground">
-                {searchTerm ? "Nenhuma cobrança não enviada encontrada para esta busca." : "Todas as cobranças da aba 'A cobrar' foram enviadas com sucesso pelo WhatsApp!"}
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                {searchTerm ? "Tente outro nome de cliente." : "Não há pendências de envio automático para as cobranças prioritárias de hoje."}
-              </p>
+        <CardContent className="p-4 sm:p-5 pt-2 space-y-5">
+          {/* Horários de Envio Deste Relatório */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-primary" />
+                <span>Horários Programados de Envio</span>
+              </Label>
+              <Badge variant="outline" className="text-[10px] font-medium text-muted-foreground py-0.5 px-2 bg-muted/30">
+                {activeSlots.length}/3 horários
+              </Badge>
             </div>
-          ) : (
-            <div className="divide-y divide-border/40">
-              {/* Header da Tabela em Desktop */}
-              <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2.5 bg-muted/20 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                <div className="col-span-6">Nome do Cliente</div>
-                <div className="col-span-3 text-right">Valor dos Juros</div>
-                <div className="col-span-3 text-right">Valor Total da Cobrança</div>
-              </div>
 
-              {/* Lista de Registros */}
-              {filteredNaoEnviadas.map((item) => (
-                <div
-                  key={`notsent-${item.key}`}
-                  className="flex flex-col sm:grid sm:grid-cols-12 gap-1.5 sm:gap-3 px-4 py-3 hover:bg-muted/15 transition-colors items-start sm:items-center"
+            {activeSlots.length === 0 ? (
+              <div className="flex flex-col sm:flex-row items-center justify-between p-3.5 rounded-xl border border-dashed border-border/80 bg-muted/20 gap-3">
+                <p className="text-xs text-muted-foreground">
+                  Nenhum horário programado para este relatório.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs rounded-lg gap-1.5 font-medium"
+                  onClick={() => handleTimeChange(slots[0], "19:00")}
                 >
-                  <div className="col-span-6 flex items-center gap-2 min-w-0 w-full">
-                    <div className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-foreground truncate">{item.clientName}</p>
-                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5">
-                        <span>{item.contractLabel || "Contrato"}</span>
-                        <span>•</span>
-                        <span className={item.validPhone ? "text-amber-600 dark:text-amber-400" : "text-destructive"}>
-                          {item.validPhone ? "Não disparado / Aguardando envio" : "Telefone inválido ou não cadastrado"}
-                        </span>
+                  <Plus className="h-3.5 w-3.5" /> Adicionar Primeiro Horário
+                </Button>
+              </div>
+            ) : (
+              <div className="grid gap-2.5 sm:grid-cols-3">
+                {activeSlots.map((key) => (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-border/70 bg-card hover:border-primary/40 transition-colors shadow-2xs group"
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="h-7 w-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                        <Clock className="h-3.5 w-3.5" />
                       </div>
+                      <input
+                        type="time"
+                        value={prefs[key] ?? ""}
+                        onChange={(e) => handleTimeChange(key, e.target.value || null)}
+                        className="bg-transparent text-sm font-semibold text-foreground focus:outline-none cursor-pointer w-full tracking-wide"
+                      />
                     </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleTimeChange(key, null)}
+                      title="Remover horário"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg shrink-0 transition-colors"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
+                ))}
 
-                  <div className="col-span-3 flex sm:block justify-between w-full sm:text-right pt-1 sm:pt-0">
-                    <span className="sm:hidden text-xs text-muted-foreground">Valor dos Juros:</span>
-                    <span className="text-xs sm:text-sm font-semibold text-muted-foreground">
-                      {money.format(item.interestAmount || 0)}
-                    </span>
-                  </div>
+                {canAddMoreSlots && (
+                  <button
+                    type="button"
+                    onClick={() => handleTimeChange(slots.find((s) => !prefs[s])!, "19:00")}
+                    className="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-dashed border-border hover:border-primary/60 bg-muted/10 hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all text-xs font-semibold h-full min-h-[46px]"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>Adicionar Horário</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
 
-                  <div className="col-span-3 flex sm:block justify-between w-full sm:text-right">
-                    <span className="sm:hidden text-xs text-muted-foreground font-medium">Valor Total:</span>
-                    <span className="text-sm font-bold text-foreground">
-                      {money.format(item.amount)}
-                    </span>
-                  </div>
+          {/* Indicadores incluídos no Relatório do WhatsApp */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <span>Informações enviadas na mensagem do WhatsApp:</span>
+            </Label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-muted-foreground">
+              <div className="p-3 bg-muted/30 rounded-xl border border-border/40">
+                <div className="flex items-center gap-1.5 text-foreground font-semibold text-xs">
+                  <ListChecks className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <span>Resumo Geral</span>
                 </div>
-              ))}
-            </div>
-          )}
+                <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
+                  Total a cobrar, juros totais e valor geral do dia
+                </p>
+              </div>
 
-          {/* Rodapé e Totalizadores da Seção 2 */}
-          <div className="p-3.5 sm:p-4 bg-amber-500/10 border-t border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-2 font-medium text-amber-800 dark:text-amber-300">
-              <Clock className="h-4 w-4 text-amber-600 shrink-0" />
-              <span>
-                Total de cobranças não enviadas: <strong>{naoEnviadasCount}</strong>
-              </span>
-            </div>
+              <div className="p-3 bg-muted/30 rounded-xl border border-border/40">
+                <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold text-xs">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                  <span>Enviadas</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
+                  Clientes notificados com juros e valor total
+                </p>
+              </div>
 
-            <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-6 font-semibold pt-1 sm:pt-0 border-t sm:border-t-0 border-amber-500/20">
-              <span className="text-muted-foreground">
-                Total de juros:{" "}
-                <strong className="text-amber-600 dark:text-amber-400">
-                  {money.format(naoEnviadasInterest)}
-                </strong>
-              </span>
-              <span className="text-muted-foreground">
-                Total não enviado:{" "}
-                <strong className="text-foreground">
-                  {money.format(naoEnviadasAmount)}
-                </strong>
-              </span>
+              <div className="p-3 bg-muted/30 rounded-xl border border-border/40">
+                <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-semibold text-xs">
+                  <Clock className="h-3.5 w-3.5 shrink-0" />
+                  <span>Não Enviadas</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
+                  Cobranças pendentes de disparo com valores
+                </p>
+              </div>
+
+              <div className="p-3 bg-muted/30 rounded-xl border border-border/40">
+                <div className="flex items-center gap-1.5 text-foreground font-semibold text-xs">
+                  <TrendingUp className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                  <span>Subtotais</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
+                  Consolidação financeira de cada seção
+                </p>
+              </div>
             </div>
+          </div>
+
+          {/* Ações e Botão de Disparo Imediato */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-border/40">
+            <p className="text-[11px] text-muted-foreground">
+              {!isWhatsappConfigured ? (
+                <span className="text-amber-500 font-medium">
+                  Aviso: Conecte sua API do WhatsApp na aba &quot;Disparos &amp; Automação&quot; para realizar os envios.
+                </span>
+              ) : (
+                <span>O relatório é enviado automaticamente nos horários definidos ou em tempo real pelo botão ao lado.</span>
+              )}
+            </p>
+            <Button
+              onClick={sendBillingReportNow}
+              disabled={sendingReport || !isWhatsappConfigured}
+              className="w-full sm:w-auto h-9 text-xs font-semibold rounded-xl shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-xs"
+            >
+              {sendingReport ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+              Enviar Relatório Agora no WhatsApp
+            </Button>
           </div>
         </CardContent>
       </Card>
