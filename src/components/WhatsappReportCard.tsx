@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useScheduledReportPrefs } from "@/hooks/useScheduledReportPrefs";
 import { supabase } from "@/integrations/supabase/userClient";
 import { buildBillingCandidates, type BillingCandidate } from "@/features/whatsapp/lib/billingCenter";
+import { useWhatsappBillingSchedule } from "@/hooks/useWhatsappBillingSchedule";
 import { toast } from "sonner";
 import {
   MessageCircle,
@@ -110,6 +111,8 @@ export function WhatsappReportCard() {
   const { user, dataOwnerId } = useAuth();
   const ownerId = dataOwnerId || user?.id;
 
+  const { schedule } = useWhatsappBillingSchedule();
+
   // Prefs do Resumo Operacional
   const {
     prefs: opPrefs,
@@ -124,48 +127,32 @@ export function WhatsappReportCard() {
     save: saveBillPrefs,
   } = useScheduledReportPrefs("telegram_billing_prefs");
 
-  const [schedule, setSchedule] = useState<{
-    provider?: string;
-    base_url?: string;
-    instance_id?: string;
-    api_key?: string;
-  }>({});
   const [profilePhone, setProfilePhone] = useState("");
   const [whatsappPhone, setWhatsappPhone] = useState("");
   const [sendingOpSummary, setSendingOpSummary] = useState(false);
   const [sendingBillingReport, setSendingBillingReport] = useState(false);
 
-  // Carrega configurações da API WhatsApp e perfil do usuário
-  const loadWhatsappAndProfile = useCallback(async () => {
+  // Carrega telefone do perfil do usuário
+  const loadProfilePhone = useCallback(async () => {
     if (!ownerId) return;
     try {
-      const [{ data: sched }, { data: prof }] = await Promise.all([
-        supabase
-          .from("whatsapp_billing_schedule")
-          .select("provider, base_url, instance_id, api_key")
-          .eq("owner_id", ownerId)
-          .maybeSingle(),
-        supabase
-          .from("profiles")
-          .select("phone")
-          .eq("user_id", ownerId)
-          .maybeSingle(),
-      ]);
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("phone")
+        .eq("user_id", ownerId)
+        .maybeSingle();
 
-      if (sched) {
-        setSchedule(sched);
-      }
       if (prof?.phone) {
         setProfilePhone(prof.phone);
       }
     } catch (e) {
-      console.error("[WhatsappReportCard] Erro ao carregar configurações:", e);
+      console.error("[WhatsappReportCard] Erro ao carregar perfil:", e);
     }
   }, [ownerId]);
 
   useEffect(() => {
-    loadWhatsappAndProfile();
-  }, [loadWhatsappAndProfile]);
+    loadProfilePhone();
+  }, [loadProfilePhone]);
 
   useEffect(() => {
     if (opPrefs.whatsapp_phone !== undefined) {
