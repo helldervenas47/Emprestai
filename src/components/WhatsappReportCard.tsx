@@ -21,6 +21,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   FileSpreadsheet,
+  Smartphone,
 } from "lucide-react";
 
 type SlotKey = "send_time_1" | "send_time_2" | "send_time_3";
@@ -119,41 +120,43 @@ export function WhatsappReportCard() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Card 1: Configurações de Telefone e Ativação do WhatsApp */}
       <Card no3d className="border-border/60 shadow-xs rounded-2xl overflow-hidden">
         <CardHeader className="p-4 sm:p-5 pb-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-start sm:items-center gap-3">
+          <div className="flex items-start sm:items-center justify-between gap-3">
+            <div className="flex items-start sm:items-center gap-3 min-w-0">
               <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold shadow-xs shrink-0 ring-1 ring-primary/20">
                 <MessageCircle className="h-5 w-5" />
               </div>
-              <div>
-                <CardTitle className="text-base font-bold flex items-center gap-2">
+              <div className="min-w-0">
+                <CardTitle className="text-base font-bold text-foreground leading-tight">
                   Telefone e Destino no WhatsApp
                 </CardTitle>
-                <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                <CardDescription className="text-xs text-muted-foreground mt-0.5 leading-snug">
                   Defina o número de destino e habilite o envio automatizado dos resumos.
                 </CardDescription>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 self-end sm:self-auto">
+            <div className="shrink-0">
               {isWhatsappConfigured ? (
                 <Badge
                   variant="outline"
-                  className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25 text-[10px] font-semibold gap-1.5 py-1 px-2.5 rounded-lg"
+                  className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25 text-[10px] font-semibold gap-1.5 py-1 px-2.5 rounded-lg whitespace-nowrap"
                 >
                   <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                  API WhatsApp Conectada
+                  <span className="hidden sm:inline">API WhatsApp Conectada</span>
+                  <span className="sm:hidden">Conectado</span>
                 </Badge>
               ) : (
                 <Badge
                   variant="outline"
-                  className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] font-semibold gap-1.5 py-1 px-2.5 rounded-lg"
+                  className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] font-semibold gap-1.5 py-1 px-2.5 rounded-lg whitespace-nowrap"
                 >
                   <AlertTriangle className="h-3 w-3 text-amber-500" />
-                  API Pendente
+                  <span className="hidden sm:inline">API Pendente</span>
+                  <span className="sm:hidden">Pendente</span>
                 </Badge>
               )}
             </div>
@@ -162,12 +165,12 @@ export function WhatsappReportCard() {
 
         <CardContent className="p-4 sm:p-5 pt-2 space-y-4">
           {/* Toggle de Ativação */}
-          <div className="flex items-center justify-between p-3.5 rounded-xl bg-muted/40 border border-border/40">
-            <div className="space-y-0.5">
-              <Label className="text-xs sm:text-sm font-semibold text-foreground cursor-pointer">
+          <div className="flex items-center justify-between p-3.5 rounded-xl bg-muted/40 border border-border/40 gap-3">
+            <div className="space-y-0.5 flex-1 min-w-0 pr-1">
+              <Label className="text-xs sm:text-sm font-semibold text-foreground cursor-pointer block">
                 Ativar envio automático no WhatsApp
               </Label>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight">
                 Dispara os resumos financeiros diários para o número configurado abaixo.
               </p>
             </div>
@@ -183,13 +186,37 @@ export function WhatsappReportCard() {
                   });
                 }
               }}
+              className="shrink-0"
             />
           </div>
 
           {/* Telefone de Destino */}
-          <div className="space-y-1.5 pt-1">
-            <Label className="text-xs font-semibold">Telefone WhatsApp de Destino</Label>
-            <div className="flex gap-2 max-w-md">
+          <div className="space-y-2 pt-0.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <Label className="text-xs font-semibold text-foreground">
+                Telefone WhatsApp de Destino
+              </Label>
+              {profilePhone && whatsappPhone !== profilePhone && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setWhatsappPhone(profilePhone);
+                    try {
+                      await savePrefs({ whatsapp_phone: profilePhone });
+                      toast.success("Telefone do perfil aplicado!");
+                    } catch {
+                      toast.error("Erro ao salvar telefone.");
+                    }
+                  }}
+                  className="text-[11px] font-medium text-primary hover:underline cursor-pointer"
+                >
+                  Usar telefone do perfil ({profilePhone})
+                </button>
+              )}
+            </div>
+
+            <div className="relative">
+              <Smartphone className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               <Input
                 placeholder={profilePhone || "Ex.: (11) 99999-8888"}
                 value={whatsappPhone}
@@ -198,30 +225,14 @@ export function WhatsappReportCard() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handlePhoneBlur();
                 }}
-                className="text-xs rounded-xl h-9"
+                className="text-sm rounded-xl h-11 pl-9 pr-3 bg-background"
               />
-              {profilePhone && !whatsappPhone && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={async () => {
-                    setWhatsappPhone(profilePhone);
-                    try {
-                      await savePrefs({ whatsapp_phone: profilePhone });
-                    } catch {
-                      toast.error("Erro ao salvar telefone.");
-                    }
-                  }}
-                  className="text-[11px] h-9 shrink-0 px-2.5 rounded-xl"
-                  title="Preencher com o telefone do perfil"
-                >
-                  Usar Perfil
-                </Button>
-              )}
             </div>
-            <p className="text-[10px] text-muted-foreground">
-              Se em branco, usará o telefone configurado no seu perfil ({profilePhone || "não cadastrado"}).
+
+            <p className="text-[11px] text-muted-foreground leading-tight">
+              {profilePhone
+                ? `Se em branco, usará o telefone cadastrado no perfil (${profilePhone}).`
+                : "Informe o número com DDD (ex: 11999998888)."}
             </p>
           </div>
         </CardContent>
