@@ -273,7 +273,6 @@ export function WhatsappReportCard() {
   const handleOpTimeChange = async (key: SlotKey, value: string | null) => {
     try {
       await saveOpPrefs({ [key]: value });
-      toast.success("Horário do Resumo Operacional salvo!");
     } catch {
       toast.error("Erro ao salvar horário.");
     }
@@ -282,7 +281,6 @@ export function WhatsappReportCard() {
   const handleBillTimeChange = async (key: SlotKey, value: string | null) => {
     try {
       await saveBillPrefs({ [key]: value });
-      toast.success("Horário do Relatório de Cobranças salvo!");
     } catch {
       toast.error("Erro ao salvar horário.");
     }
@@ -292,7 +290,6 @@ export function WhatsappReportCard() {
     if (whatsappPhone !== (opPrefs.whatsapp_phone || "")) {
       try {
         await saveOpPrefs({ whatsapp_phone: whatsappPhone.trim() || null });
-        toast.success("Telefone do WhatsApp salvo!");
       } catch {
         toast.error("Erro ao salvar telefone.");
       }
