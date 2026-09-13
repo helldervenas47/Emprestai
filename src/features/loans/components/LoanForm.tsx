@@ -263,6 +263,19 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
     syncRateFromInterest(ti);
   };
 
+  const handleTotalChange = (val: string) => {
+    const tot = parseFloat(val) || 0;
+    const ti = tot - amount;
+    const positiveInterest = ti >= 0 ? ti : 0;
+    setInterestOverride(positiveInterest.toFixed(2));
+    setInterestTouched(true);
+    if (installments > 0) {
+      setMonthlyOverride((tot / installments).toFixed(2));
+      setMonthlyTouched(true);
+    }
+    syncRateFromInterest(positiveInterest);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
@@ -489,7 +502,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                {/* Valor (R$) */}
+                {/* 1. Valor (R$) */}
                 <div>
                   <Label htmlFor="amount" className="text-xs font-medium">Valor do Empréstimo (R$) *</Label>
                   <Input
@@ -504,7 +517,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                   />
                 </div>
 
-                {/* Juros (%) */}
+                {/* 2. Juros (%) */}
                 <div>
                   <div className="flex items-center justify-between">
                     <Label htmlFor="interestRate" className="text-xs font-medium">Taxa de Juros (%) *</Label>
@@ -529,7 +542,39 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                   />
                 </div>
 
-                {/* Tipo de Contrato (Periodicidade) */}
+                {/* 3. Valor do Juros (R$) — Editável */}
+                <div>
+                  <Label htmlFor="interestValue" className="text-xs font-medium">Valor do Juros (R$)</Label>
+                  <Input
+                    id="interestValue"
+                    type="number"
+                    step="0.01"
+                    value={interestOverride !== "" ? interestOverride : (calcInterest > 0 ? calcInterest.toFixed(2) : "")}
+                    onChange={(e) => handleInterestChange(e.target.value)}
+                    placeholder="R$ 0,00"
+                    className="h-10 text-sm font-semibold text-emerald-600 dark:text-emerald-400"
+                  />
+                </div>
+
+                {/* 4. Valor Total (R$) — Editável */}
+                <div>
+                  <Label htmlFor="totalValue" className="text-xs font-medium">Valor Total (R$)</Label>
+                  <Input
+                    id="totalValue"
+                    type="number"
+                    step="0.01"
+                    value={
+                      interestOverride !== ""
+                        ? (amount + (parseFloat(interestOverride) || 0)).toFixed(2)
+                        : (calcTotal > 0 ? calcTotal.toFixed(2) : "")
+                    }
+                    onChange={(e) => handleTotalChange(e.target.value)}
+                    placeholder="R$ 0,00"
+                    className="h-10 text-sm font-semibold text-primary"
+                  />
+                </div>
+
+                {/* 5. Tipo de Contrato (Periodicidade) */}
                 <div>
                   <Label className="text-xs font-medium">Periodicidade</Label>
                   <Select value={form.interestType} onValueChange={(v) => update("interestType", v)}>
@@ -545,7 +590,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                   </Select>
                 </div>
 
-                {/* Parcelas */}
+                {/* 6. Parcelas */}
                 <div>
                   <Label htmlFor="installments" className="text-xs font-medium">Número de Parcelas *</Label>
                   <Input
@@ -560,7 +605,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                   />
                 </div>
 
-                {/* Data Início */}
+                {/* 7. Data Início */}
                 <div>
                   <Label htmlFor="startDate" className="text-xs font-medium">Data de Saída (Início)</Label>
                   <DatePickerField
@@ -570,7 +615,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                   />
                 </div>
 
-                {/* Data 1ª Parcela */}
+                {/* 8. Data 1ª Parcela */}
                 <div>
                   <Label className="text-xs font-medium">Data da 1ª Parcela</Label>
                   <NativeDatePicker
@@ -580,42 +625,6 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                     className="h-10 text-sm"
                   />
                 </div>
-              </div>
-
-              {/* Ajustes avançados de Juros e Parcela (Opcional/Manual) */}
-              <div className="pt-2 border-t border-border/40">
-                <details className="group text-xs">
-                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground font-medium flex items-center justify-between py-1 select-none">
-                    <span>Ajuste manual de valores (opcional)</span>
-                    <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
-                  </summary>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2.5">
-                    <div>
-                      <Label htmlFor="interestValue" className="text-[11px] text-muted-foreground">Valor Total dos Juros (R$)</Label>
-                      <Input
-                        id="interestValue"
-                        type="number"
-                        step="0.01"
-                        value={interestOverride !== "" ? interestOverride : (calcInterest > 0 ? calcInterest.toFixed(2) : "")}
-                        onChange={(e) => handleInterestChange(e.target.value)}
-                        placeholder="R$ 0,00"
-                        className="h-9 text-xs mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="monthlyValue" className="text-[11px] text-muted-foreground">Valor de Cada Parcela (R$)</Label>
-                      <Input
-                        id="monthlyValue"
-                        type="number"
-                        step="0.01"
-                        value={monthlyOverride !== "" ? monthlyOverride : (calcMonthly > 0 ? calcMonthly.toFixed(2) : "")}
-                        onChange={(e) => handleMonthlyChange(e.target.value)}
-                        placeholder="R$ 0,00"
-                        className="h-9 text-xs mt-1"
-                      />
-                    </div>
-                  </div>
-                </details>
               </div>
             </div>
 
