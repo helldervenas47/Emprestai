@@ -8,6 +8,8 @@ import {
   ChevronRight,
   CheckCircle2,
   Clock,
+  TrendingUp,
+  TrendingDown,
   Receipt,
   EyeOff,
   ShieldCheck,
@@ -273,6 +275,46 @@ export function CreditCardsDashboardTab({
     };
   }, [cardDataForSelectedMonth, globalLimitsSummary]);
 
+  // Comparativo com o Mês Anterior para Faturas (Reajuste em Valor e Porcentagem)
+  const previousMonthMetrics = useMemo(() => {
+    const prevMonthDate = subMonths(selectedDate, 1);
+    const prevMonthKey = format(prevMonthDate, "yyyy-MM");
+
+    let totalInvoices = 0;
+    cards.forEach((card) => {
+      const cycle = getCycleForDueMonth(prevMonthKey, card.closingDay, card.dueDay);
+      if (!cycle) return;
+
+      const inCycleExpenses = expandedAll
+        .filter((e) => !e.scope || e.scope === "personal")
+        .filter((e) => belongsToCardInvoice(e, card, cycle.from, cycle.to));
+
+      const itemsTotal = inCycleExpenses.reduce((s, e) => s + invoiceItemValue(e), 0);
+      const cycleKey = cycleKeyFromDate(cycle.to);
+      const opening = getOpening(card.id, cycleKey);
+      const openingAmount = opening?.openingAmount ?? 0;
+      const totalOverride = readTotalOverride(opening?.notes);
+
+      const invoiceTotal = totalOverride ?? itemsTotal + openingAmount;
+      totalInvoices += invoiceTotal;
+    });
+
+    const diffValue = consolidatedMetrics.totalInvoices - totalInvoices;
+    const percentChange =
+      totalInvoices > 0
+        ? ((consolidatedMetrics.totalInvoices - totalInvoices) / totalInvoices) * 100
+        : consolidatedMetrics.totalInvoices > 0
+        ? 100
+        : 0;
+
+    return {
+      prevTotal: totalInvoices,
+      diffValue,
+      percentChange,
+      hasPrevious: totalInvoices > 0 || consolidatedMetrics.totalInvoices > 0,
+    };
+  }, [cards, selectedDate, expandedAll, getOpening, consolidatedMetrics.totalInvoices]);
+
   // Projeção futura dos próximos 6 meses consolidada
   const futureProjections = useMemo(() => {
     const projections = [];
@@ -478,9 +520,41 @@ export function CreditCardsDashboardTab({
             <p className="text-base sm:text-xl font-extrabold text-foreground tabular-nums">
               {mask(fmt(consolidatedMetrics.totalInvoices))}
             </p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              {cards.length} {cards.length === 1 ? "cartão cadastrado" : "cartões no total"}
-            </p>
+            {previousMonthMetrics.hasPrevious ? (
+              <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                {previousMonthMetrics.diffValue === 0 ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    0,0% (estável vs mês anterior)
+                  </p>
+                ) : (
+                  <p
+                    className={`text-[11px] font-semibold flex items-center gap-0.5 tabular-nums ${
+                      previousMonthMetrics.diffValue > 0
+                        ? "text-rose-500 dark:text-rose-400"
+                        : "text-emerald-600 dark:text-emerald-400"
+                    }`}
+                    title={`Mês anterior: ${fmt(previousMonthMetrics.prevTotal)}`}
+                  >
+                    {previousMonthMetrics.diffValue > 0 ? (
+                      <TrendingUp className="h-3 w-3 shrink-0" />
+                    ) : (
+                      <TrendingDown className="h-3 w-3 shrink-0" />
+                    )}
+                    <span>
+                      {previousMonthMetrics.diffValue > 0 ? "+" : ""}
+                      {mask(fmt(previousMonthMetrics.diffValue))} (
+                      {previousMonthMetrics.diffValue > 0 ? "+" : ""}
+                      {previousMonthMetrics.percentChange.toFixed(1).replace(".", ",")}%)
+                    </span>
+                    <span className="text-[10px] font-normal text-muted-foreground">vs mês ant.</span>
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {cards.length} {cards.length === 1 ? "cartão cadastrado" : "cartões no total"}
+              </p>
+            )}
           </div>
         </div>
 
