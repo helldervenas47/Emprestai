@@ -143,7 +143,6 @@ export function WhatsappReportCard() {
     if (whatsappPhone !== (prefs.whatsapp_phone ?? "")) {
       try {
         await savePrefs({ whatsapp_phone: whatsappPhone.trim() || null });
-        toast.success("Telefone atualizado com sucesso!");
       } catch {
         toast.error("Erro ao salvar telefone.");
       }
@@ -153,7 +152,6 @@ export function WhatsappReportCard() {
   const handleTimeChange = async (key: SlotKey, value: string | null) => {
     try {
       await savePrefs({ [key]: value } as any);
-      toast.success(value ? "Horário atualizado!" : "Horário removido.");
     } catch {
       toast.error("Erro ao salvar horário.");
     }
@@ -218,7 +216,6 @@ export function WhatsappReportCard() {
               onCheckedChange={async (v) => {
                 try {
                   await savePrefs({ send_whatsapp: v });
-                  toast.success(v ? "Envio diário ativado!" : "Envio diário desativado.");
                 } catch (e) {
                   toast.error("Erro ao salvar preferência no banco.", {
                     description: "Execute o SQL de migração no Supabase se as colunas ainda não existirem.",
@@ -254,7 +251,6 @@ export function WhatsappReportCard() {
                         setWhatsappPhone(profilePhone);
                         try {
                           await savePrefs({ whatsapp_phone: profilePhone });
-                          toast.success("Telefone preenchido com o do perfil!");
                         } catch {
                           toast.error("Erro ao salvar telefone.");
                         }
