@@ -30,7 +30,7 @@ import {
 type SlotKey = "send_time_1" | "send_time_2" | "send_time_3";
 const slots: SlotKey[] = ["send_time_1", "send_time_2", "send_time_3"];
 
-function formatBillingReportForWhatsapp(
+export function formatBillingReportForWhatsapp(
   aCobrar: BillingCandidate[],
   sentIds: Set<string>,
 ): string {
@@ -49,7 +49,12 @@ function formatBillingReportForWhatsapp(
   const naoAmount = naoEnviadas.reduce((s, i) => s + i.amount, 0);
   const naoInterest = naoEnviadas.reduce((s, i) => s + (i.interestAmount || 0), 0);
 
-  const moneyFmt = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+  const moneyFmt = {
+    format: (val: number) =>
+      new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" })
+        .format(val)
+        .replace(/\u00a0/g, " "),
+  };
 
   const lines: string[] = [
     `📊 *RESUMO DAS COBRANÇAS — HOJE*`,

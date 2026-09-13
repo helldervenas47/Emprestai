@@ -1,7 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import React from "react";
-import { WhatsappReportCard } from "@/components/WhatsappReportCard";
+import { WhatsappReportCard, formatBillingReportForWhatsapp } from "@/components/WhatsappReportCard";
+import type { BillingCandidate } from "@/features/whatsapp/lib/billingCenter";
 
 const mockUser = { id: "user-1" };
 vi.mock("@/hooks/useAuth", () => ({
@@ -92,5 +93,90 @@ describe("WhatsappReportCard — Envio de Relatórios e Resumo Operacional pelo 
     // Botões de disparo imediato
     expect(screen.getByText("Enviar Resumo Operacional Agora")).toBeInTheDocument();
     expect(screen.getByText("Enviar Relatório Agora no WhatsApp")).toBeInTheDocument();
+  });
+
+  it("formata corretamente a mensagem do Relatório de Cobranças com base na aba 'A cobrar'", () => {
+    const candidates: BillingCandidate[] = [
+      {
+        key: "loan-1:1",
+        loanId: "loan-1",
+        clientId: "client-1",
+        clientName: "João da Silva",
+        phone: "5511999991111",
+        validPhone: true,
+        installmentNumber: 1,
+        contractLabel: "João da Silva",
+        amount: 500,
+        baseAmount: 450,
+        lateFees: 0,
+        interestAmount: 50,
+        overdueInstallmentCount: 0,
+        dueDate: "2026-09-13",
+        billingDate: "2026-09-13",
+        daysOverdue: 0,
+        priority: "today",
+        message: "",
+      },
+      {
+        key: "loan-2:1",
+        loanId: "loan-2",
+        clientId: "client-2",
+        clientName: "Maria Santos",
+        phone: "5511999992222",
+        validPhone: true,
+        installmentNumber: 1,
+        contractLabel: "Maria Santos",
+        amount: 330,
+        baseAmount: 300,
+        lateFees: 0,
+        interestAmount: 30,
+        overdueInstallmentCount: 0,
+        dueDate: "2026-09-13",
+        billingDate: "2026-09-13",
+        daysOverdue: 0,
+        priority: "today",
+        message: "",
+      },
+      {
+        key: "loan-3:1",
+        loanId: "loan-3",
+        clientId: "client-3",
+        clientName: "Pedro Santos",
+        phone: "5511999993333",
+        validPhone: true,
+        installmentNumber: 1,
+        contractLabel: "Pedro Santos",
+        amount: 390,
+        baseAmount: 350,
+        lateFees: 0,
+        interestAmount: 40,
+        overdueInstallmentCount: 0,
+        dueDate: "2026-09-13",
+        billingDate: "2026-09-13",
+        daysOverdue: 0,
+        priority: "today",
+        message: "",
+      },
+    ];
+
+    const sentIds = new Set(["loan-1", "loan-2"]);
+    const message = formatBillingReportForWhatsapp(candidates, sentIds);
+
+    expect(message).toContain("📊 *RESUMO DAS COBRANÇAS — HOJE*");
+    expect(message).toContain("Total de cobranças: *3*");
+    expect(message).toContain("✅ Enviadas: *2*");
+    expect(message).toContain("⚠️ Não enviadas: *1*");
+    expect(message).toContain("💰 Juros: *R$ 120,00*");
+    expect(message).toContain("💵 Total a cobrar: *R$ 1.220,00*");
+    expect(message).toContain("✅ *COBRANÇAS ENVIADAS*");
+    expect(message).toContain("João da Silva / Juros: R$ 50,00 / Total: R$ 500,00");
+    expect(message).toContain("Maria Santos / Juros: R$ 30,00 / Total: R$ 330,00");
+    expect(message).toContain("*Total enviado: 2 / R$ 80,00 / R$ 830,00*");
+    expect(message).toContain("⚠️ *COBRANÇAS NÃO ENVIADAS*");
+    expect(message).toContain("Pedro Santos / Juros: R$ 40,00 / Total: R$ 390,00");
+    expect(message).toContain("*Total não enviado: 1 / R$ 40,00 / R$ 390,00*");
+    expect(message).toContain("📊 *FECHAMENTO*");
+    expect(message).toContain("*Total: 3 / R$ 120,00 / R$ 1.220,00*");
+    expect(message).toContain("*Resumo gerado automaticamente pelo EmprestAI.*");
   });
 });
