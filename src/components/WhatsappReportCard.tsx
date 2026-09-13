@@ -33,7 +33,6 @@ const slots: SlotKey[] = ["send_time_1", "send_time_2", "send_time_3"];
 function formatBillingReportForWhatsapp(
   aCobrar: BillingCandidate[],
   sentIds: Set<string>,
-  dateStr: string
 ): string {
   const enviadas = aCobrar.filter((item) => sentIds.has(item.loanId));
   const naoEnviadas = aCobrar.filter((item) => !sentIds.has(item.loanId));
@@ -51,57 +50,62 @@ function formatBillingReportForWhatsapp(
   const naoInterest = naoEnviadas.reduce((s, i) => s + (i.interestAmount || 0), 0);
 
   const moneyFmt = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-  const [y, m, d] = dateStr.split("-");
-  const dataBr = d && m && y ? `${d}/${m}/${y}` : dateStr;
 
   const lines: string[] = [
-    `📊 *RESUMO DE COBRANÇAS - WHATSAPP*`,
-    `📅 Data: ${dataBr}`,
+    `📊 *RESUMO DAS COBRANÇAS — HOJE*`,
     ``,
-    `📋 *Resumo Geral:*`,
-    `• Total a cobrar: ${totalCount} (${moneyFmt.format(totalAmount)})`,
-    `• Cobranças enviadas: ${envCount} (${moneyFmt.format(envAmount)})`,
-    `• Cobranças não enviadas: ${naoCount} (${moneyFmt.format(naoAmount)})`,
-    `• Total de juros: ${moneyFmt.format(totalInterest)}`,
-    `• Valor total das cobranças: ${moneyFmt.format(totalAmount)}`,
+    `📌 *RESUMO DO DIA*`,
     ``,
-    `━━━━━━━━━━━━━━━━━━━━`,
+    `Total de cobranças: *${totalCount}*`,
+    `✅ Enviadas: *${envCount}*`,
+    `⚠️ Não enviadas: *${naoCount}*`,
     ``,
-    `✅ *Cobranças Enviadas (${envCount}):*`,
+    `💰 Juros: *${moneyFmt.format(totalInterest)}*`,
+    `💵 Total a cobrar: *${moneyFmt.format(totalAmount)}*`,
+    ``,
+    `━━━━━━━━━━━━━━━━━━`,
+    ``,
+    `✅ *COBRANÇAS ENVIADAS*`,
+    ``,
   ];
 
   if (enviadas.length === 0) {
-    lines.push(`_Nenhuma cobrança enviada pelo WhatsApp hoje._`);
+    lines.push(`Nenhuma cobrança enviada.`);
   } else {
     enviadas.forEach((item) => {
-      lines.push(`• *${item.clientName}* — Juros: ${moneyFmt.format(item.interestAmount || 0)} | Total: ${moneyFmt.format(item.amount)}`);
+      lines.push(`${item.clientName} / Juros: ${moneyFmt.format(item.interestAmount || 0)} / Total: ${moneyFmt.format(item.amount)}`);
     });
   }
 
   lines.push(
     ``,
-    `Total de cobranças enviadas: ${envCount}`,
-    `Total de juros: ${moneyFmt.format(envInterest)}`,
-    `Total enviado: ${moneyFmt.format(envAmount)}`,
+    `*Total enviado: ${envCount} / ${moneyFmt.format(envInterest)} / ${moneyFmt.format(envAmount)}*`,
     ``,
-    `━━━━━━━━━━━━━━━━━━━━`,
+    `━━━━━━━━━━━━━━━━━━`,
     ``,
-    `⏳ *Cobranças Não Enviadas (${naoCount}):*`
+    `⚠️ *COBRANÇAS NÃO ENVIADAS*`,
+    ``,
   );
 
   if (naoEnviadas.length === 0) {
-    lines.push(`_Todas as cobranças foram enviadas com sucesso!_`);
+    lines.push(`Nenhuma cobrança pendente.`);
   } else {
     naoEnviadas.forEach((item) => {
-      lines.push(`• *${item.clientName}* — Juros: ${moneyFmt.format(item.interestAmount || 0)} | Total: ${moneyFmt.format(item.amount)}`);
+      lines.push(`${item.clientName} / Juros: ${moneyFmt.format(item.interestAmount || 0)} / Total: ${moneyFmt.format(item.amount)}`);
     });
   }
 
   lines.push(
     ``,
-    `Total de cobranças não enviadas: ${naoCount}`,
-    `Total de juros: ${moneyFmt.format(naoInterest)}`,
-    `Total não enviado: ${moneyFmt.format(naoAmount)}`
+    `*Total não enviado: ${naoCount} / ${moneyFmt.format(naoInterest)} / ${moneyFmt.format(naoAmount)}*`,
+    ``,
+    `━━━━━━━━━━━━━━━━━━`,
+    ``,
+    `📊 *FECHAMENTO*`,
+    ``,
+    `*Total: ${totalCount} / ${moneyFmt.format(totalInterest)} / ${moneyFmt.format(totalAmount)}*`,
+    ``,
+    `*Resumo gerado automaticamente pelo EmprestAI.*`
   );
 
   return lines.join("\n");
@@ -380,7 +384,7 @@ export function WhatsappReportCard() {
       });
 
       // Monta a mensagem completa formatada para o WhatsApp
-      const reportMessage = formatBillingReportForWhatsapp(aCobrarCandidates, sentIds, today);
+      const reportMessage = formatBillingReportForWhatsapp(aCobrarCandidates, sentIds);
 
       const destPhone = (whatsappPhone.trim() || profilePhone || "").trim();
       if (!destPhone) {
@@ -390,52 +394,21 @@ export function WhatsappReportCard() {
         return;
       }
 
-      // 1. Tenta envio direto para a API do WhatsApp (Evolution API / WppConnect)
-      let sentSuccess = false;
-      if (schedule.base_url?.trim() && schedule.instance_id?.trim()) {
-        const directRes = await sendWhatsappDirectly(schedule, destPhone, reportMessage);
-        if (directRes.ok) {
-          sentSuccess = true;
-          toast.success("Relatório de Cobranças enviado para o seu WhatsApp!");
-          return;
-        }
+      if (!schedule.base_url?.trim() || !schedule.instance_id?.trim()) {
+        toast.error("WhatsApp não configurado", {
+          description: "Configure sua API do WhatsApp na aba 'Disparos & Automação' para habilitar os envios.",
+        });
+        return;
       }
 
-      // 2. Fallback via Edge Function
-      const { data, error } = await supabase.functions.invoke("telegram-operational-summary", {
-        body: {
-          owner_id: ownerId,
-          channel: "whatsapp",
-          send_whatsapp: true,
-          phone: destPhone,
-          custom_text: reportMessage,
-          whatsapp_config: {
-            provider: schedule.provider || "evolution",
-            base_url: schedule.base_url || "",
-            instance_id: schedule.instance_id || "",
-          },
-        },
-      });
-
-      if (error) throw error;
-
-      if (data?.sent || sentSuccess) {
+      // Envio direto para a API do WhatsApp com o relatório de cobranças formatado
+      const directRes = await sendWhatsappDirectly(schedule, destPhone, reportMessage);
+      if (directRes.ok) {
         toast.success("Relatório de Cobranças enviado para o seu WhatsApp!");
       } else {
-        const reason = data?.reason;
-        if (reason === "whatsapp_not_configured") {
-          toast.error("WhatsApp não configurado", {
-            description: "Configure sua API do WhatsApp na aba 'Disparos & Automação'.",
-          });
-        } else if (reason === "no_phone_configured") {
-          toast.error("Nenhum telefone configurado", {
-            description: "Informe o telefone de destino para o envio.",
-          });
-        } else {
-          toast.error("Falha no envio do relatório", {
-            description: reason || "O provedor de WhatsApp não confirmou o envio.",
-          });
-        }
+        toast.error("Falha ao enviar pelo WhatsApp", {
+          description: directRes.error || `Erro ${directRes.status || ""} na comunicação com o servidor de WhatsApp.`,
+        });
       }
     } catch (e: any) {
       console.error("[WhatsappReportCard] Erro ao enviar relatório de cobranças:", e);
