@@ -412,6 +412,12 @@ export function WhatsappReportCard() {
           owner_id: ownerId,
           phone: destPhone,
           custom_text: reportMessage,
+          whatsapp_config: {
+            provider: schedule.provider || "evolution",
+            base_url: schedule.base_url || "",
+            instance_id: schedule.instance_id || "",
+            api_key: schedule.api_key || "",
+          },
         },
       });
 

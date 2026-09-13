@@ -181,28 +181,57 @@ Deno.serve(async (req: Request) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { data: sched } = await admin
-      .from("whatsapp_billing_schedule")
-      .select("base_url, instance_id, api_key, provider").eq("owner_id", ownerId).maybeSingle();
-    if (!sched?.base_url || !sched?.instance_id) {
-      return new Response(JSON.stringify({ error: "whatsapp_not_configured" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    let baseUrl = body.whatsapp_config?.base_url?.trim() || "";
+    let instanceId = body.whatsapp_config?.instance_id?.trim() || "";
+    let apiKey = body.whatsapp_config?.api_key || "";
+    let provider = body.whatsapp_config?.provider || "evolution";
+
+    if (!baseUrl || !instanceId) {
+      const { data: sched } = await admin
+        .from("whatsapp_billing_schedule")
+        .select("base_url, instance_id, api_key, provider")
+        .eq("owner_id", ownerId)
+        .maybeSingle();
+
+      if (sched?.base_url && sched?.instance_id) {
+        baseUrl = sched.base_url.trim();
+        instanceId = sched.instance_id.trim();
+        apiKey = sched.api_key || apiKey;
+        provider = sched.provider || provider;
+      }
     }
 
-    const effectiveApiKey =
-      sched.api_key ||
-      Deno.env.get("EVOLUTION_API_KEY") ||
-      Deno.env.get("WHATSMIAU_API_KEY") ||
-      "";
+    if (!baseUrl || !instanceId) {
+      const { data: allSchedRows } = await admin
+        .from("whatsapp_billing_schedule")
+        .select("base_url, instance_id, api_key, provider")
+        .limit(10);
+      const found = allSchedRows?.find((r: any) => Boolean(r.base_url?.trim() && r.instance_id?.trim()));
+      if (found) {
+        baseUrl = found.base_url.trim();
+        instanceId = found.instance_id.trim();
+        apiKey = found.api_key || apiKey;
+        provider = found.provider || provider;
+      }
+    }
+
+    if (!baseUrl || !instanceId) {
+      return new Response(JSON.stringify({ ok: false, error: "whatsapp_not_configured" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (!apiKey) {
+      apiKey = Deno.env.get("EVOLUTION_API_KEY") || Deno.env.get("WHATSMIAU_API_KEY") || "";
+    }
 
     const text = body.custom_text || body.message || await buildReport(admin, ownerId, reportType);
     const sent = await sendWhatsapp(
-      sched.base_url,
-      sched.instance_id,
-      effectiveApiKey,
+      baseUrl,
+      instanceId,
+      apiKey,
       phone,
       text,
-      sched.provider,
+      provider,
     );
 
     if (!sent.ok) {
@@ -212,7 +241,7 @@ Deno.serve(async (req: Request) => {
           error: `Falha na API do WhatsApp (HTTP ${sent.status}): ${sent.body || "Sem detalhes"}`,
           status: sent.status,
         }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -220,8 +249,8 @@ Deno.serve(async (req: Request) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     console.error("[send-whatsapp-report]", e);
-    return new Response(JSON.stringify({ error: e?.message || String(e) }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ ok: false, error: e?.message || String(e) }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
 
