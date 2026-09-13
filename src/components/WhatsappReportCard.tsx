@@ -40,22 +40,27 @@ interface GroupedClientBilling {
 function groupCandidatesByClient(candidates: BillingCandidate[]): GroupedClientBilling[] {
   const map = new Map<string, GroupedClientBilling>();
   for (const item of candidates) {
-    const key = item.clientId || item.clientName;
-    const existing = map.get(key);
+    const nameClean = (item.clientName || "").trim();
+    const nameKey = nameClean.toLowerCase();
+    const idKey = (item.clientId && !item.clientId.startsWith("loan:")) ? `id:${item.clientId}` : `name:${nameKey}`;
+
+    const existing = map.get(idKey) || (nameKey ? map.get(`name:${nameKey}`) : undefined);
     if (existing) {
       existing.amount += item.amount;
       existing.interestAmount += (item.interestAmount || 0);
       existing.count += 1;
     } else {
-      map.set(key, {
-        clientName: item.clientName,
+      const entry: GroupedClientBilling = {
+        clientName: nameClean || "Cliente não identificado",
         amount: item.amount,
         interestAmount: item.interestAmount || 0,
         count: 1,
-      });
+      };
+      map.set(idKey, entry);
+      if (nameKey) map.set(`name:${nameKey}`, entry);
     }
   }
-  return Array.from(map.values()).sort((a, b) =>
+  return Array.from(new Set(map.values())).sort((a, b) =>
     a.clientName.localeCompare(b.clientName, "pt-BR", { sensitivity: "base" })
   );
 }
@@ -63,9 +68,13 @@ function groupCandidatesByClient(candidates: BillingCandidate[]): GroupedClientB
 export function formatBillingReportForWhatsapp(
   aCobrar: BillingCandidate[],
   sentIds: Set<string>,
+  sentClientIds?: Set<string>,
 ): string {
-  const enviadas = aCobrar.filter((item) => sentIds.has(item.loanId));
-  const naoEnviadas = aCobrar.filter((item) => !sentIds.has(item.loanId));
+  const isSent = (item: BillingCandidate) =>
+    sentIds.has(item.loanId) || (Boolean(item.clientId) && Boolean(sentClientIds?.has(item.clientId)));
+
+  const enviadas = aCobrar.filter(isSent);
+  const naoEnviadas = aCobrar.filter((item) => !isSent(item));
 
   const totalCount = aCobrar.length;
   const totalAmount = aCobrar.reduce((s, i) => s + i.amount, 0);
@@ -414,15 +423,17 @@ export function WhatsappReportCard() {
       // Filtro oficial da subaba "A cobrar" (billingDate <= hoje na Bahia)
       const aCobrarCandidates = candidates.filter((c) => c.billingDate <= today);
 
-      // Conjunto de loanIds enviados com sucesso hoje
+      // Conjunto de loanIds e clientIds enviados com sucesso hoje
       const sentIds = new Set<string>();
+      const sentClientIds = new Set<string>();
       (sentQueueRes.data || []).forEach((row: any) => {
+        if (row.client_id) sentClientIds.add(row.client_id);
         const loanList = Array.isArray(row.loan_ids) && row.loan_ids.length ? row.loan_ids : (row.loan_id ? [row.loan_id] : []);
         loanList.forEach((id: string) => { if (id) sentIds.add(id); });
       });
 
       // Monta a mensagem completa formatada para o WhatsApp
-      const reportMessage = formatBillingReportForWhatsapp(aCobrarCandidates, sentIds);
+      const reportMessage = formatBillingReportForWhatsapp(aCobrarCandidates, sentIds, sentClientIds);
 
       const destPhone = (whatsappPhone.trim() || profilePhone || "").trim();
       if (!destPhone) {
