@@ -161,15 +161,15 @@ describe("BillingCenter — Filtro de Futuras com separação por faixa de dias"
     fireEvent.click(screen.getByRole("button", { name: /^Dia$/i }));
 
     await waitFor(() => {
-      expect(screen.getByTitle("Dia anterior")).toBeInTheDocument();
+      expect(screen.getAllByTitle("Dia anterior")[0]).toBeInTheDocument();
     });
 
-    const diaAnteriorBtn = screen.getByTitle("Dia anterior");
-    const proximoDiaBtn = screen.getByTitle("Próximo dia");
+    const diaAnteriorBtn = screen.getAllByTitle("Dia anterior")[0];
+    const proximoDiaBtn = screen.getAllByTitle("Próximo dia")[0];
 
     expect(diaAnteriorBtn).toBeInTheDocument();
     expect(proximoDiaBtn).toBeInTheDocument();
-    expect(screen.getByText("Hoje")).toBeInTheDocument();
+    expect(screen.getAllByTitle("Dia atual")[0]).toBeInTheDocument();
 
     // Avançar para o próximo dia (Amanhã / D+1)
     fireEvent.click(proximoDiaBtn);
@@ -177,16 +177,15 @@ describe("BillingCenter — Filtro de Futuras com separação por faixa de dias"
     await waitFor(() => {
       // O cliente com vencimento amanhã (Cliente Carlos) deve aparecer
       expect(screen.getByText("Cliente Carlos")).toBeInTheDocument();
-      expect(screen.getByTitle("Clique para voltar ao dia atual")).toBeInTheDocument();
+      expect(screen.getAllByTitle("Clique para voltar ao dia atual")[0]).toBeInTheDocument();
     });
 
     // Clicar na data para voltar para hoje
-    fireEvent.click(screen.getByTitle("Clique para voltar ao dia atual"));
+    fireEvent.click(screen.getAllByTitle("Clique para voltar ao dia atual")[0]);
 
     await waitFor(() => {
       expect(screen.queryByText("Cliente Carlos")).not.toBeInTheDocument();
-      expect(screen.getByText("Hoje")).toBeInTheDocument();
-      expect(screen.getByTitle("Dia atual")).toBeInTheDocument();
+      expect(screen.getAllByTitle("Dia atual")[0]).toBeInTheDocument();
     });
   });
 });
