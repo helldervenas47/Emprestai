@@ -59,7 +59,7 @@ export function DashboardBreakdownSection({
               <span className="font-medium whitespace-nowrap shrink-0 ml-2">{formatCurrency(data.incomeFromPayments)}</span>
             </button>
             {expandedBreakdown === "payments" && (
-              <div className="ml-5 space-y-1">
+              <div className="ml-5 max-h-60 sm:max-h-72 overflow-y-auto pr-1 space-y-1 overscroll-contain">
                 {data.filteredPayments.map((p) => {
                   const loan = loans.find((l) => l.id === p.loanId);
                   return (
@@ -86,7 +86,7 @@ export function DashboardBreakdownSection({
               </span>
             </button>
             {expandedBreakdown === "sales" && (
-              <div className="ml-5 space-y-1">
+              <div className="ml-5 max-h-60 sm:max-h-72 overflow-y-auto pr-1 space-y-1 overscroll-contain">
                 {data.salesWithReceived.map((s) => (
                   <div key={s.id} className="flex justify-between text-xs py-1 border-b border-border/20 last:border-0">
                     <span className="text-muted-foreground truncate mr-2">{s.productName}{s.customerName ? ` — ${s.customerName}` : ""}</span>
@@ -118,7 +118,7 @@ export function DashboardBreakdownSection({
               <span className="font-medium whitespace-nowrap shrink-0 ml-2">{formatCurrency(data.totalLoanOutgoing)}</span>
             </button>
             {expandedBreakdown === "loans" && (
-              <div className="ml-5 space-y-1">
+              <div className="ml-5 max-h-60 sm:max-h-72 overflow-y-auto pr-1 space-y-1 overscroll-contain">
                 {data.filteredLoans.map((l) => (
                   <div key={l.id} className="flex justify-between text-xs py-1 border-b border-border/20 last:border-0">
                     <span className="text-muted-foreground truncate mr-2">{l.borrowerName}</span>
@@ -139,7 +139,7 @@ export function DashboardBreakdownSection({
               <span className="font-medium whitespace-nowrap shrink-0 ml-2">{formatCurrency(data.totalExpenses)}</span>
             </button>
             {expandedBreakdown === "expenses" && (
-              <div className="ml-5 space-y-1">
+              <div className="ml-5 max-h-60 sm:max-h-72 overflow-y-auto pr-1 space-y-1 overscroll-contain">
                 {data.filteredExpenses.map((e) => (
                   <div key={e.id} className="flex justify-between text-xs py-1 border-b border-border/20 last:border-0">
                     <span className="text-muted-foreground truncate mr-2">{e.description}</span>
