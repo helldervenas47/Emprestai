@@ -197,8 +197,8 @@ export function PersonalExpenseForm({ onAdd, onClose }: Props) {
   return (
     <FormModalOverlay className="flex items-stretch justify-center p-0 md:items-center md:p-4">
       <SuccessAnimation show={showSuccess} onComplete={onClose} message={toPiggy ? "Aporte registrado!" : "Despesa cadastrada!"} />
-      <Card no3d className="modal-form-scrollable !bg-card !backdrop-blur-none supports-[backdrop-filter]:!bg-card dark:!bg-card w-full h-[100dvh] max-h-[100dvh] rounded-none border-0 overflow-y-auto pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:h-auto md:max-h-[92svh] md:max-w-lg md:rounded-2xl md:border md:shadow-xl md:pt-0 md:pb-0">
-        <CardHeader className="sticky top-0 z-20 bg-card/95 backdrop-blur border-b border-border/60 flex flex-row items-center justify-between py-3.5 px-4 sm:px-6">
+      <Card no3d className="modal-form-scrollable !bg-card !backdrop-blur-none supports-[backdrop-filter]:!bg-card dark:!bg-card w-full h-[100dvh] max-h-[100dvh] rounded-none border-0 flex flex-col overflow-hidden md:h-auto md:max-h-[92svh] md:max-w-lg md:rounded-2xl md:border md:shadow-xl">
+        <CardHeader className="sticky top-0 z-20 bg-card/95 backdrop-blur border-b border-border/60 flex flex-row items-center justify-between px-4 pt-[max(env(safe-area-inset-top),0.875rem)] pb-3.5 sm:px-6 sm:py-4 shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="h-9 w-9 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center font-bold">
               {toPiggy ? <PiggyBank className="h-5 w-5 text-primary" /> : <TrendingDown className="h-5 w-5" />}
@@ -215,7 +215,7 @@ export function PersonalExpenseForm({ onAdd, onClose }: Props) {
           </Button>
         </CardHeader>
 
-        <CardContent className="p-4 sm:p-6 pb-8 md:pb-6 space-y-4">
+        <CardContent className="flex-1 overflow-y-auto p-4 sm:p-6 pb-[max(env(safe-area-inset-bottom),1.5rem)] md:pb-6 space-y-4">
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Bloco 1: Dados da Despesa */}
             <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3.5 shadow-xs">

@@ -175,12 +175,12 @@ export function SaleEditForm({ sale, onSave, onClose, clients = [], registeredVe
 
   return (
     <FormModalOverlay className="flex items-stretch justify-center p-0 sm:items-center sm:p-4">
-      <Card className="modal-form-scrollable !bg-card !backdrop-blur-none supports-[backdrop-filter]:!bg-card dark:!bg-card w-full h-[100dvh] max-h-[100dvh] rounded-none border-0 overflow-y-auto pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-2xl sm:border sm:pt-0 sm:pb-0">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-xl">Editar Venda</CardTitle>
-          <Button variant="ghost" size="icon" onClick={onClose}><X className="h-5 w-5" /></Button>
+      <Card className="modal-form-scrollable !bg-card !backdrop-blur-none supports-[backdrop-filter]:!bg-card dark:!bg-card w-full h-[100dvh] max-h-[100dvh] rounded-none border-0 flex flex-col overflow-hidden sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-2xl sm:border">
+        <CardHeader className="flex flex-row items-center justify-between px-4 pt-[max(env(safe-area-inset-top),0.875rem)] pb-3.5 sm:px-6 sm:py-4 border-b border-border/60 shrink-0">
+          <CardTitle className="text-lg font-bold">Editar Venda</CardTitle>
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={onClose}><X className="h-4 w-4" /></Button>
         </CardHeader>
-        <CardContent className="pb-8 sm:pb-6">
+        <CardContent className="flex-1 overflow-y-auto p-4 sm:p-6 pb-[max(env(safe-area-inset-bottom),1.5rem)] sm:pb-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label>Tipo de Negócio</Label>

@@ -301,8 +301,8 @@ export function LoanEditModal({
   return (
     <FormModalOverlay className="flex items-stretch sm:items-center justify-center p-0 sm:p-4">
       <div className="w-full h-[100dvh] max-h-[100dvh] sm:h-auto sm:max-h-[92svh] sm:max-w-4xl bg-card rounded-none sm:rounded-2xl border-0 sm:border border-border/80 shadow-2xl flex flex-col overflow-hidden">
-        {/* Sticky Header */}
-        <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-md border-b border-border/60 px-3.5 py-3 sm:px-6 sm:py-4 flex items-center justify-between gap-2">
+        {/* Sticky Header com Safe Area Top */}
+        <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-md border-b border-border/60 px-3.5 pt-[max(env(safe-area-inset-top),0.875rem)] pb-3 sm:px-6 sm:py-4 flex items-center justify-between gap-2 shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 shadow-xs">
               <Pencil className="h-4 w-4" />
@@ -345,8 +345,8 @@ export function LoanEditModal({
           </div>
         </div>
 
-        {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-3.5 sm:space-y-4">
+        {/* Scrollable Body com Safe Area Bottom */}
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-3.5 sm:space-y-4 pb-[max(env(safe-area-inset-bottom),1.5rem)]">
           {/* Bloco 1: Devedor e Valores Principais */}
           <div className="w-full rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-3.5">
             <div className="space-y-1.5">

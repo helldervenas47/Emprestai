@@ -166,9 +166,9 @@ export function IncomeForm({ open, onClose, onSubmit, initial }: Props) {
 
   return (
     <FormModalOverlay className="flex items-center justify-center p-0 sm:p-4">
-      <Card no3d className="modal-form-scrollable w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-lg rounded-none sm:rounded-2xl border-0 sm:border border-border/80 shadow-2xl flex flex-col bg-card overflow-hidden">
-        {/* Sticky Header */}
-        <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-md border-b border-border/60 px-4 py-3.5 sm:px-6 sm:py-4 flex items-center justify-between">
+      <Card no3d className="modal-form-scrollable w-full h-[100dvh] max-h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-lg rounded-none sm:rounded-2xl border-0 sm:border border-border/80 shadow-2xl flex flex-col bg-card overflow-hidden">
+        {/* Sticky Header com Safe Area Top */}
+        <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-md border-b border-border/60 px-4 pt-[max(env(safe-area-inset-top),0.875rem)] pb-3.5 sm:px-6 sm:py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs">
               <TrendingUp className="w-4 h-4" />
@@ -398,8 +398,8 @@ export function IncomeForm({ open, onClose, onSubmit, initial }: Props) {
           </form>
         </div>
 
-        {/* Sticky Footer */}
-        <div className="sticky bottom-0 z-20 bg-card/95 backdrop-blur-md border-t border-border/60 p-4 sm:p-6 flex items-center gap-3">
+        {/* Fixed Footer com Safe Area Bottom */}
+        <div className="sticky bottom-0 z-20 bg-card/95 backdrop-blur-md border-t border-border/60 p-4 sm:p-6 flex items-center gap-3 pb-[max(env(safe-area-inset-bottom),1rem)] sm:pb-6">
           <Button
             type="button"
             variant="outline"
