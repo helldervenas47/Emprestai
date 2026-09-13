@@ -270,6 +270,15 @@
     height: auto;
   }
 
+  /* Inputs de seleção nunca distorcem */
+  input[type="checkbox"],
+  input[type="radio"],
+  [role="checkbox"],
+  [role="radio"] {
+    aspect-ratio: 1 / 1 !important;
+    flex-shrink: 0 !important;
+  }
+
   /* Formulários fluidos por padrão — inputs/textareas/selects nunca
      estouram o container que os contém */
   input, textarea, select {
