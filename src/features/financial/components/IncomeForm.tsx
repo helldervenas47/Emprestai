@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ClientCombobox } from "@/components/ui/client-combobox";
 import { DatePickerField } from "@/components/ui/date-picker-field";
@@ -161,9 +161,11 @@ export function IncomeForm({ open, onClose, onSubmit, initial }: Props) {
     onClose();
   };
 
+  if (!open) return null;
+
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="p-0 border-0 sm:border sm:border-border/80 rounded-none sm:rounded-2xl max-w-[100dvw] w-[100dvw] h-[100dvh] max-h-[100dvh] sm:w-full sm:max-w-lg sm:h-auto sm:max-h-[90vh] flex flex-col bg-card overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-0 sm:p-4 animate-in fade-in-0">
+      <Card no3d className="modal-form-scrollable w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-lg rounded-none sm:rounded-2xl border-0 sm:border border-border/80 shadow-2xl flex flex-col bg-card overflow-hidden">
         {/* Sticky Header */}
         <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-md border-b border-border/60 px-4 py-3.5 sm:px-6 sm:py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -425,7 +427,7 @@ export function IncomeForm({ open, onClose, onSubmit, initial }: Props) {
             )}
           </Button>
         </div>
-      </DialogContent>
+      </Card>
 
       <PersonalCategoryCreator
         open={creatorOpen}
@@ -433,6 +435,7 @@ export function IncomeForm({ open, onClose, onSubmit, initial }: Props) {
         createCategory={createCategory}
         onCreated={(c) => setCategory(c.name)}
       />
-    </Dialog>
+    </div>
   );
 }
+
