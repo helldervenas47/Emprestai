@@ -797,20 +797,22 @@ export function LoanEditModal({
         </div>
 
         {/* Sticky Footer */}
-        <div className="sticky bottom-0 z-20 bg-card/95 backdrop-blur-md border-t border-border/60 p-4 sm:p-6 flex items-center justify-end gap-3">
+        <div className="sticky bottom-0 z-20 bg-card/95 backdrop-blur-md border-t border-border/60 p-3.5 sm:p-5 flex items-center justify-end gap-2.5 sm:gap-3">
           <Button
+            type="button"
             variant="outline"
             onClick={onClose}
             disabled={saving}
-            className="h-11 px-5 font-medium rounded-xl"
+            className="flex-1 sm:flex-initial h-11 px-5 font-medium rounded-xl text-sm"
           >
             <X className="h-4 w-4 mr-1.5" />
             Cancelar
           </Button>
           <Button
+            type="button"
             onClick={handleSave}
             disabled={saving}
-            className="h-11 px-6 font-semibold rounded-xl bg-primary text-primary-foreground shadow-md transition-all active:scale-[0.99]"
+            className="flex-1 sm:flex-initial h-11 px-6 font-semibold rounded-xl bg-primary text-primary-foreground shadow-md transition-all active:scale-[0.99] text-sm"
           >
             {saving ? (
               <>
