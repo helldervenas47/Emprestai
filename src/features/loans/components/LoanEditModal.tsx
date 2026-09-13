@@ -361,7 +361,7 @@ export function LoanEditModal({
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Valor Emprestado (R$) *
@@ -418,8 +418,8 @@ export function LoanEditModal({
           </div>
 
           {/* Bloco 2: Parcelamento e Saldos a Receber */}
-          <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-3.5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="w-full rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-3.5">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Valor da Parcela (R$)
@@ -479,8 +479,8 @@ export function LoanEditModal({
           </div>
 
           {/* Bloco 3: Prazos e Modalidade de Contrato */}
-          <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-3.5">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="w-full rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-3.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Data Início
@@ -504,7 +504,7 @@ export function LoanEditModal({
                 />
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 col-span-2 sm:col-span-1">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Tipo Contrato
                 </Label>
