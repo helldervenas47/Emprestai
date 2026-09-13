@@ -370,7 +370,18 @@ async function sendOperationalSummaryToWhatsapp(
     }
 
     const globalApiKey = Deno.env.get("EVOLUTION_API_KEY") || Deno.env.get("WHATSMIAU_API_KEY") || "";
-    const apiKey = sched.api_key || globalApiKey;
+    let apiKey = sched.api_key || globalApiKey;
+    if (!apiKey) {
+      try {
+        const { data: cfgKey } = await admin
+          .from("app_internal_config")
+          .select("value")
+          .in("key", ["evolution_api_key", "whatsapp_api_key", "whatsmiau_api_key"])
+          .limit(1)
+          .maybeSingle();
+        if (cfgKey?.value) apiKey = String(cfgKey.value);
+      } catch (_) {}
+    }
 
     const result = await sendWhatsappText(
       {
@@ -1011,11 +1022,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (cronAuth instanceof Response) return cronAuth;
     let prefs: any[] = [];
     try {
-      const { data } = await admin
+      const { data, error } = await admin
         .from("telegram_operational_summary_prefs")
-        .select("user_id, enabled, send_whatsapp, whatsapp_phone, send_time_1, send_time_2, send_time_3, last_sent")
-        .or("enabled.eq.true,send_whatsapp.eq.true");
-      prefs = data ?? [];
+        .select("*");
+      if (!error && data) {
+        prefs = data.filter((p: any) => Boolean(p.enabled) || Boolean(p.send_whatsapp));
+      } else if (error) {
+        // Fallback para schema legado sem colunas de WhatsApp
+        const { data: legacyData } = await admin
+          .from("telegram_operational_summary_prefs")
+          .select("user_id, enabled, send_time_1, send_time_2, send_time_3, last_sent")
+          .eq("enabled", true);
+        prefs = legacyData ?? [];
+      }
     } catch (_) {}
 
     let sent = 0;

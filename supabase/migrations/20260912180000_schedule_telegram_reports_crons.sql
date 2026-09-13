@@ -20,7 +20,7 @@ on conflict (key) do nothing;
 
 do $$
 begin
-  -- 1. Resumo Operacional (a cada 10 minutos)
+  -- 1. Resumo Operacional (a cada 1 minuto para garantir pontualidade nos horários cadastrados)
   begin
     perform cron.unschedule('telegram-operational-summary');
   exception when others then null;
@@ -28,7 +28,7 @@ begin
 
   perform cron.schedule(
     'telegram-operational-summary',
-    '*/10 * * * *',
+    '* * * * *',
     $job$
     select net.http_post(
       url := 'https://syyxnqzxqabeuqbuptkh.supabase.co/functions/v1/telegram-operational-summary',

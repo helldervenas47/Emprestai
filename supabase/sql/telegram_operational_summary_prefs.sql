@@ -28,14 +28,14 @@ to authenticated
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
--- Cron: roda a cada 15 minutos (respeita last_sent + horários configurados).
+-- Cron: roda a cada 1 minuto (respeita last_sent + horários configurados no minuto exato).
 CREATE EXTENSION IF NOT EXISTS pg_net;
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 DO $$ BEGIN PERFORM cron.unschedule('telegram-operational-summary'); EXCEPTION WHEN others THEN NULL; END $$;
 
 SELECT cron.schedule(
   'telegram-operational-summary',
-  '*/10 * * * *',
+  '* * * * *',
   $job$
   SELECT net.http_post(
     url := 'https://syyxnqzxqabeuqbuptkh.supabase.co/functions/v1/telegram-operational-summary',
