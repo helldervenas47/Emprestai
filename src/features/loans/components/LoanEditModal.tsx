@@ -299,37 +299,56 @@ export function LoanEditModal({
   const totalReceivable = (parseFloat(form.amount) || 0) + (parseFloat(form.interestValue) || 0);
 
   return (
-    <FormModalOverlay className="flex items-center justify-center p-0 sm:p-4">
-      <div className="w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-2xl bg-card rounded-none sm:rounded-2xl border-0 sm:border border-border/80 shadow-2xl flex flex-col overflow-hidden">
+    <FormModalOverlay className="flex items-stretch sm:items-center justify-center p-0 sm:p-4">
+      <div className="w-full h-[100dvh] max-h-[100dvh] sm:h-auto sm:max-h-[92svh] sm:max-w-4xl bg-card rounded-none sm:rounded-2xl border-0 sm:border border-border/80 shadow-2xl flex flex-col overflow-hidden">
         {/* Sticky Header */}
-        <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-md border-b border-border/60 px-4 py-3.5 sm:px-6 sm:py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shadow-xs">
+        <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-md border-b border-border/60 px-3.5 py-3 sm:px-6 sm:py-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 shadow-xs">
               <Pencil className="h-4 w-4" />
             </div>
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-foreground leading-tight">
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-bold text-foreground leading-tight truncate">
                 Editar Empréstimo
               </h2>
-              <p className="text-[11px] sm:text-xs text-muted-foreground">
-                Atualize as condições financeiras, prazos e configurações do contrato
+              <p className="text-[11px] sm:text-xs text-muted-foreground truncate">
+                Atualize as informações e condições do contrato
               </p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="h-8 w-8 rounded-full hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onClose}
+              disabled={saving}
+              className="h-8 sm:h-9 px-2.5 sm:px-3 text-xs font-medium gap-1"
+            >
+              <X className="h-3.5 w-3.5" />
+              <span>Cancelar</span>
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleSave}
+              disabled={saving}
+              className="h-8 sm:h-9 px-3 sm:px-4 text-xs font-semibold bg-primary text-primary-foreground shadow-xs gap-1.5"
+            >
+              {saving ? (
+                <div className="h-3.5 w-3.5 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin" />
+              ) : (
+                <Check className="h-3.5 w-3.5" />
+              )}
+              <span>Salvar</span>
+            </Button>
+          </div>
         </div>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-3.5 sm:space-y-4">
           {/* Bloco 1: Devedor e Valores Principais */}
-          <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-3.5">
+          <div className="w-full rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-3.5">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Nome do Devedor *
