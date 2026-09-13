@@ -12,7 +12,8 @@ export interface SchedulePrefs {
 }
 
 export function useScheduledReportPrefs(table: string, defaultTime?: string) {
-  const { user } = useAuth();
+  const { user, dataOwnerId } = useAuth();
+  const ownerId = dataOwnerId || user?.id;
   const [prefs, setPrefs] = useState<SchedulePrefs>({
     enabled: false,
     send_time_1: null,
@@ -23,51 +24,56 @@ export function useScheduledReportPrefs(table: string, defaultTime?: string) {
   });
   const [loading, setLoading] = useState(true);
 
+  const hasWhatsappCols = table === "telegram_operational_summary_prefs";
+
   const load = useCallback(async () => {
-    if (!user) {
+    if (!ownerId) {
       setLoading(false);
       return;
     }
     try {
-      const { data, error } = await supabase
-        .from(table as any)
-        .select("enabled, send_time_1, send_time_2, send_time_3, send_whatsapp, whatsapp_phone")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (error) {
-        // Fallback: se colunas de whatsapp ainda não existirem no schema do banco
-        const { data: fallbackData } = await supabase
+      if (hasWhatsappCols) {
+        const { data, error } = await supabase
           .from(table as any)
-          .select("enabled, send_time_1, send_time_2, send_time_3")
-          .eq("user_id", user.id)
+          .select("enabled, send_time_1, send_time_2, send_time_3, send_whatsapp, whatsapp_phone")
+          .eq("user_id", ownerId)
           .maybeSingle();
 
-        if (fallbackData) {
-          setPrefs((prev) => ({
-            ...prev,
-            enabled: Boolean((fallbackData as any).enabled),
-            send_time_1: (fallbackData as any).send_time_1 ?? null,
-            send_time_2: (fallbackData as any).send_time_2 ?? null,
-            send_time_3: (fallbackData as any).send_time_3 ?? null,
-          }));
+        if (!error && data) {
+          setPrefs({
+            enabled: Boolean((data as any).enabled),
+            send_time_1: (data as any).send_time_1 ?? null,
+            send_time_2: (data as any).send_time_2 ?? null,
+            send_time_3: (data as any).send_time_3 ?? null,
+            send_whatsapp: Boolean((data as any).send_whatsapp),
+            whatsapp_phone: (data as any).whatsapp_phone ?? null,
+          });
+          return;
         }
-      } else if (data) {
-        setPrefs({
-          enabled: Boolean((data as any).enabled),
-          send_time_1: (data as any).send_time_1 ?? null,
-          send_time_2: (data as any).send_time_2 ?? null,
-          send_time_3: (data as any).send_time_3 ?? null,
-          send_whatsapp: Boolean((data as any).send_whatsapp),
-          whatsapp_phone: (data as any).whatsapp_phone ?? null,
-        });
+      }
+
+      // Consulta base para tabelas padrão (ex: telegram_billing_prefs)
+      const { data: baseData } = await supabase
+        .from(table as any)
+        .select("enabled, send_time_1, send_time_2, send_time_3")
+        .eq("user_id", ownerId)
+        .maybeSingle();
+
+      if (baseData) {
+        setPrefs((prev) => ({
+          ...prev,
+          enabled: Boolean((baseData as any).enabled),
+          send_time_1: (baseData as any).send_time_1 ?? null,
+          send_time_2: (baseData as any).send_time_2 ?? null,
+          send_time_3: (baseData as any).send_time_3 ?? null,
+        }));
       }
     } catch (e) {
       console.error(`[useScheduledReportPrefs] Erro ao carregar ${table}:`, e);
     } finally {
       setLoading(false);
     }
-  }, [user, table]);
+  }, [ownerId, table, hasWhatsappCols]);
 
   useEffect(() => {
     load();
@@ -75,18 +81,31 @@ export function useScheduledReportPrefs(table: string, defaultTime?: string) {
 
   const save = useCallback(
     async (next: Partial<SchedulePrefs>) => {
-      if (!user) return;
+      if (!ownerId) return;
       const merged = { ...prefs, ...next };
+      const hasAnyTime = Boolean(merged.send_time_1 || merged.send_time_2 || merged.send_time_3);
+      if (hasAnyTime && next.enabled === undefined && !merged.enabled) {
+        merged.enabled = true;
+      }
+
       const scheduleChanged = ["send_time_1", "send_time_2", "send_time_3"].some(
         (key) => key in next && next[key as keyof SchedulePrefs] !== prefs[key as keyof SchedulePrefs],
       );
       setPrefs(merged);
 
-      const payload = {
-        user_id: user.id,
-        ...merged,
+      const payload: Record<string, any> = {
+        user_id: ownerId,
+        enabled: merged.enabled,
+        send_time_1: merged.send_time_1,
+        send_time_2: merged.send_time_2,
+        send_time_3: merged.send_time_3,
         ...(scheduleChanged ? { last_sent: {} } : {}),
       };
+
+      if (hasWhatsappCols) {
+        payload.send_whatsapp = merged.send_whatsapp ?? false;
+        payload.whatsapp_phone = merged.whatsapp_phone ?? null;
+      }
 
       const { error } = await supabase
         .from(table as any)
@@ -97,19 +116,26 @@ export function useScheduledReportPrefs(table: string, defaultTime?: string) {
         // Se o erro foi coluna inexistente, tenta fallback com as colunas base
         if (error.code === "42703" || String(error.message).includes("column")) {
           const basePayload = {
-            user_id: user.id,
+            user_id: ownerId,
             enabled: merged.enabled,
             send_time_1: merged.send_time_1,
             send_time_2: merged.send_time_2,
             send_time_3: merged.send_time_3,
             ...(scheduleChanged ? { last_sent: {} } : {}),
           };
-          await supabase.from(table as any).upsert(basePayload as any, { onConflict: "user_id" });
+          const { error: fallbackErr } = await supabase
+            .from(table as any)
+            .upsert(basePayload as any, { onConflict: "user_id" });
+
+          if (fallbackErr) {
+            throw fallbackErr;
+          }
+          return;
         }
         throw error;
       }
     },
-    [user, prefs, table],
+    [ownerId, prefs, table, hasWhatsappCols],
   );
 
   return { prefs, loading, save };
