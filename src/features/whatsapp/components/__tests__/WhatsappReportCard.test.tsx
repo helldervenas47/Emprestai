@@ -176,8 +176,7 @@ describe("WhatsappReportCard — Envio de Relatórios e Resumo Operacional pelo 
     expect(message).toContain("⚠️ *COBRANÇAS NÃO ENVIADAS*");
     expect(message).toContain("Pedro Santos / Contratos: 1 / Juros: R$ 40,00 / Total: R$ 390,00");
     expect(message).toContain("*Total não enviado: 1 / R$ 40,00 / R$ 390,00*");
-    expect(message).toContain("📊 *FECHAMENTO*");
-    expect(message).toContain("*Total: 3 / R$ 120,00 / R$ 1.220,00*");
+    expect(message).not.toContain("📊 *FECHAMENTO*");
     expect(message).toContain("*Resumo gerado automaticamente pelo EmprestAI.*");
   });
 

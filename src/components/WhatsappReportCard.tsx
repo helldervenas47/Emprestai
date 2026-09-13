@@ -159,10 +159,6 @@ export function formatBillingReportForWhatsapp(
     ``,
     `━━━━━━━━━━━━━━━━━━`,
     ``,
-    `📊 *FECHAMENTO*`,
-    ``,
-    `*Total: ${totalCount} / ${moneyFmt.format(totalInterest)} / ${moneyFmt.format(totalAmount)}*`,
-    ``,
     `*Resumo gerado automaticamente pelo EmprestAI.*`
   );
 
