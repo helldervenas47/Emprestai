@@ -22,6 +22,7 @@ import {
   Building2,
   Search,
   Percent,
+  Layers,
 } from "lucide-react";
 import { useHideValues } from "@/contexts/HideValuesContext";
 import { Button } from "@/components/ui/button";
@@ -58,18 +59,33 @@ const TAX_CATEGORIES = [
   "tributo",
   "taxa",
   "taxas",
-  "iss",
-  "irpf",
-  "irpj",
-  "icms",
-  "das",
-  "mei",
   "simples",
+  "darf",
+  "das",
+  "gps",
+  "fgts",
+  "inss",
+  "iss",
+  "irpj",
+  "csll",
+  "pis",
+  "cofins",
+  "contabilidade",
 ];
 
-function fmt(n: number, hidden: boolean) {
-  if (hidden) return "R$ ••••";
+function fmt(n: number, hidden = false): string {
+  if (hidden) return "••••••";
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function formatDate(dateStr: string): string {
+  if (!dateStr) return "—";
+  if (dateStr.length === 7) {
+    const [y, m] = dateStr.split("-");
+    const d = new Date(Number(y), Number(m) - 1, 1);
+    return d.toLocaleString("pt-BR", { month: "long", year: "numeric" });
+  }
+  return (dateStr || "").slice(0, 4);
 }
 
 function getMonthKey(dateStr: string): string {
@@ -90,6 +106,7 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
   const [drillDown, setDrillDown] = useState<null | "in" | "out" | "net">(null);
   const [dreCategory, setDreCategory] = useState<null | "interest" | "expenses">(null);
   const [dreSearch, setDreSearch] = useState<string>("");
+  const [conciliationOpen, setConciliationOpen] = useState<boolean>(false);
 
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -1093,25 +1110,25 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto">
             <Button
               size="sm"
               variant="outline"
               onClick={exportXLSX}
-              className="h-9 gap-1.5 rounded-xl border-border/60 hover:bg-muted font-medium text-xs shadow-xs"
+              className="w-full justify-center h-9 gap-1.5 rounded-xl border-border/60 hover:bg-muted font-medium text-xs shadow-xs"
               title="Baixar planilha para software contábil"
             >
-              <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+              <FileSpreadsheet className="h-4 w-4 text-emerald-600 shrink-0" />
               <span>Exportar Excel</span>
             </Button>
 
             <Button
               size="sm"
               onClick={exportConsolidatedPDF}
-              className="h-9 gap-1.5 rounded-xl bg-primary text-primary-foreground font-medium text-xs shadow-xs"
+              className="w-full justify-center h-9 gap-1.5 rounded-xl bg-primary text-primary-foreground font-medium text-xs shadow-xs"
               title="Gerar relatório completo em PDF"
             >
-              <Download className="h-4 w-4" />
+              <Download className="h-4 w-4 shrink-0" />
               <span>PDF Consolidado</span>
             </Button>
           </div>
@@ -1594,82 +1611,110 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
             </CardContent>
           </Card>
 
-          {/* Tabela Interativa de Juros vs Principal por Pagamento */}
-          <Card className="rounded-2xl border-border/60 shadow-xs">
-            <CardHeader className="p-4 sm:p-5 pb-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <CardTitle className="text-base font-bold">
-                    Conciliação de Pagamentos: Juros vs Principal
-                  </CardTitle>
-                  <CardDescription className="text-xs mt-0.5">
-                    Separação matemática de cada recebimento entre receita de juros e amortização do capital.
-                  </CardDescription>
+          {/* Card de Conciliação de Pagamentos (Recolhido por Padrão) */}
+          <Card className="rounded-2xl border-border/60 shadow-xs overflow-hidden transition-all">
+            <CardHeader
+              onClick={() => setConciliationOpen((o) => !o)}
+              className="p-4 sm:p-5 cursor-pointer hover:bg-muted/30 transition-colors select-none"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                    <Layers className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <CardTitle className="text-sm sm:text-base font-bold">
+                        Conciliação de Pagamentos: Juros vs Principal
+                      </CardTitle>
+                      <Badge variant="outline" className="text-[10px] py-0 px-2 font-medium">
+                        {filteredBreakdown.length} lançamento(s)
+                      </Badge>
+                    </div>
+                    <CardDescription className="text-xs mt-0.5 line-clamp-1">
+                      Separação matemática de cada recebimento entre receita de juros e amortização do capital.
+                    </CardDescription>
+                  </div>
                 </div>
-                <div className="relative w-full sm:w-64">
-                  <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar cliente ou descrição..."
-                    value={dreSearch}
-                    onChange={(e) => setDreSearch(e.target.value)}
-                    className="h-8 pl-8 text-xs rounded-xl"
-                  />
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Button size="sm" variant="ghost" className="h-8 px-2.5 text-xs font-semibold gap-1 text-muted-foreground hover:text-foreground">
+                    <span>{conciliationOpen ? "Recolher" : "Ver Detalhes"}</span>
+                    <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${conciliationOpen ? "rotate-180" : ""}`} />
+                  </Button>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-4 sm:p-5 pt-0">
-              <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-                <table className="w-full text-xs min-w-[620px]">
-                  <thead>
-                    <tr className="text-left text-muted-foreground border-b pb-2">
-                      <th className="py-2.5 pr-3 whitespace-nowrap">Data</th>
-                      <th className="py-2.5 pr-3 whitespace-nowrap">Cliente / Contrato</th>
-                      <th className="py-2.5 pr-3 whitespace-nowrap text-center">Tipo</th>
-                      <th className="py-2.5 pr-3 text-right whitespace-nowrap">Valor Total</th>
-                      <th className="py-2.5 pr-3 text-right text-emerald-600 font-bold whitespace-nowrap">Juros (Receita)</th>
-                      <th className="py-2.5 text-right font-semibold whitespace-nowrap">Principal (Amort.)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredBreakdown.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="py-8 text-center text-muted-foreground">
-                          Nenhum pagamento encontrado para o período.
-                        </td>
+
+            {conciliationOpen && (
+              <CardContent className="p-4 sm:p-5 pt-0 space-y-3 border-t border-border/40 mt-1">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3">
+                  <p className="text-xs text-muted-foreground">
+                    Mostrando <strong>{filteredBreakdown.length}</strong> de <strong>{dre.breakdown.length}</strong> pagamentos conciliados no período.
+                  </p>
+                  <div className="relative w-full sm:w-64">
+                    <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar cliente ou descrição..."
+                      value={dreSearch}
+                      onChange={(e) => setDreSearch(e.target.value)}
+                      className="h-8 pl-8 text-xs rounded-xl"
+                    />
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                  <table className="w-full text-xs min-w-[620px]">
+                    <thead>
+                      <tr className="text-left text-muted-foreground border-b pb-2">
+                        <th className="py-2.5 pr-3 whitespace-nowrap">Data</th>
+                        <th className="py-2.5 pr-3 whitespace-nowrap">Cliente / Contrato</th>
+                        <th className="py-2.5 pr-3 whitespace-nowrap text-center">Tipo</th>
+                        <th className="py-2.5 pr-3 text-right whitespace-nowrap">Valor Total</th>
+                        <th className="py-2.5 pr-3 text-right text-emerald-600 font-bold whitespace-nowrap">Juros (Receita)</th>
+                        <th className="py-2.5 text-right font-semibold whitespace-nowrap">Principal (Amort.)</th>
                       </tr>
-                    ) : (
-                      filteredBreakdown.map((b) => (
-                        <tr key={b.id} className="border-b last:border-0 hover:bg-muted/40 transition-colors">
-                          <td className="py-2.5 pr-3 whitespace-nowrap font-medium">
-                            {b.date ? new Date(b.date + "T00:00:00").toLocaleDateString("pt-BR") : "—"}
-                          </td>
-                          <td className="py-2.5 pr-3 min-w-[140px] max-w-[220px]">
-                            <p className="font-semibold text-foreground truncate">{b.borrowerName}</p>
-                            <p className="text-[10px] text-muted-foreground truncate">
-                              {b.paymentMethodName} {b.description ? `· ${b.description}` : ""}
-                            </p>
-                          </td>
-                          <td className="py-2.5 pr-3 text-center whitespace-nowrap">
-                            <Badge variant="outline" className="text-[10px] py-0 font-medium">
-                              {b.kindLabel}
-                            </Badge>
-                          </td>
-                          <td className="py-2.5 pr-3 text-right font-medium tabular-nums whitespace-nowrap">
-                            {fmt(b.amount, hidden)}
-                          </td>
-                          <td className="py-2.5 pr-3 text-right text-emerald-600 font-bold tabular-nums whitespace-nowrap">
-                            {fmt(b.interest, hidden)}
-                          </td>
-                          <td className="py-2.5 text-right font-medium tabular-nums text-muted-foreground whitespace-nowrap">
-                            {fmt(b.principal, hidden)}
+                    </thead>
+                    <tbody>
+                      {filteredBreakdown.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                            Nenhum pagamento encontrado para o período.
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
+                      ) : (
+                        filteredBreakdown.map((b) => (
+                          <tr key={b.id} className="border-b last:border-0 hover:bg-muted/40 transition-colors">
+                            <td className="py-2.5 pr-3 whitespace-nowrap font-medium">
+                              {b.date ? new Date(b.date + "T00:00:00").toLocaleDateString("pt-BR") : "—"}
+                            </td>
+                            <td className="py-2.5 pr-3 min-w-[140px] max-w-[220px]">
+                              <p className="font-semibold text-foreground truncate">{b.borrowerName}</p>
+                              <p className="text-[10px] text-muted-foreground truncate">
+                                {b.paymentMethodName} {b.description ? `· ${b.description}` : ""}
+                              </p>
+                            </td>
+                            <td className="py-2.5 pr-3 text-center whitespace-nowrap">
+                              <Badge variant="outline" className="text-[10px] py-0 font-medium">
+                                {b.kindLabel}
+                              </Badge>
+                            </td>
+                            <td className="py-2.5 pr-3 text-right font-medium tabular-nums whitespace-nowrap">
+                              {fmt(b.amount, hidden)}
+                            </td>
+                            <td className="py-2.5 pr-3 text-right text-emerald-600 font-bold tabular-nums whitespace-nowrap">
+                              {fmt(b.interest, hidden)}
+                            </td>
+                            <td className="py-2.5 text-right font-medium tabular-nums text-muted-foreground whitespace-nowrap">
+                              {fmt(b.principal, hidden)}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            )}
           </Card>
         </TabsContent>
 

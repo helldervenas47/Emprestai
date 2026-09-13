@@ -57,16 +57,16 @@ export function AccountantAuditCard(props: Props) {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <CardTitle className="flex items-center gap-2 text-base">
             <ShieldCheck className="h-5 w-5 text-primary" />
             Auditoria de Dados
           </CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto">
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <History className="h-4 w-4 mr-1" /> Histórico ({logs.length})
+                <Button variant="outline" size="sm" className="w-full justify-center">
+                  <History className="h-4 w-4 mr-1 shrink-0" /> Histórico ({logs.length})
                 </Button>
               </SheetTrigger>
               <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
@@ -98,8 +98,8 @@ export function AccountantAuditCard(props: Props) {
                 </div>
               </SheetContent>
             </Sheet>
-            <Button size="sm" onClick={handleAudit} disabled={running}>
-              {running ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-1" />}
+            <Button size="sm" onClick={handleAudit} disabled={running} className="w-full justify-center">
+              {running ? <Loader2 className="h-4 w-4 mr-1 animate-spin shrink-0" /> : <ShieldCheck className="h-4 w-4 mr-1 shrink-0" />}
               Auditar Dados
             </Button>
           </div>
