@@ -552,7 +552,13 @@ function LoanRowView({
                 </Badge>
               )}
               {!readOnly && !hideQuickNotes && (
-                <NewPaymentDateDialog loanId={loan.id} clientId={loan.borrowerId} installmentNumber={(loan.paidInstallments || 0) + 1} compact />
+                <NewPaymentDateDialog
+                  loanId={loan.id}
+                  clientId={loan.borrowerId}
+                  installmentNumber={(loan.paidInstallments || 0) + 1}
+                  currentDueDate={getFirstPendingDate(loan, installmentSchedules).toISOString().split("T")[0]}
+                  compact
+                />
               )}
               {renegotiations.length > 0 && (
                 <TooltipProvider delayDuration={300}>

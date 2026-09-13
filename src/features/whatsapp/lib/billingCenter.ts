@@ -90,7 +90,8 @@ export function buildBillingCandidates(params: {
     const schedule = schedules.find((s) => s.loanId === loan.id && s.installmentNumber === installmentNumber);
     const dueDate = (schedule?.dueDate || loan.dueDate).slice(0, 10);
     const storedPromise = promises.find((p) => p.loan_id === loan.id && p.installment_number === installmentNumber);
-    const promisedDate = storedPromise?.promised_date;
+    const rawPromisedDate = storedPromise?.promised_date;
+    const promisedDate = (rawPromisedDate && rawPromisedDate >= dueDate) ? rawPromisedDate : undefined;
     const billingDate = promisedDate || dueDate;
     const delta = diffDays(dueDate, today);
     const billingDelta = diffDays(billingDate, today);

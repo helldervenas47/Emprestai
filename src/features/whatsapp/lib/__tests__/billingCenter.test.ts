@@ -41,6 +41,19 @@ describe("Central de Cobranças", () => {
     });
   });
 
+  it("ignora Nova Data quando for menor que a data de vencimento atual", () => {
+    const result = buildBillingCandidates({
+      loans: [loan("invalid-promise", "2026-09-27")],
+      clients: [client], schedules: [], payments: [], today: "2026-09-12",
+      promises: [{ loan_id: "invalid-promise", installment_number: 1, promised_date: "2026-09-15" }],
+    });
+    expect(result[0]).toMatchObject({
+      dueDate: "2026-09-27",
+      billingDate: "2026-09-27",
+      promisedDate: undefined,
+    });
+  });
+
   it("organiza Nova Data futura pela data prevista", () => {
     const result = buildBillingCandidates({
       loans: [loan("future-date", "2026-09-01")],

@@ -284,8 +284,18 @@ Deno.serve(async (req: Request) => {
 
           if (!dueDate) continue;
 
-          const promisedDate = promiseByInstallment.get(`${loan.id}:${installmentNumber}`) as string | undefined;
-          const billingDate = promisedDate || dueDate;
+          const rawPromisedDate = promiseByInstallment.get(`${loan.id}:${installmentNumber}`) as string | undefined;
+          const cleanDueDate = dueDate.slice(0, 10);
+          if (rawPromisedDate && rawPromisedDate.slice(0, 10) < cleanDueDate) {
+            admin.from("whatsapp_payment_promises")
+              .delete()
+              .eq("user_id", ownerId)
+              .eq("loan_id", loan.id)
+              .eq("installment_number", installmentNumber)
+              .then(() => {});
+          }
+          const promisedDate = (rawPromisedDate && rawPromisedDate.slice(0, 10) >= cleanDueDate) ? rawPromisedDate : undefined;
+          const billingDate = promisedDate || cleanDueDate;
           const status = getDueStatus(billingDate, today, veryOverdueDays);
           const daysDiff = diffDays(billingDate, today);
           const messageDaysOverdue = daysDiff < 0 ? Math.abs(daysDiff) : 0;

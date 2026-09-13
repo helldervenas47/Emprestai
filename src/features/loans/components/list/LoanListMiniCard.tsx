@@ -226,7 +226,13 @@ export function LoanListMiniCard(props: LoanListMiniCardProps) {
           >
             <span className="text-[11px] text-muted-foreground">Data prevista para cobrança</span>
             {!readOnly && !hideQuickNotes && (
-              <NewPaymentDateDialog loanId={loan.id} clientId={loan.borrowerId} installmentNumber={(loan.paidInstallments || 0) + 1} compact />
+              <NewPaymentDateDialog
+                loanId={loan.id}
+                clientId={loan.borrowerId}
+                installmentNumber={(loan.paidInstallments || 0) + 1}
+                currentDueDate={nextDue}
+                compact
+              />
             )}
           </div>
 

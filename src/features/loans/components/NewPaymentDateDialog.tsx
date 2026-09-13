@@ -13,6 +13,7 @@ type Props = {
   loanId: string;
   clientId?: string | null;
   installmentNumber: number;
+  currentDueDate?: string | null;
   className?: string;
   compact?: boolean;
 };
@@ -50,7 +51,7 @@ function loadOwnerPromiseDates(ownerId: string) {
   return request;
 }
 
-export function NewPaymentDateDialog({ loanId, clientId, installmentNumber, className, compact = false }: Props) {
+export function NewPaymentDateDialog({ loanId, clientId, installmentNumber, currentDueDate, className, compact = false }: Props) {
   const { dataOwnerId } = useAuth();
   const [open, setOpen] = React.useState(false);
   const [value, setValue] = React.useState("");
@@ -58,12 +59,40 @@ export function NewPaymentDateDialog({ loanId, clientId, installmentNumber, clas
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const key = dataOwnerId ? promiseKey(dataOwnerId, loanId, installmentNumber) : "";
+  const cleanDueDate = currentDueDate ? currentDueDate.slice(0, 10) : "";
+
+  const autoRemovePromise = React.useCallback(async () => {
+    if (!dataOwnerId || !key) return;
+    const ownerDates = promiseDatesByOwner.get(dataOwnerId);
+    if (ownerDates) {
+      ownerDates.delete(key);
+    }
+    publishPromiseDate(key, "");
+    setValue("");
+    setSavedValue("");
+    window.dispatchEvent(new CustomEvent("payment-promise-updated", { detail: { loanId, value: "" } }));
+    try {
+      await supabase
+        .from("whatsapp_payment_promises")
+        .delete()
+        .eq("user_id", dataOwnerId)
+        .eq("loan_id", loanId)
+        .eq("installment_number", installmentNumber);
+    } catch (e) {
+      console.warn("Erro ao auto-remover promessa com data inferior ao vencimento:", e);
+    }
+  }, [dataOwnerId, key, loanId, installmentNumber]);
 
   React.useEffect(() => {
     if (!dataOwnerId || !key) return;
     let active = true;
     const applyValue = (next: string) => {
       if (!active) return;
+      const cleanNext = next ? next.slice(0, 10) : "";
+      if (cleanNext && cleanDueDate && cleanNext < cleanDueDate) {
+        autoRemovePromise();
+        return;
+      }
       setValue((current) => (!open || !current ? next : current));
       setSavedValue(next);
     };
@@ -87,10 +116,23 @@ export function NewPaymentDateDialog({ loanId, clientId, installmentNumber, clas
       listeners.delete(applyValue);
       if (!listeners.size) promiseDateListeners.delete(key);
     };
-  }, [dataOwnerId, key, open]);
+  }, [dataOwnerId, key, open, cleanDueDate, autoRemovePromise]);
+
+  // Se o vencimento mudar ou for informado e a data salva for menor, auto-remove
+  React.useEffect(() => {
+    const cleanSaved = savedValue ? savedValue.slice(0, 10) : "";
+    if (cleanSaved && cleanDueDate && cleanSaved < cleanDueDate) {
+      autoRemovePromise();
+    }
+  }, [cleanDueDate, savedValue, autoRemovePromise]);
 
   const save = async () => {
     if (!dataOwnerId) return;
+    const cleanValue = value ? value.slice(0, 10) : "";
+    if (cleanValue && cleanDueDate && cleanValue < cleanDueDate) {
+      toast.error(`A data prevista não pode ser menor que o vencimento (${formatDate(cleanDueDate)}).`);
+      return;
+    }
     setSaving(true);
     const query = value
       ? supabase.from("whatsapp_payment_promises").upsert({
@@ -144,7 +186,20 @@ export function NewPaymentDateDialog({ loanId, clientId, installmentNumber, clas
       </DialogHeader>
       {loading ? <div className="flex h-20 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div> : <div className="space-y-2">
         <Label htmlFor={`new-payment-date-${loanId}`}>Data prevista para pagamento</Label>
-        <NativeDatePicker id={`new-payment-date-${loanId}`} value={value} onChange={setValue} displaySeparator="-" autoOpen placeholder="DD-MM-AAAA" />
+        <NativeDatePicker
+          id={`new-payment-date-${loanId}`}
+          value={value}
+          onChange={setValue}
+          min={cleanDueDate || undefined}
+          displaySeparator="-"
+          autoOpen
+          placeholder="DD-MM-AAAA"
+        />
+        {cleanDueDate && (
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Vencimento atual: <span className="font-semibold text-foreground">{formatDate(cleanDueDate)}</span> (a data prevista deve ser igual ou posterior).
+          </p>
+        )}
       </div>}
       <DialogFooter className="flex-row gap-2">
         {savedValue && <Button type="button" variant="ghost" className="mr-auto text-destructive hover:text-destructive" onClick={() => setValue("")}><Trash2 className="mr-1.5 h-4 w-4" />Remover</Button>}
