@@ -103,19 +103,6 @@ function getDueStatus(dueDate: string, today: string, veryOverdueDays: number): 
   return "a_vencer";
 }
 
-function computeLateFees(loan: any, baseAmount: number, daysOverdue: number) {
-  if (daysOverdue <= 0) return 0;
-  const lateInterestValue = Number(loan.late_interest_value ?? 0);
-  const penalty = Number(loan.penalty_value ?? 0);
-  let interest = 0;
-  if (lateInterestValue > 0) {
-    interest = loan.late_interest_type === "fixed"
-      ? lateInterestValue * daysOverdue
-      : baseAmount * (lateInterestValue / 100) * daysOverdue;
-  }
-  return Math.max(0, interest + penalty);
-}
-
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -321,8 +308,7 @@ Deno.serve(async (req: Request) => {
           const template = templates[status] ?? "";
           if (!template.trim()) continue;
 
-          const juros = computeLateFees(loan, amount, financialDaysOverdue);
-          const valorTotal = Math.round((amount + juros) * 100) / 100;
+          const valorTotal = amount;
           const etiqueta = Array.isArray(loan.tags)
             ? loan.tags
                 .map((t: unknown) => (t == null ? "" : String(t).trim()))
@@ -335,13 +321,13 @@ Deno.serve(async (req: Request) => {
             valorParcela: valorTotal,
             dataVenc: billingDate,
             diasAtraso: messageDaysOverdue,
-            juros,
+            juros: 0,
             valorTotal,
             etiqueta,
             linkPagamento,
           });
           const message = overdueInstallmentCount > 1
-            ? `${baseMessage}\n\n${overdueInstallmentCount} parcelas vencidas. Valor total com juros e multa: ${formatBRL(valorTotal)}.`
+            ? `${baseMessage}\n\n${overdueInstallmentCount} parcelas vencidas. Valor total: ${formatBRL(valorTotal)}.`
             : baseMessage;
 
           const phone = normalizePhoneBR(phoneRaw);
