@@ -181,32 +181,47 @@ Deno.serve(async (req: Request) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    let baseUrl = body.whatsapp_config?.base_url?.trim() || "";
-    let instanceId = body.whatsapp_config?.instance_id?.trim() || "";
-    let apiKey = body.whatsapp_config?.api_key || "";
-    let provider = body.whatsapp_config?.provider || "evolution";
+    let baseUrl = "";
+    let instanceId = "";
+    let apiKey = "";
+    let provider = "evolution";
 
+    // 1. Prioriza configuração passada no body (se preenchida)
+    if (body.whatsapp_config?.base_url?.trim() && body.whatsapp_config?.instance_id?.trim()) {
+      baseUrl = body.whatsapp_config.base_url.trim();
+      instanceId = body.whatsapp_config.instance_id.trim();
+      apiKey = body.whatsapp_config.api_key || "";
+      provider = body.whatsapp_config.provider || "evolution";
+    }
+
+    // 2. Busca por owner_id na tabela whatsapp_billing_schedule
     if (!baseUrl || !instanceId) {
-      const { data: sched } = await admin
+      const { data: directSched } = await admin
         .from("whatsapp_billing_schedule")
-        .select("base_url, instance_id, api_key, provider")
+        .select("*")
         .eq("owner_id", ownerId)
         .maybeSingle();
 
-      if (sched?.base_url && sched?.instance_id) {
-        baseUrl = sched.base_url.trim();
-        instanceId = sched.instance_id.trim();
-        apiKey = sched.api_key || apiKey;
-        provider = sched.provider || provider;
+      if (directSched?.base_url?.trim() && directSched?.instance_id?.trim()) {
+        baseUrl = directSched.base_url.trim();
+        instanceId = directSched.instance_id.trim();
+        apiKey = directSched.api_key || apiKey;
+        provider = directSched.provider || provider;
       }
     }
 
+    // 3. Fallback: busca qualquer registro com credenciais válidas na tabela whatsapp_billing_schedule
     if (!baseUrl || !instanceId) {
       const { data: allSchedRows } = await admin
         .from("whatsapp_billing_schedule")
-        .select("base_url, instance_id, api_key, provider")
+        .select("*")
+        .not("base_url", "is", null)
+        .neq("base_url", "")
         .limit(10);
-      const found = allSchedRows?.find((r: any) => Boolean(r.base_url?.trim() && r.instance_id?.trim()));
+
+      const found = (allSchedRows || []).find(
+        (r: any) => Boolean(r.base_url?.trim() && r.instance_id?.trim())
+      );
       if (found) {
         baseUrl = found.base_url.trim();
         instanceId = found.instance_id.trim();
@@ -215,13 +230,41 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // 4. Fallback: variáveis de ambiente globais (caso configuradas em Secrets)
     if (!baseUrl || !instanceId) {
-      return new Response(JSON.stringify({ ok: false, error: "whatsapp_not_configured" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const envUrl = Deno.env.get("EVOLUTION_BASE_URL") || Deno.env.get("WHATSMIAU_BASE_URL") || "";
+      const envInst = Deno.env.get("EVOLUTION_INSTANCE") || Deno.env.get("WHATSMIAU_INSTANCE_ID") || "";
+      if (envUrl && envInst) {
+        baseUrl = envUrl.trim();
+        instanceId = envInst.trim();
+      }
+    }
+
+    if (!baseUrl || !instanceId) {
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          error: "whatsapp_not_configured",
+          message: "Nenhuma URL ou Instância de WhatsApp encontrada em whatsapp_billing_schedule.",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     if (!apiKey) {
       apiKey = Deno.env.get("EVOLUTION_API_KEY") || Deno.env.get("WHATSMIAU_API_KEY") || "";
+    }
+
+    if (!apiKey) {
+      try {
+        const { data: cfgKey } = await admin
+          .from("app_internal_config")
+          .select("value")
+          .in("key", ["evolution_api_key", "whatsapp_api_key", "whatsmiau_api_key"])
+          .limit(1)
+          .maybeSingle();
+        if (cfgKey?.value) apiKey = String(cfgKey.value);
+      } catch (_) {}
     }
 
     const text = body.custom_text || body.message || await buildReport(admin, ownerId, reportType);
