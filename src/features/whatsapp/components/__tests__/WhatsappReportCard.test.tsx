@@ -169,11 +169,11 @@ describe("WhatsappReportCard — Envio de Relatórios e Resumo Operacional pelo 
     expect(message).toContain("💰 Juros: *R$ 120,00*");
     expect(message).toContain("💵 Total a cobrar: *R$ 1.220,00*");
     expect(message).toContain("✅ *COBRANÇAS ENVIADAS*");
-    expect(message).toContain("João da Silva / Juros: R$ 50,00 / Total: R$ 500,00");
-    expect(message).toContain("Maria Santos / Juros: R$ 30,00 / Total: R$ 330,00");
+    expect(message).toContain("João da Silva / Contratos: 1 / Juros: R$ 50,00 / Total: R$ 500,00");
+    expect(message).toContain("Maria Santos / Contratos: 1 / Juros: R$ 30,00 / Total: R$ 330,00");
     expect(message).toContain("*Total enviado: 2 / R$ 80,00 / R$ 830,00*");
     expect(message).toContain("⚠️ *COBRANÇAS NÃO ENVIADAS*");
-    expect(message).toContain("Pedro Santos / Juros: R$ 40,00 / Total: R$ 390,00");
+    expect(message).toContain("Pedro Santos / Contratos: 1 / Juros: R$ 40,00 / Total: R$ 390,00");
     expect(message).toContain("*Total não enviado: 1 / R$ 40,00 / R$ 390,00*");
     expect(message).toContain("📊 *FECHAMENTO*");
     expect(message).toContain("*Total: 3 / R$ 120,00 / R$ 1.220,00*");
@@ -227,8 +227,8 @@ describe("WhatsappReportCard — Envio de Relatórios e Resumo Operacional pelo 
     const sentIds = new Set(["loan-1", "loan-2"]);
     const message = formatBillingReportForWhatsapp(candidates, sentIds);
 
-    // Deve ter apenas UMA ocorrência de João da Silva com a soma R$ 50,00 e R$ 500,00
-    expect(message).toContain("João da Silva / Juros: R$ 50,00 / Total: R$ 500,00");
+    // Deve ter apenas UMA ocorrência de João da Silva com Contratos: 2 e a soma dos valores
+    expect(message).toContain("João da Silva / Contratos: 2 / Juros: R$ 50,00 / Total: R$ 500,00");
     const count = (message.match(/João da Silva/g) || []).length;
     expect(count).toBe(1);
     expect(message).toContain("Total de cobranças: *2*");
