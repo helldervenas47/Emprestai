@@ -69,6 +69,7 @@ export function formatBillingReportForWhatsapp(
   aCobrar: BillingCandidate[],
   sentIds: Set<string>,
   sentClientIds?: Set<string>,
+  referenceDate?: string,
 ): string {
   const isSent = (item: BillingCandidate) =>
     sentIds.has(item.loanId) || (Boolean(item.clientId) && Boolean(sentClientIds?.has(item.clientId)));
@@ -95,13 +96,17 @@ export function formatBillingReportForWhatsapp(
         .replace(/\u00a0/g, " "),
   };
 
+  const dateFormatted = referenceDate
+    ? (referenceDate.includes("-") ? referenceDate.split("-").reverse().join("/") : referenceDate)
+    : new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Bahia" }).format(new Date());
+
   const groupedEnviadas = groupCandidatesByClient(enviadas);
   const groupedNaoEnviadas = groupCandidatesByClient(naoEnviadas);
 
   const lines: string[] = [
     `📊 *RESUMO DAS COBRANÇAS — HOJE*`,
     ``,
-    `📌 *RESUMO DO DIA*`,
+    `📌 *RESUMO DO DIA — ${dateFormatted}*`,
     ``,
     `Total de cobranças: *${totalCount}*`,
     `✅ Enviadas: *${envCount}*`,
@@ -439,7 +444,7 @@ export function WhatsappReportCard() {
       });
 
       // Monta a mensagem completa formatada para o WhatsApp
-      const reportMessage = formatBillingReportForWhatsapp(aCobrarCandidates, sentIds, sentClientIds);
+      const reportMessage = formatBillingReportForWhatsapp(aCobrarCandidates, sentIds, sentClientIds, today);
 
       const destPhone = (whatsappPhone.trim() || profilePhone || "").trim();
       if (!destPhone) {
