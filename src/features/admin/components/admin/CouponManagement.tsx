@@ -41,7 +41,10 @@ import {
   RefreshCw,
   Globe,
   Calendar,
+  LayoutGrid,
+  List,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useCoupons, CouponRecord, CreateCouponInput, UpdateCouponInput } from "@/features/admin/hooks/useCoupons";
 import { usePlans } from "@/features/admin/hooks/usePlans";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
@@ -62,6 +65,7 @@ export function CouponManagement() {
 
   // Estado de cópia de código
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
 
   // Form State
   const [code, setCode] = useState("");
@@ -258,6 +262,30 @@ export function CouponManagement() {
             </CardDescription>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Seletor de Modo de Visualização (Grade / Tabela) */}
+            <div className="hidden sm:flex items-center border border-border/70 rounded-lg p-0.5 bg-muted/40">
+              <Button
+                variant={viewMode === "grid" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("grid")}
+                title="Visualização em Grade de Cupons"
+                className="h-8 px-2.5 text-xs gap-1.5"
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">Grade</span>
+              </Button>
+              <Button
+                variant={viewMode === "table" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("table")}
+                title="Visualização em Tabela"
+                className="h-8 px-2.5 text-xs gap-1.5"
+              >
+                <List className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">Tabela</span>
+              </Button>
+            </div>
+
             <Button
               variant="outline"
               size="sm"
@@ -293,291 +321,374 @@ export function CouponManagement() {
                 Criar primeiro cupom
               </Button>
             </div>
-          ) : (
-            <>
-              {/* Visualização Mobile: Cards Otimizados */}
-              <div className="block lg:hidden divide-y divide-border/50">
-                {coupons.map((c) => {
-                  const planNames = c.applies_to_all_plans
-                    ? ["Todos os planos"]
-                    : c.plan_ids.map((pid) => {
-                        const pl = plans.find((p) => p.id === pid);
-                        return pl ? pl.name : "Plano específico";
-                      });
+          ) : viewMode === "grid" ? (
+            /* Visualização em Grade de Vouchers / Tickets Elegantes */
+            <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {coupons.map((c) => {
+                const planNames = c.applies_to_all_plans
+                  ? ["Todos os planos"]
+                  : c.plan_ids.map((pid) => {
+                      const pl = plans.find((p) => p.id === pid);
+                      return pl ? pl.name : "Plano específico";
+                    });
 
-                  const isCopied = copiedCode === c.code;
+                const isCopied = copiedCode === c.code;
 
-                  return (
-                    <div key={c.id} className="p-4 space-y-3 hover:bg-muted/20 transition-colors">
+                return (
+                  <div
+                    key={c.id}
+                    className={cn(
+                      "relative rounded-2xl border p-4 sm:p-5 transition-all duration-200 flex flex-col justify-between gap-4 overflow-hidden shadow-xs",
+                      c.is_active
+                        ? "bg-card border-border/80 hover:border-primary/40 hover:shadow-md"
+                        : "bg-muted/30 border-border/40 opacity-80"
+                    )}
+                  >
+                    {/* Linha decorativa de topo estilo voucher */}
+                    <div
+                      className={cn(
+                        "absolute top-0 left-0 right-0 h-1",
+                        c.is_active
+                          ? c.discount_type === "percentage"
+                            ? "bg-gradient-to-r from-blue-500 to-indigo-500"
+                            : "bg-gradient-to-r from-emerald-500 to-teal-500"
+                          : "bg-muted-foreground/20"
+                      )}
+                    />
+
+                    <div className="space-y-3.5">
                       {/* Topo do Card: Código e Status */}
                       <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => handleCopyCode(c.code)}
+                          title="Clique para copiar o código"
+                          className="group inline-flex items-center gap-2 font-mono font-bold text-xs sm:text-sm tracking-wider bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 px-3 py-1.5 rounded-xl transition-all active:scale-95 cursor-pointer"
+                        >
+                          <span>{c.code}</span>
+                          {isCopied ? (
+                            <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0 animate-in zoom-in" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5 text-primary/60 group-hover:text-primary shrink-0 transition-colors" />
+                          )}
+                        </button>
+
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-[11px] font-medium px-2.5 py-1 rounded-full gap-1.5 shrink-0 transition-colors",
+                            c.is_active
+                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                              : "bg-muted text-muted-foreground border-border"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "h-2 w-2 rounded-full shrink-0",
+                              c.is_active ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/40"
+                            )}
+                          />
+                          {c.is_active ? "Ativo" : "Inativo"}
+                        </Badge>
+                      </div>
+
+                      {/* Destaque do Desconto */}
+                      <div className="flex items-baseline gap-2 flex-wrap">
+                        <div
+                          className={cn(
+                            "inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm sm:text-base font-bold tracking-tight",
+                            c.discount_type === "percentage"
+                              ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+                              : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                          )}
+                        >
+                          {c.discount_type === "percentage" ? (
+                            <>
+                              <Percent className="h-4 w-4" />
+                              <span>{c.discount_value}% OFF</span>
+                            </>
+                          ) : (
+                            <>
+                              <DollarSign className="h-4 w-4" />
+                              <span>R$ {c.discount_value.toFixed(2)} OFF</span>
+                            </>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground font-medium">
+                          {c.discount_type === "percentage" ? "no valor da assinatura" : "desconto fixo"}
+                        </span>
+                      </div>
+
+                      {/* Informações detalhadas: Planos e Usos */}
+                      <div className="space-y-2 pt-1">
+                        {/* Planos Permitidos */}
+                        <div className="space-y-1">
+                          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                            Aplicável a:
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {c.applies_to_all_plans ? (
+                              <Badge variant="secondary" className="text-xs py-0.5 px-2 font-normal gap-1 bg-secondary/80">
+                                <Globe className="h-3 w-3 text-primary" />
+                                Todos os planos
+                              </Badge>
+                            ) : planNames.length > 0 ? (
+                              planNames.map((pName, idx) => (
+                                <Badge key={idx} variant="outline" className="text-xs py-0.5 px-2 font-normal gap-1">
+                                  <Layers className="h-3 w-3 text-muted-foreground" />
+                                  {pName}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">Nenhum plano configurado</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Métricas de Uso */}
+                        <div className="space-y-1 pt-1">
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                              <span>Utilização</span>
+                            </span>
+                            <span className="font-semibold text-foreground">
+                              {c.used_count} {c.max_uses ? `/ ${c.max_uses} usos` : "usos (ilimitado)"}
+                            </span>
+                          </div>
+                          {c.max_uses && c.max_uses > 0 && (
+                            <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className={cn(
+                                  "h-full rounded-full transition-all",
+                                  c.used_count >= c.max_uses ? "bg-rose-500" : "bg-primary"
+                                )}
+                                style={{ width: `${Math.min(100, (c.used_count / c.max_uses) * 100)}%` }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Rodapé: Data e Ações */}
+                    <div className="flex items-center justify-between pt-3 border-t border-border/50 text-xs">
+                      <div className="flex items-center gap-1.5 text-muted-foreground text-[11px]">
+                        <Calendar className="h-3.5 w-3.5" />
+                        <span>{new Date(c.created_at).toLocaleDateString("pt-BR")}</span>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleStatus(c)}
+                          title={c.is_active ? "Inativar cupom" : "Ativar cupom"}
+                          className={cn(
+                            "h-8 px-2.5 text-xs font-medium gap-1.5 rounded-lg",
+                            c.is_active
+                              ? "text-amber-600 hover:text-amber-700 hover:bg-amber-500/10 dark:text-amber-400"
+                              : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400"
+                          )}
+                        >
+                          <Power className="h-3.5 w-3.5" />
+                          <span>{c.is_active ? "Inativar" : "Ativar"}</span>
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenEdit(c)}
+                          title="Editar cupom"
+                          className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handlePromptDelete(c)}
+                          title="Excluir cupom"
+                          className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* Visualização Desktop em Tabela Fluida */
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="min-w-[160px]">Código</TableHead>
+                    <TableHead className="min-w-[150px]">Desconto</TableHead>
+                    <TableHead className="min-w-[180px]">Planos Permitidos</TableHead>
+                    <TableHead className="min-w-[110px]">Status</TableHead>
+                    <TableHead className="min-w-[90px] text-center">Usos</TableHead>
+                    <TableHead className="min-w-[110px]">Criado em</TableHead>
+                    <TableHead className="min-w-[130px] text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {coupons.map((c) => {
+                    const planNames = c.applies_to_all_plans
+                      ? ["Todos os planos"]
+                      : c.plan_ids.map((pid) => {
+                          const pl = plans.find((p) => p.id === pid);
+                          return pl ? pl.name : "Plano específico";
+                        });
+
+                    const isCopied = copiedCode === c.code;
+
+                    return (
+                      <TableRow key={c.id} className="hover:bg-muted/30">
+                        {/* Código com Badge Otimizado e Copiar */}
+                        <TableCell className="font-mono font-bold text-sm tracking-wide">
                           <button
                             type="button"
                             onClick={() => handleCopyCode(c.code)}
                             title="Clique para copiar o código"
-                            className="inline-flex items-center gap-1.5 font-mono font-bold text-xs tracking-wider bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 px-2.5 py-1 rounded-md transition-colors whitespace-nowrap"
+                            className="inline-flex items-center gap-1.5 font-mono font-bold text-xs tracking-wider bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap cursor-pointer group"
                           >
                             <span>{c.code}</span>
                             {isCopied ? (
-                              <Check className="h-3 w-3 text-emerald-500 shrink-0" />
+                              <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0 animate-in zoom-in" />
                             ) : (
-                              <Copy className="h-3 w-3 text-primary/70 shrink-0" />
+                              <Copy className="h-3.5 w-3.5 text-primary/60 group-hover:text-primary shrink-0" />
                             )}
                           </button>
-                        </div>
+                        </TableCell>
 
-                        <Badge
-                          variant={c.is_active ? "default" : "secondary"}
-                          className={`text-[11px] px-2 py-0.5 whitespace-nowrap shrink-0 ${
-                            c.is_active
-                              ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          {c.is_active ? "🟢 Ativo" : "⚪ Inativo"}
-                        </Badge>
-                      </div>
-
-                      {/* Informações de Desconto e Usos */}
-                      <div className="flex flex-wrap items-center gap-2 text-xs">
-                        <Badge variant="outline" className="font-semibold text-xs gap-1 py-0.5 whitespace-nowrap">
-                          {c.discount_type === "percentage" ? (
-                            <>
-                              <Percent className="h-3 w-3 text-blue-500" />
-                              <span>{c.discount_value}% de desconto</span>
-                            </>
-                          ) : (
-                            <>
-                              <DollarSign className="h-3 w-3 text-emerald-500" />
-                              <span>R$ {c.discount_value.toFixed(2)} de desconto</span>
-                            </>
-                          )}
-                        </Badge>
-
-                        <div className="text-muted-foreground text-[11px] flex items-center gap-1 ml-auto">
-                          <Sparkles className="h-3 w-3 text-blue-500" />
-                          <span>
-                            Usos: <strong>{c.used_count}</strong>
-                            {c.max_uses ? ` / ${c.max_uses}` : " (ilimitado)"}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Planos Permitidos */}
-                      <div className="text-xs space-y-1">
-                        <span className="text-[11px] text-muted-foreground">Planos:</span>
-                        <div className="flex flex-wrap gap-1">
-                          {c.applies_to_all_plans ? (
-                            <Badge variant="secondary" className="text-[10px] py-0">
-                              🌐 Todos os planos
-                            </Badge>
-                          ) : planNames.length > 0 ? (
-                            planNames.map((pName, idx) => (
-                              <Badge key={idx} variant="outline" className="text-[10px] py-0 truncate max-w-[150px]">
-                                {pName}
-                              </Badge>
-                            ))
-                          ) : (
-                            <span className="text-[11px] text-muted-foreground italic">Nenhum plano</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Rodapé de Ações do Card */}
-                      <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs">
-                        <span className="text-[11px] text-muted-foreground">
-                          Criado em {new Date(c.created_at).toLocaleDateString("pt-BR")}
-                        </span>
-
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleStatus(c)}
-                            title={c.is_active ? "Inativar cupom" : "Ativar cupom"}
-                            className="h-8 px-2 text-xs gap-1"
-                          >
-                            <Power className={`h-3.5 w-3.5 ${c.is_active ? "text-amber-500" : "text-emerald-500"}`} />
-                            <span className="text-[11px]">{c.is_active ? "Inativar" : "Ativar"}</span>
-                          </Button>
-
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleOpenEdit(c)}
-                            title="Editar cupom"
-                            className="h-8 w-8 p-0"
-                          >
-                            <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
-                          </Button>
-
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handlePromptDelete(c)}
-                            title="Excluir cupom"
-                            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Visualização Desktop: Tabela Fluida */}
-              <div className="hidden lg:block overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="min-w-[160px]">Código</TableHead>
-                      <TableHead className="min-w-[150px]">Desconto</TableHead>
-                      <TableHead className="min-w-[180px]">Planos Permitidos</TableHead>
-                      <TableHead className="min-w-[110px]">Status</TableHead>
-                      <TableHead className="min-w-[90px] text-center">Usos</TableHead>
-                      <TableHead className="min-w-[110px]">Criado em</TableHead>
-                      <TableHead className="min-w-[130px] text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {coupons.map((c) => {
-                      const planNames = c.applies_to_all_plans
-                        ? ["Todos os planos"]
-                        : c.plan_ids.map((pid) => {
-                            const pl = plans.find((p) => p.id === pid);
-                            return pl ? pl.name : "Plano específico";
-                          });
-
-                      const isCopied = copiedCode === c.code;
-
-                      return (
-                        <TableRow key={c.id} className="hover:bg-muted/30">
-                          {/* Código com Badge Otimizado e Copiar */}
-                          <TableCell className="font-mono font-bold text-sm tracking-wide">
-                            <button
-                              type="button"
-                              onClick={() => handleCopyCode(c.code)}
-                              title="Clique para copiar o código"
-                              className="inline-flex items-center gap-1.5 font-mono font-bold text-xs tracking-wider bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 px-2.5 py-1 rounded-md transition-colors whitespace-nowrap cursor-pointer group"
-                            >
-                              <span>{c.code}</span>
-                              {isCopied ? (
-                                <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0 animate-in zoom-in" />
-                              ) : (
-                                <Copy className="h-3.5 w-3.5 text-primary/60 group-hover:text-primary shrink-0" />
-                              )}
-                            </button>
-                          </TableCell>
-
-                          {/* Tipo e Valor de Desconto */}
-                          <TableCell>
-                            <Badge variant="outline" className="font-semibold text-xs gap-1 py-0.5 whitespace-nowrap">
-                              {c.discount_type === "percentage" ? (
-                                <>
-                                  <Percent className="h-3 w-3 text-blue-500" />
-                                  <span>{c.discount_value}% de desconto</span>
-                                </>
-                              ) : (
-                                <>
-                                  <DollarSign className="h-3 w-3 text-emerald-500" />
-                                  <span>R$ {c.discount_value.toFixed(2)} de desconto</span>
-                                </>
-                              )}
-                            </Badge>
-                          </TableCell>
-
-                          {/* Planos Permitidos */}
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1 max-w-[280px]">
-                              {c.applies_to_all_plans ? (
-                                <Badge variant="secondary" className="text-[11px] whitespace-nowrap">
-                                  🌐 Todos os planos
-                                </Badge>
-                              ) : planNames.length > 0 ? (
-                                planNames.map((pName, idx) => (
-                                  <Badge key={idx} variant="outline" className="text-[11px] truncate max-w-[130px]">
-                                    {pName}
-                                  </Badge>
-                                ))
-                              ) : (
-                                <span className="text-xs text-muted-foreground italic">Nenhum plano</span>
-                              )}
-                            </div>
-                          </TableCell>
-
-                          {/* Status */}
-                          <TableCell>
-                            <Badge
-                              variant={c.is_active ? "default" : "secondary"}
-                              className={`text-xs whitespace-nowrap ${
-                                c.is_active
-                                  ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                                  : "text-muted-foreground"
-                              }`}
-                            >
-                              {c.is_active ? "🟢 Ativo" : "⚪ Inativo"}
-                            </Badge>
-                          </TableCell>
-
-                          {/* Usos */}
-                          <TableCell className="text-center font-medium text-xs whitespace-nowrap">
-                            <span className="font-bold text-foreground">{c.used_count}</span>
-                            {c.max_uses ? (
-                              <span className="text-muted-foreground text-[10px]"> / {c.max_uses}</span>
-                            ) : (
-                              ""
+                        {/* Tipo e Valor de Desconto */}
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "font-semibold text-xs gap-1 py-0.5 whitespace-nowrap",
+                              c.discount_type === "percentage"
+                                ? "text-blue-600 dark:text-blue-400 border-blue-500/30 bg-blue-500/5"
+                                : "text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/5"
                             )}
-                          </TableCell>
+                          >
+                            {c.discount_type === "percentage" ? (
+                              <>
+                                <Percent className="h-3 w-3" />
+                                <span>{c.discount_value}% OFF</span>
+                              </>
+                            ) : (
+                              <>
+                                <DollarSign className="h-3 w-3" />
+                                <span>R$ {c.discount_value.toFixed(2)} OFF</span>
+                              </>
+                            )}
+                          </Badge>
+                        </TableCell>
 
-                          {/* Data de Criação */}
-                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                            {new Date(c.created_at).toLocaleDateString("pt-BR")}
-                          </TableCell>
+                        {/* Planos Permitidos */}
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1 max-w-[280px]">
+                            {c.applies_to_all_plans ? (
+                              <Badge variant="secondary" className="text-[11px] whitespace-nowrap gap-1">
+                                <Globe className="h-3 w-3 text-primary" />
+                                Todos os planos
+                              </Badge>
+                            ) : planNames.length > 0 ? (
+                              planNames.map((pName, idx) => (
+                                <Badge key={idx} variant="outline" className="text-[11px] truncate max-w-[130px] gap-1">
+                                  <Layers className="h-3 w-3 text-muted-foreground" />
+                                  {pName}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">Nenhum plano</span>
+                            )}
+                          </div>
+                        </TableCell>
 
-                          {/* Ações: Status, Editar e Excluir */}
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleStatus(c)}
-                                title={c.is_active ? "Inativar cupom" : "Ativar cupom"}
-                                className="h-8 w-8 p-0"
-                              >
-                                <Power className={`h-4 w-4 ${c.is_active ? "text-amber-500" : "text-emerald-500"}`} />
-                              </Button>
+                        {/* Status */}
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-xs whitespace-nowrap gap-1.5 px-2.5 py-0.5",
+                              c.is_active
+                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                                : "text-muted-foreground bg-muted border-border"
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "h-1.5 w-1.5 rounded-full shrink-0",
+                                c.is_active ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/40"
+                              )}
+                            />
+                            {c.is_active ? "Ativo" : "Inativo"}
+                          </Badge>
+                        </TableCell>
 
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleOpenEdit(c)}
-                                title="Editar cupom"
-                                className="h-8 w-8 p-0"
-                              >
-                                <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                              </Button>
+                        {/* Usos */}
+                        <TableCell className="text-center text-xs">
+                          <div className="inline-flex items-center gap-1">
+                            <span className="font-semibold text-foreground">{c.used_count}</span>
+                            {c.max_uses ? (
+                              <span className="text-muted-foreground">/{c.max_uses}</span>
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground">(ilim.)</span>
+                            )}
+                          </div>
+                        </TableCell>
 
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handlePromptDelete(c)}
-                                title="Excluir cupom"
-                                className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </>
+                        {/* Data de Criação */}
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                          {new Date(c.created_at).toLocaleDateString("pt-BR")}
+                        </TableCell>
+
+                        {/* Ações: Status, Editar e Excluir */}
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleStatus(c)}
+                              title={c.is_active ? "Inativar cupom" : "Ativar cupom"}
+                              className="h-8 w-8 p-0 rounded-lg"
+                            >
+                              <Power className={`h-4 w-4 ${c.is_active ? "text-amber-500" : "text-emerald-500"}`} />
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleOpenEdit(c)}
+                              title="Editar cupom"
+                              className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handlePromptDelete(c)}
+                              title="Excluir cupom"
+                              className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
