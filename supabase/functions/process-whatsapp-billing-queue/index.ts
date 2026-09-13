@@ -1,6 +1,38 @@
 import { createClient } from "npm:@supabase/supabase-js@2.95.0";
 import { validateCronSecret, validateUserOwner, unauthorized } from "../_shared/auth-guard.ts";
-import { sendWhatsappText } from "../_shared/whatsapp-service.ts";
+
+interface WhatsappProviderConfig {
+  provider: string;
+  baseUrl: string;
+  instanceId: string;
+  apiKey: string;
+}
+
+async function sendWhatsappText(config: WhatsappProviderConfig, phone: string, message: string) {
+  const base = config.baseUrl.replace(/\/+$/, "");
+  if (config.provider === "wppconnect") {
+    const response = await fetch(`${base}/api/${encodeURIComponent(config.instanceId)}/send-message`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.apiKey}` },
+      body: JSON.stringify({ phone, message }),
+    });
+    return { ok: response.ok, status: response.status, body: await response.text() };
+  }
+  if (config.provider === "evolution") {
+    const response = await fetch(`${base}/message/sendText/${encodeURIComponent(config.instanceId)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: config.apiKey },
+      body: JSON.stringify({ number: phone, text: message }),
+    });
+    return { ok: response.ok, status: response.status, body: await response.text() };
+  }
+  const response = await fetch(`${base}/message/sendText/${encodeURIComponent(config.instanceId)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: config.apiKey },
+    body: JSON.stringify({ number: phone, text: message, textMessage: { text: message } }),
+  });
+  return { ok: response.ok, status: response.status, body: await response.text() };
+}
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret", "Content-Type": "application/json" };
 Deno.serve(async (req) => {
