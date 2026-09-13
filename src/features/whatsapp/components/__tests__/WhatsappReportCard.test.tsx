@@ -12,18 +12,34 @@ vi.mock("@/hooks/useAuth", () => ({
 }));
 
 vi.mock("@/hooks/useScheduledReportPrefs", () => ({
-  useScheduledReportPrefs: () => ({
-    prefs: {
-      enabled: false,
-      send_time_1: "19:00",
-      send_time_2: null,
-      send_time_3: null,
-      send_whatsapp: true,
-      whatsapp_phone: "(11) 99999-8888",
-    },
-    loading: false,
-    save: vi.fn(),
-  }),
+  useScheduledReportPrefs: (table: string) => {
+    if (table === "telegram_operational_summary_prefs") {
+      return {
+        prefs: {
+          enabled: false,
+          send_time_1: "19:00",
+          send_time_2: null,
+          send_time_3: null,
+          send_whatsapp: true,
+          whatsapp_phone: "(11) 99999-8888",
+        },
+        loading: false,
+        save: vi.fn(),
+      };
+    }
+    return {
+      prefs: {
+        enabled: false,
+        send_time_1: "09:00",
+        send_time_2: null,
+        send_time_3: null,
+        send_whatsapp: false,
+        whatsapp_phone: null,
+      },
+      loading: false,
+      save: vi.fn(),
+    };
+  },
 }));
 
 vi.mock("@/integrations/supabase/userClient", () => ({
@@ -56,31 +72,25 @@ vi.mock("@/integrations/supabase/userClient", () => ({
   },
 }));
 
-describe("WhatsappReportCard — Envio de Relatório de Cobranças pelo WhatsApp", () => {
+describe("WhatsappReportCard — Envio de Relatórios e Resumo Operacional pelo WhatsApp", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("renderiza os cards de configuração de telefone e relatório de cobranças", async () => {
+  it("renderiza todos os cards: Telefone, Resumo Operacional e Relatório de Cobranças", async () => {
     render(<WhatsappReportCard />);
 
     await waitFor(() => {
       expect(screen.getByText("Telefone e Destino no WhatsApp")).toBeInTheDocument();
+      expect(screen.getByText("Resumo Operacional Diário")).toBeInTheDocument();
       expect(screen.getByText("Relatório de Cobranças pelo WhatsApp")).toBeInTheDocument();
     });
 
     // Toggle e campos de telefone
     expect(screen.getByText("Ativar envio automático no WhatsApp")).toBeInTheDocument();
-    expect(screen.getByText("Horários Programados de Envio")).toBeInTheDocument();
 
-    // Informações incluídas no relatório enviado ao WhatsApp
-    expect(screen.getByText("Informações enviadas na mensagem do WhatsApp:")).toBeInTheDocument();
-    expect(screen.getByText("Resumo Geral")).toBeInTheDocument();
-    expect(screen.getByText("Enviadas")).toBeInTheDocument();
-    expect(screen.getByText("Não Enviadas")).toBeInTheDocument();
-    expect(screen.getByText("Subtotais")).toBeInTheDocument();
-
-    // Botão de envio imediato
+    // Botões de disparo imediato
+    expect(screen.getByText("Enviar Resumo Operacional Agora")).toBeInTheDocument();
     expect(screen.getByText("Enviar Relatório Agora no WhatsApp")).toBeInTheDocument();
   });
 });

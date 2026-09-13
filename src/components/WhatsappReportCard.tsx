@@ -23,6 +23,7 @@ import {
   Smartphone,
   TrendingUp,
   ListChecks,
+  Activity,
 } from "lucide-react";
 
 type SlotKey = "send_time_1" | "send_time_2" | "send_time_3";
@@ -109,9 +110,19 @@ export function WhatsappReportCard() {
   const { user, dataOwnerId } = useAuth();
   const ownerId = dataOwnerId || user?.id;
 
-  const { prefs, loading: loadingPrefs, save: savePrefs } = useScheduledReportPrefs(
-    "telegram_operational_summary_prefs"
-  );
+  // Prefs do Resumo Operacional
+  const {
+    prefs: opPrefs,
+    loading: loadingOpPrefs,
+    save: saveOpPrefs,
+  } = useScheduledReportPrefs("telegram_operational_summary_prefs");
+
+  // Prefs do Relatório de Cobranças
+  const {
+    prefs: billPrefs,
+    loading: loadingBillPrefs,
+    save: saveBillPrefs,
+  } = useScheduledReportPrefs("telegram_billing_prefs");
 
   const [schedule, setSchedule] = useState<{
     provider?: string;
@@ -121,7 +132,8 @@ export function WhatsappReportCard() {
   }>({});
   const [profilePhone, setProfilePhone] = useState("");
   const [whatsappPhone, setWhatsappPhone] = useState("");
-  const [sendingReport, setSendingReport] = useState(false);
+  const [sendingOpSummary, setSendingOpSummary] = useState(false);
+  const [sendingBillingReport, setSendingBillingReport] = useState(false);
 
   // Carrega configurações da API WhatsApp e perfil do usuário
   const loadWhatsappAndProfile = useCallback(async () => {
@@ -156,28 +168,37 @@ export function WhatsappReportCard() {
   }, [loadWhatsappAndProfile]);
 
   useEffect(() => {
-    if (prefs.whatsapp_phone !== undefined) {
-      setWhatsappPhone(prefs.whatsapp_phone || "");
+    if (opPrefs.whatsapp_phone !== undefined) {
+      setWhatsappPhone(opPrefs.whatsapp_phone || "");
     }
-  }, [prefs.whatsapp_phone]);
+  }, [opPrefs.whatsapp_phone]);
 
   const isWhatsappConfigured = Boolean(
     schedule.base_url?.trim() && schedule.instance_id?.trim()
   );
 
-  const handleTimeChange = async (key: SlotKey, value: string | null) => {
+  const handleOpTimeChange = async (key: SlotKey, value: string | null) => {
     try {
-      await savePrefs({ [key]: value });
-      toast.success("Horário de envio salvo!");
+      await saveOpPrefs({ [key]: value });
+      toast.success("Horário do Resumo Operacional salvo!");
+    } catch {
+      toast.error("Erro ao salvar horário.");
+    }
+  };
+
+  const handleBillTimeChange = async (key: SlotKey, value: string | null) => {
+    try {
+      await saveBillPrefs({ [key]: value });
+      toast.success("Horário do Relatório de Cobranças salvo!");
     } catch {
       toast.error("Erro ao salvar horário.");
     }
   };
 
   const handlePhoneBlur = async () => {
-    if (whatsappPhone !== (prefs.whatsapp_phone || "")) {
+    if (whatsappPhone !== (opPrefs.whatsapp_phone || "")) {
       try {
-        await savePrefs({ whatsapp_phone: whatsappPhone.trim() || null });
+        await saveOpPrefs({ whatsapp_phone: whatsappPhone.trim() || null });
         toast.success("Telefone do WhatsApp salvo!");
       } catch {
         toast.error("Erro ao salvar telefone.");
@@ -185,20 +206,72 @@ export function WhatsappReportCard() {
     }
   };
 
-  const activeSlots = slots.filter((s) => Boolean(prefs[s]));
-  const canAddMoreSlots = activeSlots.length < 3;
+  const activeOpSlots = slots.filter((s) => Boolean(opPrefs[s]));
+  const canAddMoreOpSlots = activeOpSlots.length < 3;
 
-  // Disparo manual do relatório de cobranças diretamente no WhatsApp
+  const activeBillSlots = slots.filter((s) => Boolean(billPrefs[s]));
+  const canAddMoreBillSlots = activeBillSlots.length < 3;
+
+  // Disparo manual do Resumo Operacional no WhatsApp
+  const sendOperationalSummaryNow = async () => {
+    if (!ownerId) return;
+    setSendingOpSummary(true);
+    try {
+      const destPhone = whatsappPhone.trim() || profilePhone || undefined;
+      const { data, error } = await supabase.functions.invoke("telegram-operational-summary", {
+        body: {
+          owner_id: ownerId,
+          channel: "whatsapp",
+          send_whatsapp: true,
+          phone: destPhone,
+          whatsapp_config: {
+            provider: schedule.provider || "evolution",
+            base_url: schedule.base_url || "",
+            instance_id: schedule.instance_id || "",
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.sent) {
+        toast.success("Resumo Operacional enviado para o seu WhatsApp!");
+      } else {
+        const reason = data?.reason;
+        if (reason === "whatsapp_not_configured") {
+          toast.error("WhatsApp não configurado", {
+            description: "Configure sua API do WhatsApp na aba 'Disparos & Automação'.",
+          });
+        } else if (reason === "no_phone_configured") {
+          toast.error("Nenhum telefone configurado", {
+            description: "Informe o telefone de destino para o envio.",
+          });
+        } else {
+          toast.error("Falha no envio do resumo", {
+            description: reason || "O provedor de WhatsApp não confirmou o envio.",
+          });
+        }
+      }
+    } catch (e: any) {
+      console.error("[WhatsappReportCard] Erro ao enviar resumo operacional:", e);
+      toast.error("Erro ao enviar resumo operacional", {
+        description: e?.message || "Ocorreu um problema de comunicação com a API.",
+      });
+    } finally {
+      setSendingOpSummary(false);
+    }
+  };
+
+  // Disparo manual do Relatório de Cobranças no WhatsApp
   const sendBillingReportNow = async () => {
     if (!ownerId) return;
-    setSendingReport(true);
+    setSendingBillingReport(true);
     try {
       const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bahia" }).format(new Date());
       const todayStart = new Date(`${today}T00:00:00-03:00`).toISOString();
       const tomorrow = new Date(`${today}T00:00:00-03:00`);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
-      // Busca dados necessários para calcular estritamente a subaba "A cobrar"
       const [loans, clients, schedulesRes, payments, promises, sentQueueRes, templates] = await Promise.all([
         supabase.from("loans").select("*").eq("user_id", ownerId),
         supabase.from("clients").select("*").eq("user_id", ownerId),
@@ -311,12 +384,12 @@ export function WhatsappReportCard() {
         }
       }
     } catch (e: any) {
-      console.error("[WhatsappReportCard] Erro ao enviar relatório no WhatsApp:", e);
+      console.error("[WhatsappReportCard] Erro ao enviar relatório de cobranças:", e);
       toast.error("Erro ao enviar relatório", {
         description: e?.message || "Ocorreu um problema de comunicação com a API.",
       });
     } finally {
-      setSendingReport(false);
+      setSendingBillingReport(false);
     }
   };
 
@@ -335,7 +408,7 @@ export function WhatsappReportCard() {
                   Telefone e Destino no WhatsApp
                 </CardTitle>
                 <CardDescription className="text-xs text-muted-foreground mt-0.5 leading-snug">
-                  Defina o número de destino e habilite o envio automatizado dos relatórios.
+                  Defina o número de destino e habilite o envio automatizado dos resumos e relatórios.
                 </CardDescription>
               </div>
             </div>
@@ -365,22 +438,22 @@ export function WhatsappReportCard() {
         </CardHeader>
 
         <CardContent className="p-4 sm:p-5 pt-2 space-y-4">
-          {/* Toggle de Ativação */}
+          {/* Toggle de Ativação Geral */}
           <div className="flex items-center justify-between p-3.5 rounded-xl bg-muted/40 border border-border/40 gap-3">
             <div className="space-y-0.5 flex-1 min-w-0 pr-1">
               <Label className="text-xs sm:text-sm font-semibold text-foreground cursor-pointer block">
                 Ativar envio automático no WhatsApp
               </Label>
               <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight">
-                Dispara os relatórios de cobrança diários para o número configurado abaixo.
+                Dispara os resumos e relatórios diários para o número configurado abaixo.
               </p>
             </div>
             <Switch
-              checked={prefs.send_whatsapp ?? false}
-              disabled={loadingPrefs}
+              checked={opPrefs.send_whatsapp ?? false}
+              disabled={loadingOpPrefs}
               onCheckedChange={async (checked) => {
                 try {
-                  await savePrefs({ send_whatsapp: checked });
+                  await saveOpPrefs({ send_whatsapp: checked });
                   toast.success(checked ? "Envio automático no WhatsApp ativado!" : "Envio automático no WhatsApp desativado.");
                 } catch {
                   toast.error("Erro ao salvar configuração de envio.");
@@ -402,7 +475,7 @@ export function WhatsappReportCard() {
                   onClick={async () => {
                     setWhatsappPhone(profilePhone);
                     try {
-                      await savePrefs({ whatsapp_phone: profilePhone });
+                      await saveOpPrefs({ whatsapp_phone: profilePhone });
                       toast.success("Telefone do perfil aplicado!");
                     } catch {
                       toast.error("Erro ao salvar telefone.");
@@ -438,7 +511,150 @@ export function WhatsappReportCard() {
         </CardContent>
       </Card>
 
-      {/* Card 2: Relatório de Cobranças pelo WhatsApp */}
+      {/* Card 2: Resumo Operacional Diário */}
+      <Card no3d className="border-border/60 shadow-xs rounded-2xl overflow-hidden">
+        <CardHeader className="p-4 sm:p-5 pb-3">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold shadow-xs shrink-0 ring-1 ring-primary/20">
+              <Activity className="h-5 w-5" />
+            </div>
+            <div>
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                Resumo Operacional Diário
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                Consolidado financeiro geral com faturamento, juros recebidos, despesas e inadimplência.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-4 sm:p-5 pt-2 space-y-5">
+          {/* Horários de Envio do Resumo Operacional */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-primary" />
+                <span>Horários Programados de Envio</span>
+              </Label>
+              <Badge variant="outline" className="text-[10px] font-medium text-muted-foreground py-0.5 px-2 bg-muted/30">
+                {activeOpSlots.length}/3 horários
+              </Badge>
+            </div>
+
+            {activeOpSlots.length === 0 ? (
+              <div className="flex flex-col sm:flex-row items-center justify-between p-3.5 rounded-xl border border-dashed border-border/80 bg-muted/20 gap-3">
+                <p className="text-xs text-muted-foreground">
+                  Nenhum horário programado para o resumo operacional.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs rounded-lg gap-1.5 font-medium"
+                  onClick={() => handleOpTimeChange(slots[0], "19:00")}
+                >
+                  <Plus className="h-3.5 w-3.5" /> Adicionar Primeiro Horário
+                </Button>
+              </div>
+            ) : (
+              <div className="grid gap-2.5 sm:grid-cols-3">
+                {activeOpSlots.map((key) => (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-border/70 bg-card hover:border-primary/40 transition-colors shadow-2xs group"
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="h-7 w-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                        <Clock className="h-3.5 w-3.5" />
+                      </div>
+                      <input
+                        type="time"
+                        value={opPrefs[key] ?? ""}
+                        onChange={(e) => handleOpTimeChange(key, e.target.value || null)}
+                        className="bg-transparent text-sm font-semibold text-foreground focus:outline-none cursor-pointer w-full tracking-wide"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleOpTimeChange(key, null)}
+                      title="Remover horário"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg shrink-0 transition-colors"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+
+                {canAddMoreOpSlots && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpTimeChange(slots.find((s) => !opPrefs[s])!, "19:00")}
+                    className="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-dashed border-border hover:border-primary/60 bg-muted/10 hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all text-xs font-semibold h-full min-h-[46px]"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>Adicionar Horário</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Indicadores incluídos no Resumo Operacional */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <span>Indicadores incluídos no Resumo Operacional:</span>
+            </Label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-muted-foreground">
+              <div className="p-3 bg-muted/30 rounded-xl border border-border/40">
+                <span className="font-semibold text-foreground text-xs">Recebido no dia</span>
+                <p className="text-[10px] text-muted-foreground mt-1 leading-snug">Total e juros recebidos hoje</p>
+              </div>
+              <div className="p-3 bg-muted/30 rounded-xl border border-border/40">
+                <span className="font-semibold text-foreground text-xs">Juros no Mês</span>
+                <p className="text-[10px] text-muted-foreground mt-1 leading-snug">Faturamento acumulado</p>
+              </div>
+              <div className="p-3 bg-muted/30 rounded-xl border border-border/40">
+                <span className="font-semibold text-foreground text-xs">Comissões &amp; Despesas</span>
+                <p className="text-[10px] text-muted-foreground mt-1 leading-snug">Gerentes e custos pagos</p>
+              </div>
+              <div className="p-3 bg-muted/30 rounded-xl border border-border/40">
+                <span className="font-semibold text-foreground text-xs">Saldo &amp; Inadimplência</span>
+                <p className="text-[10px] text-muted-foreground mt-1 leading-snug">Fluxo de caixa e % de atraso</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Ações e Botão de Disparo Imediato */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-border/40">
+            <p className="text-[11px] text-muted-foreground">
+              {!isWhatsappConfigured ? (
+                <span className="text-amber-500 font-medium">
+                  Aviso: Conecte sua API do WhatsApp na aba &quot;Disparos &amp; Automação&quot; para realizar os envios.
+                </span>
+              ) : (
+                <span>O resumo operacional pode ser testado agora ou enviado automaticamente nos horários definidos.</span>
+              )}
+            </p>
+            <Button
+              onClick={sendOperationalSummaryNow}
+              disabled={sendingOpSummary || !isWhatsappConfigured}
+              className="w-full sm:w-auto h-9 text-xs font-semibold rounded-xl shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-xs"
+            >
+              {sendingOpSummary ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+              Enviar Resumo Operacional Agora
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Card 3: Relatório de Cobranças pelo WhatsApp */}
       <Card no3d className="border-border/60 shadow-xs rounded-2xl overflow-hidden">
         <CardHeader className="p-4 sm:p-5 pb-3">
           <div className="flex items-start sm:items-center gap-3">
@@ -450,7 +666,7 @@ export function WhatsappReportCard() {
                 Relatório de Cobranças pelo WhatsApp
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                Resumo diário exclusivo das cobranças da aba <strong>&quot;A cobrar&quot;</strong> enviado diretamente para o seu WhatsApp.
+                Resumo diário exclusivo das cobranças da aba <strong>&quot;A cobrar&quot;</strong> com detalhamento de enviadas e pendentes no WhatsApp.
               </CardDescription>
             </div>
           </div>
@@ -465,40 +681,40 @@ export function WhatsappReportCard() {
                 <span>Horários Programados de Envio</span>
               </Label>
               <Badge variant="outline" className="text-[10px] font-medium text-muted-foreground py-0.5 px-2 bg-muted/30">
-                {activeSlots.length}/3 horários
+                {activeBillSlots.length}/3 horários
               </Badge>
             </div>
 
-            {activeSlots.length === 0 ? (
+            {activeBillSlots.length === 0 ? (
               <div className="flex flex-col sm:flex-row items-center justify-between p-3.5 rounded-xl border border-dashed border-border/80 bg-muted/20 gap-3">
                 <p className="text-xs text-muted-foreground">
-                  Nenhum horário programado para este relatório.
+                  Nenhum horário programado para o relatório de cobranças.
                 </p>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   className="h-8 text-xs rounded-lg gap-1.5 font-medium"
-                  onClick={() => handleTimeChange(slots[0], "19:00")}
+                  onClick={() => handleBillTimeChange(slots[0], "09:00")}
                 >
                   <Plus className="h-3.5 w-3.5" /> Adicionar Primeiro Horário
                 </Button>
               </div>
             ) : (
               <div className="grid gap-2.5 sm:grid-cols-3">
-                {activeSlots.map((key) => (
+                {activeBillSlots.map((key) => (
                   <div
                     key={key}
                     className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-border/70 bg-card hover:border-primary/40 transition-colors shadow-2xs group"
                   >
                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <div className="h-7 w-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                      <div className="h-7 w-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                         <Clock className="h-3.5 w-3.5" />
                       </div>
                       <input
                         type="time"
-                        value={prefs[key] ?? ""}
-                        onChange={(e) => handleTimeChange(key, e.target.value || null)}
+                        value={billPrefs[key] ?? ""}
+                        onChange={(e) => handleBillTimeChange(key, e.target.value || null)}
                         className="bg-transparent text-sm font-semibold text-foreground focus:outline-none cursor-pointer w-full tracking-wide"
                       />
                     </div>
@@ -506,7 +722,7 @@ export function WhatsappReportCard() {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleTimeChange(key, null)}
+                      onClick={() => handleBillTimeChange(key, null)}
                       title="Remover horário"
                       className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg shrink-0 transition-colors"
                     >
@@ -515,10 +731,10 @@ export function WhatsappReportCard() {
                   </div>
                 ))}
 
-                {canAddMoreSlots && (
+                {canAddMoreBillSlots && (
                   <button
                     type="button"
-                    onClick={() => handleTimeChange(slots.find((s) => !prefs[s])!, "19:00")}
+                    onClick={() => handleBillTimeChange(slots.find((s) => !billPrefs[s])!, "09:00")}
                     className="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-dashed border-border hover:border-primary/60 bg-muted/10 hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all text-xs font-semibold h-full min-h-[46px]"
                   >
                     <Plus className="h-3.5 w-3.5" />
@@ -590,10 +806,10 @@ export function WhatsappReportCard() {
             </p>
             <Button
               onClick={sendBillingReportNow}
-              disabled={sendingReport || !isWhatsappConfigured}
+              disabled={sendingBillingReport || !isWhatsappConfigured}
               className="w-full sm:w-auto h-9 text-xs font-semibold rounded-xl shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-xs"
             >
-              {sendingReport ? (
+              {sendingBillingReport ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Send className="h-4 w-4" />
