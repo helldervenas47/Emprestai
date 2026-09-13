@@ -443,7 +443,7 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
       <SuccessAnimation show={showSuccess} onComplete={onClose} message={isVehicleRental ? "Aluguel registrado!" : "Lançamento registrado!"} />
       <Card no3d className="modal-form-scrollable w-full h-[100dvh] max-h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-lg rounded-none sm:rounded-2xl border-0 sm:border border-border/80 shadow-2xl flex flex-col bg-card overflow-hidden">
         {/* Sticky Header com Safe Area Top */}
-        <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-md border-b border-border/60 px-4 pt-[max(env(safe-area-inset-top),0.875rem)] pb-3.5 sm:px-6 sm:py-4 flex items-center justify-between shrink-0">
+        <div className="sticky top-0 z-20 bg-card border-b border-border/60 px-4 pt-[max(env(safe-area-inset-top),0.875rem)] pb-3.5 sm:px-6 sm:py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shadow-xs">
               {getHeaderIcon()}
@@ -1219,7 +1219,7 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
         </div>
 
         {/* Sticky Footer com Safe Area Bottom */}
-        <div className="sticky bottom-0 z-20 bg-card/95 backdrop-blur-md border-t border-border/60 p-4 sm:p-6 pb-[max(env(safe-area-inset-bottom),1rem)] sm:pb-6 shrink-0">
+        <div className="sticky bottom-0 z-20 bg-card border-t border-border/60 p-4 sm:p-6 pb-[max(env(safe-area-inset-bottom),1rem)] sm:pb-6 shrink-0">
           <Button
             type="submit"
             form="sale-form"

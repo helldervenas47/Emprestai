@@ -302,7 +302,7 @@ export function LoanEditModal({
     <FormModalOverlay className="flex items-stretch sm:items-center justify-center p-0 sm:p-4">
       <div className="w-full h-[100dvh] max-h-[100dvh] sm:h-auto sm:max-h-[92svh] sm:max-w-4xl bg-card rounded-none sm:rounded-2xl border-0 sm:border border-border/80 shadow-2xl flex flex-col overflow-hidden">
         {/* Sticky Header com Safe Area Top */}
-        <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-md border-b border-border/60 px-3.5 pt-[max(env(safe-area-inset-top),0.875rem)] pb-3 sm:px-6 sm:py-4 flex items-center justify-between gap-2 shrink-0">
+        <div className="sticky top-0 z-20 bg-card border-b border-border/60 px-3.5 pt-[max(env(safe-area-inset-top),0.875rem)] pb-3 sm:px-6 sm:py-4 flex items-center justify-between gap-2 shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 shadow-xs">
               <Pencil className="h-4 w-4" />
@@ -797,7 +797,7 @@ export function LoanEditModal({
         </div>
 
         {/* Sticky Footer */}
-        <div className="sticky bottom-0 z-20 bg-card/95 backdrop-blur-md border-t border-border/60 p-3.5 sm:p-5 flex items-center justify-end gap-2.5 sm:gap-3">
+        <div className="sticky bottom-0 z-20 bg-card border-t border-border/60 p-3.5 sm:p-5 pb-[max(env(safe-area-inset-bottom),1rem)] sm:pb-5 flex items-center justify-end gap-2.5 sm:gap-3 shrink-0">
           <Button
             type="button"
             variant="outline"
