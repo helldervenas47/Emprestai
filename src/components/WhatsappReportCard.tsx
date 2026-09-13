@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/userClient";
 import { useDataOwner } from "@/hooks/useDataOwner";
 import { useMyProfilePhone } from "@/hooks/useMyProfilePhone";
@@ -22,10 +21,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   FileSpreadsheet,
-  Zap,
 } from "lucide-react";
 
-type ReportType = "daily" | "weekly" | "monthly" | "accountant";
 type SlotKey = "send_time_1" | "send_time_2" | "send_time_3";
 
 export function WhatsappReportCard() {
@@ -41,11 +38,6 @@ export function WhatsappReportCard() {
 
   const [whatsappPhone, setWhatsappPhone] = useState("");
   const [sendingSummary, setSendingSummary] = useState(false);
-
-  // Disparo Rápido de outros relatórios
-  const [quickPhone, setQuickPhone] = useState("");
-  const [reportType, setReportType] = useState<ReportType>("daily");
-  const [quickLoading, setQuickLoading] = useState(false);
 
   useEffect(() => {
     if (prefs.whatsapp_phone) {
@@ -108,37 +100,6 @@ export function WhatsappReportCard() {
     }
   };
 
-  // Disparo rápido de relatórios avulsos
-  const sendQuickReport = async () => {
-    if (!ownerId) return;
-    setQuickLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("send-whatsapp-report", {
-        body: {
-          owner_id: ownerId,
-          phone: quickPhone.trim() || profilePhone || undefined,
-          report_type: reportType,
-        },
-      });
-
-      if (error) throw error;
-
-      if ((data as any)?.ok) {
-        toast.success("Relatório enviado", { description: "Confira seu WhatsApp." });
-      } else {
-        toast.error("Falha no envio", {
-          description: (data as any)?.error ?? `Status ${(data as any)?.status}`,
-        });
-      }
-    } catch (e: any) {
-      toast.error("Erro ao disparar relatório", {
-        description: e?.message || String(e),
-      });
-    } finally {
-      setQuickLoading(false);
-    }
-  };
-
   const handlePhoneBlur = async () => {
     if (whatsappPhone !== (prefs.whatsapp_phone ?? "")) {
       try {
@@ -159,7 +120,7 @@ export function WhatsappReportCard() {
 
   return (
     <div className="space-y-6">
-      {/* CARD 1: Resumo Operacional Diário Automático via WhatsApp */}
+      {/* Resumo Operacional Diário Automático via WhatsApp */}
       <Card no3d className="border-border/60 shadow-xs rounded-2xl overflow-hidden">
         <CardHeader className="p-4 sm:p-5 pb-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -372,67 +333,6 @@ export function WhatsappReportCard() {
                 Enviar Resumo Agora no WhatsApp
               </Button>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* CARD 2: Disparo Rápido de Relatórios Avulsos via WhatsApp */}
-      <Card no3d className="border-border/60 shadow-xs rounded-2xl">
-        <CardHeader className="p-4 sm:p-5 pb-3">
-          <CardTitle className="text-base font-bold flex items-center gap-2">
-            <Zap className="h-5 w-5 text-primary" />
-            Disparo Rápido de Relatórios Avulsos
-          </CardTitle>
-          <CardDescription className="text-xs text-muted-foreground">
-            Envie instantaneamente um relatório específico para você ou para outro número de WhatsApp.
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent className="p-4 sm:p-5 pt-2 space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Tipo de relatório a enviar</Label>
-              <Select value={reportType} onValueChange={(v) => setReportType(v as ReportType)}>
-                <SelectTrigger className="text-xs rounded-xl h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="daily">Resumo Diário Operacional (hoje)</SelectItem>
-                  <SelectItem value="weekly">Resumo Semanal (últimos 7 dias)</SelectItem>
-                  <SelectItem value="monthly">Fechamento Mensal Consolidado</SelectItem>
-                  <SelectItem value="accountant">Relatório Contábil do Mês</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Telefone de destino (opcional)</Label>
-              <Input
-                placeholder={profilePhone || "Ex.: (11) 99999-8888"}
-                value={quickPhone}
-                onChange={(e) => setQuickPhone(e.target.value)}
-                className="text-xs rounded-xl h-9"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-3 pt-2 flex-wrap">
-            <p className="text-[11px] text-muted-foreground flex-1 min-w-[200px]">
-              O relatório avulso será gerado na hora e enviado usando a sua instância ativa.
-            </p>
-            <Button
-              onClick={sendQuickReport}
-              disabled={quickLoading || !isWhatsappConfigured}
-              variant="outline"
-              className="h-9 text-xs font-semibold rounded-xl shrink-0"
-            >
-              {quickLoading ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <MessageCircle className="h-4 w-4 mr-2 text-emerald-500" />
-              )}
-              Gerar e Disparar Relatório
-            </Button>
           </div>
         </CardContent>
       </Card>
