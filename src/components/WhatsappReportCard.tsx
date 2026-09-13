@@ -120,7 +120,7 @@ export function WhatsappReportCard() {
 
   return (
     <div className="space-y-6">
-      {/* Card 1: Configurações de Telefone e WhatsApp para Envio Automático */}
+      {/* Card 1: Configurações de Telefone e Ativação do WhatsApp */}
       <Card no3d className="border-border/60 shadow-xs rounded-2xl overflow-hidden">
         <CardHeader className="p-4 sm:p-5 pb-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -130,10 +130,10 @@ export function WhatsappReportCard() {
               </div>
               <div>
                 <CardTitle className="text-base font-bold flex items-center gap-2">
-                  Configurações de Envio WhatsApp
+                  Telefone e Destino no WhatsApp
                 </CardTitle>
                 <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                  Defina o número de destino e os horários para o envio diário automatizado.
+                  Defina o número de destino e habilite o envio automatizado dos resumos.
                 </CardDescription>
               </div>
             </div>
@@ -160,7 +160,7 @@ export function WhatsappReportCard() {
           </div>
         </CardHeader>
 
-        <CardContent className="p-4 sm:p-5 pt-2 space-y-5">
+        <CardContent className="p-4 sm:p-5 pt-2 space-y-4">
           {/* Toggle de Ativação */}
           <div className="flex items-center justify-between p-3.5 rounded-xl bg-muted/40 border border-border/40">
             <div className="space-y-0.5">
@@ -168,7 +168,7 @@ export function WhatsappReportCard() {
                 Ativar envio automático no WhatsApp
               </Label>
               <p className="text-[11px] text-muted-foreground">
-                Dispara o resumo financeiro diário nos horários programados abaixo.
+                Dispara os resumos financeiros diários para o número configurado abaixo.
               </p>
             </div>
             <Switch
@@ -186,105 +186,48 @@ export function WhatsappReportCard() {
             />
           </div>
 
-          {/* Configurações de Horários e Telefone */}
-          <div className="grid gap-4 sm:grid-cols-2 pt-1">
-            {/* Telefone de Destino */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Telefone WhatsApp de Destino</Label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder={profilePhone || "Ex.: (11) 99999-8888"}
-                  value={whatsappPhone}
-                  onChange={(e) => setWhatsappPhone(e.target.value)}
-                  onBlur={handlePhoneBlur}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handlePhoneBlur();
-                  }}
-                  className="text-xs rounded-xl h-9"
-                />
-                {profilePhone && !whatsappPhone && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={async () => {
-                      setWhatsappPhone(profilePhone);
-                      try {
-                        await savePrefs({ whatsapp_phone: profilePhone });
-                      } catch {
-                        toast.error("Erro ao salvar telefone.");
-                      }
-                    }}
-                    className="text-[11px] h-9 shrink-0 px-2.5 rounded-xl"
-                    title="Preencher com o telefone do perfil"
-                  >
-                    Usar Perfil
-                  </Button>
-                )}
-              </div>
-              <p className="text-[10px] text-muted-foreground">
-                Se em branco, usará o telefone configurado no seu perfil ({profilePhone || "não cadastrado"}).
-              </p>
-            </div>
-
-            {/* Horários Configurados */}
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold flex items-center justify-between">
-                <span>Horários de Envio Diário</span>
-                <span className="text-[10px] text-muted-foreground font-normal">
-                  {activeSlots.length}/3 horários
-                </span>
-              </Label>
-
-              {activeSlots.length === 0 && (
-                <p className="text-xs text-muted-foreground italic py-1">
-                  Nenhum horário cadastrado. Clique abaixo para adicionar.
-                </p>
-              )}
-
-              <div className="space-y-2">
-                {activeSlots.map((key) => (
-                  <div key={key} className="flex items-center gap-2">
-                    <div className="flex-1 relative">
-                      <Clock className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                      <Input
-                        type="time"
-                        value={prefs[key] ?? ""}
-                        onChange={(e) => handleTimeChange(key, e.target.value || null)}
-                        className="text-xs rounded-xl h-9 pl-8"
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleTimeChange(key, null)}
-                      title="Remover horário"
-                      className="h-9 w-9 text-destructive hover:bg-destructive/10 rounded-xl shrink-0"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-
-              {canAddMoreSlots && (
+          {/* Telefone de Destino */}
+          <div className="space-y-1.5 pt-1">
+            <Label className="text-xs font-semibold">Telefone WhatsApp de Destino</Label>
+            <div className="flex gap-2 max-w-md">
+              <Input
+                placeholder={profilePhone || "Ex.: (11) 99999-8888"}
+                value={whatsappPhone}
+                onChange={(e) => setWhatsappPhone(e.target.value)}
+                onBlur={handlePhoneBlur}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handlePhoneBlur();
+                }}
+                className="text-xs rounded-xl h-9"
+              />
+              {profilePhone && !whatsappPhone && (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="w-full text-xs h-8 rounded-xl border-dashed"
-                  onClick={() => handleTimeChange(slots.find((s) => !prefs[s])!, "19:00")}
+                  onClick={async () => {
+                    setWhatsappPhone(profilePhone);
+                    try {
+                      await savePrefs({ whatsapp_phone: profilePhone });
+                    } catch {
+                      toast.error("Erro ao salvar telefone.");
+                    }
+                  }}
+                  className="text-[11px] h-9 shrink-0 px-2.5 rounded-xl"
+                  title="Preencher com o telefone do perfil"
                 >
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Horário
+                  Usar Perfil
                 </Button>
               )}
             </div>
+            <p className="text-[10px] text-muted-foreground">
+              Se em branco, usará o telefone configurado no seu perfil ({profilePhone || "não cadastrado"}).
+            </p>
           </div>
         </CardContent>
       </Card>
 
-      {/* Card 2: Resumo Operacional Diário & Indicadores */}
+      {/* Card 2: Resumo Operacional Diário com seus próprios horários e indicadores */}
       <Card no3d className="border-border/60 shadow-xs rounded-2xl overflow-hidden">
         <CardHeader className="p-4 sm:p-5 pb-3">
           <div className="flex items-start sm:items-center gap-3">
@@ -302,7 +245,64 @@ export function WhatsappReportCard() {
           </div>
         </CardHeader>
 
-        <CardContent className="p-4 sm:p-5 pt-2 space-y-4">
+        <CardContent className="p-4 sm:p-5 pt-2 space-y-5">
+          {/* Horários de Envio Deste Resumo */}
+          <div className="space-y-2 p-3.5 bg-muted/30 rounded-xl border border-border/40">
+            <Label className="text-xs font-semibold flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-primary" />
+                Horários de Envio Diário
+              </span>
+              <span className="text-[10px] text-muted-foreground font-normal">
+                {activeSlots.length}/3 horários
+              </span>
+            </Label>
+
+            {activeSlots.length === 0 && (
+              <p className="text-xs text-muted-foreground italic py-1">
+                Nenhum horário cadastrado. Clique abaixo para adicionar um horário para este resumo.
+              </p>
+            )}
+
+            <div className="grid gap-2 sm:grid-cols-3">
+              {activeSlots.map((key) => (
+                <div key={key} className="flex items-center gap-1.5 bg-background/80 p-1.5 rounded-xl border border-border/30">
+                  <div className="flex-1 relative">
+                    <Clock className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    <Input
+                      type="time"
+                      value={prefs[key] ?? ""}
+                      onChange={(e) => handleTimeChange(key, e.target.value || null)}
+                      className="text-xs rounded-lg h-8 pl-8 border-border/50"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleTimeChange(key, null)}
+                    title="Remover horário"
+                    className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-lg shrink-0"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+
+              {canAddMoreSlots && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-11 sm:h-auto min-h-[38px] text-xs rounded-xl border-dashed gap-1.5"
+                  onClick={() => handleTimeChange(slots.find((s) => !prefs[s])!, "19:00")}
+                >
+                  <Plus className="h-3.5 w-3.5" /> Adicionar Horário
+                </Button>
+              )}
+            </div>
+          </div>
+
           {/* Indicadores incluídos no Resumo */}
           <div className="space-y-2">
             <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
@@ -336,7 +336,7 @@ export function WhatsappReportCard() {
                   Aviso: Conecte sua API do WhatsApp na aba &quot;Disparos &amp; Automação&quot; para realizar os envios.
                 </span>
               ) : (
-                <span>O resumo pode ser testado agora ou enviado automaticamente nos horários agendados.</span>
+                <span>O resumo pode ser testado agora ou enviado automaticamente nos horários programados acima.</span>
               )}
             </p>
             <Button
