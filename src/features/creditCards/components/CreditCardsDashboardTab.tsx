@@ -438,10 +438,10 @@ export function CreditCardsDashboardTab({
       </div>
 
       {/* Seletor de Período (Mês Atual, Próximos Meses e Anteriores) */}
-      <div className="space-y-2.5 p-3.5 sm:p-4 rounded-2xl bg-card border border-border/60 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          {/* Card de Mês ocupando todo o espaço entre as setas */}
-          <div className="flex items-center gap-2 w-full">
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-card border border-border/60 shadow-xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Seletor de Mês com Navegação Anterior/Próximo */}
+          <div className="flex items-center gap-2 w-full lg:w-auto">
             <Button
               variant="outline"
               size="icon"
@@ -456,12 +456,17 @@ export function CreditCardsDashboardTab({
             <button
               type="button"
               onClick={handleCurrentMonth}
-              className="flex-1 px-3 py-2 rounded-xl bg-primary/10 hover:bg-primary/15 active:scale-[0.99] border border-primary/20 text-center transition-all cursor-pointer w-full"
+              className="flex-1 lg:flex-initial lg:min-w-[220px] px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary/15 active:scale-[0.99] border border-primary/20 text-center transition-all cursor-pointer flex items-center justify-center gap-2"
               title="Clique para voltar ao mês atual"
             >
               <span className="text-xs sm:text-sm font-bold text-primary capitalize block truncate">
                 {format(selectedDate, "MMMM 'de' yyyy", { locale: ptBR })}
               </span>
+              {selectedMonth === currentMonthKey && (
+                <Badge variant="outline" className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] py-0 px-1.5 shrink-0">
+                  Atual
+                </Badge>
+              )}
             </button>
 
             <Button
@@ -476,35 +481,26 @@ export function CreditCardsDashboardTab({
             </Button>
           </div>
 
-          <div className="text-xs text-muted-foreground flex items-center gap-2 shrink-0">
-            <span>Competência de Vencimento</span>
-            {selectedMonth === currentMonthKey && (
-              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-[10px] py-0 px-1.5">
-                Mês Vigente
-              </Badge>
-            )}
+          {/* Chips de Navegação Rápida entre Meses */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 scrollbar-hide">
+            {quickMonths.map((qm) => (
+              <button
+                key={qm.key}
+                type="button"
+                onClick={() => setSelectedMonth(qm.key)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 ${
+                  qm.isSelected
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/40"
+                }`}
+              >
+                <span className="capitalize">{qm.label}</span>
+                {qm.isCurrent && !qm.isSelected && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                )}
+              </button>
+            ))}
           </div>
-        </div>
-
-        {/* Chips de Navegação Rápida entre Meses */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 scrollbar-hide">
-          {quickMonths.map((qm) => (
-            <button
-              key={qm.key}
-              type="button"
-              onClick={() => setSelectedMonth(qm.key)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 ${
-                qm.isSelected
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/40"
-              }`}
-            >
-              <span className="capitalize">{qm.label}</span>
-              {qm.isCurrent && !qm.isSelected && (
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-              )}
-            </button>
-          ))}
         </div>
       </div>
 
