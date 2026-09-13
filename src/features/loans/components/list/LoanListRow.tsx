@@ -52,6 +52,7 @@ import { PayoffCompositionCard, PayoffSimulationCard } from "@/features/loans/co
 import { AmortizationResultCard } from "@/features/loans/components/AmortizationResultCard";
 import { captureScroll } from "@/features/loans/lib/preserveScroll";
 import { PaymentHubDialog } from "@/features/loans/components/payment-hub/PaymentHubDialog";
+import { LoanEditModal } from "@/features/loans/components/LoanEditModal";
 
 import { LateInterestDialog, PenaltyDialog } from "@/features/loans/components/LateFeeDialogs";
 import { WhatsappBillButton } from "@/features/loans/components/list/WhatsappBillButton";
@@ -264,95 +265,9 @@ function LoanRowView({
   const badge = statusMap[category];
 
   const startEdit = () => {
-    setForm(loanToForm(loan));
-    setEditHasManager(loan.hasManager ?? false);
-    setEditManagerId(loan.managerId ?? "");
-    setEditCommissionRate(String(loan.managerCommissionRate ?? 10));
     setEditing(true);
-    setExpanded(true);
   };
   const cancelEdit = () => setEditing(false);
-  const saveEdit = async () => {
-    const parsedTags = form.tags.split(",").map((t) => t.trim()).filter(Boolean);
-    const manualInterest = parseFloat(form.interestValue) || 0;
-    const calcInterest = (parseFloat(form.amount) || 0) * ((parseFloat(form.interestRate) || 0) / 100);
-    const hasCustomInterest = manualInterest > 0 && Math.abs(manualInterest - calcInterest) > 0.01;
-    if (editHasManager && !editManagerId) {
-      toast.error("Selecione um gerente para o empréstimo com gerente.");
-      return;
-    }
-    // Aviso: alterar campos financeiros de contrato com pagamentos pode descalibrar histórico.
-    const loanPaymentsCount = allPayments.filter((p) => p.loanId === loan.id).length;
-    const newAmount = parseFloat(form.amount) || loan.amount;
-    const newRemaining = parseFloat(form.remainingAmount) || 0;
-    const newInstallments = parseInt(form.installments) || loan.installments;
-    const newPaidInstallments = parseInt(form.paidInstallments) || 0;
-    const sensitiveDiff =
-      newAmount !== loan.amount ||
-      newRemaining !== (loan.remainingAmount ?? 0) ||
-      newInstallments !== loan.installments ||
-      newPaidInstallments !== loan.paidInstallments;
-    if (loanPaymentsCount > 0 && sensitiveDiff) {
-      const ok = confirmWithScroll(
-        `Este contrato já tem ${loanPaymentsCount} pagamento(s) registrado(s).\n\n` +
-        `Alterar o valor emprestado, valor restante ou número de parcelas pode descalibrar o histórico.\n\n` +
-        `Para reestruturar valores preservando os pagamentos, use a opção "Renegociar".\n\n` +
-        `Deseja continuar mesmo assim?`
-      );
-      if (!ok) return;
-    }
-    const matchedClient = clients.find(
-      (c) => normalizeClientKey(c.name) === normalizeClientKey(form.borrowerName)
-    );
-    try {
-      const newDueDate = form.dueDate || loan.dueDate;
-      await Promise.resolve(onUpdate({
-        borrowerName: form.borrowerName,
-        borrowerId: matchedClient ? matchedClient.id : undefined,
-        amount: parseFloat(form.amount) || loan.amount,
-        interestRate: form.interestRate.trim() === "" || isNaN(parseFloat(form.interestRate)) ? loan.interestRate : Math.max(0, parseFloat(form.interestRate)),
-        installments: parseInt(form.installments) || loan.installments,
-        paidInstallments: parseInt(form.paidInstallments) || 0,
-        startDate: form.startDate || loan.startDate,
-        dueDate: newDueDate,
-        interestType: form.interestType,
-        notes: form.notes,
-        tags: parsedTags,
-        remainingAmount: parseFloat(form.remainingAmount) || 0,
-        customInterestValue: hasCustomInterest ? manualInterest : null,
-        hasManager: editHasManager,
-        managerId: editHasManager && editManagerId ? editManagerId : null,
-        managerCommissionRate: editHasManager ? parseFloat(editCommissionRate) || 10 : null,
-        isSale: editIsSale,
-      }));
-
-      if (onSaveSchedule && newDueDate !== loan.dueDate) {
-        const totalInst = parseInt(form.installments) || loan.installments;
-        const paidInst = parseInt(form.paidInstallments) || 0;
-        const nextNum = paidInst + 1;
-        const freq = form.interestType || loan.interestType || "Mensal";
-        const rem = parseFloat(form.remainingAmount) || loan.amount;
-        const remInst = Math.max(1, totalInst - paidInst);
-        const instVal = rem / remInst;
-        const rows = Array.from({ length: totalInst }, (_, i) => {
-          const num = i + 1;
-          const existing = installmentSchedules.find((s) => s.loanId === loan.id && s.installmentNumber === num);
-          if (num < nextNum) {
-            return { installmentNumber: num, dueDate: existing?.dueDate || advanceLoanDueDate(loan.dueDate, freq, num - 1), amount: existing?.amount ?? instVal };
-          }
-          const offset = num - nextNum;
-          return { installmentNumber: num, dueDate: advanceLoanDueDate(newDueDate, freq, offset), amount: existing?.amount ?? instVal };
-        });
-        await onSaveSchedule(loan.id, rows);
-      }
-
-      setEditing(false);
-      toast.success("Alterações salvas com sucesso");
-    } catch (err: any) {
-      console.error("[saveEdit] Erro ao salvar:", err);
-      toast.error("Erro ao salvar alterações: " + (err?.message || "Tente novamente"));
-    }
-  };
 
   const openPaymentDialog = (type: "installment" | "interest" | "partial" | "full" | "payoff" | "amortize", amount?: number) => {
     setPaymentDate(new Date());
@@ -489,36 +404,6 @@ function LoanRowView({
       setPartialDate(new Date());
       setShowPartial(false);
     }
-  };
-
-  const updateField = (field: keyof EditForm, value: string) => {
-    setForm((prev) => {
-      const next = { ...prev, [field]: value };
-      const amt = parseFloat(next.amount) || 0;
-      const months = parseInt(next.installments) || 1;
-
-      if (field === "amount" || field === "interestRate" || field === "installments" || field === "remainingAmount" || field === "paidInstallments") {
-        const rate = parseFloat(next.interestRate) || 0;
-        next.interestValue = (amt * (rate / 100)).toFixed(2);
-        const totalCalc = calculateTotalWithInterest(amt, rate, months);
-        const rem = parseFloat(next.remainingAmount) || totalCalc;
-        const paidInst = parseInt(next.paidInstallments) || 0;
-        const remInst = Math.max(1, months - paidInst);
-        next.installmentValue = (rem / remInst).toFixed(2);
-      } else if (field === "interestValue") {
-        const iv = parseFloat(value) || 0;
-        const newRate = amt > 0 ? (iv / amt) * 100 : 0;
-        next.interestRate = newRate.toFixed(2);
-        const totalCalc = calculateTotalWithInterest(amt, newRate, months);
-        const rem = parseFloat(next.remainingAmount) || totalCalc;
-        const paidInst = parseInt(next.paidInstallments) || 0;
-        const remInst = Math.max(1, months - paidInst);
-        next.installmentValue = (rem / remInst).toFixed(2);
-      } else if (field === "installmentValue") {
-        // Manual installment value — don't auto-recalculate
-      }
-      return next;
-    });
   };
 
   const accentBorderClass =
@@ -659,348 +544,6 @@ function LoanRowView({
     {expanded && (
       <tr className="border-b border-border/30 bg-muted/10">
         <td colSpan={8} className="px-3 sm:px-6 py-4" onClick={(e) => e.stopPropagation()}>
-          {editing ? (
-            <div className="space-y-4 rounded-2xl border border-primary/40 bg-card p-4 sm:p-6 shadow-xl animate-in fade-in-0 duration-200">
-              {/* Header Elegante */}
-              <div className="flex items-center justify-between border-b border-border/70 pb-3 sm:pb-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 shadow-2xs">
-                    <Pencil className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-base text-foreground leading-tight">Editar Empréstimo</h3>
-                    <p className="text-[11px] text-muted-foreground">Atualize as informações e condições do contrato</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
-                    onClick={cancelEdit}
-                  >
-                    <X className="h-3.5 w-3.5 mr-1" />
-                    Cancelar
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="h-8 px-3 text-xs font-semibold bg-primary text-primary-foreground shadow-xs gap-1.5"
-                    onClick={saveEdit}
-                    aria-label="Salvar alterações"
-                  >
-                    <Check className="h-3.5 w-3.5" />
-                    <span>Salvar</span>
-                  </Button>
-                </div>
-              </div>
-
-              {/* Bloco 1: Devedor e Valores Principais */}
-              <div className="rounded-xl border border-border/70 bg-muted/10 p-3.5 sm:p-4 space-y-3.5">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Nome do Devedor *
-                  </Label>
-                  <Input
-                    value={form.borrowerName}
-                    onChange={(e) => updateField("borrowerName", e.target.value)}
-                    placeholder="Nome completo do cliente"
-                    className="h-10 text-sm font-medium bg-background"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Valor (R$) *
-                    </Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={form.amount}
-                      onChange={(e) => updateField("amount", e.target.value)}
-                      placeholder="0,00"
-                      className="h-10 text-sm font-semibold bg-background"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Juros Mensal (%)
-                    </Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      value={form.interestRate}
-                      onChange={(e) => updateField("interestRate", e.target.value)}
-                      placeholder="0"
-                      className="h-10 text-sm font-semibold bg-background"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Valor do Juros (R$)
-                    </Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={form.interestValue}
-                      onChange={(e) => updateField("interestValue", e.target.value)}
-                      placeholder="0,00"
-                      className="h-10 text-sm font-semibold bg-background"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Total a Receber (R$)
-                    </Label>
-                    <div className="h-10 px-3 rounded-lg border border-primary/25 bg-primary/5 flex items-center justify-between">
-                      <span className="text-sm font-bold text-primary tabular-nums">
-                        {formatCurrency((parseFloat(form.amount) || 0) + (parseFloat(form.interestValue) || 0))}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bloco 2: Parcelamento e Saldos a Receber */}
-              <div className="rounded-xl border border-border/70 bg-muted/10 p-3.5 sm:p-4 space-y-3.5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Valor da Parcela (R$)
-                    </Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={form.installmentValue}
-                      onChange={(e) => updateField("installmentValue", e.target.value)}
-                      placeholder="0,00"
-                      className="h-10 text-sm font-semibold bg-background"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Parcelas Totais
-                    </Label>
-                    <Input
-                      type="number"
-                      value={form.installments}
-                      onChange={(e) => updateField("installments", e.target.value)}
-                      placeholder="1"
-                      min="1"
-                      className="h-10 text-sm font-semibold bg-background"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                      Parcelas Pagas
-                    </Label>
-                    <Input
-                      type="number"
-                      value={form.paidInstallments}
-                      onChange={(e) => updateField("paidInstallments", e.target.value)}
-                      placeholder="0"
-                      min="0"
-                      className="h-10 text-sm font-semibold bg-background border-emerald-500/30 focus-visible:ring-emerald-500"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-primary">
-                      Restante a Receber (R$)
-                    </Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={form.remainingAmount}
-                      onChange={(e) => updateField("remainingAmount", e.target.value)}
-                      placeholder="0,00"
-                      className="h-10 text-sm font-semibold bg-background border-primary/30 focus-visible:ring-primary"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Bloco 3: Prazos e Modalidade de Contrato */}
-              <div className="rounded-xl border border-border/70 bg-muted/10 p-3.5 sm:p-4 space-y-3.5">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Data Início
-                    </Label>
-                    <DatePickerField
-                      value={form.startDate}
-                      onChange={(v) => updateField("startDate", v)}
-                      className="h-10 text-sm bg-background"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Data 1ª Parcela
-                    </Label>
-                    <NativeDatePicker
-                      value={form.dueDate || ""}
-                      onChange={(v) => updateField("dueDate", v)}
-                      placeholder="Selecione"
-                      className="h-10 text-sm bg-background"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Tipo Contrato
-                    </Label>
-                    <Select value={form.interestType} onValueChange={(v) => updateField("interestType", v)}>
-                      <SelectTrigger className="h-10 text-sm font-medium bg-background">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Diário">Diário</SelectItem>
-                        <SelectItem value="Semanal">Semanal</SelectItem>
-                        <SelectItem value="Quinzenal">Quinzenal</SelectItem>
-                        <SelectItem value="Mensal">Mensal</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Ajuste de Vencimento Integrado */}
-                <div className="rounded-lg border border-border/60 p-3 bg-background flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Vencimento atual</p>
-                    <p className="text-sm font-bold tabular-nums text-foreground">
-                      {(() => {
-                        const d = getFirstPendingDate(loan, installmentSchedules);
-                        return d ? d.toLocaleDateString("pt-BR") : "—";
-                      })()}
-                    </p>
-                  </div>
-                  <Button size="sm" variant="outline" className="h-8 text-xs font-medium" onClick={() => setShowAdjustDueDateRow(true)}>
-                    Ajustar vencimento
-                  </Button>
-                </div>
-              </div>
-
-              {/* Bloco 4: Opções Avançadas */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Manager edit block */}
-                <div className="rounded-xl border border-border/70 p-3.5 bg-muted/10 space-y-3">
-                  <div className="flex items-center gap-2.5">
-                    <input
-                      type="checkbox"
-                      id={`row-edit-mgr-${loan.id}`}
-                      checked={editHasManager}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setEditHasManager(checked);
-                        updateField("interestRate", checked ? "20" : "30");
-                      }}
-                      className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
-                    />
-                    <Label htmlFor={`row-edit-mgr-${loan.id}`} className="text-xs font-semibold cursor-pointer">
-                      Empréstimo com gerente
-                    </Label>
-                  </div>
-                  {editHasManager && (
-                    <div className="grid grid-cols-2 gap-2.5 pt-1">
-                      <div className="space-y-1">
-                        <Label className="text-[11px] font-medium text-muted-foreground">Gerente</Label>
-                        <Select value={editManagerId} onValueChange={setEditManagerId}>
-                          <SelectTrigger className="h-9 text-xs bg-background">
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {managerOptions.map((m) => (
-                              <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[11px] font-medium text-muted-foreground">Comissão (%)</Label>
-                        <Input
-                          type="number"
-                          step="0.1"
-                          value={editCommissionRate}
-                          onChange={(e) => setEditCommissionRate(e.target.value)}
-                          className="h-9 text-xs bg-background"
-                          placeholder="0"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Sale toggle */}
-                <div className="rounded-xl border border-border/70 p-3.5 bg-muted/10 flex items-center">
-                  <div className="flex items-center gap-2.5">
-                    <input
-                      type="checkbox"
-                      id={`row-edit-sale-${loan.id}`}
-                      checked={editIsSale}
-                      onChange={(e) => setEditIsSale(e.target.checked)}
-                      className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
-                    />
-                    <Label htmlFor={`row-edit-sale-${loan.id}`} className="text-xs font-semibold cursor-pointer">
-                      Contrato de venda
-                    </Label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bloco 5: Etiquetas e Observações */}
-              <div className="space-y-3">
-                <div className="rounded-xl border border-border/70 bg-muted/10 p-3.5 sm:p-4 space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Etiquetas (separar por vírgula)
-                  </Label>
-                  <Input
-                    value={form.tags}
-                    onChange={(e) => updateField("tags", e.target.value)}
-                    className="h-10 text-sm bg-background"
-                    placeholder="Ex: VIP, Renovação, Garantia"
-                  />
-                </div>
-
-                <div className="rounded-xl border border-border/70 bg-muted/10 p-3.5 sm:p-4 space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Observações
-                  </Label>
-                  <Textarea
-                    value={form.notes}
-                    onChange={(e) => updateField("notes", e.target.value)}
-                    rows={3}
-                    className="text-sm bg-background resize-none"
-                    placeholder="Anotações internas sobre este empréstimo..."
-                  />
-                </div>
-              </div>
-
-              {/* Footer de Ações */}
-              <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-border/70">
-                <Button
-                  variant="outline"
-                  onClick={cancelEdit}
-                  className="h-10 px-4 font-medium rounded-xl"
-                >
-                  <X className="h-4 w-4 mr-1.5" />
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={saveEdit}
-                  className="h-10 px-5 font-semibold rounded-xl bg-primary text-primary-foreground shadow-md transition-all active:scale-[0.99]"
-                >
-                  <Check className="h-4 w-4 mr-1.5" />
-                  Salvar Alterações
-                </Button>
-              </div>
-            </div>
-          ) : (
           <div className="space-y-3.5">
             {/* 1. Composição Matemática do Saldo (Extrato Resumido com Total a Receber) */}
             <div>
@@ -1608,7 +1151,6 @@ function LoanRowView({
               );
             })()}
           </div>
-          )}
         </td>
       </tr>
     )}
@@ -2332,6 +1874,18 @@ function LoanRowView({
       onFullPayment={onFullPayment}
       onInterestPayment={onInterestPayment}
       onAmortize={onAmortize}
+    />
+    <LoanEditModal
+      loan={loan}
+      isOpen={editing}
+      onClose={() => setEditing(false)}
+      onUpdate={(data) => onUpdate(data)}
+      onSaveSchedule={onSaveSchedule}
+      allPayments={allPayments}
+      installmentSchedules={installmentSchedules}
+      managerOptions={managerOptions}
+      existingTags={existingTags}
+      clients={clients}
     />
     </>
   );
