@@ -1,6 +1,6 @@
-// Envia um relatório financeiro resumido pelo WhatsApp (Whatsmiau / Evolution API).
-// Pensado para ser colado no Dashboard do Supabase EXTERNO (Edge Functions → New).
-// Body: { owner_id: string, phone?: string, report_type?: "daily"|"weekly"|"monthly"|"accountant" }
+// Envia um relatório financeiro resumido pelo WhatsApp (Evolution API / WppConnect / Whatsmiau).
+// Pensado para ser colado no Dashboard do Supabase EXTERNO ou nativo (Edge Functions → New).
+// Body: { owner_id: string, phone?: string, report_type?: "daily"|"weekly"|"monthly"|"accountant", custom_text?: string, message?: string }
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 
 const corsHeaders = {
@@ -33,12 +33,44 @@ function normalizePhone(raw: string) {
   return v.startsWith("55") ? v : (v.length >= 10 ? "55" + v : v);
 }
 
-async function sendWhatsapp(baseUrl: string, instance: string, apiKey: string, phone: string, text: string) {
-  const url = `${baseUrl.replace(/\/+$/, "")}/message/sendText/${instance}`;
+async function sendWhatsapp(
+  baseUrl: string,
+  instance: string,
+  apiKey: string,
+  phone: string,
+  text: string,
+  provider?: string,
+) {
+  const base = baseUrl.replace(/\/+$/, "");
+  const inst = encodeURIComponent(instance.trim());
+  const formattedPhone = normalizePhone(phone);
+
+  if (provider === "wppconnect") {
+    const url = `${base}/api/${inst}/send-message`;
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+      },
+      body: JSON.stringify({ phone: formattedPhone, message: text }),
+    });
+    return { ok: resp.ok, status: resp.status, body: await resp.text() };
+  }
+
+  // Evolution API / Whatsmiau / Padrão
+  const url = `${base}/message/sendText/${inst}`;
   const resp = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json", apikey: apiKey },
-    body: JSON.stringify({ number: phone, text, textMessage: { text } }),
+    headers: {
+      "Content-Type": "application/json",
+      ...(apiKey ? { apikey: apiKey } : {}),
+    },
+    body: JSON.stringify({
+      number: formattedPhone,
+      text: text,
+      textMessage: { text: text },
+    }),
   });
   return { ok: resp.ok, status: resp.status, body: await resp.text() };
 }
@@ -103,15 +135,26 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const SUPABASE_URL = Deno.env.get("EXTERNAL_SUPABASE_URL")!;
-    const SERVICE_KEY = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")!;
-    const API_KEY = Deno.env.get("EVOLUTION_API_KEY") || Deno.env.get("WHATSMIAU_API_KEY") || "";
-    if (!API_KEY) {
-      return new Response(JSON.stringify({ error: "EVOLUTION_API_KEY not set" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const SUPABASE_URL =
+      Deno.env.get("EXTERNAL_SUPABASE_URL") ||
+      Deno.env.get("SUPABASE_URL") ||
+      "";
+    const SERVICE_KEY =
+      Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY") ||
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ||
+      "";
+
+    if (!SUPABASE_URL || !SERVICE_KEY) {
+      return new Response(
+        JSON.stringify({ error: "Credenciais do Supabase não configuradas no ambiente da Edge Function." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+    const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
+      auth: { persistSession: false },
+    });
+
     const body = await req.json().catch(() => ({}));
     const ownerId: string = body.owner_id;
     const reportType: string = body.report_type ?? "daily";
@@ -140,21 +183,45 @@ Deno.serve(async (req: Request) => {
 
     const { data: sched } = await admin
       .from("whatsapp_billing_schedule")
-      .select("base_url, instance_id, api_key").eq("owner_id", ownerId).maybeSingle();
+      .select("base_url, instance_id, api_key, provider").eq("owner_id", ownerId).maybeSingle();
     if (!sched?.base_url || !sched?.instance_id) {
       return new Response(JSON.stringify({ error: "whatsapp_not_configured" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const effectiveApiKey = sched.api_key || API_KEY;
-    const text = body.custom_text || body.message || await buildReport(admin, ownerId, reportType);
-    const sent = await sendWhatsapp(sched.base_url, sched.instance_id, effectiveApiKey, normalizePhone(phone), text);
+    const effectiveApiKey =
+      sched.api_key ||
+      Deno.env.get("EVOLUTION_API_KEY") ||
+      Deno.env.get("WHATSMIAU_API_KEY") ||
+      "";
 
-    return new Response(JSON.stringify({ ok: sent.ok, status: sent.status, preview: text }),
+    const text = body.custom_text || body.message || await buildReport(admin, ownerId, reportType);
+    const sent = await sendWhatsapp(
+      sched.base_url,
+      sched.instance_id,
+      effectiveApiKey,
+      phone,
+      text,
+      sched.provider,
+    );
+
+    if (!sent.ok) {
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          error: `Falha na API do WhatsApp (HTTP ${sent.status}): ${sent.body || "Sem detalhes"}`,
+          status: sent.status,
+        }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    return new Response(JSON.stringify({ ok: true, status: sent.status, preview: text }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (e) {
+  } catch (e: any) {
     console.error("[send-whatsapp-report]", e);
-    return new Response(JSON.stringify({ error: String(e) }),
+    return new Response(JSON.stringify({ error: e?.message || String(e) }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
+

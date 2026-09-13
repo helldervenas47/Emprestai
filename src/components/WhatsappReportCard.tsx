@@ -418,7 +418,20 @@ export function WhatsappReportCard() {
       if (!edgeErr && edgeRes?.ok) {
         toast.success("Relatório de Cobranças enviado para o seu WhatsApp!");
       } else {
-        const errorDesc = edgeRes?.error || edgeErr?.message || directRes.error || "O servidor de WhatsApp não autorizou o envio.";
+        let errorDesc = edgeRes?.error;
+        if (edgeErr) {
+          try {
+            if ((edgeErr as any).context && typeof (edgeErr as any).context.json === "function") {
+              const errJson = await (edgeErr as any).context.json();
+              if (errJson?.error) errorDesc = errJson.error;
+            }
+          } catch {
+            // ignore
+          }
+          if (!errorDesc) errorDesc = edgeErr.message;
+        }
+        if (!errorDesc) errorDesc = directRes.error || "O servidor de WhatsApp não autorizou o envio.";
+
         toast.error("Falha ao enviar pelo WhatsApp", {
           description: errorDesc,
         });
