@@ -521,37 +521,38 @@ export function CreditCardsDashboardTab({
               {mask(fmt(consolidatedMetrics.totalInvoices))}
             </p>
             {previousMonthMetrics.hasPrevious ? (
-              <div className="flex items-center gap-1 flex-wrap mt-0.5">
+              <p
+                className="text-[10px] sm:text-[11px] mt-0.5 flex items-center gap-1 font-medium truncate"
+                title={`Mês anterior: ${fmt(previousMonthMetrics.prevTotal)}`}
+              >
                 {previousMonthMetrics.diffValue === 0 ? (
-                  <p className="text-[11px] text-muted-foreground">
-                    0,0% (estável vs mês anterior)
-                  </p>
+                  <span className="text-muted-foreground">0,0% estável vs mês ant.</span>
                 ) : (
-                  <p
-                    className={`text-[11px] font-semibold flex items-center gap-0.5 tabular-nums ${
-                      previousMonthMetrics.diffValue > 0
-                        ? "text-rose-500 dark:text-rose-400"
-                        : "text-emerald-600 dark:text-emerald-400"
-                    }`}
-                    title={`Mês anterior: ${fmt(previousMonthMetrics.prevTotal)}`}
-                  >
-                    {previousMonthMetrics.diffValue > 0 ? (
-                      <TrendingUp className="h-3 w-3 shrink-0" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3 shrink-0" />
-                    )}
-                    <span>
+                  <>
+                    <span
+                      className={`inline-flex items-center gap-0.5 font-bold tabular-nums shrink-0 ${
+                        previousMonthMetrics.diffValue > 0
+                          ? "text-rose-500 dark:text-rose-400"
+                          : "text-emerald-600 dark:text-emerald-400"
+                      }`}
+                    >
+                      {previousMonthMetrics.diffValue > 0 ? (
+                        <TrendingUp className="h-3 w-3 shrink-0" />
+                      ) : (
+                        <TrendingDown className="h-3 w-3 shrink-0" />
+                      )}
                       {previousMonthMetrics.diffValue > 0 ? "+" : ""}
-                      {mask(fmt(previousMonthMetrics.diffValue))} (
-                      {previousMonthMetrics.diffValue > 0 ? "+" : ""}
-                      {previousMonthMetrics.percentChange.toFixed(1).replace(".", ",")}%)
+                      {previousMonthMetrics.percentChange.toFixed(1).replace(".", ",")}%
                     </span>
-                    <span className="text-[10px] font-normal text-muted-foreground">vs mês ant.</span>
-                  </p>
+                    <span className="text-muted-foreground truncate">
+                      ({previousMonthMetrics.diffValue > 0 ? "+" : ""}
+                      {mask(fmt(previousMonthMetrics.diffValue))})
+                    </span>
+                  </>
                 )}
-              </div>
+              </p>
             ) : (
-              <p className="text-[11px] text-muted-foreground mt-0.5">
+              <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
                 {cards.length} {cards.length === 1 ? "cartão cadastrado" : "cartões no total"}
               </p>
             )}
