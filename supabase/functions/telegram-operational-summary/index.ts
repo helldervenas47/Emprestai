@@ -14,8 +14,11 @@ function safeEqual(a: string, b: string): boolean {
 
 export function timeToMinutes(value: string | null | undefined): number | null {
   if (!value) return null;
-  const [hour, minute] = String(value).split(":").map(Number);
+  const parts = String(value).trim().split(":");
+  let hour = Number(parts[0]);
+  const minute = Number(parts[1]);
   if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  if (hour === 24) hour = 0;
   if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
   return hour * 60 + minute;
 }
@@ -191,12 +194,15 @@ function nowParts(tz = "America/Sao_Paulo") {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+    hourCycle: "h23",
   });
   const parts = fmt.formatToParts(new Date());
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  let hour = get("hour");
+  if (hour === "24") hour = "00";
   return {
     today: `${get("year")}-${get("month")}-${get("day")}`,
-    hhmm: `${get("hour")}:${get("minute")}`,
+    hhmm: `${hour.padStart(2, "0")}:${get("minute").padStart(2, "0")}`,
   };
 }
 
