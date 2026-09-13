@@ -107,6 +107,54 @@ function formatBillingReportForWhatsapp(
   return lines.join("\n");
 }
 
+async function sendWhatsappDirectly(
+  schedule: { provider?: string; base_url?: string; instance_id?: string; api_key?: string },
+  rawPhone: string,
+  message: string
+): Promise<{ ok: boolean; status?: number; error?: string }> {
+  if (!schedule.base_url?.trim() || !schedule.instance_id?.trim()) {
+    return { ok: false, error: "whatsapp_not_configured" };
+  }
+
+  const digits = rawPhone.replace(/\D/g, "");
+  const phone = digits.startsWith("55") && digits.length >= 12 ? digits : `55${digits}`;
+  const base = schedule.base_url.replace(/\/+$/, "");
+  const instance = encodeURIComponent(schedule.instance_id.trim());
+  const provider = schedule.provider || "evolution";
+  const apiKey = schedule.api_key || "";
+
+  try {
+    if (provider === "wppconnect") {
+      const res = await fetch(`${base}/api/${instance}/send-message`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+        },
+        body: JSON.stringify({ phone, message }),
+      });
+      return { ok: res.ok, status: res.status };
+    }
+
+    // Evolution API / Whatsmiau
+    const res = await fetch(`${base}/message/sendText/${instance}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(apiKey ? { apikey: apiKey } : {}),
+      },
+      body: JSON.stringify({
+        number: phone,
+        text: message,
+        textMessage: { text: message },
+      }),
+    });
+    return { ok: res.ok, status: res.status };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || String(err) };
+  }
+}
+
 export function WhatsappReportCard() {
   const { user, dataOwnerId } = useAuth();
   const ownerId = dataOwnerId || user?.id;
@@ -334,7 +382,26 @@ export function WhatsappReportCard() {
       // Monta a mensagem completa formatada para o WhatsApp
       const reportMessage = formatBillingReportForWhatsapp(aCobrarCandidates, sentIds, today);
 
-      const destPhone = whatsappPhone.trim() || profilePhone || undefined;
+      const destPhone = (whatsappPhone.trim() || profilePhone || "").trim();
+      if (!destPhone) {
+        toast.error("Nenhum telefone configurado", {
+          description: "Informe o telefone WhatsApp de destino acima.",
+        });
+        return;
+      }
+
+      // 1. Tenta envio direto para a API do WhatsApp (Evolution API / WppConnect)
+      let sentSuccess = false;
+      if (schedule.base_url?.trim() && schedule.instance_id?.trim()) {
+        const directRes = await sendWhatsappDirectly(schedule, destPhone, reportMessage);
+        if (directRes.ok) {
+          sentSuccess = true;
+          toast.success("Relatório de Cobranças enviado para o seu WhatsApp!");
+          return;
+        }
+      }
+
+      // 2. Fallback via Edge Function
       const { data, error } = await supabase.functions.invoke("telegram-operational-summary", {
         body: {
           owner_id: ownerId,
@@ -352,7 +419,7 @@ export function WhatsappReportCard() {
 
       if (error) throw error;
 
-      if (data?.sent) {
+      if (data?.sent || sentSuccess) {
         toast.success("Relatório de Cobranças enviado para o seu WhatsApp!");
       } else {
         const reason = data?.reason;
