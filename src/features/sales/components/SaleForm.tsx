@@ -19,6 +19,7 @@ import { ClientCombobox } from "@/components/ui/client-combobox";
 import { CityCombobox } from "@/components/ui/city-combobox";
 import { SaleCategoryPicker } from "@/features/sales/components/SaleCategoryPicker";
 import { FormModalOverlay } from "@/components/ui/form-modal-overlay";
+import { useAuth } from "@/hooks/useAuth";
 
 
 const businessTypeLabels: Record<BusinessType, string> = {
