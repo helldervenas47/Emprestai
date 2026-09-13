@@ -116,6 +116,230 @@ function groupCandidatesByClient(candidates: BillingCandidateItem[]): GroupedCli
   );
 }
 
+function calculateInstallment(principal: number, rate: number, installments: number): number {
+  if (installments <= 0) return 0;
+  const total = principal * (1 + rate / 100);
+  return total / installments;
+}
+
+function calculateTotalWithInterest(principal: number, rate: number) {
+  return Math.round(principal * (1 + rate / 100));
+}
+
+function getBaseRemainingAmount(loan: any, payments: any[], schedules: any[]) {
+  if (loan.remaining_amount != null && Number(loan.remaining_amount) > 0) {
+    return Number(loan.remaining_amount);
+  }
+  const paidCount = Number(loan.paid_installments || 0);
+  const unpaidSchedules = schedules.filter(
+    (s: any) => s.loan_id === loan.id && Number(s.installment_number) > paidCount
+  );
+  const unpaidSchedulesTotal = unpaidSchedules.reduce((sum: number, s: any) => sum + Number(s.amount || 0), 0);
+
+  if (Number(loan.installments || 1) >= 2 && unpaidSchedulesTotal > 0) {
+    return unpaidSchedulesTotal;
+  }
+
+  const totalExpected = calculateTotalWithInterest(Number(loan.amount || 0), Number(loan.interest_rate || 0));
+  const totalPaid = payments
+    .filter((p: any) => p.loan_id === loan.id)
+    .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+
+  return Math.max(0, totalExpected - totalPaid);
+}
+
+function getInstallmentAmount(loan: any, schedules: any[], payments: any[] = []): number {
+  const totalInstallments = Number(loan.installments || 1);
+  if (totalInstallments <= 1) {
+    if (loan.remaining_amount != null && Number(loan.remaining_amount) > 0) {
+      return Number(loan.remaining_amount);
+    }
+    if (payments.length > 0) {
+      return getBaseRemainingAmount(loan, payments, schedules);
+    }
+    return Number(loan.custom_installment_value) || calculateInstallment(Number(loan.amount || 0), Number(loan.interest_rate || 0), 1);
+  }
+
+  const nextNum = Number(loan.paid_installments || 0) + 1;
+  const schedule = schedules.find(
+    (s: any) => s.loan_id === loan.id && Number(s.installment_number) === nextNum
+  );
+  if (schedule) {
+    let currentBalance = -1;
+    if (loan.remaining_amount != null && Number(loan.remaining_amount) >= 0) {
+      currentBalance = Number(loan.remaining_amount);
+    } else if (payments.length > 0) {
+      const totalExpected = schedules.filter((s: any) => s.loan_id === loan.id).reduce((s: number, x: any) => s + (Number(x.amount) || 0), 0);
+      const totalPaid = payments.filter((p: any) => p.loan_id === loan.id).reduce((s: number, x: any) => s + (Number(x.amount) || 0), 0);
+      currentBalance = Math.max(0, totalExpected - totalPaid);
+    }
+
+    if (currentBalance >= 0) {
+      const futureSum = schedules
+        .filter((s: any) => s.loan_id === loan.id && Number(s.installment_number) > nextNum)
+        .reduce((acc: number, s: any) => acc + (Number(s.amount) || 0), 0);
+      currentBalance = Math.max(0, currentBalance - futureSum);
+      return Math.round(Math.min(Number(schedule.amount), currentBalance) * 100) / 100;
+    }
+    return Number(schedule.amount);
+  }
+
+  const defaultAmt = Number(loan.custom_installment_value) || calculateInstallment(Number(loan.amount || 0), Number(loan.interest_rate || 0), totalInstallments);
+  if (loan.remaining_amount != null && Number(loan.remaining_amount) > 0) {
+    return Math.round(Math.min(defaultAmt, Number(loan.remaining_amount)) * 100) / 100;
+  }
+  return Math.round(defaultAmt * 100) / 100;
+}
+
+function getOverdueInstallments(
+  loan: any,
+  schedules: any[],
+  todayStr: string,
+  payments: any[] = [],
+): { installmentNumber: number; dueDate: string; amount: number }[] {
+  const paid = Number(loan.paid_installments || 0);
+  const totalInstallments = Number(loan.installments || 1);
+
+  if (totalInstallments <= 1) {
+    const dueDate = (loan.due_date || "").slice(0, 10);
+    if (dueDate < todayStr && paid < 1) {
+      const baseRem = loan.remaining_amount != null && Number(loan.remaining_amount) >= 0
+        ? Number(loan.remaining_amount)
+        : getBaseRemainingAmount(loan, payments, schedules);
+
+      if (baseRem <= 0.01) return [];
+
+      return [{
+        installmentNumber: 1,
+        dueDate,
+        amount: baseRem,
+      }];
+    }
+    return [];
+  }
+
+  const hasAnySchedule = schedules.some((s: any) => s.loan_id === loan.id);
+  const loanSchedules = schedules
+    .filter((s: any) => s.loan_id === loan.id && Number(s.installment_number) > paid && (s.due_date || "").slice(0, 10) < todayStr)
+    .sort((a: any, b: any) => Number(a.installment_number) - Number(b.installment_number));
+
+  if (loanSchedules.length > 0) {
+    const nextNum = paid + 1;
+    return loanSchedules.map((s: any) => ({
+      installmentNumber: Number(s.installment_number),
+      dueDate: (s.due_date || "").slice(0, 10),
+      amount: Number(s.installment_number) === nextNum
+        ? getInstallmentAmount(loan, schedules, payments)
+        : Number(s.amount || 0),
+    }));
+  }
+
+  if (hasAnySchedule) return [];
+
+  const dueDate = (loan.due_date || "").slice(0, 10);
+  if (dueDate < todayStr) {
+    return [{
+      installmentNumber: paid + 1,
+      dueDate,
+      amount: getInstallmentAmount(loan, schedules, payments),
+    }];
+  }
+  return [];
+}
+
+function getLoanLateFees(
+  loan: any,
+  payments: any[],
+  schedules: any[],
+  referenceDate: string,
+) {
+  if (loan.status === "paid") {
+    return { daysOverdue: 0, lateInterestTotal: 0, penaltyTotal: 0, lateFees: 0 };
+  }
+
+  const todayStr = referenceDate;
+  const today = new Date(`${todayStr}T00:00:00`);
+
+  const loanPayments = payments.filter((p: any) => p.loan_id === loan.id);
+  const paidByInstallment = new Map<number, number>();
+
+  loanPayments.forEach((p: any) => {
+    const inst = Number(p.installment_number);
+    if (inst > 0) {
+      paidByInstallment.set(inst, (paidByInstallment.get(inst) ?? 0) + Number(p.amount || 0));
+    }
+  });
+
+  const unpaidSchedules = schedules
+    .filter((s: any) => s.loan_id === loan.id)
+    .sort((a: any, b: any) => Number(a.installment_number) - Number(b.installment_number));
+
+  let lateInterestTotal = 0;
+  let penaltyTotal = 0;
+  let maxDaysOverdue = 0;
+
+  const totalInstallments = Number(loan.installments || 1);
+
+  if (totalInstallments > 1 && unpaidSchedules.length > 0) {
+    let overdueSchedulesCount = 0;
+    unpaidSchedules.forEach((s: any) => {
+      const instNum = Number(s.installment_number);
+      const paid = paidByInstallment.get(instNum) ?? 0;
+      const schedAmt = Number(s.amount || 0);
+      if (paid < schedAmt - 0.01) {
+        const due = new Date(`${(s.due_date || "").slice(0, 10)}T00:00:00`);
+        const days = Math.max(0, Math.floor((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24)));
+
+        if (days > 0) {
+          maxDaysOverdue = Math.max(maxDaysOverdue, days);
+          overdueSchedulesCount++;
+
+          const pending = Math.max(0, schedAmt - paid);
+          if (loan.late_interest_value != null && Number(loan.late_interest_value) > 0) {
+            if (loan.late_interest_type === "fixed") {
+              lateInterestTotal += Number(loan.late_interest_value) * days;
+            } else {
+              lateInterestTotal += pending * (Number(loan.late_interest_value) / 100) * days;
+            }
+          }
+        }
+      }
+    });
+
+    if (loan.penalty_value != null && Number(loan.penalty_value) > 0) {
+      penaltyTotal = Number(loan.penalty_value) * (overdueSchedulesCount > 0 ? overdueSchedulesCount : 1);
+    }
+  } else {
+    const dueDate = (loan.due_date || "").slice(0, 10);
+    const due = new Date(`${dueDate}T00:00:00`);
+    const days = Math.max(0, Math.floor((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24)));
+
+    if (days > 0) {
+      maxDaysOverdue = days;
+      const baseRemaining = getBaseRemainingAmount(loan, payments, schedules);
+
+      if (loan.late_interest_value != null && Number(loan.late_interest_value) > 0) {
+        if (loan.late_interest_type === "fixed") {
+          lateInterestTotal += Number(loan.late_interest_value) * days;
+        } else {
+          lateInterestTotal += baseRemaining * (Number(loan.late_interest_value) / 100) * days;
+        }
+      }
+    }
+
+    if (loan.penalty_value != null && Number(loan.penalty_value) > 0) {
+      penaltyTotal = Number(loan.penalty_value);
+    }
+  }
+
+  return {
+    daysOverdue: maxDaysOverdue,
+    lateInterestTotal: Math.round(lateInterestTotal * 100) / 100,
+    penaltyTotal: Math.round(penaltyTotal * 100) / 100,
+    lateFees: Math.round((lateInterestTotal + penaltyTotal) * 100) / 100,
+  };
+}
+
 async function buildWhatsappBillingReport(admin: any, ownerId: string, today: string): Promise<string> {
   const todayStart = `${today}T00:00:00-03:00`;
   const tomorrowObj = new Date(`${today}T00:00:00-03:00`);
@@ -137,6 +361,11 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
   const payments = paymentsRes.data ?? [];
   const promises = promisesRes.data ?? [];
   const clientById = new Map<string, any>(clients.map((c: any) => [c.id, c]));
+
+  const finiteMoney = (val: any, fallback = 0) => {
+    const n = Number(val);
+    return Number.isFinite(n) ? Math.max(0, n) : fallback;
+  };
 
   const candidates: BillingCandidateItem[] = [];
 
@@ -164,27 +393,61 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
     // Filtro da aba "A cobrar" (billingDate <= hoje)
     if (billingDate > today) continue;
 
-    // Cálculo do valor da parcela
-    let baseAmount = Number(loan.custom_installment_value || 0);
-    if (!baseAmount && schedule?.amount) {
-      baseAmount = Number(schedule.amount);
-    }
-    if (!baseAmount) {
-      const principal = Number(loan.amount || 0);
-      const rate = Number(loan.interest_rate || 0);
-      const total = principal * (1 + rate / 100);
-      baseAmount = totalInstallments > 0 ? total / totalInstallments : total;
+    // Cálculo exato de valor e juros idêntico à Central de Cobranças
+    const safeRemaining = finiteMoney(loan.remaining_amount);
+    const safePrincipal = finiteMoney(loan.amount);
+    const calculatedInstallment = getInstallmentAmount(loan, schedules, payments);
+    const nextInstallmentAmount = finiteMoney(
+      calculatedInstallment,
+      safeRemaining > 0 ? safeRemaining : safePrincipal,
+    );
+
+    const overdueInstallments = totalInstallments > 1
+      ? getOverdueInstallments(loan, schedules, today, payments)
+      : [];
+    const overdueInstallmentCount = overdueInstallments.length;
+    const overdueBase = overdueInstallments.reduce(
+      (sum: number, inst: any) => sum + finiteMoney(inst.amount),
+      0,
+    );
+
+    const baseAmount = overdueInstallmentCount > 1 ? overdueBase : nextInstallmentAmount;
+    const lateFees = finiteMoney(getLoanLateFees(loan, payments, schedules, today).lateFees);
+    const renegotiationPenalty = totalInstallments < 2
+      ? finiteMoney(loan.renegotiation_penalty_total)
+      : 0;
+
+    const amount = Math.round((baseAmount + lateFees + renegotiationPenalty) * 100) / 100;
+    const installmentCount = overdueInstallmentCount > 1 ? overdueInstallmentCount : 1;
+
+    let chargedPrincipal = 0;
+    const paymentType = loan.payment_type || loan.paymentType;
+    if (totalInstallments > 1) {
+      const principalPerInstallment = safePrincipal / Math.max(1, totalInstallments);
+      chargedPrincipal = Math.min(baseAmount, principalPerInstallment * installmentCount);
+    } else if (paymentType === "Juros") {
+      chargedPrincipal = 0;
+    } else {
+      const contractualInterestRate = Number(loan.interest_rate) || 0;
+      const nominalInterest = (safePrincipal * contractualInterestRate) / 100;
+      chargedPrincipal = Math.max(0, baseAmount - nominalInterest);
     }
 
-    const contractualInterestRate = Number(loan.interest_rate) || 0;
-    const nominalInterest = (Number(loan.amount || 0) * contractualInterestRate) / (100 * totalInstallments);
-    const interestAmount = Math.max(0, Math.round(nominalInterest * 100) / 100);
+    let interestAmount = Math.max(0, Math.round((amount - chargedPrincipal) * 100) / 100);
+    const cents = Math.round((Math.abs(interestAmount) % 1) * 100);
+    if (cents === 1 || cents === 2 || cents === 98 || cents === 99) {
+      const nearestInteger = Math.round(interestAmount);
+      if (Math.abs(interestAmount - nearestInteger) <= 0.025) {
+        interestAmount = nearestInteger;
+      }
+    }
+    interestAmount = Math.min(interestAmount, amount);
 
     candidates.push({
       loanId: loan.id,
       clientId,
       clientName,
-      amount: baseAmount,
+      amount,
       interestAmount,
       billingDate,
     });
