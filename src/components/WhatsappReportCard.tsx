@@ -247,60 +247,75 @@ export function WhatsappReportCard() {
 
         <CardContent className="p-4 sm:p-5 pt-2 space-y-5">
           {/* Horários de Envio Deste Resumo */}
-          <div className="space-y-2 p-3.5 bg-muted/30 rounded-xl border border-border/40">
-            <Label className="text-xs font-semibold flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5 text-primary" />
-                Horários de Envio Diário
-              </span>
-              <span className="text-[10px] text-muted-foreground font-normal">
+                <span>Horários Programados de Envio</span>
+              </Label>
+              <Badge variant="outline" className="text-[10px] font-medium text-muted-foreground py-0.5 px-2 bg-muted/30">
                 {activeSlots.length}/3 horários
-              </span>
-            </Label>
+              </Badge>
+            </div>
 
-            {activeSlots.length === 0 && (
-              <p className="text-xs text-muted-foreground italic py-1">
-                Nenhum horário cadastrado. Clique abaixo para adicionar um horário para este resumo.
-              </p>
-            )}
-
-            <div className="grid gap-2 sm:grid-cols-3">
-              {activeSlots.map((key) => (
-                <div key={key} className="flex items-center gap-1.5 bg-background/80 p-1.5 rounded-xl border border-border/30">
-                  <div className="flex-1 relative">
-                    <Clock className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                    <Input
-                      type="time"
-                      value={prefs[key] ?? ""}
-                      onChange={(e) => handleTimeChange(key, e.target.value || null)}
-                      className="text-xs rounded-lg h-8 pl-8 border-border/50"
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleTimeChange(key, null)}
-                    title="Remover horário"
-                    className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-lg shrink-0"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              ))}
-
-              {canAddMoreSlots && (
+            {activeSlots.length === 0 ? (
+              <div className="flex flex-col sm:flex-row items-center justify-between p-3.5 rounded-xl border border-dashed border-border/80 bg-muted/20 gap-3">
+                <p className="text-xs text-muted-foreground">
+                  Nenhum horário programado para este resumo.
+                </p>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-11 sm:h-auto min-h-[38px] text-xs rounded-xl border-dashed gap-1.5"
-                  onClick={() => handleTimeChange(slots.find((s) => !prefs[s])!, "19:00")}
+                  className="h-8 text-xs rounded-lg gap-1.5 font-medium"
+                  onClick={() => handleTimeChange(slots[0], "19:00")}
                 >
-                  <Plus className="h-3.5 w-3.5" /> Adicionar Horário
+                  <Plus className="h-3.5 w-3.5" /> Adicionar Primeiro Horário
                 </Button>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="grid gap-2.5 sm:grid-cols-3">
+                {activeSlots.map((key) => (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-border/70 bg-card hover:border-primary/40 transition-colors shadow-2xs group"
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="h-7 w-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                        <Clock className="h-3.5 w-3.5" />
+                      </div>
+                      <input
+                        type="time"
+                        value={prefs[key] ?? ""}
+                        onChange={(e) => handleTimeChange(key, e.target.value || null)}
+                        className="bg-transparent text-sm font-semibold text-foreground focus:outline-none cursor-pointer w-full tracking-wide"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleTimeChange(key, null)}
+                      title="Remover horário"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg shrink-0 transition-colors"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+
+                {canAddMoreSlots && (
+                  <button
+                    type="button"
+                    onClick={() => handleTimeChange(slots.find((s) => !prefs[s])!, "19:00")}
+                    className="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-dashed border-border hover:border-primary/60 bg-muted/10 hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all text-xs font-semibold h-full min-h-[46px]"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>Adicionar Horário</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Indicadores incluídos no Resumo */}
