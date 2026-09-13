@@ -18,6 +18,7 @@ import { usePersonalExpenseCategories } from "@/features/financial/hooks/usePers
 import { PersonalCategoryCreator } from "@/features/financial/components/PersonalCategoryCreator";
 import { MoneyInput } from "@/components/ui/money-input";
 import { useDescriptionHistory } from "@/features/financial/hooks/useDescriptionHistory";
+import { FormModalOverlay } from "@/components/ui/form-modal-overlay";
 
 /** Pick the user's default credit card — prefers Nubank, falls back to first card. */
 function pickDefaultCard<T extends { bank: string; nickname: string }>(cards: T[]): T | null {
@@ -194,7 +195,7 @@ export function PersonalExpenseForm({ onAdd, onClose }: Props) {
     form.kind === "fixa" || form.kind === "recorrente_pos_pagamento" ? "Valor Mensal (R$)" : "Valor (R$)";
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-stretch justify-center p-0 md:items-center md:p-4">
+    <FormModalOverlay className="flex items-stretch justify-center p-0 md:items-center md:p-4">
       <SuccessAnimation show={showSuccess} onComplete={onClose} message={toPiggy ? "Aporte registrado!" : "Despesa cadastrada!"} />
       <Card no3d className="modal-form-scrollable !bg-card !backdrop-blur-none supports-[backdrop-filter]:!bg-card dark:!bg-card w-full h-[100dvh] max-h-[100dvh] rounded-none border-0 overflow-y-auto pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:h-auto md:max-h-[92svh] md:max-w-lg md:rounded-2xl md:border md:shadow-xl md:pt-0 md:pb-0">
         <CardHeader className="sticky top-0 z-20 bg-card/95 backdrop-blur border-b border-border/60 flex flex-row items-center justify-between py-3.5 px-4 sm:px-6">
@@ -491,6 +492,6 @@ export function PersonalExpenseForm({ onAdd, onClose }: Props) {
         createCategory={createCategory}
         onCreated={(cat) => update("category", cat.name)}
       />
-    </div>
+    </FormModalOverlay>
   );
 }

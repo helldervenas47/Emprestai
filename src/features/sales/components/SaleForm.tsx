@@ -18,8 +18,7 @@ import { encodeNotesWithMerchandise } from "@/features/sales/lib/saleMerchandise
 import { ClientCombobox } from "@/components/ui/client-combobox";
 import { CityCombobox } from "@/components/ui/city-combobox";
 import { SaleCategoryPicker } from "@/features/sales/components/SaleCategoryPicker";
-import { supabase } from "@/integrations/supabase/userClient";
-import { useAuth } from "@/hooks/useAuth";
+import { FormModalOverlay } from "@/components/ui/form-modal-overlay";
 
 
 const businessTypeLabels: Record<BusinessType, string> = {
@@ -440,7 +439,7 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
   };
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-0 sm:p-4 animate-in fade-in-0">
+    <FormModalOverlay className="flex items-center justify-center p-0 sm:p-4">
       <SuccessAnimation show={showSuccess} onComplete={onClose} message={isVehicleRental ? "Aluguel registrado!" : "Lançamento registrado!"} />
       <Card no3d className="modal-form-scrollable w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-lg rounded-none sm:rounded-2xl border-0 sm:border border-border/80 shadow-2xl flex flex-col bg-card overflow-hidden">
         {/* Sticky Header */}
@@ -1241,7 +1240,7 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
           </Button>
         </div>
       </Card>
-    </div>
+    </FormModalOverlay>
   );
 }
 

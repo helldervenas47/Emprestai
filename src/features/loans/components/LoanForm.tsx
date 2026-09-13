@@ -26,6 +26,7 @@ import { buildRiskProfile } from "@/features/loans/lib/clientRisk";
 import { LoanPaymentSplitEditor, buildSplitFromState, type SplitState } from "@/features/loans/components/LoanPaymentSplitEditor";
 import { formatCPF, formatCpfOrCnpj, onlyDigits } from "@/lib/brDocuments";
 import { useLoanRenegotiations } from "@/features/loans/hooks/useLoanRenegotiations";
+import { FormModalOverlay } from "@/components/ui/form-modal-overlay";
 
 interface Props {
   onAdd: (loan: Omit<Loan, "id" | "status" | "paidInstallments"> & { paymentMethodId?: string | null; paymentSplit?: import("@/types/loan").PaymentSplit | null }) => Promise<string | null>;
@@ -359,7 +360,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
     setForm((prev) => ({ ...prev, [field]: value }));
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-stretch justify-center p-0 md:items-center md:p-4">
+    <FormModalOverlay className="flex items-stretch justify-center p-0 md:items-center md:p-4">
       <SuccessAnimation show={showSuccess} onComplete={onClose} message="Empréstimo registrado!" />
       <Card className="modal-form-scrollable !bg-card !backdrop-blur-none supports-[backdrop-filter]:!bg-card dark:!bg-card w-full h-[100dvh] max-h-[100dvh] rounded-none border-0 overflow-y-auto pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:h-auto md:max-h-[92svh] md:w-full md:max-w-[760px] md:rounded-2xl md:border md:shadow-xl md:pt-0 md:pb-0">
         <CardHeader className="sticky top-0 z-20 bg-card/95 backdrop-blur border-b border-border/60 flex flex-row items-center justify-between py-3.5 px-4 sm:px-6">
@@ -1078,7 +1079,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
           </DialogContent>
         </Dialog>
       )}
-    </div>
+    </FormModalOverlay>
   );
 }
 

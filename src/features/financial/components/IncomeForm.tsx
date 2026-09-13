@@ -19,6 +19,7 @@ import { MoneyInput } from "@/components/ui/money-input";
 import { useDescriptionHistory } from "@/features/financial/hooks/useDescriptionHistory";
 import { displayIncomeCategory, incomeCategoryKey } from "@/features/financial/lib/incomeCategory";
 import { IncomeBoletoLinkSection } from "@/features/financial/components/IncomeBoletoLinkSection";
+import { FormModalOverlay } from "@/components/ui/form-modal-overlay";
 
 export const INCOME_CATEGORIES = [
   "Vendas",
@@ -164,7 +165,7 @@ export function IncomeForm({ open, onClose, onSubmit, initial }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-0 sm:p-4 animate-in fade-in-0">
+    <FormModalOverlay className="flex items-center justify-center p-0 sm:p-4">
       <Card no3d className="modal-form-scrollable w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-lg rounded-none sm:rounded-2xl border-0 sm:border border-border/80 shadow-2xl flex flex-col bg-card overflow-hidden">
         {/* Sticky Header */}
         <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-md border-b border-border/60 px-4 py-3.5 sm:px-6 sm:py-4 flex items-center justify-between">
@@ -435,7 +436,7 @@ export function IncomeForm({ open, onClose, onSubmit, initial }: Props) {
         createCategory={createCategory}
         onCreated={(c) => setCategory(c.name)}
       />
-    </div>
+    </FormModalOverlay>
   );
 }
 

@@ -19,6 +19,7 @@ import { useBusinessExpenseCategories } from "@/features/financial/hooks/useBusi
 import { BusinessCategoryCreatorDialog } from "@/features/financial/components/BusinessCategoryCreatorDialog";
 import { usePaymentMethods } from "@/hooks/usePaymentMethods";
 import { useCreditCards } from "@/features/creditCards/hooks/useCreditCards";
+import { FormModalOverlay } from "@/components/ui/form-modal-overlay";
 import { toast } from "sonner";
 
 type ExpenseKind = "unica" | "parcelada" | "fixa" | "recorrente_pos_pagamento";
@@ -200,7 +201,7 @@ export function ExpenseForm({ onAdd, onClose, scope = "business", defaults }: Pr
     form.kind === "fixa" || form.kind === "recorrente_pos_pagamento" ? "Valor Mensal (R$)" : "Valor (R$)";
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-0 sm:p-4 animate-in fade-in-0">
+    <FormModalOverlay className="flex items-center justify-center p-0 sm:p-4">
       <SuccessAnimation show={showSuccess} onComplete={onClose} message="Despesa cadastrada!" />
       <Card no3d className="modal-form-scrollable w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-lg rounded-none sm:rounded-2xl border-0 sm:border border-border/80 shadow-2xl flex flex-col bg-card overflow-hidden">
         {/* Sticky Header */}
@@ -505,6 +506,6 @@ export function ExpenseForm({ onAdd, onClose, scope = "business", defaults }: Pr
         onCreated={(name) => update("category", name)}
         addCategory={addCategory}
       />
-    </div>
+    </FormModalOverlay>
   );
 }

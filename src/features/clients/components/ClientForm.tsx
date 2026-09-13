@@ -10,6 +10,7 @@ import { Client } from "@/types/loan";
 import { ClientDocuments } from "@/features/clients/components/ClientDocuments";
 import { toast } from "sonner";
 import { formatCPF, formatCNPJ, formatRG, onlyDigits, isValidCPF, isValidCNPJ } from "@/lib/brDocuments";
+import { FormModalOverlay } from "@/components/ui/form-modal-overlay";
 
 interface Props {
   onAdd: (client: Omit<Client, "id" | "createdAt">) => Promise<string | null> | string | null | void;
@@ -82,7 +83,7 @@ export function ClientForm({ onAdd, onClose }: Props) {
   const fieldCls = "space-y-1 min-w-0";
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-stretch justify-center p-0 md:items-center md:p-4">
+    <FormModalOverlay className="flex items-stretch justify-center p-0 md:items-center md:p-4">
       <Card className="modal-form-scrollable !bg-card !backdrop-blur-none supports-[backdrop-filter]:!bg-card dark:!bg-card w-full h-[100dvh] max-h-[100dvh] rounded-none border-0 overflow-y-auto overflow-x-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:h-auto md:max-h-[92svh] md:max-w-xl md:rounded-2xl md:border md:shadow-xl md:pt-0 md:pb-0">
         <CardHeader className="sticky top-0 z-20 bg-card/95 backdrop-blur border-b border-border/60 flex flex-row items-center justify-between py-3.5 px-4 sm:px-6">
           <div className="flex items-center gap-2.5">
@@ -103,11 +104,9 @@ export function ClientForm({ onAdd, onClose }: Props) {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Bloco 1: Identificação & Contato */}
             <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3.5 shadow-xs">
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-primary" />
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Identificação & Contato
-                </Label>
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground pb-1 border-b border-border/40">
+                <UserPlus className="w-3.5 h-3.5 text-primary" />
+                <span>Identificação & Contato</span>
               </div>
 
               <div className={fieldCls}>
@@ -140,11 +139,9 @@ export function ClientForm({ onAdd, onClose }: Props) {
 
             {/* Bloco 2: Localização & Score */}
             <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3.5 shadow-xs">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-primary" />
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Localização & Score
-                </Label>
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground pb-1 border-b border-border/40">
+                <MapPin className="w-3.5 h-3.5 text-primary" />
+                <span>Localização & Score</span>
               </div>
 
               <div className={fieldCls}>
@@ -164,13 +161,11 @@ export function ClientForm({ onAdd, onClose }: Props) {
               </div>
             </div>
 
-            {/* Bloco 3: Configurações & Vínculos */}
+            {/* Bloco 3: Configurações Financeiras */}
             <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3.5 shadow-xs">
-              <div className="flex items-center gap-2">
-                <Settings2 className="h-4 w-4 text-primary" />
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Configurações Financeiras & Opções
-                </Label>
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground pb-1 border-b border-border/40">
+                <Settings2 className="w-3.5 h-3.5 text-primary" />
+                <span>Configurações Financeiras & Opções</span>
               </div>
 
               <div className={fieldCls}>
@@ -310,7 +305,7 @@ export function ClientForm({ onAdd, onClose }: Props) {
           </form>
         </CardContent>
       </Card>
-    </div>
+    </FormModalOverlay>
   );
 }
 
