@@ -655,10 +655,15 @@ function ManagerDetailDialog({
                                     : isToday
                                       ? "bg-warning/15 text-warning border-warning/30"
                                       : "bg-primary/10 text-primary border-primary/30";
+                                  const labelText = isOverdue
+                                    ? `Venceu em ${formatDate(item.dueDate)}`
+                                    : isToday
+                                      ? `Vence hoje`
+                                      : `Vence em ${formatDate(item.dueDate)}`;
                                   return (
                                     <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border font-semibold ${cls}`}>
                                       <CalendarDays className="h-3 w-3" />
-                                      Vence em {formatDate(item.dueDate)}
+                                      {labelText}
                                     </span>
                                   );
                                 })()}
