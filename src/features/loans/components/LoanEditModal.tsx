@@ -733,30 +733,43 @@ export function LoanEditModal({
             <div className="flex gap-2">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-10 text-xs shrink-0">
+                  <Button type="button" variant="outline" size="sm" className="h-10 text-xs shrink-0">
                     <ChevronDown className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
                     Existentes
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-48 p-1" align="start">
-                  <div className="flex flex-col max-h-40 overflow-y-auto">
-                    {existingTags
-                      .filter((t: string) => !form.tags.split(",").map((x: string) => x.trim()).filter(Boolean).includes(t))
-                      .sort((a: string, b: string) => a.localeCompare(b, "pt-BR"))
-                      .map((tag: string) => (
-                        <button
-                          key={tag}
-                          type="button"
-                          className="text-left text-sm px-3 py-1.5 hover:bg-muted rounded-sm"
-                          onClick={() => {
-                            const currentTags = form.tags.split(",").map((t: string) => t.trim()).filter(Boolean);
-                            updateField("tags", [...currentTags, tag].join(", "));
-                          }}
-                        >
-                          {tag}
-                        </button>
-                      ))}
-                  </div>
+                <PopoverContent className="w-52 p-1.5" align="start">
+                  {(() => {
+                    const currentSelected = form.tags.split(",").map((x: string) => x.trim()).filter(Boolean);
+                    const available = existingTags
+                      .filter((t: string) => !currentSelected.includes(t))
+                      .sort((a: string, b: string) => a.localeCompare(b, "pt-BR"));
+
+                    if (available.length === 0) {
+                      return (
+                        <div className="py-2 px-3 text-center text-xs text-muted-foreground">
+                          {existingTags.length === 0 ? "Nenhuma etiqueta cadastrada" : "Todas as etiquetas já foram adicionadas"}
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="flex flex-col max-h-48 overflow-y-auto">
+                        {available.map((tag: string) => (
+                          <button
+                            key={tag}
+                            type="button"
+                            className="text-left text-sm px-3 py-1.5 hover:bg-muted rounded-md transition-colors"
+                            onClick={() => {
+                              updateField("tags", [...currentSelected, tag].join(", "));
+                            }}
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </PopoverContent>
               </Popover>
               <Input
