@@ -1,7 +1,66 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
-import { getExternalAdmin, getExternalSupabaseUrl, getExternalAnonKey } from "../_shared/external-supabase.ts";
-import { dueSlotKeys } from "../_shared/schedule.ts";
-import { sendReportsAsImage, getReportsLinkForUser } from "../_shared/reports-bot.ts";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+
+const EXTERNAL_PROJECT_REF = Deno.env.get("EXTERNAL_PROJECT_REF") ?? "syyxnqzxqabeuqbuptkh";
+
+function getExternalSupabaseUrl(): string {
+  const external = Deno.env.get("EXTERNAL_SUPABASE_URL");
+  if (external?.includes(EXTERNAL_PROJECT_REF)) return external;
+  const nativeUrl = Deno.env.get("SUPABASE_URL");
+  if (nativeUrl?.includes(EXTERNAL_PROJECT_REF)) return nativeUrl;
+  return `https://${EXTERNAL_PROJECT_REF}.supabase.co`;
+}
+
+function getExternalServiceRoleKey(): string {
+  const external = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY");
+  if (external) return external;
+  const nativeUrl = Deno.env.get("SUPABASE_URL");
+  const nativeKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (nativeUrl?.includes(EXTERNAL_PROJECT_REF) && nativeKey) return nativeKey;
+  const v = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!v) throw new Error("Service role key não configurada.");
+  return v;
+}
+
+function getExternalAnonKey(): string {
+  const external = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY");
+  if (external) return external;
+  const nativeUrl = Deno.env.get("SUPABASE_URL");
+  const nativeKey = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
+  if (nativeUrl?.includes(EXTERNAL_PROJECT_REF) && nativeKey) return nativeKey;
+  const v = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
+  if (!v) throw new Error("Anon key não configurada.");
+  return v;
+}
+
+function getExternalAdmin(): SupabaseClient {
+  return createClient(getExternalSupabaseUrl(), getExternalServiceRoleKey(), {
+    auth: { persistSession: false },
+  });
+}
+
+function timeToMinutes(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const [hour, minute] = String(value).split(":").map(Number);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  return hour * 60 + minute;
+}
+
+function isTimeDueToday(value: string | null | undefined, nowMinutes: number): boolean {
+  const target = timeToMinutes(value);
+  return target !== null && nowMinutes >= target;
+}
+
+function dueSlotKeys<T extends string>(
+  slots: ReadonlyArray<{ key: T; time: string | null | undefined }>,
+  nowMinutes: number,
+  today: string,
+  lastSent: Record<string, string>,
+): T[] {
+  return slots
+    .filter((slot) => isTimeDueToday(slot.time, nowMinutes) && lastSent[slot.key] !== today)
+    .map((slot) => slot.key);
+}
 
 interface WhatsappProviderConfig {
   provider: string;
@@ -661,28 +720,12 @@ Deno.serve(async (req) => {
       let anySent = false;
       const reportText = await buildWhatsappBillingReport(admin, pref.user_id, today);
 
-      // 1. Envio automático via WhatsApp
+      // 1. Envio automático exclusivamente via WhatsApp
       const wppRes = await sendWhatsappReportAuto(admin, pref.user_id, reportText);
       if (wppRes.sent) {
         anySent = true;
       } else {
         errors.push(`${pref.user_id} WhatsApp: ${wppRes.reason || "fail"}`);
-      }
-
-      // 2. Envio via Telegram se o bot estiver configurado e ativado
-      if (pref.enabled) {
-        const link = await getReportsLinkForUser(admin, pref.user_id);
-        if (link) {
-          const sendTg = await sendReportsAsImage(
-            admin,
-            pref.user_id,
-            Number(link.chat_id),
-            reportText.split("\n"),
-            { name: "EmprestAI" },
-            { fallbackText: reportText, reportKey: "billing" },
-          );
-          if (sendTg.sent) anySent = true;
-        }
       }
 
       if (anySent && !forceUserId) {
