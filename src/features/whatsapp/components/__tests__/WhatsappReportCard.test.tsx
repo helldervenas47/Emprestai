@@ -183,12 +183,12 @@ describe("WhatsappReportCard — Envio de Relatórios e Resumo Operacional pelo 
     expect(message).toContain("📈 Juros total: *R$ 120,00*");
     expect(message).toContain("💼 Total geral: *R$ 1.220,00*");
     expect(message).toContain("✅ *COBRANÇAS ENVIADAS*");
-    expect(message).toContain("João da Silva / Contratos: 1 / Juros: R$ 50,00 / Total: R$ 500,00");
-    expect(message).toContain("Maria Santos / Contratos: 1 / Juros: R$ 30,00 / Total: R$ 330,00");
-    expect(message).toContain("*Total enviado: 2 / R$ 80,00 / R$ 830,00*");
+    expect(message).toContain("• João da Silva (1x): R$ 500,00 (J: R$ 50,00)");
+    expect(message).toContain("• Maria Santos (1x): R$ 330,00 (J: R$ 30,00)");
+    expect(message).toContain("*Total enviado (2x): R$ 830,00 (J: R$ 80,00)*");
     expect(message).toContain("⚠️ *COBRANÇAS NÃO ENVIADAS*");
-    expect(message).toContain("Pedro Santos / Contratos: 1 / Juros: R$ 40,00 / Total: R$ 390,00");
-    expect(message).toContain("*Total não enviado: 1 / R$ 40,00 / R$ 390,00*");
+    expect(message).toContain("• Pedro Santos (1x): R$ 390,00 (J: R$ 40,00)");
+    expect(message).toContain("*Total não enviado (1x): R$ 390,00 (J: R$ 40,00)*");
     expect(message).not.toContain("📊 *FECHAMENTO*");
     expect(message).toContain("*Resumo gerado automaticamente pelo EmprestAI.*");
   });
@@ -240,11 +240,11 @@ describe("WhatsappReportCard — Envio de Relatórios e Resumo Operacional pelo 
     const sentIds = new Set(["loan-1", "loan-2"]);
     const message = formatBillingReportForWhatsapp(candidates, sentIds);
 
-    // Deve ter apenas UMA ocorrência de João da Silva com Contratos: 2 e a soma dos valores
-    expect(message).toContain("João da Silva / Contratos: 2 / Juros: R$ 50,00 / Total: R$ 500,00");
+    // Deve ter apenas UMA ocorrência de João da Silva com (2x) e a soma dos valores
+    expect(message).toContain("• João da Silva (2x): R$ 500,00 (J: R$ 50,00)");
     const count = (message.match(/João da Silva/g) || []).length;
     expect(count).toBe(1);
     expect(message).toContain("Total de cobranças: *2*");
-    expect(message).toContain("*Total enviado: 2 / R$ 50,00 / R$ 500,00*");
+    expect(message).toContain("*Total enviado (2x): R$ 500,00 (J: R$ 50,00)*");
   });
 });
