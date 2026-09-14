@@ -140,7 +140,7 @@ describe("Central de Cobranças", () => {
     expect(result.find((item) => item.loanId === "single")?.amount).toBe(75);
   });
 
-  it("mantém um valor válido em contratos antigos e soma juros e multa ao saldo", () => {
+  it("mantém o valor exato do campo Restante em contratos de parcela única", () => {
     const result = buildBillingCandidates({
       loans: [{
         ...loan("legacy", "2026-09-09"),
@@ -154,7 +154,7 @@ describe("Central de Cobranças", () => {
       clients: [client], schedules: [], payments: [], today: "2026-09-10",
     });
     expect(Number.isFinite(result[0].amount)).toBe(true);
-    expect(result[0].amount).toBe(535);
+    expect(result[0].amount).toBe(500);
     expect(result[0].message).not.toContain("NaN");
   });
 

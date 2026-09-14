@@ -110,14 +110,17 @@ export function buildBillingCandidates(params: {
     else priority = "future_later";
     const safeRemaining = finiteMoney(loan.remainingAmount);
     const safePrincipal = finiteMoney(loan.amount);
-    const calculatedInstallment = getInstallmentAmount(loan, schedules, payments);
-    const fallbackUnit = loan.installments > 1
-      ? finiteMoney(loan.customInstallmentValue || calculateInstallment(loan.amount, loan.interestRate, Math.max(1, loan.installments)))
-      : (safeRemaining > 0 ? safeRemaining : safePrincipal);
-    const nextInstallmentAmount = finiteMoney(
-      calculatedInstallment,
-      safeRemaining > 0 && loan.installments <= 1 ? safeRemaining : fallbackUnit,
-    );
+    const totalPaid = payments
+      .filter((p) => p.loanId === loan.id)
+      .reduce((sum, p) => sum + finiteMoney(p.amount), 0);
+    const totalExpected = Math.round(safePrincipal * (1 + (Number(loan.interestRate) || 0) / 100));
+
+    // Matriz de 1 parcela (exatamente o campo "Restante" da aba Empréstimos):
+    const singleInstallmentRemaining = loan.status === "paid"
+      ? 0
+      : safeRemaining > 0
+        ? safeRemaining
+        : Math.max(0, totalExpected - totalPaid);
 
     const dueInstallments = loan.installments > 1
       ? getDueInstallmentsUntilToday(loan, schedules, today, payments)
@@ -133,49 +136,55 @@ export function buildBillingCandidates(params: {
       : [];
     const overdueInstallmentCount = overdueInstallments.length;
 
+    let amount = 0;
     let baseAmount = 0;
     let installmentCount = 1;
 
     if (loan.installments > 1) {
+      // Para empréstimos parcelados: soma dos valores vencidos ou a vencer no dia da cobrança
       if (dueInstallmentCount > 0) {
-        baseAmount = dueBase;
+        amount = dueBase;
         installmentCount = dueInstallmentCount;
       } else {
-        baseAmount = nextInstallmentAmount;
+        // Sem parcelas vencidas/hoje (lembrete de parcela futura no dia da cobrança)
+        const nextInstallment = getInstallmentAmount(loan, schedules, payments);
+        const fallbackUnit = finiteMoney(
+          loan.customInstallmentValue || calculateInstallment(loan.amount, loan.interestRate, Math.max(1, loan.installments))
+        );
+        amount = nextInstallment > 0 ? nextInstallment : fallbackUnit;
         installmentCount = 1;
       }
-      if (safeRemaining > 0 && baseAmount > safeRemaining) {
-        baseAmount = safeRemaining;
+      if (safeRemaining > 0 && amount > safeRemaining) {
+        amount = safeRemaining;
       }
+      baseAmount = amount;
     } else {
-      baseAmount = safeRemaining > 0 ? safeRemaining : (nextInstallmentAmount > 0 ? nextInstallmentAmount : safePrincipal);
+      // Para empréstimos com apenas 1 parcela: usa a matriz do campo Restante da aba Empréstimos
+      amount = singleInstallmentRemaining;
+      baseAmount = singleInstallmentRemaining;
       installmentCount = 1;
     }
 
-    const lateFees = finiteMoney(getLoanLateFees(loan, payments, schedules, today).lateFees);
-    // renegotiationPenalty só é somado se não houver remainingAmount explícito no contrato
-    // (pois remainingAmount já é o saldo total devedor do contrato).
-    const renegotiationPenalty = loan.installments < 2 && !(loan.remainingAmount != null && loan.remainingAmount > 0)
-      ? finiteMoney(loan.renegotiationPenaltyTotal)
-      : 0;
-    const amount = Math.round((baseAmount + lateFees + renegotiationPenalty) * 100) / 100;
+    amount = Math.round(amount * 100) / 100;
+    baseAmount = Math.round(baseAmount * 100) / 100;
+
     let chargedPrincipal = 0;
     if (loan.installments > 1) {
       const principalPerInstallment = safePrincipal / Math.max(1, loan.installments);
-      chargedPrincipal = Math.min(baseAmount, principalPerInstallment * installmentCount);
+      chargedPrincipal = Math.min(amount, principalPerInstallment * installmentCount);
     } else {
-      // `paymentType === "Juros"` descreve a forma de cobrança/renovação do
-      // contrato, não significa que todo o saldo a cobrar seja receita de juros.
-      // A Central separa o principal original do juros contratual também nesses
-      // contratos (ex.: 1.100 de principal + 330 de juros = 1.430 a cobrar).
       const contractualInterestRate = Number(loan.interestRate) || 0;
       const nominalInterest = (safePrincipal * contractualInterestRate) / 100;
-      chargedPrincipal = Math.max(0, baseAmount - nominalInterest);
+      chargedPrincipal = Math.max(0, amount - nominalInterest);
+      if (chargedPrincipal > safePrincipal) {
+        chargedPrincipal = safePrincipal;
+      }
     }
+
     let interestAmount = Math.max(0, Math.round((amount - chargedPrincipal) * 100) / 100);
     // Elimina resíduos de ponto flutuante/dízimas periódicas de parcelamento (ex: R$ 50,03 -> R$ 50,00 ou R$ 850,01 -> R$ 850,00)
     const cents = Math.round((Math.abs(interestAmount) % 1) * 100);
-    if (cents >= 1 && cents <= 3 || cents >= 97 && cents <= 99) {
+    if ((cents >= 1 && cents <= 3) || (cents >= 97 && cents <= 99)) {
       const nearestInteger = Math.round(interestAmount);
       if (Math.abs(interestAmount - nearestInteger) <= 0.035) {
         interestAmount = nearestInteger;
@@ -201,7 +210,7 @@ export function buildBillingCandidates(params: {
       contractLabel: contractLabel || clientName,
       amount,
       baseAmount,
-      lateFees: lateFees + renegotiationPenalty,
+      lateFees: 0,
       interestAmount,
       overdueInstallmentCount,
       dueDate,

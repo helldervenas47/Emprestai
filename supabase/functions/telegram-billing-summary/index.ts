@@ -511,14 +511,17 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
     // Cálculo exato de valor e juros idêntico à Central de Cobranças
     const safeRemaining = finiteMoney(loan.remaining_amount);
     const safePrincipal = finiteMoney(loan.amount);
-    const calculatedInstallment = getInstallmentAmount(loan, schedules, payments);
-    const fallbackUnit = totalInstallments > 1
-      ? finiteMoney(Number(loan.custom_installment_value) || calculateInstallment(safePrincipal, Number(loan.interest_rate || 0), totalInstallments))
-      : (safeRemaining > 0 ? safeRemaining : safePrincipal);
-    const nextInstallmentAmount = finiteMoney(
-      calculatedInstallment,
-      safeRemaining > 0 && totalInstallments <= 1 ? safeRemaining : fallbackUnit,
-    );
+    const totalPaid = payments
+      .filter((p: any) => p.loan_id === loan.id)
+      .reduce((sum: number, p: any) => sum + finiteMoney(p.amount), 0);
+    const totalExpected = Math.round(safePrincipal * (1 + (Number(loan.interest_rate) || 0) / 100));
+
+    // Matriz de 1 parcela (exatamente o campo "Restante" da aba Empréstimos):
+    const singleInstallmentRemaining = loan.status === "paid"
+      ? 0
+      : safeRemaining > 0
+        ? safeRemaining
+        : Math.max(0, totalExpected - totalPaid);
 
     const dueInstallments = totalInstallments > 1
       ? getDueInstallmentsUntilToday(loan, schedules, today, payments)
@@ -534,43 +537,46 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
       : [];
     const overdueInstallmentCount = overdueInstallments.length;
 
+    let amount = 0;
     let baseAmount = 0;
     let installmentCount = 1;
 
     if (totalInstallments > 1) {
       if (dueInstallmentCount > 0) {
-        baseAmount = dueBase;
+        amount = dueBase;
         installmentCount = dueInstallmentCount;
       } else {
-        baseAmount = nextInstallmentAmount;
+        const nextInstallment = getInstallmentAmount(loan, schedules, payments);
+        const fallbackUnit = finiteMoney(
+          Number(loan.custom_installment_value) || calculateInstallment(safePrincipal, Number(loan.interest_rate || 0), totalInstallments)
+        );
+        amount = nextInstallment > 0 ? nextInstallment : fallbackUnit;
         installmentCount = 1;
       }
-      if (safeRemaining > 0 && baseAmount > safeRemaining) {
-        baseAmount = safeRemaining;
+      if (safeRemaining > 0 && amount > safeRemaining) {
+        amount = safeRemaining;
       }
+      baseAmount = amount;
     } else {
-      baseAmount = safeRemaining > 0 ? safeRemaining : (nextInstallmentAmount > 0 ? nextInstallmentAmount : safePrincipal);
+      amount = singleInstallmentRemaining;
+      baseAmount = singleInstallmentRemaining;
       installmentCount = 1;
     }
 
-    const lateFees = finiteMoney(getLoanLateFees(loan, payments, schedules, today).lateFees);
-    const renegotiationPenalty = totalInstallments < 2 && !(loan.remaining_amount != null && Number(loan.remaining_amount) > 0)
-      ? finiteMoney(loan.renegotiation_penalty_total)
-      : 0;
-
-    const amount = Math.round((baseAmount + lateFees + renegotiationPenalty) * 100) / 100;
+    amount = Math.round(amount * 100) / 100;
+    baseAmount = Math.round(baseAmount * 100) / 100;
 
     let chargedPrincipal = 0;
     if (totalInstallments > 1) {
       const principalPerInstallment = safePrincipal / Math.max(1, totalInstallments);
-      chargedPrincipal = Math.min(baseAmount, principalPerInstallment * installmentCount);
+      chargedPrincipal = Math.min(amount, principalPerInstallment * installmentCount);
     } else {
-      // O tipo "Juros" é a modalidade/ciclo do contrato. O saldo continua
-      // contendo principal + juros e precisa da mesma separação feita pela
-      // Central de Cobranças; tratá-lo como 100% juros inflava o resumo.
       const contractualInterestRate = Number(loan.interest_rate) || 0;
       const nominalInterest = (safePrincipal * contractualInterestRate) / 100;
-      chargedPrincipal = Math.max(0, baseAmount - nominalInterest);
+      chargedPrincipal = Math.max(0, amount - nominalInterest);
+      if (chargedPrincipal > safePrincipal) {
+        chargedPrincipal = safePrincipal;
+      }
     }
 
     let interestAmount = Math.max(0, Math.round((amount - chargedPrincipal) * 100) / 100);
