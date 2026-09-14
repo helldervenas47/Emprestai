@@ -545,6 +545,9 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
         baseAmount = nextInstallmentAmount;
         installmentCount = 1;
       }
+      if (safeRemaining > 0 && baseAmount > safeRemaining) {
+        baseAmount = safeRemaining;
+      }
     } else {
       baseAmount = safeRemaining > 0 ? safeRemaining : (nextInstallmentAmount > 0 ? nextInstallmentAmount : safePrincipal);
       installmentCount = 1;

@@ -238,5 +238,27 @@ describe("Central de Cobranças", () => {
     expect(result[0].baseAmount).toBe(200);
     expect(result[0].priority).toBe("in_two_days");
   });
+
+  it("não duplica nem soma renegotiationPenaltyTotal quando o contrato já possui remainingAmount definido", () => {
+    const result = buildBillingCandidates({
+      loans: [{
+        ...loan("thiago-ferraz-1", "2026-06-20"),
+        installments: 1,
+        amount: 400,
+        remainingAmount: 500,
+        renegotiationPenaltyTotal: 400,
+      }],
+      clients: [client],
+      schedules: [],
+      payments: [],
+      today: "2026-09-14",
+    });
+
+    expect(result).toHaveLength(1);
+    // Deve ser exatamente 500 (e não 500 + 400 = 900)
+    expect(result[0].baseAmount).toBe(500);
+    expect(result[0].amount).toBe(500);
+  });
 });
+
 

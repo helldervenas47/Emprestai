@@ -144,6 +144,9 @@ export function buildBillingCandidates(params: {
         baseAmount = nextInstallmentAmount;
         installmentCount = 1;
       }
+      if (safeRemaining > 0 && baseAmount > safeRemaining) {
+        baseAmount = safeRemaining;
+      }
     } else {
       baseAmount = safeRemaining > 0 ? safeRemaining : (nextInstallmentAmount > 0 ? nextInstallmentAmount : safePrincipal);
       installmentCount = 1;
