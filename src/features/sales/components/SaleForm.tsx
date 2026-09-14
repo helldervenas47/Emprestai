@@ -16,6 +16,7 @@ import { formatCPF } from "@/lib/brDocuments";
 import { cn } from "@/lib/utils";
 import { encodeNotesWithMerchandise } from "@/features/sales/lib/saleMerchandise";
 import { ClientCombobox } from "@/components/ui/client-combobox";
+import { ProductCombobox } from "@/components/ui/product-combobox";
 import { CityCombobox } from "@/components/ui/city-combobox";
 import { SaleCategoryPicker } from "@/features/sales/components/SaleCategoryPicker";
 import { FormModalOverlay } from "@/components/ui/form-modal-overlay";
@@ -613,64 +614,48 @@ export function SaleForm({ onAdd, onClose, defaultBusinessType = "venda", client
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Produto *
                   </Label>
-                  {(() => {
-                    const available = products
-                      .filter((p) => p.stock > 0)
-                      .slice()
-                      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }));
-                    return (
-                      <Select
-                        value={form.productId}
-                        onValueChange={(v) => {
-                          if (v === "__avulsa__") {
-                            setForm((p) => ({
-                              ...p,
-                              productId: "__avulsa__",
-                              description: "",
-                              discount: "",
-                            }));
-                            return;
-                          }
-                          const prod = products.find((p) => p.id === v);
-                          const qty = parseInt(form.quantity) || 1;
-                          const newTotal = prod ? (prod.price * qty).toFixed(2) : form.total;
-                          setForm((p) => ({
-                            ...p,
-                            productId: v,
-                            description: prod?.name || "",
-                            total: prod ? newTotal : p.total,
-                          }));
-                          if (prod && form.paymentMode === "recorrente") {
-                            const count = parseInt(form.installments) || 1;
-                            const totalVal = parseFloat(newTotal);
-                            if (totalVal > 0 && count > 0) {
-                              const newInstVal = (totalVal / count).toFixed(2);
-                              setForm((pp) => ({ ...pp, installmentValue: newInstVal }));
-                              setInstallmentRows((prev) => prev.map((r) => r.manualValue ? r : { ...r, value: newInstVal }));
-                            }
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="h-10 text-sm font-medium">
-                          <SelectValue placeholder="Selecione um produto ou venda avulsa" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__avulsa__">📝 Venda avulsa (sem cadastro)</SelectItem>
-                          {available.length === 0 ? (
-                            <div className="px-2 py-2 text-xs text-muted-foreground">
-                              Nenhum produto com estoque. Use Venda avulsa acima.
-                            </div>
-                          ) : (
-                            available.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.name} — {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(p.price)} (estoque: {p.stock})
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                    );
-                  })()}
+                  <ProductCombobox
+                    value={form.productId}
+                    products={products}
+                    onChange={(v, prod) => {
+                      if (v === "__avulsa__") {
+                        setForm((p) => ({
+                          ...p,
+                          productId: "__avulsa__",
+                          description: "",
+                          discount: "",
+                        }));
+                        return;
+                      }
+                      if (!v) {
+                        setForm((p) => ({
+                          ...p,
+                          productId: "",
+                          description: "",
+                          total: "",
+                        }));
+                        return;
+                      }
+                      const qty = parseInt(form.quantity) || 1;
+                      const newTotal = prod ? (prod.price * qty).toFixed(2) : form.total;
+                      setForm((p) => ({
+                        ...p,
+                        productId: v,
+                        description: prod?.name || "",
+                        total: prod ? newTotal : p.total,
+                      }));
+                      if (prod && form.paymentMode === "recorrente") {
+                        const count = parseInt(form.installments) || 1;
+                        const totalVal = parseFloat(newTotal);
+                        if (totalVal > 0 && count > 0) {
+                          const newInstVal = (totalVal / count).toFixed(2);
+                          setForm((pp) => ({ ...pp, installmentValue: newInstVal }));
+                          setInstallmentRows((prev) => prev.map((r) => r.manualValue ? r : { ...r, value: newInstVal }));
+                        }
+                      }
+                    }}
+                    placeholder="Selecione um produto ou venda avulsa"
+                  />
                 </div>
 
                 {isAvulsa && (
