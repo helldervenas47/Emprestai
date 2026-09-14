@@ -189,17 +189,54 @@ describe("Central de Cobranças", () => {
     expect(result[0].message).toContain("R$ 200,00");
   });
 
-  it("usa a mensagem de vencido e inclui a etiqueta do contrato", () => {
+  it("soma apenas as parcelas devidas até o dia atual em contratos parcelados e não inclui parcelas futuras", () => {
     const result = buildBillingCandidates({
-      loans: [{ ...loan("late", "2026-09-01"), tags: ["Contrato Ouro"] }],
-      clients: [client], schedules: [], payments: [], today: "2026-09-10",
-      messages: {
-        message_due_today: "vence hoje",
-        message_overdue: "venceu há {dias_atraso} dias — {etiqueta}",
-        very_overdue_days: 30,
-      },
+      loans: [{
+        ...loan("installments-due-today", "2026-09-01"),
+        installments: 10,
+        amount: 1000,
+        remainingAmount: 1000,
+      }],
+      clients: [client],
+      payments: [],
+      today: "2026-09-10",
+      schedules: [
+        { loanId: "installments-due-today", installmentNumber: 1, dueDate: "2026-09-01", amount: 100 },
+        { loanId: "installments-due-today", installmentNumber: 2, dueDate: "2026-09-10", amount: 100 },
+        { loanId: "installments-due-today", installmentNumber: 3, dueDate: "2026-09-20", amount: 100 },
+        { loanId: "installments-due-today", installmentNumber: 4, dueDate: "2026-10-01", amount: 100 },
+      ],
     });
-    expect(result[0].message).toBe("venceu há 9 dias — Contrato Ouro");
-    expect(result[0].contractLabel).toBe("Contrato Ouro");
+
+    expect(result).toHaveLength(1);
+    // Parcelas 1 (01/09) e 2 (10/09) são <= today (10/09). Total a cobrar: 200, NÃO 1000.
+    expect(result[0].baseAmount).toBe(200);
+    expect(result[0].amount).toBe(200);
+  });
+
+  it("traz apenas o valor de 1 parcela quando o contrato parcelado tem vencimento futuro", () => {
+    const result = buildBillingCandidates({
+      loans: [{
+        ...loan("future-installments", "2026-09-12"),
+        installments: 5,
+        amount: 1000,
+        remainingAmount: 1000,
+      }],
+      clients: [client],
+      payments: [],
+      today: "2026-09-10",
+      schedules: [
+        { loanId: "future-installments", installmentNumber: 1, dueDate: "2026-09-12", amount: 200 },
+        { loanId: "future-installments", installmentNumber: 2, dueDate: "2026-10-12", amount: 200 },
+        { loanId: "future-installments", installmentNumber: 3, dueDate: "2026-11-12", amount: 200 },
+      ],
+    });
+
+    expect(result).toHaveLength(1);
+    // Próxima parcela vence em 12/09 (D+2). Deve trazer apenas 200 (1 parcela), e NÃO os 1000 de remainingAmount
+    expect(result[0].amount).toBe(200);
+    expect(result[0].baseAmount).toBe(200);
+    expect(result[0].priority).toBe("in_two_days");
   });
 });
+

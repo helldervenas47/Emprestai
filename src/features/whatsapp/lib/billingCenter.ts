@@ -1,5 +1,10 @@
 import type { Client, InstallmentSchedule, Loan, Payment } from "@/types/loan";
-import { getInstallmentAmount, getOverdueInstallments } from "@/features/loans/lib/loanInstallmentAmount";
+import {
+  getDueInstallmentsUntilToday,
+  getInstallmentAmount,
+  getOverdueInstallments,
+} from "@/features/loans/lib/loanInstallmentAmount";
+import { calculateInstallment } from "@/features/loans/hooks/useLoans";
 import { getLoanLateFees } from "@/features/loans/lib/loanLateFees";
 import {
   applyMessageVariables,
@@ -106,25 +111,49 @@ export function buildBillingCandidates(params: {
     const safeRemaining = finiteMoney(loan.remainingAmount);
     const safePrincipal = finiteMoney(loan.amount);
     const calculatedInstallment = getInstallmentAmount(loan, schedules, payments);
+    const fallbackUnit = loan.installments > 1
+      ? finiteMoney(loan.customInstallmentValue || calculateInstallment(loan.amount, loan.interestRate, Math.max(1, loan.installments)))
+      : (safeRemaining > 0 ? safeRemaining : safePrincipal);
     const nextInstallmentAmount = finiteMoney(
       calculatedInstallment,
-      safeRemaining > 0 ? safeRemaining : safePrincipal,
+      safeRemaining > 0 && loan.installments <= 1 ? safeRemaining : fallbackUnit,
     );
+
+    const dueInstallments = loan.installments > 1
+      ? getDueInstallmentsUntilToday(loan, schedules, today, payments)
+      : [];
+    const dueInstallmentCount = dueInstallments.length;
+    const dueBase = dueInstallments.reduce(
+      (sum, installment) => sum + finiteMoney(installment.amount),
+      0,
+    );
+
     const overdueInstallments = loan.installments > 1
       ? getOverdueInstallments(loan, schedules, today, payments)
       : [];
     const overdueInstallmentCount = overdueInstallments.length;
-    const overdueBase = overdueInstallments.reduce(
-      (sum, installment) => sum + finiteMoney(installment.amount),
-      0,
-    );
-    const baseAmount = overdueInstallmentCount > 1 ? overdueBase : nextInstallmentAmount;
+
+    let baseAmount = 0;
+    let installmentCount = 1;
+
+    if (loan.installments > 1) {
+      if (dueInstallmentCount > 0) {
+        baseAmount = dueBase;
+        installmentCount = dueInstallmentCount;
+      } else {
+        baseAmount = nextInstallmentAmount;
+        installmentCount = 1;
+      }
+    } else {
+      baseAmount = safeRemaining > 0 ? safeRemaining : (nextInstallmentAmount > 0 ? nextInstallmentAmount : safePrincipal);
+      installmentCount = 1;
+    }
+
     const lateFees = finiteMoney(getLoanLateFees(loan, payments, schedules, today).lateFees);
     const renegotiationPenalty = loan.installments < 2
       ? finiteMoney(loan.renegotiationPenaltyTotal)
       : 0;
     const amount = Math.round((baseAmount + lateFees + renegotiationPenalty) * 100) / 100;
-    const installmentCount = overdueInstallmentCount > 1 ? overdueInstallmentCount : 1;
     let chargedPrincipal = 0;
     if (loan.installments > 1) {
       const principalPerInstallment = safePrincipal / Math.max(1, loan.installments);

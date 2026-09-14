@@ -136,7 +136,65 @@ export function getOverdueInstallments(
     return [{
       installmentNumber: paid + 1,
       dueDate: loan.dueDate,
-      amount: getInstallmentAmount(loan, schedules),
+      amount: getInstallmentAmount(loan, schedules, payments),
+    }];
+  }
+  return [];
+}
+
+/**
+ * Retorna a lista de parcelas devidas até o dia de referência (dueDate <= targetDate, ainda não pagas).
+ * Usado para somar o valor total a ser cobrado até o dia atual em contratos parcelados,
+ * garantindo que nunca traga o valor de parcelas futuras.
+ */
+export function getDueInstallmentsUntilToday(
+  loan: Loan,
+  schedules: InstallmentSchedule[],
+  targetDateStr: string = todayInAppTz(),
+  payments: Payment[] = [],
+): { installmentNumber: number; dueDate: string; amount: number }[] {
+  const paid = loan.paidInstallments || 0;
+  if (loan.installments <= 1) {
+    if (loan.dueDate <= targetDateStr && paid < 1) {
+      const baseRem = loan.remainingAmount != null && loan.remainingAmount >= 0
+        ? Number(loan.remainingAmount)
+        : getBaseRemainingAmount(loan, payments, schedules);
+
+      if (baseRem <= 0.01) return [];
+
+      return [{
+        installmentNumber: 1,
+        dueDate: loan.dueDate,
+        amount: baseRem,
+      }];
+    }
+    return [];
+  }
+
+  const hasAnySchedule = schedules.some((s) => s.loanId === loan.id);
+  const loanSchedules = schedules
+    .filter((s) => s.loanId === loan.id && s.installmentNumber > paid && s.dueDate <= targetDateStr)
+    .sort((a, b) => a.installmentNumber - b.installmentNumber);
+
+  if (loanSchedules.length > 0) {
+    const nextNum = paid + 1;
+    return loanSchedules.map((s) => ({
+      installmentNumber: s.installmentNumber,
+      dueDate: s.dueDate,
+      amount: s.installmentNumber === nextNum
+        ? getInstallmentAmount(loan, schedules, payments)
+        : Number(s.amount),
+    }));
+  }
+
+  if (hasAnySchedule) return [];
+
+  // Fallback para contratos parcelados sem cronograma persistido:
+  if (loan.dueDate <= targetDateStr) {
+    return [{
+      installmentNumber: paid + 1,
+      dueDate: loan.dueDate,
+      amount: getInstallmentAmount(loan, schedules, payments),
     }];
   }
   return [];

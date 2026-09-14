@@ -306,6 +306,62 @@ function getOverdueInstallments(
   return [];
 }
 
+function getDueInstallmentsUntilToday(
+  loan: any,
+  schedules: any[],
+  todayStr: string,
+  payments: any[] = [],
+): { installmentNumber: number; dueDate: string; amount: number }[] {
+  const paid = Number(loan.paid_installments || 0);
+  const totalInstallments = Number(loan.installments || 1);
+
+  if (totalInstallments <= 1) {
+    const dueDate = (loan.due_date || "").slice(0, 10);
+    if (dueDate <= todayStr && paid < 1) {
+      const baseRem = loan.remaining_amount != null && Number(loan.remaining_amount) >= 0
+        ? Number(loan.remaining_amount)
+        : getBaseRemainingAmount(loan, payments, schedules);
+
+      if (baseRem <= 0.01) return [];
+
+      return [{
+        installmentNumber: 1,
+        dueDate,
+        amount: baseRem,
+      }];
+    }
+    return [];
+  }
+
+  const hasAnySchedule = schedules.some((s: any) => s.loan_id === loan.id);
+  const loanSchedules = schedules
+    .filter((s: any) => s.loan_id === loan.id && Number(s.installment_number) > paid && (s.due_date || "").slice(0, 10) <= todayStr)
+    .sort((a: any, b: any) => Number(a.installment_number) - Number(b.installment_number));
+
+  if (loanSchedules.length > 0) {
+    const nextNum = paid + 1;
+    return loanSchedules.map((s: any) => ({
+      installmentNumber: Number(s.installment_number),
+      dueDate: (s.due_date || "").slice(0, 10),
+      amount: Number(s.installment_number) === nextNum
+        ? getInstallmentAmount(loan, schedules, payments)
+        : Number(s.amount || 0),
+    }));
+  }
+
+  if (hasAnySchedule) return [];
+
+  const dueDate = (loan.due_date || "").slice(0, 10);
+  if (dueDate <= todayStr) {
+    return [{
+      installmentNumber: paid + 1,
+      dueDate,
+      amount: getInstallmentAmount(loan, schedules, payments),
+    }];
+  }
+  return [];
+}
+
 function getLoanLateFees(
   loan: any,
   payments: any[],
@@ -456,28 +512,50 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
     const safeRemaining = finiteMoney(loan.remaining_amount);
     const safePrincipal = finiteMoney(loan.amount);
     const calculatedInstallment = getInstallmentAmount(loan, schedules, payments);
+    const fallbackUnit = totalInstallments > 1
+      ? finiteMoney(Number(loan.custom_installment_value) || calculateInstallment(safePrincipal, Number(loan.interest_rate || 0), totalInstallments))
+      : (safeRemaining > 0 ? safeRemaining : safePrincipal);
     const nextInstallmentAmount = finiteMoney(
       calculatedInstallment,
-      safeRemaining > 0 ? safeRemaining : safePrincipal,
+      safeRemaining > 0 && totalInstallments <= 1 ? safeRemaining : fallbackUnit,
+    );
+
+    const dueInstallments = totalInstallments > 1
+      ? getDueInstallmentsUntilToday(loan, schedules, today, payments)
+      : [];
+    const dueInstallmentCount = dueInstallments.length;
+    const dueBase = dueInstallments.reduce(
+      (sum: number, inst: any) => sum + finiteMoney(inst.amount),
+      0,
     );
 
     const overdueInstallments = totalInstallments > 1
       ? getOverdueInstallments(loan, schedules, today, payments)
       : [];
     const overdueInstallmentCount = overdueInstallments.length;
-    const overdueBase = overdueInstallments.reduce(
-      (sum: number, inst: any) => sum + finiteMoney(inst.amount),
-      0,
-    );
 
-    const baseAmount = overdueInstallmentCount > 1 ? overdueBase : nextInstallmentAmount;
+    let baseAmount = 0;
+    let installmentCount = 1;
+
+    if (totalInstallments > 1) {
+      if (dueInstallmentCount > 0) {
+        baseAmount = dueBase;
+        installmentCount = dueInstallmentCount;
+      } else {
+        baseAmount = nextInstallmentAmount;
+        installmentCount = 1;
+      }
+    } else {
+      baseAmount = safeRemaining > 0 ? safeRemaining : (nextInstallmentAmount > 0 ? nextInstallmentAmount : safePrincipal);
+      installmentCount = 1;
+    }
+
     const lateFees = finiteMoney(getLoanLateFees(loan, payments, schedules, today).lateFees);
     const renegotiationPenalty = totalInstallments < 2
       ? finiteMoney(loan.renegotiation_penalty_total)
       : 0;
 
     const amount = Math.round((baseAmount + lateFees + renegotiationPenalty) * 100) / 100;
-    const installmentCount = overdueInstallmentCount > 1 ? overdueInstallmentCount : 1;
 
     let chargedPrincipal = 0;
     if (totalInstallments > 1) {
