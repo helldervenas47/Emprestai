@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, Suspense, lazy } from "react";
 import { Client } from "@/types/loan";
+import { cn } from "@/lib/utils";
 import { FormModalOverlay } from "@/components/ui/form-modal-overlay";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
