@@ -150,7 +150,9 @@ export function buildBillingCandidates(params: {
     }
 
     const lateFees = finiteMoney(getLoanLateFees(loan, payments, schedules, today).lateFees);
-    const renegotiationPenalty = loan.installments < 2
+    // renegotiationPenalty só é somado se não houver remainingAmount explícito no contrato
+    // (pois remainingAmount já é o saldo total devedor do contrato).
+    const renegotiationPenalty = loan.installments < 2 && !(loan.remainingAmount != null && loan.remainingAmount > 0)
       ? finiteMoney(loan.renegotiationPenaltyTotal)
       : 0;
     const amount = Math.round((baseAmount + lateFees + renegotiationPenalty) * 100) / 100;

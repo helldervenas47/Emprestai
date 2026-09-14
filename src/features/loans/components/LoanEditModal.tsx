@@ -258,6 +258,7 @@ export function LoanEditModal({
           notes: form.notes,
           tags: parsedTags,
           remainingAmount: parseFloat(form.remainingAmount) || 0,
+          renegotiationPenaltyTotal: 0,
           customInterestValue: hasCustomInterest ? manualInterest : null,
           hasManager: hasManager,
           managerId: hasManager && managerId ? managerId : null,

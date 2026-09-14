@@ -551,7 +551,7 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
     }
 
     const lateFees = finiteMoney(getLoanLateFees(loan, payments, schedules, today).lateFees);
-    const renegotiationPenalty = totalInstallments < 2
+    const renegotiationPenalty = totalInstallments < 2 && !(loan.remaining_amount != null && Number(loan.remaining_amount) > 0)
       ? finiteMoney(loan.renegotiation_penalty_total)
       : 0;
 
