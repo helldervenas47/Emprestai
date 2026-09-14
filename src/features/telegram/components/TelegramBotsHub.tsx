@@ -11,10 +11,6 @@ import { TelegramConnectCard } from "@/features/telegram/components/TelegramConn
 import { TelegramDailyPlanningScheduleCard } from "@/features/telegram/components/TelegramDailyPlanningScheduleCard";
 import { TelegramIncomesExpensesScheduleCard } from "@/features/telegram/components/TelegramIncomesExpensesScheduleCard";
 import { TelegramWeeklyVencimentosCard } from "@/features/telegram/components/TelegramWeeklyVencimentosCard";
-import { TelegramAccumulatedDelinquencyScheduleCard } from "@/features/telegram/components/TelegramAccumulatedDelinquencyScheduleCard";
-import { TelegramManagerWeeklyCard } from "@/features/telegram/components/TelegramManagerWeeklyCard";
-import { TelegramPersonalInsightsCard } from "@/features/telegram/components/TelegramPersonalInsightsCard";
-import { TelegramFinancialSummariesCard } from "@/features/telegram/components/TelegramFinancialSummariesCard";
 import { TelegramPaywallCard } from "@/features/telegram/components/TelegramPaywallCard";
 import { useTelegramPremium } from "@/features/telegram/hooks/useTelegramPremium";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -189,30 +185,6 @@ export function TelegramBotsHub() {
         {/* Vencimentos da semana */}
         <TelegramWeeklyVencimentosCard />
       </div>
-
-      {/* Relatórios secundários */}
-      <div className="flex items-center gap-2 pt-4">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Relatórios secundários</h4>
-        <div className="h-px flex-1 bg-border/60" />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Resumos diário, semanal e mensal */}
-        <TelegramFinancialSummariesCard />
-
-        {/* Inadimplência acumulada */}
-        <TelegramAccumulatedDelinquencyScheduleCard />
-
-        {/* Insights pessoais por IA */}
-        <TelegramPersonalInsightsCard />
-      </div>
-
-      {/* Resumo semanal do gerente (layout próprio, largura total) */}
-      <Card no3d>
-        <CardContent className="p-4">
-          <TelegramManagerWeeklyCard />
-        </CardContent>
-      </Card>
 
     </div>
     </ReadOnlyOverlay>
