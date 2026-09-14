@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ShoppingCart, Folder } from "lucide-react";
@@ -79,6 +80,33 @@ export function SalesList({
   } = useProductSalesController(sales, scopeKey);
   // incomeCategoryFilter setter currently unused inside this component (filter UI lives in ProductSalesFilters).
   void incomeCategoryFilter;
+
+  const filteredTotalAmount = useMemo(() => {
+    return filtered.reduce((acc, s) => {
+      if (categoryFilter === "overdue") {
+        return acc + getOverdueInstallmentsValue(s);
+      }
+      if (categoryFilter === "due_today") {
+        return acc + getDueTodayInstallmentValue(s);
+      }
+      if (categoryFilter === "on_track") {
+        const isRecorrente = s.paymentMode === "recorrente" && s.installments > 1;
+        return acc + (isRecorrente ? getFutureInstallmentsValue(s) : getRemaining(s));
+      }
+      if (categoryFilter === "paid") {
+        return acc + getSalePaidAmount(s);
+      }
+      return acc + getRemaining(s);
+    }, 0);
+  }, [
+    filtered,
+    categoryFilter,
+    getOverdueInstallmentsValue,
+    getDueTodayInstallmentValue,
+    getFutureInstallmentsValue,
+    getSalePaidAmount,
+    getRemaining,
+  ]);
 
   return (
     <div className="space-y-4">
@@ -167,10 +195,7 @@ export function SalesList({
         setSearch={setSearch}
         folderCount={folderCount}
         filteredCount={filtered.length}
-        totalAmount={filtered.reduce(
-          (acc, s) => acc + (categoryFilter === "paid" ? s.total : getRemaining(s)),
-          0,
-        )}
+        totalAmount={filteredTotalAmount}
         formatCurrency={formatCurrency}
         activeFilterCount={activeFilterCount}
         showFilters={filtersOpen}
