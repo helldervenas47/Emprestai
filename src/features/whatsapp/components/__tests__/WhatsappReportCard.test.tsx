@@ -90,6 +90,16 @@ describe("WhatsappReportCard — Envio de Relatórios e Resumo Operacional pelo 
     // Toggle e campos de telefone
     expect(screen.getByText("Ativar envio automático no WhatsApp")).toBeInTheDocument();
 
+    // Seletor de data de referência para relatórios anteriores
+    expect(screen.getByText("Data de Referência dos Relatórios")).toBeInTheDocument();
+    expect(screen.getAllByText("Hoje").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Ontem")).toBeInTheDocument();
+    expect(screen.getByText("Anteontem")).toBeInTheDocument();
+
+    // Botões de pré-visualização
+    const previewButtons = screen.getAllByText("Pré-visualizar");
+    expect(previewButtons.length).toBeGreaterThanOrEqual(2);
+
     // Botões de disparo imediato
     expect(screen.getByText("Enviar Resumo Operacional Agora")).toBeInTheDocument();
     expect(screen.getByText("Enviar Relatório Agora no WhatsApp")).toBeInTheDocument();

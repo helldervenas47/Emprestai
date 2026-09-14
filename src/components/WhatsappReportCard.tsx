@@ -13,6 +13,14 @@ import { sumInterestReceivedInPeriod } from "@/features/financial/lib/interestAl
 import { useWhatsappBillingSchedule } from "@/hooks/useWhatsappBillingSchedule";
 import { toast } from "sonner";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   MessageCircle,
   Clock,
   Send,
@@ -26,6 +34,10 @@ import {
   TrendingUp,
   ListChecks,
   Activity,
+  Calendar,
+  Eye,
+  Copy,
+  Check,
 } from "lucide-react";
 
 type SlotKey = "send_time_1" | "send_time_2" | "send_time_3";
@@ -241,10 +253,31 @@ export function WhatsappReportCard() {
     save: saveBillPrefs,
   } = useScheduledReportPrefs("telegram_billing_prefs");
 
+  const todayInBahia = useCallback(
+    () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bahia" }).format(new Date()),
+    [],
+  );
+
+  const getRelativeDate = (offsetDays: number): string => {
+    const d = new Date();
+    d.setDate(d.getDate() + offsetDays);
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bahia" }).format(d);
+  };
+
+  const [selectedDate, setSelectedDate] = useState<string>(todayInBahia);
+
   const [profilePhone, setProfilePhone] = useState("");
   const [whatsappPhone, setWhatsappPhone] = useState("");
   const [sendingOpSummary, setSendingOpSummary] = useState(false);
   const [sendingBillingReport, setSendingBillingReport] = useState(false);
+
+  // Estados de pré-visualização
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewTitle, setPreviewTitle] = useState("");
+  const [previewText, setPreviewText] = useState("");
+  const [previewType, setPreviewType] = useState<"billing" | "operational">("billing");
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Carrega telefone do perfil do usuário
   const loadProfilePhone = useCallback(async () => {
@@ -310,7 +343,168 @@ export function WhatsappReportCard() {
   const activeBillSlots = slots.filter((s) => Boolean(billPrefs[s]));
   const canAddMoreBillSlots = activeBillSlots.length < 3;
 
-  // Disparo manual do Resumo Operacional no WhatsApp
+  const formatDateBRDisplay = (dateStr: string) => {
+    if (!dateStr) return "";
+    const [y, m, d] = dateStr.split("-");
+    if (!y || !m || !d) return dateStr;
+    return `${d}/${m}/${y}`;
+  };
+
+  // Gerador do texto do Relatório de Cobranças para uma data específica
+  const generateBillingReportText = async (targetDate: string): Promise<string> => {
+    if (!ownerId) return "";
+    const targetStart = new Date(`${targetDate}T00:00:00-03:00`).toISOString();
+    const targetTomorrow = new Date(`${targetDate}T00:00:00-03:00`);
+    targetTomorrow.setDate(targetTomorrow.getDate() + 1);
+
+    const [loans, clients, schedulesRes, payments, promises, sentQueueRes, templates] = await Promise.all([
+      supabase.from("loans").select("*").eq("user_id", ownerId),
+      supabase.from("clients").select("*").eq("user_id", ownerId),
+      supabase.from("loan_installments").select("*").eq("user_id", ownerId),
+      supabase.from("payments").select("*").eq("user_id", ownerId),
+      supabase.from("whatsapp_payment_promises").select("loan_id, installment_number, promised_date").eq("user_id", ownerId),
+      supabase
+        .from("whatsapp_billing_queue")
+        .select("id, client_id, loan_id, loan_ids, status, sent_at")
+        .eq("user_id", ownerId)
+        .eq("status", "sent")
+        .gte("sent_at", targetStart)
+        .lt("sent_at", targetTomorrow.toISOString()),
+      supabase
+        .from("whatsapp_billing_messages")
+        .select("message_upcoming, message_due_today, message_overdue, message_very_overdue, message_center_single, message_center_multiple, very_overdue_days, pix_link")
+        .eq("owner_id", ownerId)
+        .maybeSingle(),
+    ]);
+
+    const mappedLoans = (loans.data || []).map((l: any) => ({
+      ...l,
+      borrowerId: l.borrower_id,
+      borrowerName: l.borrower_name,
+      dueDate: l.due_date,
+      amount: Number(l.amount ?? 0),
+      interestRate: Number(l.interest_rate ?? 0),
+      installments: Math.max(1, Number(l.installments ?? 1)),
+      paidInstallments: Number(l.paid_installments ?? 0),
+      remainingAmount: l.remaining_amount == null ? undefined : Number(l.remaining_amount),
+      customInstallmentValue: l.custom_installment_value == null ? null : Number(l.custom_installment_value),
+      lateInterestType: l.late_interest_type,
+      lateInterestValue: l.late_interest_value == null ? null : Number(l.late_interest_value),
+      penaltyValue: l.penalty_value == null ? null : Number(l.penalty_value),
+      renegotiationPenaltyTotal: Number(l.renegotiation_penalty_total ?? 0),
+    }));
+
+    const mappedClients = (clients.data || []).map((c: any) => ({ ...c, createdAt: c.created_at }));
+    const mappedSchedules = (schedulesRes.data || []).map((s: any) => ({
+      ...s,
+      loanId: s.loan_id,
+      installmentNumber: Number(s.installment_number),
+      dueDate: s.due_date,
+      amount: Number(s.amount ?? 0),
+    }));
+    const mappedPayments = (payments.data || []).map((p: any) => ({
+      ...p,
+      loanId: p.loan_id,
+      installmentNumber: Number(p.installment_number),
+      amount: Number(p.amount ?? 0),
+    }));
+
+    const candidates = buildBillingCandidates({
+      loans: mappedLoans as any,
+      clients: mappedClients as any,
+      schedules: mappedSchedules,
+      payments: mappedPayments,
+      promises: promises.data || [],
+      today: targetDate,
+      messages: (templates.data as any) || undefined,
+    });
+
+    const aCobrarCandidates = candidates.filter((c) => c.billingDate <= targetDate);
+
+    const sentIds = new Set<string>();
+    const sentClientIds = new Set<string>();
+    (sentQueueRes.data || []).forEach((row: any) => {
+      if (row.client_id) sentClientIds.add(row.client_id);
+      const loanList = Array.isArray(row.loan_ids) && row.loan_ids.length ? row.loan_ids : (row.loan_id ? [row.loan_id] : []);
+      loanList.forEach((id: string) => { if (id) sentIds.add(id); });
+    });
+
+    const paymentsToday = mappedPayments.filter((p: any) => (p.date || "").slice(0, 10) === targetDate);
+    const totalReceivedToday = paymentsToday.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+    const interestReceivedToday = sumInterestReceivedInPeriod(mappedLoans as any, mappedPayments as any, targetDate, targetDate);
+
+    return formatBillingReportForWhatsapp(
+      aCobrarCandidates,
+      sentIds,
+      sentClientIds,
+      targetDate,
+      { interestReceived: interestReceivedToday, totalReceived: totalReceivedToday },
+    );
+  };
+
+  // Gerador do texto do Resumo Operacional para uma data específica
+  const generateOperationalSummaryText = async (targetDate: string): Promise<string> => {
+    if (!ownerId) return "";
+    const { data, error } = await supabase.functions.invoke("telegram-operational-summary", {
+      body: {
+        owner_id: ownerId,
+        date: targetDate,
+        channel: "whatsapp",
+        send_whatsapp: false,
+      },
+    });
+    if (error) throw error;
+    return data?.text || "";
+  };
+
+  // Pré-visualização do Relatório de Cobranças
+  const handlePreviewBillingReport = async () => {
+    setLoadingPreview(true);
+    try {
+      const text = await generateBillingReportText(selectedDate);
+      setPreviewTitle(`Relatório de Cobranças — ${formatDateBRDisplay(selectedDate)}`);
+      setPreviewText(text);
+      setPreviewType("billing");
+      setPreviewOpen(true);
+    } catch (e: any) {
+      console.error("Erro ao gerar pré-visualização:", e);
+      toast.error("Erro ao carregar pré-visualização.", { description: e?.message });
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  // Pré-visualização do Resumo Operacional
+  const handlePreviewOpSummary = async () => {
+    setLoadingPreview(true);
+    try {
+      const text = await generateOperationalSummaryText(selectedDate);
+      setPreviewTitle(`Resumo Operacional — ${formatDateBRDisplay(selectedDate)}`);
+      setPreviewText(text);
+      setPreviewType("operational");
+      setPreviewOpen(true);
+    } catch (e: any) {
+      console.error("Erro ao gerar pré-visualização:", e);
+      toast.error("Erro ao carregar pré-visualização.", { description: e?.message });
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  // Cópia para a área de transferência
+  const handleCopyText = async (textToCopy: string) => {
+    if (!textToCopy) return;
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      setCopied(true);
+      toast.success("Texto copiado para a área de transferência!");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Erro ao copiar texto.");
+    }
+  };
+
+  // Disparo do Resumo Operacional para a data selecionada
   const sendOperationalSummaryNow = async () => {
     if (!ownerId) return;
     setSendingOpSummary(true);
@@ -319,6 +513,7 @@ export function WhatsappReportCard() {
       const { data, error } = await supabase.functions.invoke("telegram-operational-summary", {
         body: {
           owner_id: ownerId,
+          date: selectedDate,
           channel: "whatsapp",
           send_whatsapp: true,
           phone: destPhone,
@@ -333,7 +528,7 @@ export function WhatsappReportCard() {
       if (error) throw error;
 
       if (data?.sent) {
-        toast.success("Resumo Operacional enviado para o seu WhatsApp!");
+        toast.success(`Resumo Operacional de ${formatDateBRDisplay(selectedDate)} enviado para o seu WhatsApp!`);
       } else {
         const reason = data?.reason;
         if (reason === "whatsapp_not_configured") {
@@ -360,104 +555,12 @@ export function WhatsappReportCard() {
     }
   };
 
-  // Disparo manual do Relatório de Cobranças no WhatsApp
+  // Disparo do Relatório de Cobranças para a data selecionada
   const sendBillingReportNow = async () => {
     if (!ownerId) return;
     setSendingBillingReport(true);
     try {
-      const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bahia" }).format(new Date());
-      const todayStart = new Date(`${today}T00:00:00-03:00`).toISOString();
-      const tomorrow = new Date(`${today}T00:00:00-03:00`);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const [loans, clients, schedulesRes, payments, promises, sentQueueRes, templates] = await Promise.all([
-        supabase.from("loans").select("*").eq("user_id", ownerId),
-        supabase.from("clients").select("*").eq("user_id", ownerId),
-        supabase.from("loan_installments").select("*").eq("user_id", ownerId),
-        supabase.from("payments").select("*").eq("user_id", ownerId),
-        supabase.from("whatsapp_payment_promises").select("loan_id, installment_number, promised_date").eq("user_id", ownerId),
-        supabase
-          .from("whatsapp_billing_queue")
-          .select("id, client_id, loan_id, loan_ids, status, sent_at")
-          .eq("user_id", ownerId)
-          .eq("status", "sent")
-          .gte("sent_at", todayStart)
-          .lt("sent_at", tomorrow.toISOString()),
-        supabase
-          .from("whatsapp_billing_messages")
-          .select("message_upcoming, message_due_today, message_overdue, message_very_overdue, message_center_single, message_center_multiple, very_overdue_days, pix_link")
-          .eq("owner_id", ownerId)
-          .maybeSingle(),
-      ]);
-
-      const mappedLoans = (loans.data || []).map((l: any) => ({
-        ...l,
-        borrowerId: l.borrower_id,
-        borrowerName: l.borrower_name,
-        dueDate: l.due_date,
-        amount: Number(l.amount ?? 0),
-        interestRate: Number(l.interest_rate ?? 0),
-        installments: Math.max(1, Number(l.installments ?? 1)),
-        paidInstallments: Number(l.paid_installments ?? 0),
-        remainingAmount: l.remaining_amount == null ? undefined : Number(l.remaining_amount),
-        customInstallmentValue: l.custom_installment_value == null ? null : Number(l.custom_installment_value),
-        lateInterestType: l.late_interest_type,
-        lateInterestValue: l.late_interest_value == null ? null : Number(l.late_interest_value),
-        penaltyValue: l.penalty_value == null ? null : Number(l.penalty_value),
-        renegotiationPenaltyTotal: Number(l.renegotiation_penalty_total ?? 0),
-      }));
-
-      const mappedClients = (clients.data || []).map((c: any) => ({ ...c, createdAt: c.created_at }));
-      const mappedSchedules = (schedulesRes.data || []).map((s: any) => ({
-        ...s,
-        loanId: s.loan_id,
-        installmentNumber: Number(s.installment_number),
-        dueDate: s.due_date,
-        amount: Number(s.amount ?? 0),
-      }));
-      const mappedPayments = (payments.data || []).map((p: any) => ({
-        ...p,
-        loanId: p.loan_id,
-        installmentNumber: Number(p.installment_number),
-        amount: Number(p.amount ?? 0),
-      }));
-
-      const candidates = buildBillingCandidates({
-        loans: mappedLoans as any,
-        clients: mappedClients as any,
-        schedules: mappedSchedules,
-        payments: mappedPayments,
-        promises: promises.data || [],
-        today,
-        messages: (templates.data as any) || undefined,
-      });
-
-      // Filtro oficial da subaba "A cobrar" (billingDate <= hoje na Bahia)
-      const aCobrarCandidates = candidates.filter((c) => c.billingDate <= today);
-
-      // Conjunto de loanIds e clientIds enviados com sucesso hoje
-      const sentIds = new Set<string>();
-      const sentClientIds = new Set<string>();
-      (sentQueueRes.data || []).forEach((row: any) => {
-        if (row.client_id) sentClientIds.add(row.client_id);
-        const loanList = Array.isArray(row.loan_ids) && row.loan_ids.length ? row.loan_ids : (row.loan_id ? [row.loan_id] : []);
-        loanList.forEach((id: string) => { if (id) sentIds.add(id); });
-      });
-
-      // Total recebido e Juros recebidos no dia atual (exata paridade com Dashboard)
-      const paymentsToday = mappedPayments.filter((p: any) => (p.date || "").slice(0, 10) === today);
-      const totalReceivedToday = paymentsToday.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
-      const interestReceivedToday = sumInterestReceivedInPeriod(mappedLoans as any, mappedPayments as any, today, today);
-
-      // Monta a mensagem completa formatada para o WhatsApp
-      const reportMessage = formatBillingReportForWhatsapp(
-        aCobrarCandidates,
-        sentIds,
-        sentClientIds,
-        today,
-        { interestReceived: interestReceivedToday, totalReceived: totalReceivedToday },
-      );
-
+      const reportMessage = await generateBillingReportText(selectedDate);
       const destPhone = (whatsappPhone.trim() || profilePhone || "").trim();
       if (!destPhone) {
         toast.error("Nenhum telefone configurado", {
@@ -469,11 +572,11 @@ export function WhatsappReportCard() {
       // 1. Tenta envio direto se a API estiver configurada
       const directRes = await sendWhatsappDirectly(schedule, destPhone, reportMessage);
       if (directRes.ok) {
-        toast.success("Relatório de Cobranças enviado para o seu WhatsApp!");
+        toast.success(`Relatório de Cobranças de ${formatDateBRDisplay(selectedDate)} enviado para o seu WhatsApp!`);
         return;
       }
 
-      // 2. Se o envio direto falhar (ex: 401 por falta de api_key pública), utiliza a Edge Function com as credenciais do backend
+      // 2. Se o envio direto falhar, utiliza a Edge Function
       const { data: edgeRes, error: edgeErr } = await supabase.functions.invoke("send-whatsapp-report", {
         body: {
           owner_id: ownerId,
@@ -489,7 +592,7 @@ export function WhatsappReportCard() {
       });
 
       if (!edgeErr && edgeRes?.ok) {
-        toast.success("Relatório de Cobranças enviado para o seu WhatsApp!");
+        toast.success(`Relatório de Cobranças de ${formatDateBRDisplay(selectedDate)} enviado para o seu WhatsApp!`);
       } else {
         let errorDesc = edgeRes?.error;
         if (edgeErr) {
@@ -519,8 +622,87 @@ export function WhatsappReportCard() {
     }
   };
 
+  const todayStr = todayInBahia();
+  const isToday = selectedDate === todayStr;
+  const isYesterday = selectedDate === getRelativeDate(-1);
+
   return (
     <div className="space-y-5">
+      {/* 📅 Seletor de Data Dinâmico dos Relatórios */}
+      <Card no3d className="border-border/60 shadow-xs rounded-2xl overflow-hidden bg-gradient-to-r from-card via-card to-muted/20">
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <Calendar className="h-4 w-4" />
+                </div>
+                <h3 className="text-sm font-bold text-foreground">
+                  Data de Referência dos Relatórios
+                </h3>
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] font-semibold py-0.5 px-2 rounded-md ${
+                    isToday
+                      ? "bg-primary/10 text-primary border-primary/20"
+                      : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                  }`}
+                >
+                  {isToday ? "Hoje" : isYesterday ? "Ontem" : formatDateBRDisplay(selectedDate)}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground leading-snug pl-10">
+                Selecione uma data para visualizar, copiar ou disparar os relatórios de cobranças e operacionais retroativos.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap pl-10 md:pl-0">
+              <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-xl border border-border/50">
+                <Button
+                  type="button"
+                  variant={isToday ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setSelectedDate(todayStr)}
+                  className="h-8 text-xs font-semibold rounded-lg px-2.5"
+                >
+                  Hoje
+                </Button>
+                <Button
+                  type="button"
+                  variant={isYesterday ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setSelectedDate(getRelativeDate(-1))}
+                  className="h-8 text-xs font-semibold rounded-lg px-2.5"
+                >
+                  Ontem
+                </Button>
+                <Button
+                  type="button"
+                  variant={selectedDate === getRelativeDate(-2) ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setSelectedDate(getRelativeDate(-2))}
+                  className="h-8 text-xs font-semibold rounded-lg px-2.5"
+                >
+                  Anteontem
+                </Button>
+              </div>
+
+              <div className="relative">
+                <Input
+                  type="date"
+                  value={selectedDate}
+                  max={todayStr}
+                  onChange={(e) => {
+                    if (e.target.value) setSelectedDate(e.target.value);
+                  }}
+                  className="h-10 text-xs font-semibold rounded-xl bg-background border-border/70 w-[150px] cursor-pointer"
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Card 1: Configurações de Telefone e Ativação do WhatsApp */}
       <Card no3d className="border-border/60 shadow-xs rounded-2xl overflow-hidden">
         <CardHeader className="p-4 sm:p-5 pb-3">
@@ -640,18 +822,24 @@ export function WhatsappReportCard() {
       {/* Card 2: Resumo Operacional Diário */}
       <Card no3d className="border-border/60 shadow-xs rounded-2xl overflow-hidden">
         <CardHeader className="p-4 sm:p-5 pb-3">
-          <div className="flex items-start sm:items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold shadow-xs shrink-0 ring-1 ring-primary/20">
-              <Activity className="h-5 w-5" />
+          <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold shadow-xs shrink-0 ring-1 ring-primary/20">
+                <Activity className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  Resumo Operacional Diário
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                  Consolidado financeiro com faturamento, juros recebidos, despesas e inadimplência referente a <strong>{formatDateBRDisplay(selectedDate)}</strong>.
+                </CardDescription>
+              </div>
             </div>
-            <div>
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                Resumo Operacional Diário
-              </CardTitle>
-              <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                Consolidado financeiro geral com faturamento, juros recebidos, despesas e inadimplência.
-              </CardDescription>
-            </div>
+
+            <Badge variant="outline" className="text-xs font-semibold py-1 px-2.5 bg-muted/30">
+              📅 Referência: {formatDateBRDisplay(selectedDate)}
+            </Badge>
           </div>
         </CardHeader>
 
@@ -661,7 +849,7 @@ export function WhatsappReportCard() {
             <div className="flex items-center justify-between">
               <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5 text-primary" />
-                <span>Horários Programados de Envio</span>
+                <span>Horários Programados de Envio Automático</span>
               </Label>
               <Badge variant="outline" className="text-[10px] font-medium text-muted-foreground py-0.5 px-2 bg-muted/30">
                 {activeOpSlots.length}/3 horários
@@ -731,12 +919,12 @@ export function WhatsappReportCard() {
           {/* Indicadores incluídos no Resumo Operacional */}
           <div className="space-y-2">
             <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-              <span>Indicadores incluídos no Resumo Operacional:</span>
+              <span>Indicadores calculados para {formatDateBRDisplay(selectedDate)}:</span>
             </Label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-muted-foreground">
               <div className="p-3 bg-muted/30 rounded-xl border border-border/40">
                 <span className="font-semibold text-foreground text-xs">Recebido no dia</span>
-                <p className="text-[10px] text-muted-foreground mt-1 leading-snug">Total e juros recebidos hoje</p>
+                <p className="text-[10px] text-muted-foreground mt-1 leading-snug">Total e juros recebidos na data</p>
               </div>
               <div className="p-3 bg-muted/30 rounded-xl border border-border/40">
                 <span className="font-semibold text-foreground text-xs">Juros no Mês</span>
@@ -753,7 +941,7 @@ export function WhatsappReportCard() {
             </div>
           </div>
 
-          {/* Ações e Botão de Disparo Imediato */}
+          {/* Ações: Pré-visualizar e Enviar */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-border/40">
             <p className="text-[11px] text-muted-foreground">
               {!isWhatsappConfigured ? (
@@ -761,21 +949,35 @@ export function WhatsappReportCard() {
                   Aviso: Conecte sua API do WhatsApp na aba &quot;Disparos &amp; Automação&quot; para realizar os envios.
                 </span>
               ) : (
-                <span>O resumo operacional pode ser testado agora ou enviado automaticamente nos horários definidos.</span>
+                <span>Você pode pré-visualizar o texto antes ou enviar direto para seu WhatsApp.</span>
               )}
             </p>
-            <Button
-              onClick={sendOperationalSummaryNow}
-              disabled={sendingOpSummary || !isWhatsappConfigured}
-              className="w-full sm:w-auto h-9 text-xs font-semibold rounded-xl shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-xs"
-            >
-              {sendingOpSummary ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-              Enviar Resumo Operacional Agora
-            </Button>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handlePreviewOpSummary}
+                disabled={loadingPreview}
+                className="flex-1 sm:flex-initial h-9 text-xs font-semibold rounded-xl gap-2 shadow-2xs"
+              >
+                {loadingPreview ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+                Pré-visualizar
+              </Button>
+
+              <Button
+                onClick={sendOperationalSummaryNow}
+                disabled={sendingOpSummary || !isWhatsappConfigured}
+                className="flex-1 sm:flex-initial h-9 text-xs font-semibold rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-xs"
+              >
+                {sendingOpSummary ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                Enviar Resumo Operacional Agora
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -783,18 +985,24 @@ export function WhatsappReportCard() {
       {/* Card 3: Relatório de Cobranças pelo WhatsApp */}
       <Card no3d className="border-border/60 shadow-xs rounded-2xl overflow-hidden">
         <CardHeader className="p-4 sm:p-5 pb-3">
-          <div className="flex items-start sm:items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold shadow-xs shrink-0 ring-1 ring-emerald-500/20">
-              <FileSpreadsheet className="h-5 w-5" />
+          <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold shadow-xs shrink-0 ring-1 ring-emerald-500/20">
+                <FileSpreadsheet className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  Relatório de Cobranças pelo WhatsApp
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                  Resumo das cobranças da aba <strong>&quot;A cobrar&quot;</strong>, enviadas e pendentes referente a <strong>{formatDateBRDisplay(selectedDate)}</strong>.
+                </CardDescription>
+              </div>
             </div>
-            <div>
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                Relatório de Cobranças pelo WhatsApp
-              </CardTitle>
-              <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                Resumo diário exclusivo das cobranças da aba <strong>&quot;A cobrar&quot;</strong> com detalhamento de enviadas e pendentes no WhatsApp.
-              </CardDescription>
-            </div>
+
+            <Badge variant="outline" className="text-xs font-semibold py-1 px-2.5 bg-muted/30">
+              📅 Referência: {formatDateBRDisplay(selectedDate)}
+            </Badge>
           </div>
         </CardHeader>
 
@@ -804,7 +1012,7 @@ export function WhatsappReportCard() {
             <div className="flex items-center justify-between">
               <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5 text-primary" />
-                <span>Horários Programados de Envio</span>
+                <span>Horários Programados de Envio Automático</span>
               </Label>
               <Badge variant="outline" className="text-[10px] font-medium text-muted-foreground py-0.5 px-2 bg-muted/30">
                 {activeBillSlots.length}/3 horários
@@ -874,16 +1082,16 @@ export function WhatsappReportCard() {
           {/* Indicadores incluídos no Relatório do WhatsApp */}
           <div className="space-y-2">
             <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-              <span>Informações enviadas na mensagem do WhatsApp:</span>
+              <span>Informações geradas para {formatDateBRDisplay(selectedDate)}:</span>
             </Label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-muted-foreground">
               <div className="p-3 bg-muted/30 rounded-xl border border-border/40">
                 <div className="flex items-center gap-1.5 text-foreground font-semibold text-xs">
                   <ListChecks className="h-3.5 w-3.5 text-primary shrink-0" />
-                  <span>Resumo Geral</span>
+                  <span>Resumo do Dia</span>
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
-                  Total a cobrar, juros totais e valor geral do dia
+                  Total a cobrar, juros, juros recebidos e total recebido
                 </p>
               </div>
 
@@ -893,7 +1101,7 @@ export function WhatsappReportCard() {
                   <span>Enviadas</span>
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
-                  Clientes notificados com juros e valor total
+                  Clientes notificados com juros e total
                 </p>
               </div>
 
@@ -913,13 +1121,13 @@ export function WhatsappReportCard() {
                   <span>Subtotais</span>
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
-                  Consolidação financeira de cada seção
+                  Totais consolidados de cada seção
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Ações e Botão de Disparo Imediato */}
+          {/* Ações: Pré-visualizar e Enviar */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-border/40">
             <p className="text-[11px] text-muted-foreground">
               {!isWhatsappConfigured ? (
@@ -927,24 +1135,110 @@ export function WhatsappReportCard() {
                   Aviso: Conecte sua API do WhatsApp na aba &quot;Disparos &amp; Automação&quot; para realizar os envios.
                 </span>
               ) : (
-                <span>O relatório é enviado automaticamente nos horários definidos ou em tempo real pelo botão ao lado.</span>
+                <span>O relatório pode ser pré-visualizado, copiado ou enviado para o seu WhatsApp.</span>
               )}
             </p>
-            <Button
-              onClick={sendBillingReportNow}
-              disabled={sendingBillingReport || !isWhatsappConfigured}
-              className="w-full sm:w-auto h-9 text-xs font-semibold rounded-xl shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-xs"
-            >
-              {sendingBillingReport ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-              Enviar Relatório Agora no WhatsApp
-            </Button>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handlePreviewBillingReport}
+                disabled={loadingPreview}
+                className="flex-1 sm:flex-initial h-9 text-xs font-semibold rounded-xl gap-2 shadow-2xs"
+              >
+                {loadingPreview ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+                Pré-visualizar
+              </Button>
+
+              <Button
+                onClick={sendBillingReportNow}
+                disabled={sendingBillingReport || !isWhatsappConfigured}
+                className="flex-1 sm:flex-initial h-9 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-xs"
+              >
+                {sendingBillingReport ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                Enviar Relatório Agora no WhatsApp
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* 🔍 Modal de Pré-Visualização e Cópia do Relatório */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl border-border">
+          <DialogHeader className="p-4 sm:p-5 pb-3 border-b border-border/60 bg-muted/20">
+            <div className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Eye className="h-4 w-4" />
+              </div>
+              <div>
+                <DialogTitle className="text-sm sm:text-base font-bold text-foreground">
+                  {previewTitle}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Texto formatado exatamente como será enviado no WhatsApp / Telegram.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="p-4 sm:p-5 flex-1 overflow-y-auto bg-muted/10">
+            <div className="p-4 rounded-xl bg-background border border-border/70 shadow-inner font-mono text-xs text-foreground whitespace-pre-wrap leading-relaxed select-text">
+              {previewText}
+            </div>
+          </div>
+
+          <DialogFooter className="p-3 sm:p-4 border-t border-border/60 bg-card flex flex-row items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleCopyText(previewText)}
+              className="h-9 text-xs font-semibold rounded-xl gap-1.5"
+            >
+              {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? "Copiado!" : "Copiar Texto"}
+            </Button>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setPreviewOpen(false)}
+                className="h-9 text-xs font-semibold rounded-xl"
+              >
+                Fechar
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  setPreviewOpen(false);
+                  if (previewType === "billing") {
+                    sendBillingReportNow();
+                  } else {
+                    sendOperationalSummaryNow();
+                  }
+                }}
+                disabled={!isWhatsappConfigured}
+                className={`h-9 text-xs font-semibold rounded-xl gap-1.5 text-white ${
+                  previewType === "billing" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-primary hover:bg-primary/90"
+                }`}
+              >
+                <Send className="h-3.5 w-3.5" />
+                Enviar pelo WhatsApp
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
