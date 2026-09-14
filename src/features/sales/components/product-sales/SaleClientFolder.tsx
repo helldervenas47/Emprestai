@@ -294,8 +294,8 @@ export function SaleClientFolder({
             </div>
 
             {/* Painel com Métricas Consolidadas */}
-            <div className="grid grid-cols-3 gap-1.5 sm:gap-2 py-1">
-              <div className="p-2 sm:p-2.5 rounded-xl bg-card border border-border/40 text-center flex flex-col justify-center min-w-0">
+            <div className="flex items-stretch gap-1.5 sm:gap-2 py-1 w-full">
+              <div className="flex-1 p-2 sm:p-2.5 rounded-xl bg-card border border-border/40 text-center flex flex-col justify-center min-w-0">
                 <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase font-medium whitespace-nowrap truncate tracking-tight">
                   Total
                 </p>
@@ -303,7 +303,7 @@ export function SaleClientFolder({
                   {formatCurrency(group.totalAmount)}
                 </p>
               </div>
-              <div className="p-2 sm:p-2.5 rounded-xl bg-card border border-border/40 text-center flex flex-col justify-center min-w-0">
+              <div className="flex-1 p-2 sm:p-2.5 rounded-xl bg-card border border-border/40 text-center flex flex-col justify-center min-w-0">
                 <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase font-medium whitespace-nowrap truncate tracking-tight">
                   Pago
                 </p>
@@ -311,7 +311,7 @@ export function SaleClientFolder({
                   {formatCurrency(group.totalPaid)}
                 </p>
               </div>
-              <div className="p-2 sm:p-2.5 rounded-xl bg-card border border-border/40 text-center flex flex-col justify-center min-w-0">
+              <div className="flex-1 p-2 sm:p-2.5 rounded-xl bg-card border border-border/40 text-center flex flex-col justify-center min-w-0">
                 <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase font-semibold whitespace-nowrap truncate tracking-tight">
                   A Receber
                 </p>
