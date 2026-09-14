@@ -638,6 +638,31 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
   const groupedEnviadas = groupCandidatesByClient(enviadas);
   const groupedNaoEnviadas = groupCandidatesByClient(naoEnviadas);
 
+  // Total recebido hoje (pagamentos na data atual)
+  const paymentsToday = payments.filter((p: any) => (p.date || "").slice(0, 10) === today);
+  const totalReceivedToday = paymentsToday.reduce((sum: number, p: any) => sum + finiteMoney(p.amount), 0);
+
+  // Juros a receber da carteira ativa (mesma regra e paridade do Dashboard)
+  let capitalOnStreet = 0;
+  let pendingReceivable = 0;
+  for (const loan of loans) {
+    if (loan.status === "paid") continue;
+    const principal = finiteMoney(loan.amount);
+    const totalInst = Math.max(1, Number(loan.installments || 1));
+    const paidInst = Math.min(Number(loan.paid_installments || 0), totalInst);
+    const remainingRatio = Math.max(0, (totalInst - paidInst) / totalInst);
+    capitalOnStreet += principal * remainingRatio;
+
+    const totalPaidLoan = payments
+      .filter((p: any) => p.loan_id === loan.id)
+      .reduce((sum: number, p: any) => sum + finiteMoney(p.amount), 0);
+    const totalExp = Math.round(principal * (1 + (Number(loan.interest_rate) || 0) / 100));
+    const safeRem = finiteMoney(loan.remaining_amount);
+    const remaining = safeRem > 0 ? safeRem : Math.max(0, totalExp - totalPaidLoan);
+    pendingReceivable += remaining;
+  }
+  const jurosAReceber = Math.max(0, pendingReceivable - capitalOnStreet);
+
   const dateFormatted = formatDateBR(today);
 
   const lines: string[] = [
@@ -651,6 +676,8 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
     ``,
     `💰 Juros: *${fmtBRL(totalInterest)}*`,
     `💵 Total a cobrar: *${fmtBRL(totalAmount)}*`,
+    `🪙 Juros a receber: *${fmtBRL(jurosAReceber)}*`,
+    `📥 Total recebido: *${fmtBRL(totalReceivedToday)}*`,
     ``,
     `━━━━━━━━━━━━━━━━━━`,
     ``,
