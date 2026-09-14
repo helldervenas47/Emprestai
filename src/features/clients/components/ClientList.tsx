@@ -17,6 +17,7 @@ import { useAllClientDocumentCounts } from "@/features/clients/hooks/useAllClien
 import { formatCPF, formatRG, onlyDigits, isValidCPF, isValidCNPJ } from "@/lib/brDocuments";
 import { toast } from "sonner";
 import { ClientCardView } from "@/features/clients/components/ClientCardView";
+import { ClientEditModal } from "@/features/clients/components/ClientEditModal";
 import { getVisibleClients, type ClientStatusFilter, type ClientSortOption } from "@/features/clients/utils/clientListLogic";
 import { getClientRiskScoreInfo } from "@/features/clients/lib/clientRiskScore";
 import { getClientLoans, buildRiskProfile, getClientRiskMetrics } from "@/features/loans/lib/clientRisk";
@@ -168,9 +169,8 @@ export function ClientList({ clients, loans, payments, installmentSchedules, onD
   const deferredSearch = useDeferredValue(search);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
   const [sortOption, setSortOption] = useState<SortOption>("name-asc");
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [editingTab, setEditingTab] = useState<"data" | "docs">("data");
-  const [editForm, setEditForm] = useState<Record<string, any>>({ name: "", phone: "", email: "", cpf: "", cnpj: "", rg: "", address: "", city: "", state: "", score: "", notes: "", isVehicleRental: false, nacionalidade: "", estadoCivil: "", profissao: "", bairro: "", isManager: false, defaultInterestRate: "", creditLimit: "", autoBillingEnabled: true });
   const [deleteClientId, setDeleteClientId] = useState<string | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [limitClient, setLimitClient] = useState<Client | null>(null);
@@ -232,42 +232,28 @@ export function ClientList({ clients, loans, payments, installmentSchedules, onD
   }, [clients]);
   const overLimitCount = overLimitClientIds.size;
 
-
   // P1 perf: callbacks estáveis — evitam invalidar `memo` dos cards a cada render.
   const startEdit = useCallback((client: Client, tab: "data" | "docs" = "data") => {
-    setEditingId(client.id);
+    setEditingClient(client);
     setEditingTab(tab);
-    const cl = getLimitForClient(client.id);
-    setEditForm({ name: client.name, phone: client.phone, email: client.email, cpf: client.cpf, cnpj: client.cnpj || "", rg: client.rg || "", address: client.address, city: client.city || "", state: client.state || "", score: client.score || "", notes: client.notes || "", isVehicleRental: client.isVehicleRental || false, nacionalidade: client.nacionalidade || "", estadoCivil: client.estadoCivil || "", profissao: client.profissao || "", bairro: client.bairro || "", isManager: client.isManager || false, defaultInterestRate: client.defaultInterestRate != null ? String(client.defaultInterestRate) : "", creditLimit: cl?.currentLimit != null ? String(cl.currentLimit) : "", autoBillingEnabled: client.autoBillingEnabled ?? true });
-  }, [getLimitForClient]);
+  }, []);
 
-  const saveEdit = useCallback(async (id: string) => {
-    const { defaultInterestRate, creditLimit, cpf, cnpj, rg, ...rest } = editForm;
-    if (cpf && !isValidCPF(cpf)) { toast.error("CPF inválido"); return; }
-    if (cnpj && !isValidCNPJ(cnpj)) { toast.error("CNPJ inválido"); return; }
-    const parsedRate = (defaultInterestRate ?? "").toString().trim() === "" ? null : parseFloat(defaultInterestRate);
-    onUpdate(id, {
-      ...rest,
-      cpf: onlyDigits(cpf),
-      cnpj: onlyDigits(cnpj),
-      rg: formatRG(rg),
-      defaultInterestRate: parsedRate !== null && !isNaN(parsedRate) ? parsedRate : null,
-    });
-    const parsedLimit = (creditLimit ?? "").toString().trim() === "" ? null : parseFloat(String(creditLimit).replace(",", "."));
-    if (parsedLimit !== null && !isNaN(parsedLimit) && parsedLimit >= 0) {
+  const handleSaveClient = useCallback(async (id: string, data: Partial<Omit<Client, "id" | "createdAt">>, creditLimitValue?: number | null) => {
+    onUpdate(id, data);
+    if (creditLimitValue !== undefined && creditLimitValue !== null && !isNaN(creditLimitValue) && creditLimitValue >= 0) {
       const existing = getLimitForClient(id);
       if (!existing) await ensureLimit(id);
       const current = getLimitForClient(id)?.currentLimit ?? 0;
-      if (Math.abs(current - parsedLimit) > 0.001) {
-        await updateLimit(id, parsedLimit, {
+      if (Math.abs(current - creditLimitValue) > 0.001) {
+        await updateLimit(id, creditLimitValue, {
           mode: "manual",
           changeType: "manual",
           reason: "Ajuste manual via edição do cliente",
         });
       }
     }
-    setEditingId(null);
-  }, [editForm, onUpdate, getLimitForClient, ensureLimit, updateLimit]);
+    setEditingClient(null);
+  }, [onUpdate, getLimitForClient, ensureLimit, updateLimit]);
 
   const handleToggleActive = useCallback(async (client: Client) => {
     const becomingInactive = client.active !== false;
@@ -452,215 +438,26 @@ export function ClientList({ clients, loans, payments, installmentSchedules, onD
             // Cap na animação stagger para não passar de ~480ms total.
             const delayMs = Math.min(i, 8) * 40;
             return (
-            <div key={client.id} className="animate-fade-in" style={{ animationDelay: `${delayMs}ms`, animationFillMode: 'backwards' }}>
-            <Card className={`hover:shadow-[0_4px_16px_-6px_hsl(0_0%_0%/0.08)] hover:-translate-y-[1px] transition-all duration-200 ease-out overflow-hidden ${!client.active ? "opacity-60" : ""}`}>
-              <CardContent className="p-3 sm:p-5">
-                {editingId === client.id ? (
-                  <div className="space-y-3">
-                    <div className="flex justify-end">
-
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => setEditingId(null)}
-                        aria-label="Cancelar"
-                        title="Cancelar"
-                      >
-                        <X className="w-5 h-5" />
-                      </Button>
-                    </div>
-                    <Tabs value={editingTab} onValueChange={(v) => setEditingTab(v as "data" | "docs")} className="w-full">
-                      <TabsList className="w-full">
-                        <TabsTrigger value="data" className="flex-1">Dados do Cliente</TabsTrigger>
-                        <DocumentsTabTrigger count={docCount} />
-                      </TabsList>
-
-                      <TabsContent value="data" className="space-y-3 mt-3">
-                    <div>
-                      <Label className="text-xs">Nome</Label>
-                      <Input value={editForm.name} onChange={(e) => updateField("name", e.target.value)} />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label className="text-xs">CPF</Label>
-                        <Input value={formatCPF(editForm.cpf)} onChange={(e) => updateField("cpf", formatCPF(e.target.value))} placeholder="000.000.000-00" inputMode="numeric" maxLength={14} />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Telefone</Label>
-                        <Input value={editForm.phone} onChange={(e) => updateField("phone", e.target.value)} />
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-xs">E-mail</Label>
-                      <Input value={editForm.email} onChange={(e) => updateField("email", e.target.value)} />
-                    </div>
-                    <div>
-                      <Label className="text-xs">Endereço</Label>
-                      <Input value={editForm.address} onChange={(e) => updateField("address", e.target.value)} />
-                    </div>
-                    <div>
-                      <Label className="text-xs">Taxa de juros padrão (% ao mês)</Label>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        value={editForm.defaultInterestRate}
-                        onChange={(e) => updateField("defaultInterestRate", e.target.value)}
-                        placeholder="30"
-                      />
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        Se vazio, será usado 30% em novos empréstimos.
-                      </p>
-                    </div>
-                    {/* Credit Limit edit */}
-                    {(() => {
-                      const used = usedLimitByClient[client.id] ?? 0;
-                      const totalNum = parseFloat(String(editForm.creditLimit).replace(",", ".")) || 0;
-                      const available = computeAvailableLimit(totalNum, used);
-                      return (
-                        <div className="border border-border rounded-lg p-3 space-y-2">
-                          <Label className="text-xs flex items-center gap-1.5">
-                            <Wallet className="h-3.5 w-3.5 text-primary" /> Limite de Crédito
-                          </Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={editForm.creditLimit}
-                            onChange={(e) => updateField("creditLimit", e.target.value)}
-                            placeholder="0,00"
-                            disabled={client.active === false}
-                          />
-                          <div className="grid grid-cols-2 gap-2 text-[10px]">
-                            <div>
-                              <p className="text-muted-foreground">Utilizado</p>
-                              <p className="font-semibold text-warning">{formatBRL(used)}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Disponível</p>
-                              <p className={`font-semibold ${available < 0 ? "text-destructive" : "text-success"}`}>{formatBRL(available)}</p>
-                            </div>
-                          </div>
-                          {client.active === false && (
-                            <p className="text-[10px] text-destructive">
-                              Cliente inativo — limite zerado e bloqueado para novas operações.
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })()}
-                    <div>
-                      <Label className="text-xs">Observações</Label>
-                      <Textarea value={editForm.notes} onChange={(e) => updateField("notes", e.target.value)} rows={2} />
-                    </div>
-                    <div className="border border-border rounded-lg p-3">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`edit-manager-${client.id}`}
-                          checked={editForm.isManager}
-                          onCheckedChange={(checked) => updateField("isManager", !!checked)}
-                        />
-                        <Label htmlFor={`edit-manager-${client.id}`} className="text-xs font-medium cursor-pointer">
-                          Cliente é Gerente
-                        </Label>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-1 ml-6">
-                        Habilita receber comissão sobre empréstimos atrelados.
-                      </p>
-                    </div>
-                    <div className="border border-border rounded-lg p-3">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`edit-autobilling-${client.id}`}
-                          checked={editForm.autoBillingEnabled}
-                          onCheckedChange={(checked) => updateField("autoBillingEnabled", !!checked)}
-                        />
-                        <Label htmlFor={`edit-autobilling-${client.id}`} className="text-xs font-medium cursor-pointer">
-                          Receber cobrança automática por WhatsApp
-                        </Label>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-1 ml-6">
-                        Se desmarcado, nenhum contrato deste cliente será cobrado automaticamente.
-                      </p>
-                    </div>
-                    <div className="border border-border rounded-lg p-3 space-y-3">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`edit-vehicle-${client.id}`}
-                          checked={editForm.isVehicleRental}
-                          onCheckedChange={(checked) => updateField("isVehicleRental", !!checked)}
-                        />
-                        <Label htmlFor={`edit-vehicle-${client.id}`} className="text-xs font-medium cursor-pointer">
-                          Aluguel de Veículos
-                        </Label>
-                      </div>
-                      {editForm.isVehicleRental && (
-                        <div className="space-y-2 pt-2 border-t border-border/50">
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <Label className="text-xs">RG</Label>
-                              <Input value={formatRG(editForm.rg)} onChange={(e) => updateField("rg", formatRG(e.target.value))} placeholder="00.000.000-0" inputMode="text" maxLength={15} />
-                            </div>
-                            <div>
-                              <Label className="text-xs">Cidade</Label>
-                              <Input value={editForm.city} onChange={(e) => updateField("city", e.target.value)} placeholder="São Paulo" />
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <Label className="text-xs">Nacionalidade</Label>
-                              <Input value={editForm.nacionalidade} onChange={(e) => updateField("nacionalidade", e.target.value)} placeholder="Brasileiro(a)" />
-                            </div>
-                            <div>
-                              <Label className="text-xs">Estado Civil</Label>
-                              <Input value={editForm.estadoCivil} onChange={(e) => updateField("estadoCivil", e.target.value)} placeholder="Solteiro(a)" />
-                            </div>
-                          </div>
-                          <div>
-                            <Label className="text-xs">Profissão</Label>
-                            <Input value={editForm.profissao} onChange={(e) => updateField("profissao", e.target.value)} placeholder="Motorista" />
-                          </div>
-                          <div>
-                            <Label className="text-xs">Bairro</Label>
-                            <Input value={editForm.bairro} onChange={(e) => updateField("bairro", e.target.value)} placeholder="Centro" />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                      </TabsContent>
-                      <TabsContent value="docs" className="mt-3">
-                        <Suspense fallback={<div className="text-xs text-muted-foreground py-4 text-center">Carregando documentos…</div>}>
-                          <ClientDocuments clientId={client.id} />
-                        </Suspense>
-                      </TabsContent>
-                    </Tabs>
-
-                    <div className="flex gap-2 justify-end">
-                      <Button data-mutation size="sm" onClick={() => saveEdit(client.id)}>
-                        <Check className="w-[25px] h-[25px] mr-1" /> Salvar
-                      </Button>
-                    </div>
-
-                  </div>
-                ) : (
-                  <ClientRow
-                    client={client}
-                    score={cs}
-                    docCount={docCount}
-                    usedLimit={usedLimitByClient[client.id] ?? 0}
-                    creditLimit={getLimitForClient(client.id)}
-                    readOnly={readOnly}
-                    onEdit={(c) => startEdit(c)}
-                    onOpenDocs={(c) => startEdit(c, "docs")}
-                    onOpenLimit={setLimitClient}
-                    onOpenAnalysis={setSelectedClient}
-                    onToggleActive={handleToggleActive}
-                    onDelete={setDeleteClientId}
-                  />
-                )}
-              </CardContent>
-            </Card>
-            </div>
+              <div key={client.id} className="animate-fade-in" style={{ animationDelay: `${delayMs}ms`, animationFillMode: 'backwards' }}>
+                <Card className={`hover:shadow-[0_4px_16px_-6px_hsl(0_0%_0%/0.08)] hover:-translate-y-[1px] transition-all duration-200 ease-out overflow-hidden ${!client.active ? "opacity-60" : ""}`}>
+                  <CardContent className="p-3 sm:p-5">
+                    <ClientRow
+                      client={client}
+                      score={cs}
+                      docCount={docCount}
+                      usedLimit={usedLimitByClient[client.id] ?? 0}
+                      creditLimit={getLimitForClient(client.id)}
+                      readOnly={readOnly}
+                      onEdit={(c) => startEdit(c, "data")}
+                      onOpenDocs={(c) => startEdit(c, "docs")}
+                      onOpenLimit={setLimitClient}
+                      onOpenAnalysis={setSelectedClient}
+                      onToggleActive={handleToggleActive}
+                      onDelete={setDeleteClientId}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
             );
           })}
         </div>
@@ -672,6 +469,18 @@ export function ClientList({ clients, loans, payments, installmentSchedules, onD
         title="Excluir cliente"
         description="Tem certeza que deseja excluir este cliente?"
       />
+      {editingClient && (
+        <ClientEditModal
+          isOpen={!!editingClient}
+          onClose={() => setEditingClient(null)}
+          client={editingClient}
+          usedLimit={usedLimitByClient[editingClient.id] ?? 0}
+          initialCreditLimit={getLimitForClient(editingClient.id)?.currentLimit ?? null}
+          docCount={docCounts[editingClient.id] ?? 0}
+          initialTab={editingTab}
+          onSave={handleSaveClient}
+        />
+      )}
       <Suspense fallback={null}>
         {selectedClient && (
           <ClientDetailDialog
