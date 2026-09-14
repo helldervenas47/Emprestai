@@ -722,17 +722,10 @@ function LoanRowView({
                 </Button>
               )}
 
-              {/* Linha 2: Ações Rápidas (Cobrar, Renegociar, PDF, Histórico) */}
-              <div
-                className={cn(
-                  "grid gap-2 w-full",
-                  loan.status !== "paid" && onRenegotiate && !readOnly
-                    ? "grid-cols-2 sm:grid-cols-4"
-                    : "grid-cols-2 sm:grid-cols-3",
-                )}
-                onClick={(e) => e.stopPropagation()}
-              >
-                {loan.status !== "paid" && (
+              {/* Grid Unificado 3x3 de Ações */}
+              {!readOnly && loan.status !== "paid" ? (
+                <div className="grid grid-cols-3 gap-2 w-full" onClick={(e) => e.stopPropagation()}>
+                  {/* Linha 1 */}
                   <WhatsappBillButton
                     loan={loan}
                     clients={clients}
@@ -741,61 +734,60 @@ function LoanRowView({
                     variant="outline"
                     showLabel
                     label={<span className="truncate">Cobrar</span>}
-                    className="w-full h-9.5 sm:h-10 px-2 sm:px-3 justify-center rounded-xl font-medium text-xs sm:text-sm"
+                    className="w-full h-9.5 sm:h-10 px-1 sm:px-3 justify-center rounded-xl font-medium text-xs sm:text-sm"
                   />
-                )}
 
-                {onRenegotiate && loan.status !== "paid" && !readOnly && (
-                  <Button
-                    data-mutation
-                    variant="outline"
-                    className="w-full h-9.5 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-amber-500/50 hover:text-amber-600 justify-center"
-                    onClick={(e) => { e.stopPropagation(); setShowRenegotiateDialog(true); }}
-                  >
-                    <RefreshCw className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                    <span className="truncate">Renegociar</span>
-                  </Button>
-                )}
+                  {onRenegotiate ? (
+                    <Button
+                      data-mutation
+                      type="button"
+                      variant="outline"
+                      className="w-full h-9.5 sm:h-10 px-1 sm:px-3 text-xs sm:text-sm font-medium gap-1 sm:gap-1.5 rounded-xl border-border/70 hover:border-amber-500/50 hover:text-amber-600 justify-center"
+                      onClick={(e) => { e.stopPropagation(); setShowRenegotiateDialog(true); }}
+                    >
+                      <RefreshCw className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                      <span className="truncate">Renegociar</span>
+                    </Button>
+                  ) : null}
 
-                <Button
-                  variant="outline"
-                  className="w-full h-9.5 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-primary/50 justify-center"
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    try {
-                      await generateLoanReportPdf({
-                        loan,
-                        payments: allPayments,
-                        installmentSchedules,
-                        renegotiations,
-                      });
-                      toast.success("Relatório gerado");
-                    } catch (err: any) {
-                      toast.error(err?.message || "Falha ao gerar relatório");
-                    }
-                  }}
-                >
-                  <FileDown className="h-3.5 w-3.5 text-primary shrink-0" />
-                  <span className="truncate">PDF</span>
-                </Button>
-
-                <Button
-                  variant="outline"
-                  className="w-full h-9.5 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-primary/50 justify-center"
-                  onClick={(e) => { e.stopPropagation(); setShowHistory(true); }}
-                >
-                  <History className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <span className="truncate">Histórico</span>
-                </Button>
-              </div>
-
-              {/* Linha 3: Encargos por Atraso (Juros e Multa) */}
-              {!readOnly && loan.status !== "paid" && (
-                <div className="grid grid-cols-2 gap-2 w-full" onClick={(e) => e.stopPropagation()}>
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-9.5 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-amber-500/50 hover:text-amber-600 justify-center"
+                    className="w-full h-9.5 sm:h-10 px-1 sm:px-3 text-xs sm:text-sm font-medium gap-1 sm:gap-1.5 rounded-xl border-border/70 hover:border-primary/50 justify-center"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        await generateLoanReportPdf({
+                          loan,
+                          payments: allPayments,
+                          installmentSchedules,
+                          renegotiations,
+                        });
+                        toast.success("Relatório gerado");
+                      } catch (err: any) {
+                        toast.error(err?.message || "Falha ao gerar relatório");
+                      }
+                    }}
+                  >
+                    <FileDown className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="truncate">PDF</span>
+                  </Button>
+
+                  {/* Linha 2 */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-9.5 sm:h-10 px-1 sm:px-3 text-xs sm:text-sm font-medium gap-1 sm:gap-1.5 rounded-xl border-border/70 hover:border-primary/50 justify-center"
+                    onClick={(e) => { e.stopPropagation(); setShowHistory(true); }}
+                  >
+                    <History className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="truncate">Histórico</span>
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-9.5 sm:h-10 px-1 sm:px-3 text-xs sm:text-sm font-medium gap-1 sm:gap-1.5 rounded-xl border-border/70 hover:border-amber-500/50 hover:text-amber-600 justify-center"
                     onClick={(e) => { e.stopPropagation(); setShowLateInterest(true); }}
                   >
                     <Percent className="h-3.5 w-3.5 text-amber-500 shrink-0" />
@@ -805,52 +797,40 @@ function LoanRowView({
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-9.5 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-destructive/50 hover:text-destructive justify-center"
+                    className="w-full h-9.5 sm:h-10 px-1 sm:px-3 text-xs sm:text-sm font-medium gap-1 sm:gap-1.5 rounded-xl border-border/70 hover:border-destructive/50 hover:text-destructive justify-center"
                     onClick={(e) => { e.stopPropagation(); setShowPenalty(true); }}
                   >
                     <DollarSign className="h-3.5 w-3.5 text-destructive shrink-0" />
                     <span className="truncate">Multa Fixa</span>
                   </Button>
-                </div>
-              )}
 
-              {/* Linha 4: Automação e Gestão (Cobrança, Editar e Excluir lado a lado) */}
-              {!readOnly && (
-                <div
-                  className={cn(
-                    "grid gap-2 w-full",
-                    loan.status !== "paid" ? "grid-cols-3" : "grid-cols-2",
-                  )}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {loan.status !== "paid" && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-9.5 sm:h-10 px-1.5 sm:px-3 text-xs sm:text-sm font-medium gap-1 sm:gap-1.5 rounded-xl border-border/70 justify-center"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onUpdate({ autoBillingEnabled: !(loan.autoBillingEnabled ?? true) });
-                      }}
-                    >
-                      {(loan.autoBillingEnabled ?? true) ? (
-                        <>
-                          <BellOff className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="truncate">Desativar cobrança</span>
-                        </>
-                      ) : (
-                        <>
-                          <BellRing className="h-3.5 w-3.5 text-primary shrink-0" />
-                          <span className="truncate">Ativar cobrança</span>
-                        </>
-                      )}
-                    </Button>
-                  )}
+                  {/* Linha 3 */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-9.5 sm:h-10 px-1 sm:px-3 text-xs sm:text-sm font-medium gap-1 sm:gap-1.5 rounded-xl border-border/70 justify-center"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onUpdate({ autoBillingEnabled: !(loan.autoBillingEnabled ?? true) });
+                    }}
+                  >
+                    {(loan.autoBillingEnabled ?? true) ? (
+                      <>
+                        <BellOff className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="truncate">Desativar cobrança</span>
+                      </>
+                    ) : (
+                      <>
+                        <BellRing className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <span className="truncate">Ativar cobrança</span>
+                      </>
+                    )}
+                  </Button>
 
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-9.5 sm:h-10 px-1.5 sm:px-3 text-xs sm:text-sm font-medium gap-1 sm:gap-1.5 rounded-xl border-border/70 hover:border-primary/50 justify-center"
+                    className="w-full h-9.5 sm:h-10 px-1 sm:px-3 text-xs sm:text-sm font-medium gap-1 sm:gap-1.5 rounded-xl border-border/70 hover:border-primary/50 justify-center"
                     onClick={(e) => { e.stopPropagation(); startEdit(); }}
                   >
                     <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -860,12 +840,71 @@ function LoanRowView({
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-9.5 sm:h-10 px-1.5 sm:px-3 text-xs sm:text-sm font-medium gap-1 sm:gap-1.5 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive justify-center"
+                    className="w-full h-9.5 sm:h-10 px-1 sm:px-3 text-xs sm:text-sm font-medium gap-1 sm:gap-1.5 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive justify-center"
                     onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
                   >
                     <Trash2 className="h-3.5 w-3.5 shrink-0" />
                     <span className="truncate">Excluir</span>
                   </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-9.5 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-primary/50 justify-center"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        await generateLoanReportPdf({
+                          loan,
+                          payments: allPayments,
+                          installmentSchedules,
+                          renegotiations,
+                        });
+                        toast.success("Relatório gerado");
+                      } catch (err: any) {
+                        toast.error(err?.message || "Falha ao gerar relatório");
+                      }
+                    }}
+                  >
+                    <FileDown className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="truncate">PDF</span>
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-9.5 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-primary/50 justify-center"
+                    onClick={(e) => { e.stopPropagation(); setShowHistory(true); }}
+                  >
+                    <History className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="truncate">Histórico</span>
+                  </Button>
+
+                  {!readOnly && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full h-9.5 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-primary/50 justify-center"
+                        onClick={(e) => { e.stopPropagation(); startEdit(); }}
+                      >
+                        <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="truncate">Editar</span>
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full h-9.5 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive justify-center"
+                        onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">Excluir</span>
+                      </Button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
