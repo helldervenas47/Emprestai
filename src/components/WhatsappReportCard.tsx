@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useScheduledReportPrefs } from "@/hooks/useScheduledReportPrefs";
 import { supabase } from "@/integrations/supabase/userClient";
 import { buildBillingCandidates, type BillingCandidate } from "@/features/whatsapp/lib/billingCenter";
+import { sumInterestReceivedInPeriod } from "@/features/financial/lib/interestAllocation";
 import { useWhatsappBillingSchedule } from "@/hooks/useWhatsappBillingSchedule";
 import { toast } from "sonner";
 import {
@@ -70,6 +71,7 @@ export function formatBillingReportForWhatsapp(
   sentIds: Set<string>,
   sentClientIds?: Set<string>,
   referenceDate?: string,
+  extraTotals?: { interestReceived?: number; totalReceived?: number },
 ): string {
   const isSent = (item: BillingCandidate) =>
     sentIds.has(item.loanId) || (Boolean(item.clientId) && Boolean(sentClientIds?.has(item.clientId)));
@@ -103,6 +105,9 @@ export function formatBillingReportForWhatsapp(
   const groupedEnviadas = groupCandidatesByClient(enviadas);
   const groupedNaoEnviadas = groupCandidatesByClient(naoEnviadas);
 
+  const interestReceivedToday = extraTotals?.interestReceived ?? 0;
+  const totalReceivedToday = extraTotals?.totalReceived ?? 0;
+
   const lines: string[] = [
     `📊 *RESUMO DAS COBRANÇAS — HOJE*`,
     ``,
@@ -114,6 +119,9 @@ export function formatBillingReportForWhatsapp(
     ``,
     `💰 Juros: *${moneyFmt.format(totalInterest)}*`,
     `💵 Total a cobrar: *${moneyFmt.format(totalAmount)}*`,
+    ``,
+    `🪙 Juros recebidos: *${moneyFmt.format(interestReceivedToday)}*`,
+    `📥 Total recebido: *${moneyFmt.format(totalReceivedToday)}*`,
     ``,
     `━━━━━━━━━━━━━━━━━━`,
     ``,
@@ -436,8 +444,19 @@ export function WhatsappReportCard() {
         loanList.forEach((id: string) => { if (id) sentIds.add(id); });
       });
 
+      // Total recebido e Juros recebidos no dia atual (exata paridade com Dashboard)
+      const paymentsToday = mappedPayments.filter((p: any) => (p.date || "").slice(0, 10) === today);
+      const totalReceivedToday = paymentsToday.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+      const interestReceivedToday = sumInterestReceivedInPeriod(mappedLoans as any, mappedPayments as any, today, today);
+
       // Monta a mensagem completa formatada para o WhatsApp
-      const reportMessage = formatBillingReportForWhatsapp(aCobrarCandidates, sentIds, sentClientIds, today);
+      const reportMessage = formatBillingReportForWhatsapp(
+        aCobrarCandidates,
+        sentIds,
+        sentClientIds,
+        today,
+        { interestReceived: interestReceivedToday, totalReceived: totalReceivedToday },
+      );
 
       const destPhone = (whatsappPhone.trim() || profilePhone || "").trim();
       if (!destPhone) {
