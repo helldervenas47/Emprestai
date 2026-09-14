@@ -77,7 +77,7 @@ export function WhatsappBillButton({
         disabled={!phone}
       >
         <MessageCircle className="h-4 w-4 text-[#22c55e] shrink-0" />
-        {showLabel && (label || <span>WhatsApp</span>)}
+        {showLabel && (label || <span>Cobrar</span>)}
       </Button>
     );
   } else if (variant === "compact") {

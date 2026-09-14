@@ -722,7 +722,7 @@ function LoanRowView({
                 </Button>
               )}
 
-              {/* Linha 2: Ações Rápidas (WhatsApp, Renegociar, PDF, Histórico) */}
+              {/* Linha 2: Ações Rápidas (Cobrar, Renegociar, PDF, Histórico) */}
               <div
                 className={cn(
                   "grid gap-2 w-full",
@@ -740,8 +740,8 @@ function LoanRowView({
                     installmentSchedules={installmentSchedules}
                     variant="outline"
                     showLabel
-                    label={<span className="truncate">WhatsApp</span>}
-                    className="w-full h-10 justify-center rounded-xl"
+                    label={<span className="truncate">Cobrar</span>}
+                    className="w-full h-9.5 sm:h-10 px-2 sm:px-3 justify-center rounded-xl font-medium text-xs sm:text-sm"
                   />
                 )}
 
@@ -749,7 +749,7 @@ function LoanRowView({
                   <Button
                     data-mutation
                     variant="outline"
-                    className="w-full h-10 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-amber-500/50 hover:text-amber-600 justify-center"
+                    className="w-full h-9.5 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-amber-500/50 hover:text-amber-600 justify-center"
                     onClick={(e) => { e.stopPropagation(); setShowRenegotiateDialog(true); }}
                   >
                     <RefreshCw className="h-3.5 w-3.5 text-amber-500 shrink-0" />
@@ -759,7 +759,7 @@ function LoanRowView({
 
                 <Button
                   variant="outline"
-                  className="w-full h-10 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-primary/50 justify-center"
+                  className="w-full h-9.5 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-primary/50 justify-center"
                   onClick={async (e) => {
                     e.stopPropagation();
                     try {
@@ -781,7 +781,7 @@ function LoanRowView({
 
                 <Button
                   variant="outline"
-                  className="w-full h-10 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-primary/50 justify-center"
+                  className="w-full h-9.5 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-primary/50 justify-center"
                   onClick={(e) => { e.stopPropagation(); setShowHistory(true); }}
                 >
                   <History className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -795,7 +795,7 @@ function LoanRowView({
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-10 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-amber-500/50 hover:text-amber-600 justify-center"
+                    className="h-9.5 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-amber-500/50 hover:text-amber-600 justify-center"
                     onClick={(e) => { e.stopPropagation(); setShowLateInterest(true); }}
                   >
                     <Percent className="h-3.5 w-3.5 text-amber-500 shrink-0" />
@@ -805,7 +805,7 @@ function LoanRowView({
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-10 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-destructive/50 hover:text-destructive justify-center"
+                    className="h-9.5 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-destructive/50 hover:text-destructive justify-center"
                     onClick={(e) => { e.stopPropagation(); setShowPenalty(true); }}
                   >
                     <DollarSign className="h-3.5 w-3.5 text-destructive shrink-0" />
@@ -815,7 +815,7 @@ function LoanRowView({
                   <Button
                     type="button"
                     variant="outline"
-                    className="col-span-2 sm:col-span-1 h-10 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 justify-center"
+                    className="col-span-2 sm:col-span-1 h-9.5 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 justify-center"
                     onClick={(e) => {
                       e.stopPropagation();
                       onUpdate({ autoBillingEnabled: !(loan.autoBillingEnabled ?? true) });
@@ -842,7 +842,7 @@ function LoanRowView({
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-10 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-primary/50 justify-center"
+                    className="h-9.5 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-primary/50 justify-center"
                     onClick={(e) => { e.stopPropagation(); startEdit(); }}
                   >
                     <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -852,7 +852,7 @@ function LoanRowView({
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-10 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive justify-center"
+                    className="h-9.5 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive justify-center"
                     onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
                   >
                     <Trash2 className="h-3.5 w-3.5 shrink-0" />
