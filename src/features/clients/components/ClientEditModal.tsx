@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { formatCPF, formatCNPJ, formatRG, onlyDigits, isValidCPF, isValidCNPJ } from "@/lib/brDocuments";
 import { computeAvailableLimit, formatBRL } from "@/features/creditCards/lib/creditLimit";
 import {
@@ -199,20 +198,49 @@ export function ClientEditModal({
           </Button>
         </div>
 
-        {/* Abas */}
-        <div className="px-4 sm:px-6 pt-3 shrink-0 bg-card border-b border-border/40">
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "data" | "docs")} className="w-full">
-            <TabsList className="w-full grid grid-cols-2 bg-muted/60 p-1 rounded-xl">
-              <TabsTrigger value="data" className="text-xs font-semibold rounded-lg flex items-center gap-1.5">
-                <User className="h-3.5 w-3.5" />
-                Dados do Cliente
-              </TabsTrigger>
-              <TabsTrigger value="docs" className="text-xs font-semibold rounded-lg flex items-center gap-1.5">
-                <FileBadge className="h-3.5 w-3.5" />
-                Documentos {docCount > 0 && <span className="ml-1 px-1.5 py-0.2 text-[10px] rounded-full bg-primary/20 text-primary font-bold">{docCount}</span>}
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+        {/* Abas de Navegação */}
+        <div className="px-4 sm:px-6 py-2.5 shrink-0 bg-card border-b border-border/40">
+          <div className="w-full flex items-center gap-1.5 p-1 bg-muted/50 dark:bg-muted/30 rounded-xl border border-border/40">
+            <button
+              type="button"
+              onClick={() => setActiveTab("data")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 h-9 px-3 rounded-lg text-xs font-semibold transition-all duration-150",
+                activeTab === "data"
+                  ? "bg-background text-foreground shadow-xs ring-1 ring-border/50 font-bold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+              )}
+            >
+              <User className={cn("h-3.5 w-3.5 shrink-0", activeTab === "data" ? "text-primary" : "")} />
+              <span>Dados do Cliente</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("docs")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 h-9 px-3 rounded-lg text-xs font-semibold transition-all duration-150",
+                activeTab === "docs"
+                  ? "bg-background text-foreground shadow-xs ring-1 ring-border/50 font-bold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+              )}
+            >
+              <FileBadge className={cn("h-3.5 w-3.5 shrink-0", activeTab === "docs" ? "text-primary" : "")} />
+              <span>Documentos</span>
+              {docCount > 0 && (
+                <span
+                  className={cn(
+                    "px-1.5 py-0.5 text-[10px] rounded-full font-bold leading-none",
+                    activeTab === "docs"
+                      ? "bg-primary/15 text-primary border border-primary/25"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {docCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Conteúdo com Rolagem */}
