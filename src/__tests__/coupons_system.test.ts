@@ -210,4 +210,28 @@ describe("🎟️ Sistema de Cupons de Desconto - Regras de Negócio e Cálculos
     expect(result1.valid).toBe(true);
     expect(result2.valid).toBe(true);
   });
+
+  it("11. Formatação de texto descritivo do desconto para UI (evita 'Desconto de R$ 0,00')", () => {
+    function formatCouponDiscountText(applied: {
+      discount_type?: "percentage" | "fixed";
+      discount_value?: number;
+      discount_cents?: number;
+    }) {
+      if (applied.discount_type === "percentage") {
+        return Number(applied.discount_cents || 0) > 0
+          ? `Desconto de ${applied.discount_value}% (${(Number(applied.discount_cents) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }).replace(/\u00a0/g, " ")}) aplicado`
+          : `Desconto de ${applied.discount_value}% aplicado`;
+      }
+      return `Desconto de ${(Number(applied.discount_value || (Number(applied.discount_cents || 0) / 100))).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }).replace(/\u00a0/g, " ")} aplicado`;
+    }
+
+    // 10% sem centavos fixados (validação global) -> "Desconto de 10% aplicado"
+    expect(formatCouponDiscountText({ discount_type: "percentage", discount_value: 10, discount_cents: 0 })).toBe("Desconto de 10% aplicado");
+
+    // 10% com centavos calculados (R$ 5,90) -> "Desconto de 10% (R$ 5,90) aplicado"
+    expect(formatCouponDiscountText({ discount_type: "percentage", discount_value: 10, discount_cents: 590 })).toBe("Desconto de 10% (R$ 5,90) aplicado");
+
+    // R$ 15,00 fixo -> "Desconto de R$ 15,00 aplicado"
+    expect(formatCouponDiscountText({ discount_type: "fixed", discount_value: 15, discount_cents: 1500 })).toBe("Desconto de R$ 15,00 aplicado");
+  });
 });

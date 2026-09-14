@@ -433,7 +433,7 @@ const Pricing = () => {
               <div className="max-w-sm mx-auto mb-10 px-4">
                 <div className="p-3 rounded-2xl bg-card border border-border/50 shadow-xs">
                   <CouponInputSection
-                    planId={plans[0]?.id || ""}
+                    planId={plans.find((p) => p.price > 0)?.id || plans[0]?.id || ""}
                     cycle={cycle}
                     userId={user?.id}
                     appliedCoupon={appliedCoupon}

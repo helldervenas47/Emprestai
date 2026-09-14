@@ -100,7 +100,11 @@ export function CouponInputSection({
                 </Badge>
               </div>
               <p className="text-[11px] text-muted-foreground truncate">
-                Desconto de {(Number(appliedCoupon.discount_cents || 0) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} aplicado
+                {appliedCoupon.discount_type === "percentage"
+                  ? (Number(appliedCoupon.discount_cents || 0) > 0
+                      ? `Desconto de ${appliedCoupon.discount_value}% (${(Number(appliedCoupon.discount_cents) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}) aplicado`
+                      : `Desconto de ${appliedCoupon.discount_value}% aplicado`)
+                  : `Desconto de ${(Number(appliedCoupon.discount_value || (Number(appliedCoupon.discount_cents || 0) / 100))).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} aplicado`}
               </p>
             </div>
           </div>
