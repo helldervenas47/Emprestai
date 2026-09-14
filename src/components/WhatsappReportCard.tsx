@@ -148,13 +148,13 @@ export function formatBillingReportForWhatsapp(
     lines.push(`Nenhuma cobrança enviada.`);
   } else {
     groupedEnviadas.forEach((item) => {
-      lines.push(`• *${item.clientName}* (${item.count} cont.): ${moneyFmt.format(item.amount)} (J: ${moneyFmt.format(item.interestAmount)})`);
+      lines.push(`*${item.clientName}* / Contratos: ${item.count} / Juros: ${moneyFmt.format(item.interestAmount)} / Total: ${moneyFmt.format(item.amount)}`);
     });
   }
 
   lines.push(
     ``,
-    `*Total enviado (${envCount} cont.): ${moneyFmt.format(envAmount)} (J: ${moneyFmt.format(envInterest)})*`,
+    `*Total enviado: ${envCount} / ${moneyFmt.format(envInterest)} / ${moneyFmt.format(envAmount)}*`,
     ``,
     `━━━━━━━━━━━━━━━━━━`,
     ``,
@@ -166,13 +166,13 @@ export function formatBillingReportForWhatsapp(
     lines.push(`Nenhuma cobrança pendente.`);
   } else {
     groupedNaoEnviadas.forEach((item) => {
-      lines.push(`• *${item.clientName}* (${item.count} cont.): ${moneyFmt.format(item.amount)} (J: ${moneyFmt.format(item.interestAmount)})`);
+      lines.push(`*${item.clientName}* / Contratos: ${item.count} / Juros: ${moneyFmt.format(item.interestAmount)} / Total: ${moneyFmt.format(item.amount)}`);
     });
   }
 
   lines.push(
     ``,
-    `*Total não enviado (${naoCount} cont.): ${moneyFmt.format(naoAmount)} (J: ${moneyFmt.format(naoInterest)})*`,
+    `*Total não enviado: ${naoCount} / ${moneyFmt.format(naoInterest)} / ${moneyFmt.format(naoAmount)}*`,
     ``,
     `━━━━━━━━━━━━━━━━━━`,
     ``,
