@@ -901,9 +901,7 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
   const dateFormatted = formatDateBR(today);
 
   const lines: string[] = [
-    `📊 *RESUMO DAS COBRANÇAS*`,
-    ``,
-    `📌 *RESUMO DO DIA — ${dateFormatted}*`,
+    `📊 *RESUMO DAS COBRANÇAS* - *DIA — ${dateFormatted}*`,
     ``,
     `Total de cobranças: *${totalCount}*`,
     `✅ Enviadas: *${envCount}*`,

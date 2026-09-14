@@ -121,9 +121,7 @@ export function formatBillingReportForWhatsapp(
   const totalReceivedToday = extraTotals?.totalReceived ?? 0;
 
   const lines: string[] = [
-    `📊 *RESUMO DAS COBRANÇAS*`,
-    ``,
-    `📌 *RESUMO DO DIA — ${dateFormatted}*`,
+    `📊 *RESUMO DAS COBRANÇAS* - *DIA — ${dateFormatted}*`,
     ``,
     `Total de cobranças: *${totalCount}*`,
     `✅ Enviadas: *${envCount}*`,
