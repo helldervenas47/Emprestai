@@ -176,9 +176,12 @@ describe("WhatsappReportCard — Envio de Relatórios e Resumo Operacional pelo 
     expect(message).toContain("📌 *RESUMO DO DIA — 13/09/2026*");
     expect(message).toContain("Total de cobranças: *3*");
     expect(message).toContain("✅ Enviadas: *2*");
-    expect(message).toContain("⚠️ Não enviadas: *1*");
-    expect(message).toContain("💰 Juros: *R$ 120,00*");
+    expect(message).toContain("💰 Juros a cobrar: *R$ 120,00*");
     expect(message).toContain("💵 Total a cobrar: *R$ 1.220,00*");
+    expect(message).toContain("🪙 Juros recebidos: *R$ 0,00*");
+    expect(message).toContain("📥 Total recebido: *R$ 0,00*");
+    expect(message).toContain("📈 Juros total: *R$ 120,00*");
+    expect(message).toContain("💼 Total geral: *R$ 1.220,00*");
     expect(message).toContain("✅ *COBRANÇAS ENVIADAS*");
     expect(message).toContain("João da Silva / Contratos: 1 / Juros: R$ 50,00 / Total: R$ 500,00");
     expect(message).toContain("Maria Santos / Contratos: 1 / Juros: R$ 30,00 / Total: R$ 330,00");

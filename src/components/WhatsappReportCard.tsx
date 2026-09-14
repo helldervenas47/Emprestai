@@ -129,11 +129,14 @@ export function formatBillingReportForWhatsapp(
     `✅ Enviadas: *${envCount}*`,
     `⚠️ Não enviadas: *${naoCount}*`,
     ``,
-    `💰 Juros: *${moneyFmt.format(totalInterest)}*`,
+    `💰 Juros a cobrar: *${moneyFmt.format(totalInterest)}*`,
     `💵 Total a cobrar: *${moneyFmt.format(totalAmount)}*`,
     ``,
     `🪙 Juros recebidos: *${moneyFmt.format(interestReceivedToday)}*`,
     `📥 Total recebido: *${moneyFmt.format(totalReceivedToday)}*`,
+    ``,
+    `📈 Juros total: *${moneyFmt.format(totalInterest + interestReceivedToday)}*`,
+    `💼 Total geral: *${moneyFmt.format(totalAmount + totalReceivedToday)}*`,
     ``,
     `━━━━━━━━━━━━━━━━━━`,
     ``,
@@ -1091,7 +1094,7 @@ export function WhatsappReportCard() {
                   <span>Resumo do Dia</span>
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
-                  Total a cobrar, juros, juros recebidos e total recebido
+                  Total e juros a cobrar, recebidos, juros total e total geral
                 </p>
               </div>
 
