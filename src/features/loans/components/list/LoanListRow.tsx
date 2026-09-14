@@ -789,9 +789,9 @@ function LoanRowView({
                 </Button>
               </div>
 
-              {/* Linha 3: Encargos e Automação (Juros, Multa e Cobrança Automática) */}
+              {/* Linha 3: Encargos por Atraso (Juros e Multa) */}
               {!readOnly && loan.status !== "paid" && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full" onClick={(e) => e.stopPropagation()}>
+                <div className="grid grid-cols-2 gap-2 w-full" onClick={(e) => e.stopPropagation()}>
                   <Button
                     type="button"
                     variant="outline"
@@ -811,52 +811,60 @@ function LoanRowView({
                     <DollarSign className="h-3.5 w-3.5 text-destructive shrink-0" />
                     <span className="truncate">Multa Fixa</span>
                   </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="col-span-2 sm:col-span-1 h-9.5 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 justify-center"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onUpdate({ autoBillingEnabled: !(loan.autoBillingEnabled ?? true) });
-                    }}
-                  >
-                    {(loan.autoBillingEnabled ?? true) ? (
-                      <>
-                        <BellOff className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="truncate">Desativar cobrança</span>
-                      </>
-                    ) : (
-                      <>
-                        <BellRing className="h-3.5 w-3.5 text-primary shrink-0" />
-                        <span className="truncate">Ativar cobrança</span>
-                      </>
-                    )}
-                  </Button>
                 </div>
               )}
 
-              {/* Linha 4: Gestão do Contrato (Editar e Excluir) */}
+              {/* Linha 4: Automação e Gestão (Cobrança, Editar e Excluir lado a lado) */}
               {!readOnly && (
-                <div className="grid grid-cols-2 gap-2 w-full" onClick={(e) => e.stopPropagation()}>
+                <div
+                  className={cn(
+                    "grid gap-2 w-full",
+                    loan.status !== "paid" ? "grid-cols-3" : "grid-cols-2",
+                  )}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {loan.status !== "paid" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9.5 sm:h-10 px-1.5 sm:px-3 text-xs sm:text-sm font-medium gap-1 sm:gap-1.5 rounded-xl border-border/70 justify-center"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onUpdate({ autoBillingEnabled: !(loan.autoBillingEnabled ?? true) });
+                      }}
+                    >
+                      {(loan.autoBillingEnabled ?? true) ? (
+                        <>
+                          <BellOff className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="truncate">Desativar cobrança</span>
+                        </>
+                      ) : (
+                        <>
+                          <BellRing className="h-3.5 w-3.5 text-primary shrink-0" />
+                          <span className="truncate">Ativar cobrança</span>
+                        </>
+                      )}
+                    </Button>
+                  )}
+
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-9.5 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-primary/50 justify-center"
+                    className="h-9.5 sm:h-10 px-1.5 sm:px-3 text-xs sm:text-sm font-medium gap-1 sm:gap-1.5 rounded-xl border-border/70 hover:border-primary/50 justify-center"
                     onClick={(e) => { e.stopPropagation(); startEdit(); }}
                   >
                     <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="truncate">Editar Contrato</span>
+                    <span className="truncate">Editar</span>
                   </Button>
 
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-9.5 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive justify-center"
+                    className="h-9.5 sm:h-10 px-1.5 sm:px-3 text-xs sm:text-sm font-medium gap-1 sm:gap-1.5 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive justify-center"
                     onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
                   >
                     <Trash2 className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">Excluir Contrato</span>
+                    <span className="truncate">Excluir</span>
                   </Button>
                 </div>
               )}
