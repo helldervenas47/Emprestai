@@ -928,13 +928,13 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
     lines.push(`Nenhuma cobrança enviada.`);
   } else {
     groupedEnviadas.forEach((item) => {
-      lines.push(`• ${item.clientName} (${item.count}x): ${fmtBRL(item.amount)} (J: ${fmtBRL(item.interestAmount)})`);
+      lines.push(`• *${item.clientName}* (${item.count} cont.): ${fmtBRL(item.amount)} (J: ${fmtBRL(item.interestAmount)})`);
     });
   }
 
   lines.push(
     ``,
-    `*Total enviado (${envCount}x): ${fmtBRL(envAmount)} (J: ${fmtBRL(envInterest)})*`,
+    `*Total enviado (${envCount} cont.): ${fmtBRL(envAmount)} (J: ${fmtBRL(envInterest)})*`,
     ``,
     `━━━━━━━━━━━━━━━━━━`,
     ``,
@@ -946,13 +946,13 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
     lines.push(`Nenhuma cobrança pendente.`);
   } else {
     groupedNaoEnviadas.forEach((item) => {
-      lines.push(`• ${item.clientName} (${item.count}x): ${fmtBRL(item.amount)} (J: ${fmtBRL(item.interestAmount)})`);
+      lines.push(`• *${item.clientName}* (${item.count} cont.): ${fmtBRL(item.amount)} (J: ${fmtBRL(item.interestAmount)})`);
     });
   }
 
   lines.push(
     ``,
-    `*Total não enviado (${naoCount}x): ${fmtBRL(naoAmount)} (J: ${fmtBRL(naoInterest)})*`,
+    `*Total não enviado (${naoCount} cont.): ${fmtBRL(naoAmount)} (J: ${fmtBRL(naoInterest)})*`,
     ``,
     `━━━━━━━━━━━━━━━━━━`,
     ``,
