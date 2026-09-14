@@ -121,6 +121,8 @@ interface AppSidebarProps {
   popoverExtras?: React.ReactNode;
 }
 
+const SIDEBAR_SCROLL_KEY = "hvcred-sidebar-scroll";
+
 export function AppSidebar({
   brandName,
   tabs,
@@ -136,7 +138,32 @@ export function AppSidebar({
   onOpenPlans,
   popoverExtras,
 }: AppSidebarProps) {
+  const navRef = React.useRef<HTMLElement | null>(null);
 
+  // Restaura posição de rolagem do menu lateral
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    try {
+      const saved = sessionStorage.getItem(SIDEBAR_SCROLL_KEY);
+      if (saved !== null) {
+        const top = Number(saved);
+        if (!Number.isNaN(top) && top > 0) {
+          nav.scrollTop = top;
+        }
+      }
+    } catch {
+      // noop
+    }
+  }, []);
+
+  const handleNavScroll = React.useCallback((e: React.UIEvent<HTMLElement>) => {
+    try {
+      sessionStorage.setItem(SIDEBAR_SCROLL_KEY, String(e.currentTarget.scrollTop));
+    } catch {
+      // noop
+    }
+  }, []);
 
   const { collapsed, setCollapsed } = useSidebarCollapsed();
   const navigate = useNavigate();
@@ -172,6 +199,7 @@ export function AppSidebar({
   return (
     <TooltipProvider delayDuration={200}>
       <aside
+        data-sidebar="true"
         aria-label="Navegação principal"
         style={{ width }}
         className={cn(
@@ -224,7 +252,12 @@ export function AppSidebar({
         )}
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2">
+        <nav
+          ref={navRef}
+          onScroll={handleNavScroll}
+          data-sidebar-nav="true"
+          className="flex-1 overflow-y-auto overflow-x-hidden py-2"
+        >
           {groups.map((group) => (
             <div key={group.label} className="mb-3">
               {!collapsed ? (

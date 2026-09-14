@@ -43,7 +43,16 @@ export function getAppScrollContainer(): ScrollContainer {
 
   const overflowed = Array.from(
     document.querySelectorAll<HTMLElement>(".overflow-y-auto, .overflow-auto, [data-scroll-container]"),
-  ).find((el) => isScrollableElement(el) && el.scrollTop > 0);
+  ).find((el) => {
+    if (
+      el.closest(
+        "aside, nav, [role='dialog'], [role='menu'], [data-radix-popper-content-wrapper], [data-sidebar], [data-sidebar-nav], .sidebar",
+      )
+    ) {
+      return false;
+    }
+    return isScrollableElement(el) && el.scrollTop > 0;
+  });
   if (overflowed) return overflowed;
 
   return window;
