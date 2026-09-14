@@ -1015,22 +1015,22 @@ export async function generateOperationalSummaryReport(admin: any, userId: strin
     ? "0,00%"
     : `${monthlyVariationPct >= 0 ? "+" : ""}${monthlyVariationPct.toFixed(2).replace(".", ",")}%`;
 
-  // Montagem da mensagem final no Telegram
+  // Montagem da mensagem final no Telegram / WhatsApp
   const lines = [
     "📊 *RESUMO OPERACIONAL*",
     `📅 Data: ${fmtDateBR(date)}`,
     "",
-    `💰 Total recebido: *${fmtBRL(totalReceivedToday)}*`,
-    `📈 Juros recebidos hoje: *${fmtBRL(interestReceivedToday)}*`,
-    `📅 Juros recebidos no mês: *${fmtBRL(interestReceivedMonth)}*`,
-    `👤 Comissão gerente paga hoje: *${fmtBRL(commissionPaidToday)}*`,
-    `📅 Comissões de gerentes pagas no mês: *${fmtBRL(commissionPaidMonth)}*`,
-    `🏢 Despesas empresariais: *${fmtBRL(businessExpensesPaidToday)}*`,
-    `💸 Total emprestado: *${fmtBRL(totalLentToday)}*`,
-    `📝 Empréstimos realizados: *${loansCountToday}*`,
+    `💰 Recebido hoje: *${fmtBRL(totalReceivedToday)}*`,
+    `📈 Juros hoje: *${fmtBRL(interestReceivedToday)}*`,
+    `📅 Juros no mês: *${fmtBRL(interestReceivedMonth)}*`,
+    `👤 Comissões hoje: *${fmtBRL(commissionPaidToday)}*`,
+    `📅 Comissões no mês: *${fmtBRL(commissionPaidMonth)}*`,
+    `🏢 Despesas hoje: *${fmtBRL(businessExpensesPaidToday)}*`,
+    `💸 Emprestado hoje: *${fmtBRL(totalLentToday)}*`,
+    `📝 Empréstimos: *${loansCountToday}*`,
     `💵 Saldo do mês: *${fmtBRL(saldoMes)}*`,
-    `⚠️ Inadimplência atual: *${defaultRate.toFixed(2).replace(".", ",")}%*`,
-    `📊 Variação do patrimônio: *${variationFormatted}*`,
+    `⚠️ Inadimplência: *${defaultRate.toFixed(2).replace(".", ",")}%*`,
+    `📊 Variação patrimônio: *${variationFormatted}*`,
   ];
 
   return lines.join("\n");
