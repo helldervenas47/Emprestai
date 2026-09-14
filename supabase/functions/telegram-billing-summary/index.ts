@@ -671,6 +671,7 @@ Deno.serve(async (req) => {
   const admin = getExternalAdmin();
   const url = new URL(req.url);
   const forceUserId = url.searchParams.get("user_id");
+  const forceAll = url.searchParams.get("force") === "1" || url.searchParams.get("force_all") === "1";
   const returnText = url.searchParams.get("return_text") === "1";
 
   if (forceUserId) {
@@ -713,7 +714,7 @@ Deno.serve(async (req) => {
         { key: "send_time_3", time: (pref as any).send_time_3 },
       ] as const;
       const lastSent = (pref.last_sent ?? {}) as Record<string, string>;
-      const slotsToSend: string[] = forceUserId ? ["manual"] : dueSlotKeys(slots, nowMin, today, lastSent);
+      const slotsToSend: string[] = (forceUserId || forceAll) ? ["manual"] : dueSlotKeys(slots, nowMin, today, lastSent);
 
       if (slotsToSend.length === 0) continue;
 
