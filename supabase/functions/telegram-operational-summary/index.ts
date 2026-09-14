@@ -1104,7 +1104,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const text = await generateOperationalSummaryReport(admin, resolvedOwnerId, today);
 
         // Disparo via Telegram se habilitado
-        if ((pref as any).enabled) {
+        if ((pref as any).enabled === true) {
           const link = await getReportsLinkForUser(admin, (pref as any).user_id);
           if (link) {
             const sendTg = await sendReportsMessage(admin, (pref as any).user_id, Number(link.chat_id), text);
@@ -1114,7 +1114,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }
 
         // Disparo via WhatsApp se habilitado
-        if ((pref as any).send_whatsapp) {
+        if ((pref as any).send_whatsapp === true) {
           const sendWpp = await sendOperationalSummaryToWhatsapp(
             admin,
             resolvedOwnerId,

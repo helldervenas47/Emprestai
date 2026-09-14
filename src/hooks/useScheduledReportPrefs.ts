@@ -83,10 +83,6 @@ export function useScheduledReportPrefs(table: string, defaultTime?: string) {
     async (next: Partial<SchedulePrefs>) => {
       if (!ownerId) return;
       const merged = { ...prefs, ...next };
-      const hasAnyTime = Boolean(merged.send_time_1 || merged.send_time_2 || merged.send_time_3);
-      if (hasAnyTime && next.enabled === undefined && !merged.enabled) {
-        merged.enabled = true;
-      }
 
       const scheduleChanged = ["send_time_1", "send_time_2", "send_time_3"].some(
         (key) => key in next && next[key as keyof SchedulePrefs] !== prefs[key as keyof SchedulePrefs],
