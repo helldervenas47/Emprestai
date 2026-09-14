@@ -40,12 +40,14 @@ export function FormModalOverlay({
     const originalRootInert = rootElement?.getAttribute("inert");
     const originalBodyOverflow = document.body.style.overflow;
     const originalHtmlOverflow = document.documentElement.style.overflow;
-    const originalBodyTouchAction = document.body.style.touchAction;
 
     // Bloquear scroll e interação do fundo
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
-    document.body.style.touchAction = "none";
+    // Não aplique `touch-action: none` no body. Componentes Radix como Select
+    // são portais filhos do body; no iOS/PWA essa trava também bloqueia o
+    // gesto vertical dentro da lista. `overflow: hidden` + `inert` no root já
+    // impedem a interação e a rolagem do conteúdo ao fundo.
     document.body.setAttribute("data-form-modal-open", "true");
 
     if (rootElement) {
@@ -55,7 +57,6 @@ export function FormModalOverlay({
     return () => {
       document.body.style.overflow = originalBodyOverflow;
       document.documentElement.style.overflow = originalHtmlOverflow;
-      document.body.style.touchAction = originalBodyTouchAction;
       document.body.removeAttribute("data-form-modal-open");
 
       if (rootElement) {
