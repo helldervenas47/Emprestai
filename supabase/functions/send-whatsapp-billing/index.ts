@@ -79,6 +79,131 @@ function applyVariables(message: string, ctx: {
     .replace(/\{link_pagamento\}/g, ctx.linkPagamento);
 }
 
+function calculateInstallment(principal: number, rate: number, installments: number): number {
+  if (installments <= 0) return 0;
+  const total = principal * (1 + rate / 100);
+  return total / installments;
+}
+
+function calculateTotalWithInterest(principal: number, rate: number) {
+  return Math.round(principal * (1 + rate / 100));
+}
+
+function getBaseRemainingAmount(loan: any, payments: any[], schedules: any[]) {
+  if (loan.remaining_amount != null && Number(loan.remaining_amount) > 0) {
+    return Number(loan.remaining_amount);
+  }
+  const paidCount = Number(loan.paid_installments || 0);
+  const unpaidSchedules = schedules.filter(
+    (s: any) => s.loan_id === loan.id && Number(s.installment_number) > paidCount
+  );
+  const unpaidSchedulesTotal = unpaidSchedules.reduce((sum: number, s: any) => sum + Number(s.amount || 0), 0);
+
+  if (Number(loan.installments || 1) >= 2 && unpaidSchedulesTotal > 0) {
+    return unpaidSchedulesTotal;
+  }
+
+  const totalExpected = calculateTotalWithInterest(Number(loan.amount || 0), Number(loan.interest_rate || 0));
+  const totalPaid = payments
+    .filter((p: any) => p.loan_id === loan.id)
+    .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+
+  return Math.max(0, totalExpected - totalPaid);
+}
+
+function getLoanLateFees(
+  loan: any,
+  payments: any[],
+  schedules: any[],
+  referenceDate: string,
+) {
+  if (loan.status === "paid") {
+    return { daysOverdue: 0, lateInterestTotal: 0, penaltyTotal: 0, lateFees: 0 };
+  }
+
+  const todayStr = referenceDate;
+  const today = new Date(`${todayStr}T00:00:00`);
+
+  const loanPayments = payments.filter((p: any) => p.loan_id === loan.id);
+  const paidByInstallment = new Map<number, number>();
+
+  loanPayments.forEach((p: any) => {
+    const inst = Number(p.installment_number);
+    if (inst > 0) {
+      paidByInstallment.set(inst, (paidByInstallment.get(inst) ?? 0) + Number(p.amount || 0));
+    }
+  });
+
+  const unpaidSchedules = schedules
+    .filter((s: any) => s.loan_id === loan.id)
+    .sort((a: any, b: any) => Number(a.installment_number) - Number(b.installment_number));
+
+  let lateInterestTotal = 0;
+  let penaltyTotal = 0;
+  let maxDaysOverdue = 0;
+
+  const totalInstallments = Number(loan.installments || 1);
+
+  if (totalInstallments > 1 && unpaidSchedules.length > 0) {
+    let overdueSchedulesCount = 0;
+    unpaidSchedules.forEach((s: any) => {
+      const instNum = Number(s.installment_number);
+      const paid = paidByInstallment.get(instNum) ?? 0;
+      const schedAmt = Number(s.amount || 0);
+      if (paid < schedAmt - 0.01) {
+        const due = new Date(`${(s.due_date || "").slice(0, 10)}T00:00:00`);
+        const days = Math.max(0, Math.floor((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24)));
+
+        if (days > 0) {
+          maxDaysOverdue = Math.max(maxDaysOverdue, days);
+          overdueSchedulesCount++;
+
+          const pending = Math.max(0, schedAmt - paid);
+          if (loan.late_interest_value != null && Number(loan.late_interest_value) > 0) {
+            if (loan.late_interest_type === "fixed") {
+              lateInterestTotal += Number(loan.late_interest_value) * days;
+            } else {
+              lateInterestTotal += pending * (Number(loan.late_interest_value) / 100) * days;
+            }
+          }
+        }
+      }
+    });
+
+    if (loan.penalty_value != null && Number(loan.penalty_value) > 0) {
+      penaltyTotal = Number(loan.penalty_value) * (overdueSchedulesCount > 0 ? overdueSchedulesCount : 1);
+    }
+  } else {
+    const dueDate = (loan.due_date || "").slice(0, 10);
+    const due = new Date(`${dueDate}T00:00:00`);
+    const days = Math.max(0, Math.floor((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24)));
+
+    if (days > 0) {
+      maxDaysOverdue = days;
+      const baseRemaining = getBaseRemainingAmount(loan, payments, schedules);
+
+      if (loan.late_interest_value != null && Number(loan.late_interest_value) > 0) {
+        if (loan.late_interest_type === "fixed") {
+          lateInterestTotal += Number(loan.late_interest_value) * days;
+        } else {
+          lateInterestTotal += baseRemaining * (Number(loan.late_interest_value) / 100) * days;
+        }
+      }
+    }
+
+    if (loan.penalty_value != null && Number(loan.penalty_value) > 0) {
+      penaltyTotal = Number(loan.penalty_value);
+    }
+  }
+
+  return {
+    daysOverdue: maxDaysOverdue,
+    lateInterestTotal: Math.round(lateInterestTotal * 100) / 100,
+    penaltyTotal: Math.round(penaltyTotal * 100) / 100,
+    lateFees: Math.round((lateInterestTotal + penaltyTotal) * 100) / 100,
+  };
+}
+
 const DEFAULT_MESSAGES = {
   a_vencer:
     "Olá {nome_cliente}, sua parcela de {valor_parcela} vence em {data_vencimento}. Evite juros pagando antecipadamente.\n{link_pagamento}",
@@ -101,6 +226,11 @@ function getDueStatus(dueDate: string, today: string, veryOverdueDays: number): 
   }
   if (d === 0) return "vence_hoje";
   return "a_vencer";
+}
+
+function getItemSituation(promisedDate: string | undefined, dueDate: string, daysOverdue: number, status: DueStatus): string {
+  if (promisedDate) return `Venc. ${formatBR(promisedDate)}`;
+  return daysOverdue > 0 ? `vencido há ${daysOverdue} dia(s)` : status === "vence_hoje" ? "vence hoje" : `vence em ${formatBR(dueDate)}`;
 }
 
 Deno.serve(async (req: Request) => {
@@ -168,17 +298,13 @@ Deno.serve(async (req: Request) => {
 
       const { data: tplRow } = await admin
         .from("whatsapp_billing_messages")
-        .select("message_upcoming, message_due_today, message_overdue, message_very_overdue, message_center_multiple, pix_link, very_overdue_days")
+        .select("message_upcoming, message_due_today, message_overdue, message_very_overdue, message_center_single, message_center_multiple, pix_link, very_overdue_days")
         .eq("owner_id", ownerId)
         .maybeSingle();
       const veryOverdueDays = Number((tplRow as any)?.very_overdue_days ?? 30) || 30;
       const linkPagamento = (tplRow as any)?.pix_link?.trim() || "";
-      const templates: Record<DueStatus, string> = {
-        a_vencer: tplRow?.message_upcoming?.trim() || DEFAULT_MESSAGES.a_vencer,
-        vence_hoje: tplRow?.message_due_today?.trim() || DEFAULT_MESSAGES.vence_hoje,
-        vencida: tplRow?.message_overdue?.trim() || DEFAULT_MESSAGES.vencida,
-        muito_vencida: (tplRow as any)?.message_very_overdue?.trim() || tplRow?.message_overdue?.trim() || DEFAULT_MESSAGES.muito_vencida,
-      };
+      const defaultCenterSingle = "Olá, {nome_cliente}!\n\nIdentificamos o seguinte contrato pendente:\n\n• {etiqueta} — {valor_total} — {situacao}\n\nCaso já tenha realizado o pagamento, desconsidere este item.\n\nEmprestAI";
+      const defaultCenterMultiple = "Olá, {nome_cliente}!\n\nIdentificamos os seguintes contratos pendentes:\n\n{lista_contratos}\n\nTotal: {valor_total}\n\nCaso já tenha realizado algum pagamento, desconsidere o respectivo item.\n\nEmprestAI";
 
       const { data: loans } = await admin
         .from("loans").select("*")
@@ -203,6 +329,15 @@ Deno.serve(async (req: Request) => {
         const arr = schedByLoan.get(s.loan_id) ?? [];
         arr.push(s);
         schedByLoan.set(s.loan_id, arr);
+      }
+
+      const { data: paymentsRes } = await admin
+        .from("payments").select("loan_id, installment_number, amount").in("loan_id", loanIds);
+      const paymentsByLoan = new Map<string, any[]>();
+      for (const p of paymentsRes ?? []) {
+        const arr = paymentsByLoan.get(p.loan_id) ?? [];
+        arr.push(p);
+        paymentsByLoan.set(p.loan_id, arr);
       }
 
       const { data: promises } = await admin
@@ -244,30 +379,50 @@ Deno.serve(async (req: Request) => {
           const nextInst = list.find((s: any) => s.installment_number === paid + 1);
           const dueDate: string | null = nextInst?.due_date ?? loan.due_date ?? null;
           const installmentNumber = (nextInst?.installment_number ?? paid + 1) as number;
-          const remaining = Number(loan.remaining_amount ?? 0);
+          const loanPayments = paymentsByLoan.get(loan.id) ?? [];
+          const lateFeesBreakdown = getLoanLateFees(loan, loanPayments, list, today);
+          const renegPenaltyPending = (total <= 1 && loan.status !== "paid")
+            ? Number(loan.renegotiation_penalty_total || 0)
+            : 0;
+          const loanLateFees = lateFeesBreakdown.lateFees + renegPenaltyPending;
+
+          const baseRemainingSingle = getBaseRemainingAmount(loan, loanPayments, list);
+          const singleInstallmentRemaining = loan.status === "paid"
+            ? 0
+            : baseRemainingSingle + loanLateFees;
+
           const fallbackInstallment = Number(loan.custom_installment_value ?? 0)
             || (Number(loan.amount ?? 0) * (1 + Number(loan.interest_rate ?? 0) / 100)) / Math.max(1, total);
-          let amount: number;
-          if (total <= 1) {
-            amount = remaining > 0 ? remaining : Number(nextInst?.amount ?? fallbackInstallment);
-          } else if (nextInst && loan.remaining_amount != null) {
-            const futureSum = list
-              .filter((s: any) => s.installment_number > installmentNumber)
-              .reduce((sum: number, s: any) => sum + Number(s.amount ?? 0), 0);
-            amount = Math.min(Number(nextInst.amount ?? fallbackInstallment), Math.max(0, remaining - futureSum));
-          } else {
-            amount = remaining > 0 ? Math.min(fallbackInstallment, remaining) : fallbackInstallment;
-          }
-          amount = Math.round(Math.max(0, amount) * 100) / 100;
+
+          let amount = 0;
+          let baseAmount = 0;
+          let lateFees = 0;
+
           const overdueInstallments = total > 1
-            ? list.filter((s: any) => s.installment_number > paid && s.due_date < today)
+            ? list.filter((s: any) => s.installment_number > paid && (s.due_date || "").slice(0, 10) < today)
             : [];
           const overdueInstallmentCount = overdueInstallments.length;
-          if (overdueInstallmentCount > 1) {
-            amount = Math.round(overdueInstallments.reduce((sum: number, s: any) => (
-              sum + (s.installment_number === installmentNumber ? amount : Number(s.amount ?? 0))
-            ), 0) * 100) / 100;
+
+          if (total > 1) {
+            const dueList = list.filter((s: any) => s.installment_number > paid && (s.due_date || "").slice(0, 10) <= today);
+            if (dueList.length > 0) {
+              amount = dueList.reduce((sum: number, s: any) => sum + Number(s.amount || 0), 0);
+            } else {
+              amount = Number(nextInst?.amount ?? fallbackInstallment);
+            }
+            if (baseRemainingSingle > 0 && amount > baseRemainingSingle) {
+              amount = baseRemainingSingle;
+            }
+            baseAmount = amount;
+            lateFees = 0;
+          } else {
+            amount = singleInstallmentRemaining;
+            baseAmount = baseRemainingSingle;
+            lateFees = loanLateFees;
           }
+          amount = Math.round(amount * 100) / 100;
+          baseAmount = Math.round(baseAmount * 100) / 100;
+          lateFees = Math.round(lateFees * 100) / 100;
 
           if (!dueDate) continue;
 
@@ -286,8 +441,6 @@ Deno.serve(async (req: Request) => {
           const status = getDueStatus(billingDate, today, veryOverdueDays);
           const daysDiff = diffDays(billingDate, today);
           const messageDaysOverdue = daysDiff < 0 ? Math.abs(daysDiff) : 0;
-          const originalDaysDiff = diffDays(dueDate, today);
-          const financialDaysOverdue = originalDaysDiff < 0 ? Math.abs(originalDaysDiff) : 0;
 
           let shouldSend = false;
           if (status === "a_vencer") {
@@ -305,10 +458,6 @@ Deno.serve(async (req: Request) => {
           const key = `${loan.id}|${status}`;
           if (sentTodayKey.has(key)) continue;
 
-          const template = templates[status] ?? "";
-          if (!template.trim()) continue;
-
-          const valorTotal = amount;
           const etiqueta = Array.isArray(loan.tags)
             ? loan.tags
                 .map((t: unknown) => (t == null ? "" : String(t).trim()))
@@ -316,24 +465,27 @@ Deno.serve(async (req: Request) => {
                 .join(", ")
             : "";
 
-          const baseMessage = applyVariables(template, {
-            nome: client?.name ?? loan.borrower_name ?? "",
-            valorParcela: valorTotal,
-            dataVenc: billingDate,
-            diasAtraso: messageDaysOverdue,
-            juros: 0,
-            valorTotal,
-            etiqueta,
-            linkPagamento,
-          });
-          const message = overdueInstallmentCount > 1
-            ? `${baseMessage}\n\n${overdueInstallmentCount} parcelas vencidas. Valor total: ${formatBRL(valorTotal)}.`
-            : baseMessage;
+          const situation = getItemSituation(promisedDate, cleanDueDate, messageDaysOverdue, status);
 
           const phone = normalizePhoneBR(phoneRaw);
           if (!client?.id) continue;
           const entries = eligibleByClient.get(client.id) ?? [];
-          entries.push({ loanId: loan.id, installmentNumber, phone, message, amount: valorTotal, dueDate: billingDate, status, label: etiqueta || client.name || loan.borrower_name || "Contrato" });
+          entries.push({
+            loanId: loan.id,
+            installmentNumber,
+            phone,
+            amount,
+            baseAmount,
+            lateFees,
+            dueDate: billingDate,
+            originalDueDate: cleanDueDate,
+            daysOverdue: messageDaysOverdue,
+            overdueInstallmentCount,
+            status,
+            situation,
+            promisedDate,
+            label: etiqueta || client.name || loan.borrower_name || "Contrato",
+          });
           eligibleByClient.set(client.id, entries);
         } catch (e) {
           results.push({ owner_id: ownerId, loan_id: loan.id, error: String(e) });
@@ -343,20 +495,50 @@ Deno.serve(async (req: Request) => {
       for (const [clientId, entries] of eligibleByClient) {
         const first = entries[0];
         const totalAmount = entries.reduce((sum: number, entry: any) => sum + entry.amount, 0);
-        let message = first.message;
+        const totalBase = entries.reduce((sum: number, entry: any) => sum + entry.baseAmount, 0);
+        const totalFees = entries.reduce((sum: number, entry: any) => sum + entry.lateFees, 0);
+        const totalOverdueInstallments = entries.reduce((sum: number, entry: any) => sum + entry.overdueInstallmentCount, 0);
+        const client = clientById.get(clientId);
+        const clientName = client?.name || first.label || "Cliente";
+
+        let message = "";
         if (entries.length > 1) {
-          const lines = entries.map((entry: any) => `• ${entry.label} — ${formatBRL(entry.amount)} — Venc. ${formatBR(entry.dueDate)}`).join("\n");
-          const client = clientById.get(clientId);
-          const groupedTemplate = (tplRow as any)?.message_center_multiple?.trim()
-            || "Olá {nome_cliente}!\n\nIdentificamos os seguintes contratos pendentes:\n\n{lista_contratos}\n\nTotal: {valor_total}\n\n{link_pagamento}";
+          const lines = entries.map((entry: any) => {
+            const amountSummary = entry.overdueInstallmentCount > 1
+              ? `${entry.overdueInstallmentCount} parcelas vencidas — ${formatBRL(entry.amount)}`
+              : formatBRL(entry.amount);
+            if (entry.promisedDate) {
+              return `• ${entry.label} — ${amountSummary} — Venc. ${formatBR(entry.dueDate)}`;
+            }
+            return `• ${entry.label} — ${amountSummary} — ${entry.situation}`;
+          }).join("\n");
+
+          const groupedTemplate = (tplRow as any)?.message_center_multiple?.trim() || defaultCenterMultiple;
           message = groupedTemplate
-            .replace(/\{nome_cliente\}|\{nome\}/g, client?.name || "")
+            .replace(/\{nome_cliente\}|\{nome\}/g, clientName)
             .replace(/\{lista_contratos\}/g, lines)
             .replace(/\{quantidade_contratos\}/g, String(entries.length))
-            .replace(/\{valor_total\}|\{valor_cobranca\}|\{valor\}/g, formatBRL(totalAmount))
+            .replace(/\{valor_total\}|\{valor_cobranca\}|\{valor_parcela\}|\{valor\}/g, formatBRL(totalAmount))
+            .replace(/\{valor_base\}/g, formatBRL(totalBase))
+            .replace(/\{encargos\}|\{juros\}/g, formatBRL(totalFees))
+            .replace(/\{parcelas_vencidas\}/g, String(totalOverdueInstallments))
             .replace(/\{etiquetas_contratos\}/g, entries.map((entry: any) => entry.label).join(", "))
             .replace(/\{valores_contratos\}/g, entries.map((entry: any) => formatBRL(entry.amount)).join("; "))
-            .replace(/\{datas_priorizadas\}/g, entries.map((entry: any) => formatBR(entry.dueDate)).join("; "))
+            .replace(/\{datas_priorizadas\}|\{datas_vencimento\}/g, entries.map((entry: any) => formatBR(entry.dueDate)).join("; "))
+            .replace(/\{link_pagamento\}/g, linkPagamento);
+        } else {
+          const singleTemplate = (tplRow as any)?.message_center_single?.trim() || defaultCenterSingle;
+          message = singleTemplate
+            .replace(/\{nome_cliente\}|\{nome\}/g, clientName)
+            .replace(/\{etiqueta\}/g, first.label)
+            .replace(/\{valor_total\}|\{valor_cobranca\}|\{valor_parcela\}|\{valor\}/g, formatBRL(first.amount))
+            .replace(/\{valor_base\}/g, formatBRL(first.baseAmount))
+            .replace(/\{encargos\}|\{juros\}/g, formatBRL(first.lateFees))
+            .replace(/\{parcelas_vencidas\}/g, String(first.overdueInstallmentCount))
+            .replace(/\{vencimento_original\}/g, formatBR(first.originalDueDate || first.dueDate))
+            .replace(/\{data_priorizada\}|\{data_vencimento\}/g, formatBR(first.dueDate))
+            .replace(/\{dias_atraso\}/g, String(first.daysOverdue))
+            .replace(/\{situacao\}/g, first.situation)
             .replace(/\{link_pagamento\}/g, linkPagamento);
         }
         if (previewOnly) {
