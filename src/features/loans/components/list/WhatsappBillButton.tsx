@@ -14,6 +14,8 @@ export function WhatsappBillButton({
   payments,
   installmentSchedules,
   variant = "icon",
+  showLabel = false,
+  label,
   className,
 }: {
   loan: Loan;
@@ -21,6 +23,8 @@ export function WhatsappBillButton({
   payments: Payment[];
   installmentSchedules: InstallmentSchedule[];
   variant?: "icon" | "compact" | "outline";
+  showLabel?: boolean;
+  label?: React.ReactNode;
   className?: string;
 }) {
   const { messages } = useWhatsappBillingMessages();
@@ -65,14 +69,15 @@ export function WhatsappBillButton({
         type="button"
         variant="outline"
         className={cn(
-          "h-11 px-3.5 rounded-xl border-border/70 hover:bg-muted/50 text-[#22c55e] dark:text-[#22c55e] hover:text-[#16a34a] shrink-0",
+          "h-10 px-3 rounded-xl border-border/70 hover:bg-muted/50 text-[#22c55e] dark:text-[#22c55e] hover:text-[#16a34a] gap-1.5 font-medium text-xs sm:text-sm",
           className,
         )}
         onClick={handleClick}
         title={phone ? "Cobrar via WhatsApp" : "Cliente sem telefone"}
         disabled={!phone}
       >
-        <MessageCircle className="h-5 w-5 text-[#22c55e]" />
+        <MessageCircle className="h-4 w-4 text-[#22c55e] shrink-0" />
+        {showLabel && (label || <span>WhatsApp</span>)}
       </Button>
     );
   } else if (variant === "compact") {

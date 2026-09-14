@@ -709,7 +709,7 @@ function LoanRowView({
                   type="button"
                   data-mutation
                   variant="default"
-                  className="w-full h-11 text-sm font-semibold gap-2 rounded-xl shadow-sm"
+                  className="w-full h-10 text-sm font-semibold gap-2 rounded-xl shadow-sm"
                   onClick={(e) => { e.stopPropagation(); setPaymentHubOpen(true); }}
                 >
                   <DollarSign className="h-4 w-4" /> Registrar Pagamento
@@ -722,8 +722,16 @@ function LoanRowView({
                 </Button>
               )}
 
-              {/* Linha 2: WhatsApp + Renegociar + PDF + Histórico */}
-              <div className="flex items-center gap-2 w-full flex-wrap sm:flex-nowrap" onClick={(e) => e.stopPropagation()}>
+              {/* Linha 2: Ações Rápidas (WhatsApp, Renegociar, PDF, Histórico) */}
+              <div
+                className={cn(
+                  "grid gap-2 w-full",
+                  loan.status !== "paid" && onRenegotiate && !readOnly
+                    ? "grid-cols-2 sm:grid-cols-4"
+                    : "grid-cols-2 sm:grid-cols-3",
+                )}
+                onClick={(e) => e.stopPropagation()}
+              >
                 {loan.status !== "paid" && (
                   <WhatsappBillButton
                     loan={loan}
@@ -731,7 +739,9 @@ function LoanRowView({
                     payments={allPayments}
                     installmentSchedules={installmentSchedules}
                     variant="outline"
-                    className="w-12 sm:w-14 h-11 shrink-0 rounded-xl"
+                    showLabel
+                    label={<span className="truncate">WhatsApp</span>}
+                    className="w-full h-10 justify-center rounded-xl"
                   />
                 )}
 
@@ -739,16 +749,17 @@ function LoanRowView({
                   <Button
                     data-mutation
                     variant="outline"
-                    className="flex-1 min-w-[110px] h-11 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-amber-500/50 hover:text-amber-600"
+                    className="w-full h-10 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-amber-500/50 hover:text-amber-600 justify-center"
                     onClick={(e) => { e.stopPropagation(); setShowRenegotiateDialog(true); }}
                   >
-                    <RefreshCw className="h-4 w-4 text-amber-500 shrink-0" /> Renegociar
+                    <RefreshCw className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                    <span className="truncate">Renegociar</span>
                   </Button>
                 )}
 
                 <Button
                   variant="outline"
-                  className="flex-1 min-w-[90px] h-11 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-primary/50"
+                  className="w-full h-10 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-primary/50 justify-center"
                   onClick={async (e) => {
                     e.stopPropagation();
                     try {
@@ -764,21 +775,23 @@ function LoanRowView({
                     }
                   }}
                 >
-                  <FileDown className="h-4 w-4 text-primary shrink-0" /> PDF
+                  <FileDown className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <span className="truncate">PDF</span>
                 </Button>
 
                 <Button
                   variant="outline"
-                  className="flex-1 min-w-[100px] h-11 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-primary/50"
+                  className="w-full h-10 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-primary/50 justify-center"
                   onClick={(e) => { e.stopPropagation(); setShowHistory(true); }}
                 >
-                  <History className="h-4 w-4 text-muted-foreground shrink-0" /> Histórico
+                  <History className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="truncate">Histórico</span>
                 </Button>
               </div>
 
-              {/* Linha 3: Juros, Multa e Cobrança Automática */}
+              {/* Linha 3: Encargos e Automação (Juros, Multa e Cobrança Automática) */}
               {!readOnly && loan.status !== "paid" && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full" onClick={(e) => e.stopPropagation()}>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full" onClick={(e) => e.stopPropagation()}>
                   <Button
                     type="button"
                     variant="outline"
@@ -786,7 +799,7 @@ function LoanRowView({
                     onClick={(e) => { e.stopPropagation(); setShowLateInterest(true); }}
                   >
                     <Percent className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                    <span className="truncate">Adicionar Juros por Atraso</span>
+                    <span className="truncate">Juros Atraso</span>
                   </Button>
 
                   <Button
@@ -796,13 +809,13 @@ function LoanRowView({
                     onClick={(e) => { e.stopPropagation(); setShowPenalty(true); }}
                   >
                     <DollarSign className="h-3.5 w-3.5 text-destructive shrink-0" />
-                    <span className="truncate">Adicionar Multa Fixa</span>
+                    <span className="truncate">Multa Fixa</span>
                   </Button>
 
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-10 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 justify-center"
+                    className="col-span-2 sm:col-span-1 h-10 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 justify-center"
                     onClick={(e) => {
                       e.stopPropagation();
                       onUpdate({ autoBillingEnabled: !(loan.autoBillingEnabled ?? true) });
@@ -811,12 +824,12 @@ function LoanRowView({
                     {(loan.autoBillingEnabled ?? true) ? (
                       <>
                         <BellOff className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="truncate">Desativar cobrança auto</span>
+                        <span className="truncate">Desativar cobrança</span>
                       </>
                     ) : (
                       <>
                         <BellRing className="h-3.5 w-3.5 text-primary shrink-0" />
-                        <span className="truncate">Ativar cobrança auto</span>
+                        <span className="truncate">Ativar cobrança</span>
                       </>
                     )}
                   </Button>
