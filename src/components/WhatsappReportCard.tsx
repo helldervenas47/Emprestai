@@ -147,8 +147,11 @@ export function formatBillingReportForWhatsapp(
   if (groupedEnviadas.length === 0) {
     lines.push(`Nenhuma cobrança enviada.`);
   } else {
-    groupedEnviadas.forEach((item) => {
+    groupedEnviadas.forEach((item, index) => {
       lines.push(`*${item.clientName}* / Contratos: ${item.count} / Juros: ${moneyFmt.format(item.interestAmount)} / Total: ${moneyFmt.format(item.amount)}`);
+      if (index < groupedEnviadas.length - 1) {
+        lines.push(``);
+      }
     });
   }
 
@@ -165,8 +168,11 @@ export function formatBillingReportForWhatsapp(
   if (groupedNaoEnviadas.length === 0) {
     lines.push(`Nenhuma cobrança pendente.`);
   } else {
-    groupedNaoEnviadas.forEach((item) => {
+    groupedNaoEnviadas.forEach((item, index) => {
       lines.push(`*${item.clientName}* / Contratos: ${item.count} / Juros: ${moneyFmt.format(item.interestAmount)} / Total: ${moneyFmt.format(item.amount)}`);
+      if (index < groupedNaoEnviadas.length - 1) {
+        lines.push(``);
+      }
     });
   }
 

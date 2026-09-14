@@ -927,8 +927,11 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
   if (groupedEnviadas.length === 0) {
     lines.push(`Nenhuma cobrança enviada.`);
   } else {
-    groupedEnviadas.forEach((item) => {
+    groupedEnviadas.forEach((item, index) => {
       lines.push(`*${item.clientName}* / Contratos: ${item.count} / Juros: ${fmtBRL(item.interestAmount)} / Total: ${fmtBRL(item.amount)}`);
+      if (index < groupedEnviadas.length - 1) {
+        lines.push(``);
+      }
     });
   }
 
@@ -945,8 +948,11 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
   if (groupedNaoEnviadas.length === 0) {
     lines.push(`Nenhuma cobrança pendente.`);
   } else {
-    groupedNaoEnviadas.forEach((item) => {
+    groupedNaoEnviadas.forEach((item, index) => {
       lines.push(`*${item.clientName}* / Contratos: ${item.count} / Juros: ${fmtBRL(item.interestAmount)} / Total: ${fmtBRL(item.amount)}`);
+      if (index < groupedNaoEnviadas.length - 1) {
+        lines.push(``);
+      }
     });
   }
 
