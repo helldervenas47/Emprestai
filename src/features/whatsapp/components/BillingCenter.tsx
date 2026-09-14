@@ -754,7 +754,17 @@ function ClientBillingFolder({ group, sentToday, blockedToday = sentToday, selec
         </div>
         <Button size="sm" variant="outline" disabled={!item.validPhone || blockedToday} onClick={() => onCharge(item)}>Cobrar</Button>
       </div>)}
-      <div className="flex justify-end bg-muted/20 p-3"><Button size="sm" className="w-full bg-emerald-600 hover:bg-emerald-700 sm:w-auto" disabled={blockedToday || !group.rows.some(item => item.validPhone)} onClick={() => onChargeMany(group.rows.filter(item => item.validPhone))}><Send className="mr-1.5 h-3.5 w-3.5"/>{sentToday ? "Reenviar cobrança" : blockedToday ? "Cliente já cobrado hoje" : `Cobrar todos (${group.rows.filter(item => item.validPhone).length})`}</Button></div>
+      <div className="bg-muted/20 p-3">
+        <Button
+          size="sm"
+          className="w-full bg-emerald-600 hover:bg-emerald-700 font-semibold"
+          disabled={blockedToday || !group.rows.some(item => item.validPhone)}
+          onClick={() => onChargeMany(group.rows.filter(item => item.validPhone))}
+        >
+          <Send className="mr-1.5 h-3.5 w-3.5"/>
+          {sentToday ? "Reenviar cobrança" : blockedToday ? "Cliente já cobrado hoje" : `Cobrar todos (${group.rows.filter(item => item.validPhone).length})`}
+        </Button>
+      </div>
     </CollapsibleContent>
   </Collapsible>;
 }
