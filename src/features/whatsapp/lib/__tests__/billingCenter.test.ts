@@ -140,7 +140,7 @@ describe("Central de Cobranças", () => {
     expect(result.find((item) => item.loanId === "single")?.amount).toBe(75);
   });
 
-  it("mantém o valor exato do campo Restante em contratos de parcela única", () => {
+  it("mantém o valor exato do campo Saldo Restante incluindo taxas extras em contratos de parcela única", () => {
     const result = buildBillingCandidates({
       loans: [{
         ...loan("legacy", "2026-09-09"),
@@ -154,7 +154,8 @@ describe("Central de Cobranças", () => {
       clients: [client], schedules: [], payments: [], today: "2026-09-10",
     });
     expect(Number.isFinite(result[0].amount)).toBe(true);
-    expect(result[0].amount).toBe(500);
+    // 500 (base) + 10 (1 dia atraso fixo) + 25 (multa) = 535
+    expect(result[0].amount).toBe(535);
     expect(result[0].message).not.toContain("NaN");
   });
 
@@ -239,25 +240,54 @@ describe("Central de Cobranças", () => {
     expect(result[0].priority).toBe("in_two_days");
   });
 
-  it("não duplica nem soma renegotiationPenaltyTotal quando o contrato já possui remainingAmount definido", () => {
+  it("calcula o Saldo Restante com taxas extras exatamente igual ao card de Empréstimos para Wendel Cerqueira", () => {
     const result = buildBillingCandidates({
       loans: [{
-        ...loan("thiago-ferraz-1", "2026-06-20"),
+        ...loan("wendel-cerqueira", "2026-08-10"),
+        remainingAmount: undefined,
         installments: 1,
-        amount: 400,
-        remainingAmount: 500,
-        renegotiationPenaltyTotal: 400,
+        amount: 1100,
+        interestRate: 30,
+        lateInterestType: "fixed",
+        lateInterestValue: 20, // R$ 20/dia x 35 dias = R$ 700
+        penaltyValue: 10,       // Multa fixa = R$ 10
       }],
-      clients: [client],
+      clients: [{ ...client, name: "Wendel Cerqueira" }],
       schedules: [],
       payments: [],
       today: "2026-09-14",
     });
 
     expect(result).toHaveLength(1);
-    // Deve ser exatamente 500 (e não 500 + 400 = 900)
-    expect(result[0].baseAmount).toBe(500);
+    // Base: 1100 + 30% = 1430. Encargos/Multas: 700 + 10 = 710. Saldo Restante = 2140.
+    expect(result[0].baseAmount).toBe(1430);
+    expect(result[0].lateFees).toBe(710);
+    expect(result[0].amount).toBe(2140);
+    expect(result[0].interestAmount).toBe(1040); // Encargos & Juros = 330 + 710
+  });
+
+  it("calcula o Saldo Restante com multa para Thiago Ferraz", () => {
+    const result = buildBillingCandidates({
+      loans: [{
+        ...loan("thiago-ferraz-1", "2026-06-20"),
+        remainingAmount: undefined,
+        installments: 1,
+        amount: 400,
+        interestRate: 20,
+        penaltyValue: 500,
+      }],
+      clients: [{ ...client, name: "Thiago Ferraz" }],
+      schedules: [],
+      payments: [{ loanId: "thiago-ferraz-1", amount: 940 } as any],
+      today: "2026-09-14",
+    });
+
+    expect(result).toHaveLength(1);
+    // Base: 480 - 940 = 0. Multa = 500. Saldo Restante = 500.
+    expect(result[0].baseAmount).toBe(0);
+    expect(result[0].lateFees).toBe(500);
     expect(result[0].amount).toBe(500);
+    expect(result[0].interestAmount).toBe(500);
   });
 });
 

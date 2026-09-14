@@ -517,11 +517,20 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
     const totalExpected = Math.round(safePrincipal * (1 + (Number(loan.interest_rate) || 0) / 100));
 
     // Matriz de 1 parcela (exatamente o campo "Restante" da aba Empréstimos):
-    const singleInstallmentRemaining = loan.status === "paid"
+    const lateFeesBreakdown = getLoanLateFees(loan, payments, schedules, today);
+    const renegPenaltyPending = (totalInstallments < 2 && loan.status !== "paid")
+      ? Number(loan.renegotiation_penalty_total || 0)
+      : 0;
+    const loanLateFees = lateFeesBreakdown.lateFees + renegPenaltyPending;
+
+    const baseRemainingSingle = loan.status === "paid"
       ? 0
       : safeRemaining > 0
         ? safeRemaining
         : Math.max(0, totalExpected - totalPaid);
+    const singleInstallmentRemaining = loan.status === "paid"
+      ? 0
+      : baseRemainingSingle + loanLateFees;
 
     const dueInstallments = totalInstallments > 1
       ? getDueInstallmentsUntilToday(loan, schedules, today, payments)
@@ -559,7 +568,7 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
       baseAmount = amount;
     } else {
       amount = singleInstallmentRemaining;
-      baseAmount = singleInstallmentRemaining;
+      baseAmount = baseRemainingSingle;
       installmentCount = 1;
     }
 
@@ -573,9 +582,10 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
     } else {
       const contractualInterestRate = Number(loan.interest_rate) || 0;
       const nominalInterest = (safePrincipal * contractualInterestRate) / 100;
-      chargedPrincipal = Math.max(0, amount - nominalInterest);
-      if (chargedPrincipal > safePrincipal) {
-        chargedPrincipal = safePrincipal;
+      const basePrincipal = Math.max(0, baseRemainingSingle - nominalInterest);
+      chargedPrincipal = Math.min(safePrincipal, basePrincipal);
+      if (chargedPrincipal > amount) {
+        chargedPrincipal = amount;
       }
     }
 
