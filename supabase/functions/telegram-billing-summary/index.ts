@@ -697,7 +697,7 @@ Deno.serve(async (req) => {
   const [hh, mm] = hhmm.split(":").map(Number);
   const nowMin = hh * 60 + mm;
 
-  let query = admin.from("telegram_billing_prefs").select("user_id, enabled, send_time_1, send_time_2, send_time_3, last_sent");
+  let query = admin.from("telegram_billing_prefs").select("*");
   if (forceUserId) query = query.eq("user_id", forceUserId);
 
   const { data: prefs, error } = await query;
@@ -705,6 +705,7 @@ Deno.serve(async (req) => {
 
   let sent = 0;
   const errors: string[] = [];
+  let lastReport = "";
 
   for (const pref of prefs ?? []) {
     try {
@@ -720,6 +721,7 @@ Deno.serve(async (req) => {
 
       let anySent = false;
       const reportText = await buildWhatsappBillingReport(admin, pref.user_id, today);
+      lastReport = reportText;
 
       // 1. Envio automático exclusivamente via WhatsApp
       const wppRes = await sendWhatsappReportAuto(admin, pref.user_id, reportText);
@@ -743,7 +745,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({ ok: true, sent, checked: prefs?.length ?? 0, hhmm, errors }), {
+  return new Response(JSON.stringify({ ok: true, sent, checked: prefs?.length ?? 0, hhmm, errors, lastReport }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });
