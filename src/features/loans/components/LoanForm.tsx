@@ -25,8 +25,8 @@ import { computeUsedLimit, computeAvailableLimit, formatBRL } from "@/features/c
 import { buildRiskProfile } from "@/features/loans/lib/clientRisk";
 import { LoanPaymentSplitEditor, buildSplitFromState, type SplitState } from "@/features/loans/components/LoanPaymentSplitEditor";
 import { formatCPF, formatCpfOrCnpj, onlyDigits } from "@/lib/brDocuments";
-import { useLoanRenegotiations } from "@/features/loans/hooks/useLoanRenegotiations";
 import { FormModalOverlay } from "@/components/ui/form-modal-overlay";
+import { ClientCombobox } from "@/components/ui/client-combobox";
 
 interface Props {
   onAdd: (loan: Omit<Loan, "id" | "status" | "paidInstallments"> & { paymentMethodId?: string | null; paymentSplit?: import("@/types/loan").PaymentSplit | null }) => Promise<string | null>;
@@ -413,18 +413,15 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                   Nenhum cliente ativo cadastrado.{onAddClient ? " Clique em \"Novo cliente\" para cadastrar." : " Cadastre um cliente primeiro."}
                 </p>
               ) : (
-                <Select value={form.borrowerName} onValueChange={(v) => update("borrowerName", v)}>
-                  <SelectTrigger className="h-10 text-sm">
-                    <SelectValue placeholder="Selecione ou busque um cliente..." />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-64">
-                    {activeClients.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}{c.isManager ? " 👔 (Gerente)" : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <ClientCombobox
+                  value={form.borrowerName}
+                  valueKey="id"
+                  onChange={(v) => update("borrowerName", v)}
+                  options={activeClients.map((c) => ({ id: c.id, name: c.name, isManager: c.isManager }))}
+                  placeholder="Selecione ou busque um cliente..."
+                  emptyHint="Nenhum cliente ativo encontrado"
+                  allowCreate={false}
+                />
               )}
 
               {/* Score e Limite de Crédito integrado */}
