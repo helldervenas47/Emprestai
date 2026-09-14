@@ -52,7 +52,7 @@ export const USER_SUPABASE_STORAGE_KEY = "sb-user-external-auth";
 export const supabase = IS_SUPABASE_CONFIGURED
   ? createClient<Database>(USER_SUPABASE_URL, USER_SUPABASE_PUBLISHABLE_KEY, {
       auth: {
-        storage: localStorage,
+        storage: typeof localStorage !== "undefined" ? localStorage : undefined,
         storageKey: USER_SUPABASE_STORAGE_KEY,
         persistSession: true,
         autoRefreshToken: true,

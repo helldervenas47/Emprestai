@@ -572,9 +572,9 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
 
     let interestAmount = Math.max(0, Math.round((amount - chargedPrincipal) * 100) / 100);
     const cents = Math.round((Math.abs(interestAmount) % 1) * 100);
-    if (cents === 1 || cents === 2 || cents === 98 || cents === 99) {
+    if (cents >= 1 && cents <= 3 || cents >= 97 && cents <= 99) {
       const nearestInteger = Math.round(interestAmount);
-      if (Math.abs(interestAmount - nearestInteger) <= 0.025) {
+      if (Math.abs(interestAmount - nearestInteger) <= 0.035) {
         interestAmount = nearestInteger;
       }
     }

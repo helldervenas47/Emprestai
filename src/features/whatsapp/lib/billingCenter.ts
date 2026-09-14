@@ -168,11 +168,11 @@ export function buildBillingCandidates(params: {
       chargedPrincipal = Math.max(0, baseAmount - nominalInterest);
     }
     let interestAmount = Math.max(0, Math.round((amount - chargedPrincipal) * 100) / 100);
-    // Elimina resíduos de ponto flutuante (ex: R$ 50,02 -> R$ 50,00 ou R$ 850,01 -> R$ 850,00)
+    // Elimina resíduos de ponto flutuante/dízimas periódicas de parcelamento (ex: R$ 50,03 -> R$ 50,00 ou R$ 850,01 -> R$ 850,00)
     const cents = Math.round((Math.abs(interestAmount) % 1) * 100);
-    if (cents === 1 || cents === 2 || cents === 98 || cents === 99) {
+    if (cents >= 1 && cents <= 3 || cents >= 97 && cents <= 99) {
       const nearestInteger = Math.round(interestAmount);
-      if (Math.abs(interestAmount - nearestInteger) <= 0.025) {
+      if (Math.abs(interestAmount - nearestInteger) <= 0.035) {
         interestAmount = nearestInteger;
       }
     }
