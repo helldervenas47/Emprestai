@@ -172,7 +172,7 @@ describe("WhatsappReportCard — Envio de Relatórios e Resumo Operacional pelo 
     const sentIds = new Set(["loan-1", "loan-2"]);
     const message = formatBillingReportForWhatsapp(candidates, sentIds, undefined, "2026-09-13");
 
-    expect(message).toContain("📊 *RESUMO DAS COBRANÇAS — HOJE*");
+    expect(message).toContain("📊 *RESUMO DAS COBRANÇAS*");
     expect(message).toContain("📌 *RESUMO DO DIA — 13/09/2026*");
     expect(message).toContain("Total de cobranças: *3*");
     expect(message).toContain("✅ Enviadas: *2*");
