@@ -162,4 +162,25 @@ describe("allocateInterestByPayment", () => {
     // below (não infla o card).
     expect(total).toBeLessThanOrEqual(200 + 0.02);
   });
+
+  it("paid loan with late fees and extra days (total paid > contracted) recognizes full excess as interest/revenue", () => {
+    // Ex: Empréstimo R$ 700 a 20% (juros R$ 140, total nominal R$ 840).
+    // Cliente atrasa e paga: R$ 500 (parcial) + R$ 200 (parcial) + R$ 500 (quitação) = R$ 1200 total (R$ 360 de multas).
+    const loan = makeLoan({ id: "L_MATHEUS", amount: 700, interestRate: 20, installments: 1, status: "paid" });
+    const payments = [
+      { id: "p1", loanId: "L_MATHEUS", amount: 500, date: "2026-08-16", installmentNumber: -1, metadata: { interest_amount: 83.33, principal_amount: 416.67, allocation_version: "remaining_balance_prorata" } },
+      { id: "p2", loanId: "L_MATHEUS", amount: 200, date: "2026-09-03", installmentNumber: -1, metadata: { interest_amount: 33.34, principal_amount: 166.66, allocation_version: "remaining_balance_prorata" } },
+      { id: "p3", loanId: "L_MATHEUS", amount: 500, date: "2026-09-13", installmentNumber: 1, metadata: { payment_type: "payoff" } },
+    ];
+    const m = allocateInterestByPayment([loan], payments);
+    // p1 = 83.33
+    // p2 = 33.34
+    // p3 = 500 - (83.33 + 33.34) = 383.33
+    expect(m.get("p1")).toBeCloseTo(83.33, 2);
+    expect(m.get("p2")).toBeCloseTo(33.34, 2);
+    expect(m.get("p3")).toBeCloseTo(383.33, 2);
+
+    const totalInterest = payments.reduce((s, p) => s + (m.get(p.id) ?? 0), 0);
+    expect(totalInterest).toBeCloseTo(500, 2); // 1200 pago - 700 principal = 500 total de juros + multas
+  });
 });

@@ -431,11 +431,17 @@ export function allocateInterestByPayment(
     // diluída nas parcelas), para não deixar penalidade sem alocação.
     const scheduled = scheduleByLoan.get(loan.id);
     const scheduledInterest = scheduled ? scheduled.reduce((s, e) => s + e.interest, 0) : 0;
-    const expectedInterest = Math.max(0, Math.max(total - loan.amount, scheduledInterest));
-    const allocated = payments
-      .filter((p) => p.loanId === loan.id)
-      .reduce((s, p) => s + (byId.get(p.id) ?? 0), 0);
-    const diff = round2(expectedInterest - allocated);
+    const nominalInterest = Math.max(0, Math.max(total - loan.amount, scheduledInterest));
+
+    // Todo excedente pago pelo cliente além do principal contratado (incluindo
+    // multas e juros diários por atraso) é reconhecido como receita de juros.
+    const loanPayments = payments.filter((p) => p.loanId === loan.id);
+    const totalPaid = loanPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+    const realTotalInterest = Math.max(0, round2(totalPaid - (Number(loan.amount) || 0)));
+    const targetInterest = Math.max(nominalInterest, realTotalInterest);
+
+    const allocated = loanPayments.reduce((s, p) => s + (byId.get(p.id) ?? 0), 0);
+    const diff = round2(targetInterest - allocated);
     if (diff <= 0) continue;
     const cur = byId.get(last.id) ?? 0;
     const cap = Math.max(0, round2(last.amount - cur));
