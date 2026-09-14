@@ -25,6 +25,7 @@ import { computeUsedLimit, computeAvailableLimit, formatBRL } from "@/features/c
 import { buildRiskProfile } from "@/features/loans/lib/clientRisk";
 import { LoanPaymentSplitEditor, buildSplitFromState, type SplitState } from "@/features/loans/components/LoanPaymentSplitEditor";
 import { formatCPF, formatCpfOrCnpj, onlyDigits } from "@/lib/brDocuments";
+import { useLoanRenegotiations } from "@/features/loans/hooks/useLoanRenegotiations";
 import { FormModalOverlay } from "@/components/ui/form-modal-overlay";
 import { ClientCombobox } from "@/components/ui/client-combobox";
 
