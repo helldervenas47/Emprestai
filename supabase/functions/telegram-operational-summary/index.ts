@@ -427,15 +427,16 @@ function calculateTotalWithInterest(principal: number, rate: number): number {
 // MOTOR OFICIAL DE ALOCAÇÃO DE JUROS — CARD "FATURAMENTO DO PERÍODO" (DASHBOARD)
 // =========================================================================
 
-interface AllocLoanLike {
+export interface AllocLoanLike {
   id: string;
   amount: number;
   interestRate: number;
   installments: number;
   status?: string;
+  originalAmount?: number | null;
 }
 
-interface AllocPaymentLike {
+export interface AllocPaymentLike {
   id: string;
   loanId: string;
   amount: number;
@@ -445,14 +446,46 @@ interface AllocPaymentLike {
   metadata?: Record<string, any> | null;
 }
 
-interface InstallmentBreakdownEntry {
+export const ALLOCATION_VERSION_REMAINING_PRORATA = "remaining_balance_prorata" as const;
+
+function readPersistedInterest(p: AllocPaymentLike): number | null {
+  const md = (p.metadata ?? null) as any;
+  if (!md) return null;
+  const v = md.interest_amount;
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? round2(n) : null;
+}
+
+export function allocatePartialProrata(params: {
+  amount: number;
+  principalRemaining: number;
+  interestRemaining: number;
+}): { interest: number; principal: number } {
+  const amt = Math.max(0, Number(params.amount) || 0);
+  const iRem = Math.max(0, Number(params.interestRemaining) || 0);
+  const pRem = Math.max(0, Number(params.principalRemaining) || 0);
+  const totalRem = iRem + pRem;
+  if (amt <= 0 || totalRem <= 0) return { interest: 0, principal: round2(Math.min(amt, pRem)) };
+  const ratio = iRem / totalRem;
+  let interest = round2(amt * ratio);
+  interest = Math.min(interest, iRem, amt);
+  let principal = round2(amt - interest);
+  if (principal > pRem) {
+    principal = pRem;
+    interest = Math.min(iRem, round2(amt - principal));
+  }
+  return { interest: round2(interest), principal: round2(principal) };
+}
+
+export interface InstallmentBreakdownEntry {
   installmentNumber: number;
   amount: number;
   interest: number;
   principal: number;
 }
 
-function buildInstallmentBreakdown(
+export function buildInstallmentBreakdown(
   loan: Pick<AllocLoanLike, "amount" | "interestRate" | "installments">,
   customAmounts?: number[],
 ): InstallmentBreakdownEntry[] {
@@ -496,7 +529,7 @@ function buildInstallmentBreakdown(
   return entries;
 }
 
-function allocateInterestByPayment(
+export function allocateInterestByPayment(
   loans: AllocLoanLike[],
   payments: AllocPaymentLike[],
 ): Map<string, number> {
@@ -515,18 +548,17 @@ function allocateInterestByPayment(
 
   const priorInterestByLoan = new Map<string, number>();
   const priorPrincipalByLoan = new Map<string, number>();
+  const prorataPrincipalReducedByLoan = new Map<string, number>();
   const interestRemainingByLoan = new Map<string, number>();
-
   loans.forEach((l) => {
-    const rawTotal = totalWithInterest(Number(l.amount) || 0, Number(l.interestRate) || 0);
-    const totInt = Math.max(0, rawTotal - (Number(l.amount) || 0));
-    interestRemainingByLoan.set(l.id, totInt);
+    const total = totalWithInterest(l.amount, l.interestRate);
+    interestRemainingByLoan.set(l.id, Math.max(0, total - l.amount));
   });
 
-  const scheduleByLoan = new Map<string, InstallmentBreakdownEntry[]>();
+  const scheduleByLoan = new Map<string, ReturnType<typeof buildInstallmentBreakdown>>();
   for (const loan of loans) {
     if (loan.installments <= 1) continue;
-    const totalDue = totalWithInterest(Number(loan.amount) || 0, Number(loan.interestRate) || 0);
+    const totalDue = totalWithInterest(loan.amount, loan.interestRate);
     const N = loan.installments;
     const amounts = Array.from({ length: N }, () => round2(totalDue / N));
     for (const p of sorted) {
@@ -544,18 +576,22 @@ function allocateInterestByPayment(
     const amt = Number(p.amount) || 0;
     if (amt <= 0) { byId.set(p.id, 0); continue; }
 
-    const inst = Number(p.installmentNumber);
+    const inst = p.installmentNumber;
     const loan = loanById.get(p.loanId);
 
+    // Casos avulsos
     if (inst === 0 || inst === -2) {
       byId.set(p.id, round2(amt));
       const rem = interestRemainingByLoan.get(p.loanId) ?? 0;
       interestRemainingByLoan.set(p.loanId, Math.max(0, rem - amt));
-      priorInterestByLoan.set(p.loanId, (priorInterestByLoan.get(p.loanId) ?? 0) + amt);
       continue;
     }
     if (inst === -3) {
       byId.set(p.id, 0);
+      prorataPrincipalReducedByLoan.set(
+        p.loanId,
+        (prorataPrincipalReducedByLoan.get(p.loanId) ?? 0) + amt,
+      );
       continue;
     }
 
@@ -565,11 +601,26 @@ function allocateInterestByPayment(
     }
 
     if (inst === -1) {
-      const meta = (p.metadata ?? {}) as any;
-      const persisted = meta.interest_amount != null ? Number(meta.interest_amount) : null;
       const iRemBefore = interestRemainingByLoan.get(p.loanId) ?? 0;
+      const persisted = readPersistedInterest(p);
+      const md = (p.metadata ?? null) as any;
+      const version = md?.allocation_version;
+      const persistedPrincipal = md?.principal_amount != null ? Number(md.principal_amount) : null;
       let interest = 0;
-      if (persisted != null) {
+
+      if (version === ALLOCATION_VERSION_REMAINING_PRORATA) {
+        const valid =
+          persisted != null
+          && persistedPrincipal != null
+          && Number.isFinite(persistedPrincipal)
+          && persistedPrincipal >= -0.005
+          && Math.abs((persisted + persistedPrincipal) - amt) <= 0.01;
+        if (valid) {
+          interest = Math.min(persisted!, amt);
+        } else {
+          interest = round2(Math.min(iRemBefore, amt));
+        }
+      } else if (persisted != null) {
         interest = Math.min(persisted, amt);
       } else {
         interest = round2(Math.min(iRemBefore, amt));
@@ -577,7 +628,11 @@ function allocateInterestByPayment(
       byId.set(p.id, interest);
       interestRemainingByLoan.set(p.loanId, Math.max(0, round2(iRemBefore - interest)));
       priorInterestByLoan.set(p.loanId, (priorInterestByLoan.get(p.loanId) ?? 0) + interest);
-      priorPrincipalByLoan.set(p.loanId, (priorPrincipalByLoan.get(p.loanId) ?? 0) + Math.max(0, round2(amt - interest)));
+      const principalPart = Math.max(0, round2(amt - interest));
+      prorataPrincipalReducedByLoan.set(
+        p.loanId,
+        (prorataPrincipalReducedByLoan.get(p.loanId) ?? 0) + principalPart,
+      );
       continue;
     }
 
@@ -588,14 +643,24 @@ function allocateInterestByPayment(
       const entry = schedule.find((e) => e.installmentNumber === inst) ?? schedule[schedule.length - 1];
       interestPart = Math.max(0, Math.min(round2(entry.interest), amt, remBefore));
     } else {
-      const principalRemaining = Math.max(0, round2((Number(loan.amount) || 0) - (priorPrincipalByLoan.get(p.loanId) ?? 0)));
+      const principalRemaining = Math.max(
+        0,
+        round2((loan.amount || 0) - (priorPrincipalByLoan.get(p.loanId) ?? 0)),
+      );
       const principalPart = Math.min(amt, principalRemaining);
       interestPart = Math.max(0, round2(amt - principalPart));
     }
     byId.set(p.id, interestPart);
     priorInterestByLoan.set(p.loanId, (priorInterestByLoan.get(p.loanId) ?? 0) + interestPart);
     interestRemainingByLoan.set(p.loanId, Math.max(0, remBefore - interestPart));
-    priorPrincipalByLoan.set(p.loanId, (priorPrincipalByLoan.get(p.loanId) ?? 0) + Math.max(0, round2(amt - interestPart)));
+    priorPrincipalByLoan.set(
+      p.loanId,
+      (priorPrincipalByLoan.get(p.loanId) ?? 0) + Math.max(0, round2(amt - interestPart)),
+    );
+    prorataPrincipalReducedByLoan.set(
+      p.loanId,
+      (prorataPrincipalReducedByLoan.get(p.loanId) ?? 0) + Math.max(0, round2(amt - interestPart)),
+    );
   }
 
   const lastPaymentByLoan = new Map<string, { id: string; amount: number }>();
@@ -605,39 +670,42 @@ function allocateInterestByPayment(
     if (loan.status !== "paid") continue;
     const last = lastPaymentByLoan.get(loan.id);
     if (!last) continue;
-    const total = totalWithInterest(Number(loan.amount) || 0, Number(loan.interestRate) || 0);
+    const total = totalWithInterest(loan.amount, loan.interestRate);
     const scheduled = scheduleByLoan.get(loan.id);
     const scheduledInterest = scheduled ? scheduled.reduce((s, e) => s + e.interest, 0) : 0;
-    const expectedInterest = Math.max(0, Math.max(total - (Number(loan.amount) || 0), scheduledInterest));
-    const allocated = payments.filter((p) => p.loanId === loan.id).reduce((s, p) => s + (byId.get(p.id) ?? 0), 0);
+    const expectedInterest = Math.max(0, Math.max(total - loan.amount, scheduledInterest));
+    const allocated = payments
+      .filter((p) => p.loanId === loan.id)
+      .reduce((s, p) => s + (byId.get(p.id) ?? 0), 0);
     const diff = round2(expectedInterest - allocated);
-    if (diff > 0) {
-      const cur = byId.get(last.id) ?? 0;
-      const cap = Math.max(0, round2(last.amount - cur));
-      const add = Math.min(diff, cap);
-      if (add > 0) byId.set(last.id, round2(cur + add));
-    }
+    if (diff <= 0) continue;
+    const cur = byId.get(last.id) ?? 0;
+    const cap = Math.max(0, round2(last.amount - cur));
+    const add = Math.min(diff, cap);
+    if (add > 0) byId.set(last.id, round2(cur + add));
   }
 
   return byId;
 }
 
-function allocateInterestByPaymentUpTo(
+export function allocateInterestByPaymentUpTo(
   loans: AllocLoanLike[],
   payments: AllocPaymentLike[],
   cutoffDate: string,
 ): Map<string, number> {
-  const cutoff = String(cutoffDate ?? "");
+  const cutoff = String(cutoffDate ?? "").slice(0, 10);
   const subset = cutoff ? payments.filter((p) => (p.date ?? "").slice(0, 10) <= cutoff) : payments;
   return allocateInterestByPayment(loans, subset);
 }
 
-function sumInterestReceivedInPeriod(
+export function sumInterestReceivedInPeriod(
   loans: AllocLoanLike[],
   payments: AllocPaymentLike[],
-  startIso: string,
-  endIso: string,
+  start: Date | string,
+  end: Date | string,
 ): number {
+  const startIso = typeof start === "string" ? start.slice(0, 10) : `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`;
+  const endIso = typeof end === "string" ? end.slice(0, 10) : `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`;
   const alloc = allocateInterestByPaymentUpTo(loans, payments, endIso);
   let total = 0;
   for (const p of payments) {
@@ -794,6 +862,7 @@ export async function generateOperationalSummaryReport(admin: any, userId: strin
   const allocLoans: AllocLoanLike[] = loans.map((l: any) => ({
     id: String(l.id),
     amount: Number(l.amount) || 0,
+    originalAmount: l.original_amount != null ? Number(l.original_amount) : Number(l.amount),
     interestRate: Number(l.interest_rate) || 0,
     installments: Math.max(1, Number(l.installments) || 1),
     status: l.status,
@@ -810,14 +879,16 @@ export async function generateOperationalSummaryReport(admin: any, userId: strin
   }));
 
   // 1. Total recebido no dia
-  const paymentsToday = payments.filter((p: any) => p.date === date);
+  const paymentsToday = payments.filter((p: any) => (p.date || "").slice(0, 10) === date);
   const totalReceivedToday = paymentsToday.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
 
   // 2. Juros recebidos no dia — Extraído exclusivamente como no card "Faturamento do Período" (Dashboard)
   const interestReceivedToday = sumInterestReceivedInPeriod(allocLoans, allocPayments, date, date);
 
   // 3. Juros recebidos no mês — Extraído exclusivamente como no card "Faturamento do Período" (Dashboard)
-  const interestReceivedMonth = sumInterestReceivedInPeriod(allocLoans, allocPayments, monthStart, date);
+  const endOfMonthObj = new Date(yearNum, monthNum, 0);
+  const monthEndIso = `${endOfMonthObj.getFullYear()}-${String(endOfMonthObj.getMonth() + 1).padStart(2, "0")}-${String(endOfMonthObj.getDate()).padStart(2, "0")}`;
+  const interestReceivedMonth = sumInterestReceivedInPeriod(allocLoans, allocPayments, monthStart, monthEndIso);
 
   // 4 & 5. Comissões de gerentes
   const managers = clients.filter((c: any) => c.is_manager || c.isManager);
