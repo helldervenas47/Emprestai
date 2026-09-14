@@ -86,7 +86,7 @@ interface Props {
 
 import type { Category, EditForm } from "@/features/loans/components/list/types";
 import { categoryConfig, statusMap } from "@/features/loans/components/list/constants";
-import { rawFormatCurrency } from "@/features/loans/components/list/formatting";
+import { rawFormatCurrency, fmtDateBR } from "@/features/loans/components/list/formatting";
 import {
   getNextDate,
   getFirstPendingDate,
@@ -652,7 +652,7 @@ function LoanRowView({
                 <div className="bg-card/70 dark:bg-white/[0.03] p-2 rounded-lg border border-border/30 text-center flex flex-col items-center justify-center">
                   <span className="text-[10px] text-muted-foreground uppercase block text-center">Data Saída</span>
                   <span className="font-semibold text-foreground text-xs sm:text-sm text-center">
-                    {new Date(loan.startDate + "T00:00:00").toLocaleDateString("pt-BR")}
+                    {fmtDateBR(loan.startDate, loan.createdAt)}
                   </span>
                 </div>
                 <div className="bg-card/70 dark:bg-white/[0.03] p-2 rounded-lg border border-border/30 text-center flex flex-col items-center justify-center">
