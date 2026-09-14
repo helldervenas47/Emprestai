@@ -22,12 +22,15 @@ interface Props {
   onDelete: (loanId: string) => void;
   onDeletePayment: (paymentId: string) => void;
   onSaveSchedule: (loanId: string, rows: { installmentNumber: number; dueDate: string; amount: number }[]) => Promise<void>;
+  expandedLoanId?: string | null;
+  onToggleExpandLoan?: (loanId: string) => void;
 }
 
 export function LoanListMobileCards({
   loans, allLoans, payments, installmentSchedules, renegotiationsByLoan, clients = [], readOnly = false,
   onPayment, onPartialPayment, onFullPayment, onInterestPayment, onAmortize, onRenegotiate,
   onUpdate, onDelete, onDeletePayment, onSaveSchedule,
+  expandedLoanId, onToggleExpandLoan,
 }: Props) {
   const existingTags = allLoans.flatMap(l => l.tags || []).filter((v, i, a) => a.indexOf(v) === i);
   // Anima o fade-in apenas na primeira renderização da lista. Sem isso, cada
@@ -53,6 +56,8 @@ export function LoanListMobileCards({
             existingTags={existingTags}
             clients={clients}
             renegotiations={renegotiationsByLoan.get(loan.id) || []}
+            open={expandedLoanId !== undefined ? expandedLoanId === loan.id : undefined}
+            onToggleOpen={onToggleExpandLoan ? () => onToggleExpandLoan(loan.id) : undefined}
             onPayment={(date, mid, split) => onPayment(loan.id, date, mid, split)}
             onPartialPayment={(amt, date, mid, split) => onPartialPayment(loan.id, amt, date, mid, split)}
             onFullPayment={onFullPayment ? (date, custom, mid, split) => onFullPayment(loan.id, date, custom, mid, split) : undefined}

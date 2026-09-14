@@ -103,6 +103,8 @@ import { confirmWithScroll } from "@/lib/confirmWithScroll";
 
 function LoanRowView({
   loan, payments: allPayments, installmentSchedules = [], onPayment, onPartialPayment, onFullPayment, onInterestPayment, onAmortize, onRenegotiate, renegotiations = [], onUpdate, onDelete, onDeletePayment, onSaveSchedule, readOnly = false, existingTags = [], clients = [], managerCommissionTotal = 0, defaultExpanded = false, hideCollapsedRow = false, hideQuickNotes = false,
+  expanded: propsExpanded,
+  onToggleExpand,
 }: {
   loan: Loan;
   payments: Payment[];
@@ -125,6 +127,8 @@ function LoanRowView({
   defaultExpanded?: boolean;
   hideCollapsedRow?: boolean;
   hideQuickNotes?: boolean;
+  expanded?: boolean;
+  onToggleExpand?: () => void;
 }) {
   const [showAdjustDueDateRow, setShowAdjustDueDateRow] = useState(false);
   const [payMenuOpen, setPayMenuOpen] = useState(false);
@@ -132,7 +136,16 @@ function LoanRowView({
   // Radix DropdownMenu already dismisses on outside interaction; a manual
   // document pointerdown listener was closing the menu on the opening tap
   // on touch devices, which also let the click bubble and scroll to top.
-  const [expanded, setExpanded] = useState(defaultExpanded);
+  const [uncontrolledExpanded, setUncontrolledExpanded] = useState(defaultExpanded);
+  const isControlled = propsExpanded !== undefined;
+  const expanded = isControlled ? propsExpanded : uncontrolledExpanded;
+  const handleToggleExpand = () => {
+    if (onToggleExpand) {
+      onToggleExpand();
+    } else {
+      setUncontrolledExpanded((prev) => !prev);
+    }
+  };
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<EditForm>(loanToForm(loan));
   // Keep form in sync with loan prop when not editing (prevents stale notes/etc on refetch)
@@ -415,7 +428,7 @@ function LoanRowView({
 
   return (
     <>
-    <tr className={`${hideCollapsedRow ? "hidden" : ""} border-b border-border/40 dark:border-white/[0.04] hover:bg-muted/40 dark:hover:bg-white/[0.03] transition-colors group cursor-pointer ${expanded ? "bg-muted/30 dark:bg-white/[0.03]" : ""}`} onClick={() => setExpanded(!expanded)}>
+    <tr className={`${hideCollapsedRow ? "hidden" : ""} border-b border-border/40 dark:border-white/[0.04] hover:bg-muted/40 dark:hover:bg-white/[0.03] transition-colors group cursor-pointer ${expanded ? "bg-muted/30 dark:bg-white/[0.03]" : ""}`} onClick={handleToggleExpand}>
       {/* Cliente */}
       <td className={`relative px-2 sm:px-4 py-2.5 sm:py-3 border-l-[3px] ${accentBorderClass}`}>
         <div className="flex items-center gap-1.5 sm:gap-3">

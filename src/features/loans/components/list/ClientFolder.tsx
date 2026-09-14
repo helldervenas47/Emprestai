@@ -60,6 +60,7 @@ export function ClientFolder({
   const { mask } = useHideValues();
   const formatCurrency = useCallback((v: number) => mask(rawFormatCurrency(v)), [mask]);
   const [open, setOpen] = useState(false);
+  const [expandedLoanId, setExpandedLoanId] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const captureRef = useRef<HTMLDivElement>(null);
 
@@ -387,6 +388,8 @@ export function ClientFolder({
                       renegotiations={renegotiations.filter((r) => r.loanId === loan.id)}
                       managerCommissionTotal={commissionTotalByLoan?.get(loan.id) || 0}
                       hideQuickNotes
+                      expanded={expandedLoanId === loan.id}
+                      onToggleExpand={() => setExpandedLoanId((prev) => (prev === loan.id ? null : loan.id))}
                       onPayment={(date, mid, split) => onPayment(loan.id, date, mid, split)}
                       onPartialPayment={(amt, date, mid, split) => onPartialPayment(loan.id, amt, date, mid, split)}
                       onFullPayment={

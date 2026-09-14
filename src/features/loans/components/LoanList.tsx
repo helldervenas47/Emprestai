@@ -128,6 +128,11 @@ export function LoanList({ loans, payments, installmentSchedules, onPayment, onP
     return map;
   }, [allRenegotiations]);
 
+  const [expandedLoanId, setExpandedLoanId] = useState<string | null>(null);
+  const handleToggleExpandLoan = useCallback((loanId: string) => {
+    setExpandedLoanId((prev) => (prev === loanId ? null : loanId));
+  }, []);
+
   const {
     formatCurrency,
     view, setView,
@@ -503,6 +508,8 @@ export function LoanList({ loans, payments, installmentSchedules, onPayment, onP
                 renegotiationsByLoan={renegotiationsByLoan}
                 clients={clients}
                 readOnly={readOnly}
+                expandedLoanId={expandedLoanId}
+                onToggleExpandLoan={handleToggleExpandLoan}
                 onPayment={onPayment}
                 onPartialPayment={onPartialPayment}
                 onFullPayment={onFullPayment}
@@ -547,6 +554,8 @@ export function LoanList({ loans, payments, installmentSchedules, onPayment, onP
               commissionTotalByLoan={commissionTotalByLoan}
               cycleColumnSort={cycleColumnSort}
               sortIndicator={sortIndicator}
+              expandedLoanId={expandedLoanId}
+              onToggleExpandLoan={handleToggleExpandLoan}
               onPayment={onPayment}
               onPartialPayment={onPartialPayment}
               onFullPayment={onFullPayment}

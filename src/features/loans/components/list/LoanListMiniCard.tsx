@@ -59,11 +59,31 @@ export interface LoanListMiniCardProps {
   onDeletePayment: (paymentId: string) => void;
   onSaveSchedule: (loanId: string, rows: { installmentNumber: number; dueDate: string; amount: number }[]) => Promise<void>;
   hideQuickNotes?: boolean;
+  open?: boolean;
+  onToggleOpen?: () => void;
 }
 
 export function LoanListMiniCard(props: LoanListMiniCardProps) {
-  const { loan, payments, installmentSchedules, onUpdate, readOnly, hideQuickNotes = false } = props;
-  const [open, setOpen] = useState(false);
+  const {
+    loan,
+    payments,
+    installmentSchedules,
+    onUpdate,
+    readOnly,
+    hideQuickNotes = false,
+    open: propsOpen,
+    onToggleOpen,
+  } = props;
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const isControlled = propsOpen !== undefined;
+  const open = isControlled ? propsOpen : uncontrolledOpen;
+  const handleToggle = () => {
+    if (onToggleOpen) {
+      onToggleOpen();
+    } else {
+      setUncontrolledOpen((v) => !v);
+    }
+  };
   const { mask } = useHideValues();
 
   const category = getLoanCategory(loan, payments, installmentSchedules) as Cat;
@@ -133,7 +153,7 @@ export function LoanListMiniCard(props: LoanListMiniCardProps) {
 
         <button
           type="button"
-          onClick={() => setOpen((v) => !v)}
+          onClick={handleToggle}
           aria-expanded={open}
           className="w-full text-left px-3 py-2.5 sm:px-4 sm:py-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded-2xl"
           aria-label={`${open ? "Recolher" : "Expandir"} detalhes de ${loan.borrowerName}`}

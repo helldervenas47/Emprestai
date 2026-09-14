@@ -39,6 +39,8 @@ export interface LoanListTableProps {
   onDelete: (loanId: string) => void;
   onDeletePayment: (paymentId: string) => void;
   onSaveSchedule: (loanId: string, rows: { installmentNumber: number; dueDate: string; amount: number }[]) => Promise<void>;
+  expandedLoanId?: string | null;
+  onToggleExpandLoan?: (loanId: string) => void;
 }
 
 export function LoanListTable({
@@ -64,6 +66,8 @@ export function LoanListTable({
   onDelete,
   onDeletePayment,
   onSaveSchedule,
+  expandedLoanId,
+  onToggleExpandLoan,
 }: LoanListTableProps) {
   const { mask } = useHideValues();
   const existingTags = loans.flatMap(l => l.tags || []).filter((v, i, a) => a.indexOf(v) === i);
@@ -132,6 +136,8 @@ export function LoanListTable({
                 renegotiations={renegotiationsByLoan.get(loan.id) || []}
                 managerCommissionTotal={commissionTotalByLoan?.get(loan.id) || 0}
                 hideQuickNotes
+                expanded={expandedLoanId !== undefined ? expandedLoanId === loan.id : undefined}
+                onToggleExpand={onToggleExpandLoan ? () => onToggleExpandLoan(loan.id) : undefined}
                 onPayment={(date, mid, split) => onPayment(loan.id, date, mid, split)}
                 onPartialPayment={(amt, date, mid, split) => onPartialPayment(loan.id, amt, date, mid, split)}
                 onFullPayment={onFullPayment ? (date, custom, mid, split) => onFullPayment(loan.id, date, custom, mid, split) : undefined}
