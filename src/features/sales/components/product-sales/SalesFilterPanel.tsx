@@ -11,10 +11,8 @@ import type { PaymentMethod } from "@/hooks/usePaymentMethods";
 import { SaleCategory, saleCategoryFilters } from "./productSalesTypes";
 import {
   SalesAdvancedFilters,
-  SalesStatus,
   countActiveSalesFilters,
   salesPeriodOptions,
-  salesStatusOptions,
 } from "./salesFilters";
 
 interface Props {
@@ -48,15 +46,6 @@ export function SalesFilterPanel({
   totalSalesCount,
 }: Props) {
   const activeCount = useMemo(() => countActiveSalesFilters(filters), [filters]);
-
-  const toggleStatus = (id: SalesStatus) => {
-    setFilters((prev) => ({
-      ...prev,
-      statuses: prev.statuses.includes(id)
-        ? prev.statuses.filter((s) => s !== id)
-        : [...prev.statuses, id],
-    }));
-  };
 
   return (
     <Card className="animate-in fade-in-0 slide-in-from-top-1 duration-200">
@@ -129,32 +118,6 @@ export function SalesFilterPanel({
               </div>
             </div>
           )}
-        </section>
-
-        {/* Status da venda */}
-        <section className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status da venda</Label>
-          <div className="flex flex-wrap gap-2">
-            {salesStatusOptions.map((s) => {
-              const isActive = filters.statuses.includes(s.id);
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  aria-pressed={isActive}
-                  onClick={() => toggleStatus(s.id)}
-                  className={[
-                    "h-9 px-3.5 rounded-full text-xs font-medium border transition-all duration-200",
-                    isActive
-                      ? `${s.activeColor} shadow-sm scale-[1.02]`
-                      : `bg-transparent border-border/70 dark:border-white/10 ${s.color} hover:bg-card`,
-                  ].join(" ")}
-                >
-                  {s.label}
-                </button>
-              );
-            })}
-          </div>
         </section>
 
         {/* Seletores + valores */}
