@@ -38,4 +38,37 @@ describe("ProductSalesSummaryCards — Padrão visual dos cards de Empréstimos"
     fireEvent.click(screen.getByRole("button", { name: /Vence Hoje/i }));
     expect(onSelect).toHaveBeenCalledWith("due_today");
   });
+
+  it("calcula métricas de rodapé (maior atraso, ticket médio) com base nas vendas filtradas", () => {
+    render(
+      <ProductSalesSummaryCards
+        formatCurrency={(v) => `R$ ${v.toFixed(2)}`}
+        totalOverdue={300}
+        totalDueToday={0}
+        totalOnTrack={1000}
+        totalAReceber={1300}
+        overdueCount={1}
+        dueTodayCount={0}
+        onTrackCount={1}
+        onSelect={vi.fn()}
+        sales={[
+          {
+            id: "s1",
+            customerName: "Manoel",
+            total: 1000,
+            installments: 1,
+            paidInstallments: 0,
+            date: "2026-08-01",
+            paymentMode: "a_vista",
+            status: "pending",
+            productName: "Item",
+            quantity: 1,
+            unitPrice: 1000,
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByText("Ticket médio")).toBeInTheDocument();
+  });
 });

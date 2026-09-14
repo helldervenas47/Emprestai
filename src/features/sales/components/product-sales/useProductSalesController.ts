@@ -72,13 +72,7 @@ export function useProductSalesController(sales: Sale[], scopeKey = "sales") {
     return m;
   }, [incomeCategories]);
 
-  const counts = useMemo(() => sales.reduce((acc, s) => {
-    const cat = getSaleCategory(s);
-    acc[cat] = (acc[cat] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>), [sales]);
-
-  const filtered = useMemo(() => {
+  const filteredSalesForCards = useMemo(() => {
     return sales.filter((s) => {
       const q = search.toLowerCase();
       const matchesSearch = s.description.toLowerCase().includes(q) ||
@@ -96,10 +90,22 @@ export function useProductSalesController(sales: Sale[], scopeKey = "sales") {
         }
       }
       if (!matchesSalesFilters(s, advancedFilters)) return false;
+      return true;
+    });
+  }, [sales, search, incomeCategoryFilter, advancedFilters]);
+
+  const counts = useMemo(() => filteredSalesForCards.reduce((acc, s) => {
+    const cat = getSaleCategory(s);
+    acc[cat] = (acc[cat] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>), [filteredSalesForCards]);
+
+  const filtered = useMemo(() => {
+    return filteredSalesForCards.filter((s) => {
       if (categoryFilter === "all") return getSaleCategory(s) !== "paid";
       return getSaleCategory(s) === categoryFilter;
     }).sort((a, b) => getNextDueDateHelper(a).getTime() - getNextDueDateHelper(b).getTime());
-  }, [sales, search, categoryFilter, incomeCategoryFilter, advancedFilters]);
+  }, [filteredSalesForCards, categoryFilter]);
 
   const clientOptions = useMemo(() => Array.from(
     new Set(sales.map((s) => (s.customerName || "").trim()).filter(Boolean)),
@@ -182,10 +188,10 @@ export function useProductSalesController(sales: Sale[], scopeKey = "sales") {
 
   const getRemaining = useCallback((s: Sale) => getSaleRemainingHelper(s), []);
 
-  const overdueSales = useMemo(() => sales.filter((s) => getSaleCategory(s) === "overdue"), [sales]);
-  const onTrackSales = useMemo(() => sales.filter((s) => getSaleCategory(s) === "on_track"), [sales]);
-  const dueTodaySales = useMemo(() => sales.filter((s) => getSaleCategory(s) === "due_today"), [sales]);
-  const paidSales = useMemo(() => sales.filter((s) => getSaleCategory(s) === "paid"), [sales]);
+  const overdueSales = useMemo(() => filteredSalesForCards.filter((s) => getSaleCategory(s) === "overdue"), [filteredSalesForCards]);
+  const onTrackSales = useMemo(() => filteredSalesForCards.filter((s) => getSaleCategory(s) === "on_track"), [filteredSalesForCards]);
+  const dueTodaySales = useMemo(() => filteredSalesForCards.filter((s) => getSaleCategory(s) === "due_today"), [filteredSalesForCards]);
+  const paidSales = useMemo(() => filteredSalesForCards.filter((s) => getSaleCategory(s) === "paid"), [filteredSalesForCards]);
 
   const getOverdueInstallmentsValue = useCallback((s: Sale): number => {
     const isRecorrente = s.paymentMode === "recorrente" && s.installments > 1;
@@ -254,12 +260,12 @@ export function useProductSalesController(sales: Sale[], scopeKey = "sales") {
   }, [getRemaining]);
 
   const totalOverdue = useMemo(() => overdueSales.reduce((acc, s) => acc + getOverdueInstallmentsValue(s), 0), [overdueSales, getOverdueInstallmentsValue]);
-  const totalOnTrack = useMemo(() => sales.filter((s) => getSaleCategory(s) !== "paid").reduce((acc, s) => acc + getFutureInstallmentsValue(s), 0)
-    + onTrackSales.filter((s) => s.paymentMode !== "recorrente" || s.installments <= 1).reduce((acc, s) => acc + getRemaining(s), 0), [sales, onTrackSales, getFutureInstallmentsValue, getRemaining]);
+  const totalOnTrack = useMemo(() => filteredSalesForCards.filter((s) => getSaleCategory(s) !== "paid").reduce((acc, s) => acc + getFutureInstallmentsValue(s), 0)
+    + onTrackSales.filter((s) => s.paymentMode !== "recorrente" || s.installments <= 1).reduce((acc, s) => acc + getRemaining(s), 0), [filteredSalesForCards, onTrackSales, getFutureInstallmentsValue, getRemaining]);
   const totalDueToday = useMemo(() => dueTodaySales.reduce((acc, s) => acc + getDueTodayInstallmentValue(s), 0), [dueTodaySales, getDueTodayInstallmentValue]);
-  const totalPaid = useMemo(() => sales.reduce((acc, s) => acc + getSalePaidAmount(s), 0), [sales, getSalePaidAmount]);
+  const totalPaid = useMemo(() => filteredSalesForCards.reduce((acc, s) => acc + getSalePaidAmount(s), 0), [filteredSalesForCards, getSalePaidAmount]);
   const paidContractsCount = paidSales.length;
-  const totalAReceber = useMemo(() => sales.filter((s) => getSaleCategory(s) !== "paid").reduce((acc, s) => acc + getRemaining(s), 0), [sales, getRemaining]);
+  const totalAReceber = useMemo(() => filteredSalesForCards.filter((s) => getSaleCategory(s) !== "paid").reduce((acc, s) => acc + getRemaining(s), 0), [filteredSalesForCards, getRemaining]);
 
   return {
     // state
@@ -281,6 +287,7 @@ export function useProductSalesController(sales: Sale[], scopeKey = "sales") {
     incomeCategoryByName,
     counts,
     filtered,
+    filteredSalesForCards,
     total,
     folderCount,
     saleGroups,

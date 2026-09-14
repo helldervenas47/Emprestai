@@ -66,12 +66,14 @@ export function SalesList({
     overdueSales,
     onTrackSales,
     dueTodaySales,
+    dueTodayCount,
     paidContractsCount,
     totalOverdue,
     totalOnTrack,
     totalDueToday,
     totalPaid,
     totalAReceber,
+    filteredSalesForCards,
     getSalePaidAmount,
     getRemaining,
     getOverdueInstallmentsValue,
@@ -121,11 +123,11 @@ export function SalesList({
         totalAReceber={totalAReceber}
         overdueCount={overdueSales.length}
         onTrackCount={onTrackSales.length}
-        dueTodayCount={dueTodaySales.length}
+        dueTodayCount={dueTodayCount}
         paidContractsCount={paidContractsCount}
         onSelect={setBreakdownCard}
         selectedCard={breakdownCard}
-        sales={sales}
+        sales={filteredSalesForCards}
       />
 
 
@@ -139,7 +141,7 @@ export function SalesList({
               items: dueTodaySales.map((s) => ({ sale: s, value: getDueTodayInstallmentValue(s) })).filter((x) => x.value > 0) }
           : breakdownCard === "ontrack"
           ? { title: "Em Dia", color: "text-sky-600 dark:text-sky-400", total: totalOnTrack,
-              items: sales
+              items: filteredSalesForCards
                 .filter((s) => getSaleCategory(s) === "on_track")
                 .map((s) => {
                   const isRecorrente = s.paymentMode === "recorrente" && s.installments > 1;
@@ -151,9 +153,9 @@ export function SalesList({
                 .filter((x) => x.value > 0) }
           : breakdownCard === "paid"
           ? { title: "Pagos", color: "text-success", total: totalPaid,
-              items: sales.map((s) => ({ sale: s, value: getSalePaidAmount(s) })).filter((x) => x.value > 0) }
+              items: filteredSalesForCards.filter((s) => getSaleCategory(s) === "paid").map((s) => ({ sale: s, value: getSalePaidAmount(s) })).filter((x) => x.value > 0) }
           : { title: "Total a Receber", color: "text-indigo-600 dark:text-indigo-400", total: totalAReceber,
-              items: sales.filter((s) => getSaleCategory(s) !== "paid").map((s) => ({ sale: s, value: getRemaining(s) })).filter((x) => x.value > 0) };
+              items: filteredSalesForCards.filter((s) => getSaleCategory(s) !== "paid").map((s) => ({ sale: s, value: getRemaining(s) })).filter((x) => x.value > 0) };
         const sorted = [...cfg.items].sort((a, b) => b.value - a.value);
         return (
           <Dialog open={!!breakdownCard} onOpenChange={(o) => !o && setBreakdownCard(null)}>
@@ -214,7 +216,7 @@ export function SalesList({
             categoryFilter={categoryFilter}
             setCategoryFilter={setCategoryFilter}
             counts={counts}
-            totalSalesCount={sales.length}
+            totalSalesCount={filteredSalesForCards.length}
           />
         )}
       />
