@@ -447,6 +447,14 @@ function getLoanLateFees(
     }
   }
 
+  return {
+    daysOverdue: maxDaysOverdue,
+    lateInterestTotal: Math.round(lateInterestTotal * 100) / 100,
+    penaltyTotal: Math.round(penaltyTotal * 100) / 100,
+    lateFees: Math.round((lateInterestTotal + penaltyTotal) * 100) / 100,
+  };
+}
+
 function round2(v: number): number {
   return Math.round((Number(v) || 0) * 100) / 100;
 }
