@@ -722,8 +722,8 @@ function LoanRowView({
                 </Button>
               )}
 
-              {/* Linha 2: WhatsApp (ícone) + Renegociar + PDF */}
-              <div className="flex items-center gap-2 w-full" onClick={(e) => e.stopPropagation()}>
+              {/* Linha 2: WhatsApp + Renegociar + PDF + Histórico */}
+              <div className="flex items-center gap-2 w-full flex-wrap sm:flex-nowrap" onClick={(e) => e.stopPropagation()}>
                 {loan.status !== "paid" && (
                   <WhatsappBillButton
                     loan={loan}
@@ -731,7 +731,7 @@ function LoanRowView({
                     payments={allPayments}
                     installmentSchedules={installmentSchedules}
                     variant="outline"
-                    className="w-14 sm:w-16 h-11 shrink-0 rounded-xl"
+                    className="w-12 sm:w-14 h-11 shrink-0 rounded-xl"
                   />
                 )}
 
@@ -739,7 +739,7 @@ function LoanRowView({
                   <Button
                     data-mutation
                     variant="outline"
-                    className="flex-1 h-11 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-amber-500/50 hover:text-amber-600"
+                    className="flex-1 min-w-[110px] h-11 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-amber-500/50 hover:text-amber-600"
                     onClick={(e) => { e.stopPropagation(); setShowRenegotiateDialog(true); }}
                   >
                     <RefreshCw className="h-4 w-4 text-amber-500 shrink-0" /> Renegociar
@@ -748,7 +748,7 @@ function LoanRowView({
 
                 <Button
                   variant="outline"
-                  className="flex-1 h-11 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-primary/50"
+                  className="flex-1 min-w-[90px] h-11 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-primary/50"
                   onClick={async (e) => {
                     e.stopPropagation();
                     try {
@@ -766,59 +766,87 @@ function LoanRowView({
                 >
                   <FileDown className="h-4 w-4 text-primary shrink-0" /> PDF
                 </Button>
-              </div>
 
-              {/* Linha 3: Histórico + Menu de Opções (...) */}
-              <div className="flex items-center gap-2 w-full" onClick={(e) => e.stopPropagation()}>
                 <Button
                   variant="outline"
-                  className="flex-1 h-11 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70"
+                  className="flex-1 min-w-[100px] h-11 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-primary/50"
                   onClick={(e) => { e.stopPropagation(); setShowHistory(true); }}
                 >
                   <History className="h-4 w-4 text-muted-foreground shrink-0" /> Histórico
                 </Button>
-
-                {/* Dropdown Menu de Ações Secundárias */}
-                {!readOnly && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-14 sm:w-16 h-11 shrink-0 px-0 rounded-xl border-border/70 flex items-center justify-center"
-                        title="Mais opções"
-                      >
-                        <MoreHorizontal className="h-5 w-5 text-primary" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56 p-1.5 space-y-0.5">
-                      {loan.status !== "paid" && (
-                        <>
-                          <DropdownMenuItem onClick={() => setShowLateInterest((v) => !v)} className="text-xs cursor-pointer gap-2 py-2">
-                            <Percent className="h-3.5 w-3.5 text-amber-500" />
-                            Adicionar Juros por Atraso
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setShowPenalty((v) => !v)} className="text-xs cursor-pointer gap-2 py-2">
-                            <DollarSign className="h-3.5 w-3.5 text-destructive" />
-                            Adicionar Multa Fixa
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => onUpdate({ autoBillingEnabled: !(loan.autoBillingEnabled ?? true) })} className="text-xs cursor-pointer gap-2 py-2">
-                            {(loan.autoBillingEnabled ?? true) ? <BellOff className="h-3.5 w-3.5 text-muted-foreground" /> : <BellRing className="h-3.5 w-3.5 text-primary" />}
-                            {(loan.autoBillingEnabled ?? true) ? "Desativar cobrança auto" : "Ativar cobrança auto"}
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                      <DropdownMenuItem onClick={startEdit} className="text-xs cursor-pointer gap-2 py-2">
-                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                        Editar Contrato
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setConfirmDelete(true)} className="text-xs text-destructive focus:text-destructive cursor-pointer gap-2 py-2">
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Excluir Contrato
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
               </div>
+
+              {/* Linha 3: Juros, Multa e Cobrança Automática */}
+              {!readOnly && loan.status !== "paid" && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-amber-500/50 hover:text-amber-600 justify-center"
+                    onClick={(e) => { e.stopPropagation(); setShowLateInterest(true); }}
+                  >
+                    <Percent className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                    <span className="truncate">Adicionar Juros por Atraso</span>
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-destructive/50 hover:text-destructive justify-center"
+                    onClick={(e) => { e.stopPropagation(); setShowPenalty(true); }}
+                  >
+                    <DollarSign className="h-3.5 w-3.5 text-destructive shrink-0" />
+                    <span className="truncate">Adicionar Multa Fixa</span>
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 justify-center"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onUpdate({ autoBillingEnabled: !(loan.autoBillingEnabled ?? true) });
+                    }}
+                  >
+                    {(loan.autoBillingEnabled ?? true) ? (
+                      <>
+                        <BellOff className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="truncate">Desativar cobrança auto</span>
+                      </>
+                    ) : (
+                      <>
+                        <BellRing className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <span className="truncate">Ativar cobrança auto</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {/* Linha 4: Gestão do Contrato (Editar e Excluir) */}
+              {!readOnly && (
+                <div className="grid grid-cols-2 gap-2 w-full" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-border/70 hover:border-primary/50 justify-center"
+                    onClick={(e) => { e.stopPropagation(); startEdit(); }}
+                  >
+                    <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="truncate">Editar Contrato</span>
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 text-xs sm:text-sm font-medium gap-1.5 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive justify-center"
+                    onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">Excluir Contrato</span>
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Diálogos de Juros e Multa */}
