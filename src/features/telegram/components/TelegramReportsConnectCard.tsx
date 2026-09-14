@@ -90,8 +90,8 @@ export const TelegramReportsConnectCard = forwardRef<HTMLDivElement, Record<stri
   if (loading) return null;
 
   return (
-    <Card ref={ref} no3d>
-      <CardContent className="p-4 space-y-3">
+    <Card ref={ref} no3d className="h-full flex flex-col">
+      <CardContent className="p-4 sm:p-5 space-y-3 flex flex-col justify-between flex-1">
         <div className="flex items-start justify-between gap-2.5">
           <div className="flex items-start gap-2.5 min-w-0 flex-1">
             <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">

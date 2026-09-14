@@ -123,11 +123,11 @@ export function TelegramBotsHub() {
         </CardContent>
       </Card>
 
-      {/* Conexão do bot de relatórios */}
-      <TelegramReportsConnectCard />
-
-      {/* Conexão do bot de despesas */}
-      <TelegramConnectCard />
+      {/* Conexão dos bots (lado a lado no PC e Tablet) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+        <TelegramReportsConnectCard />
+        <TelegramConnectCard />
+      </div>
 
       {/* Relatórios principais */}
       <div className="flex items-center gap-2 pt-2">
