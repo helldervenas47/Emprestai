@@ -236,7 +236,7 @@ const GOAL_TYPE_META: Record<GoalType, { label: string; icon: any; unit: Unit; c
   interest_received:  { label: "Juros Recebidos",                  icon: Coins,         unit: "R$",  color: "text-success",     bgColor: "bg-success/15",     description: "Apenas a parte dos juros dos pagamentos Recebidos." },
   active_capital:     { label: "Capital Ativo",                    icon: Wallet,        unit: "R$",  color: "text-primary",     bgColor: "bg-primary/15",     description: "Total ainda a receber em contratos ativos." },
   net_profit:         { label: "Lucro Líquido",                    icon: PiggyBank,     unit: "R$",  color: "text-success",     bgColor: "bg-success/15",     description: "Juros recebidos menos despesas pagas da empresa." },
-  max_default_rate:   { label: "Taxa de Inadimplência",             icon: AlertTriangle, unit: "%",   color: "text-destructive", bgColor: "bg-destructive/15", description: "Limite máximo de % de parcelas em atraso (meta inversa).", inverse: true },
+  max_default_rate:   { label: "Taxa de Inadimplência",             icon: AlertTriangle, unit: "%",   color: "text-destructive", bgColor: "bg-destructive/15", description: "Limite máximo de % de inadimplência sobre a carteira ativa (meta inversa).", inverse: true },
   new_clients_count:  { label: "Novos Clientes",                   icon: UserPlus,      unit: "qtd", color: "text-primary",     bgColor: "bg-primary/15",     description: "Clientes cadastrados no período." },
   renegotiation_rate: { label: "Contratos Renegociados",           icon: RefreshCw,     unit: "qtd", color: "text-destructive", bgColor: "bg-destructive/15", description: "Limite máximo de contratos renegociados no mês (meta inversa).", inverse: true },
   daily_received_avg: { label: "Receita Média Diária",           icon: HandCoins,     unit: "R$",  color: "text-success",     bgColor: "bg-success/15",     description: "Meta diária com média diária e necessário/dia restante." },
@@ -328,7 +328,7 @@ function computeDefaultRate(loans: Loan[], payments: Payment[], installmentSched
   const isClosed = m < currentMonthKey;
   const [yy, mm] = m.split("-").map(Number);
   // Ponto de corte para o cálculo: o fim do mês em questão ou hoje (o que for menor).
-  // Para meses passados, o corte é sempre o último dia do mês às 23:59:59.
+  // Para meses passados, o corte é sempre o último dia do mês às 23:59:59 (garante resultado travado/imutável).
   const lastDay = new Date(yy, mm, 0).getDate();
   const monthEnd = `${m}-${String(lastDay).padStart(2, "0")}`;
   const cutoffDate = monthEnd < today ? monthEnd : today;
@@ -343,42 +343,31 @@ function computeDefaultRate(loans: Loan[], payments: Payment[], installmentSched
     return acc;
   }, {});
 
-  let periodPortfolio = 0;
+  let activePortfolio = 0;
   let overdueAmount = 0;
 
   loans.forEach((loan: any) => {
+    const start = (loan.startDate || loan.start_date || "").slice(0, 10);
+    // Empréstimo só entra na carteira se iniciou até a data de corte
+    if (start && start > cutoffDate) return;
+
     const installments = Math.max(1, Number(loan.installments) || 1);
     const principal = Number(loan.amount) || 0;
     const rate = Number(loan.interestRate ?? loan.interest_rate) || 0;
     const totalWithInterest = calculateTotalWithInterest(principal, rate, installments);
     const installmentValue = totalWithInterest / installments;
     
-    // Não usamos loan.paidInstallments (tempo real) para meses passados.
-    // Calculamos a quantidade de parcelas pagas com base no saldo acumulado até o cutoff.
     const paidAmount = totalPaidByLoan[loan.id] || 0;
     const calculatedPaidInstallments = Math.floor((paidAmount + 0.01) / installmentValue);
 
-    // Checagem de quitação do contrato
-    const isLoanFullyPaid =
-      loan.status === "paid" ||
-      loan.status === "completed" ||
-      (loan.remainingAmount != null && Number(loan.remainingAmount) <= 0.01) ||
-      (Number(loan.paidInstallments) || 0) >= installments;
+    // Saldo devedor restante do contrato na data de corte
+    const remainingAtCutoff = Math.max(0, totalWithInterest - paidAmount);
 
-    if (isLoanFullyPaid) {
-      if (isClosed) {
-        const lPayments = payments.filter((p: any) => (p.loanId || p.loan_id) === loan.id);
-        const lastPayDate = lPayments
-          .map((p: any) => (p.date || "").slice(0, 10))
-          .sort()
-          .pop();
-        if (lastPayDate && lastPayDate <= cutoffDate) {
-          return;
-        }
-      } else {
-        return;
-      }
-    }
+    // Se já estava 100% quitado até a data de corte, não compõe a carteira nem a inadimplência da época
+    if (remainingAtCutoff <= 0.01) return;
+
+    // Adiciona o saldo devedor deste contrato ao capital ativo/carteira total da época
+    activePortfolio += remainingAtCutoff;
 
     const loanSchedules = installmentSchedules
       .filter((schedule) => schedule.loanId === loan.id)
@@ -387,11 +376,11 @@ function computeDefaultRate(loans: Loan[], payments: Payment[], installmentSched
     const dueEntries = loanSchedules.length > 0
       ? loanSchedules.map((schedule) => ({
           installmentNumber: schedule.installmentNumber,
-          dueDate: schedule.dueDate,
+          dueDate: (schedule.dueDate || "").slice(0, 10),
           amount: Number(schedule.amount) || installmentValue,
         }))
       : installments <= 1
-        ? [{ installmentNumber: 1, dueDate: loan.dueDate || loan.due_date, amount: totalWithInterest }]
+        ? [{ installmentNumber: 1, dueDate: (loan.dueDate || loan.due_date || "").slice(0, 10), amount: totalWithInterest }]
         : Array.from({ length: installments }, (_, index) => {
             const base = new Date(`${(loan.dueDate || loan.due_date).slice(0, 10)}T00:00:00`);
             const due = new Date(base.getFullYear(), base.getMonth() + index, base.getDate());
@@ -402,33 +391,29 @@ function computeDefaultRate(loans: Loan[], payments: Payment[], installmentSched
             };
           });
 
-    dueEntries.forEach((entry) => {
-      if (!inMonth(entry.dueDate, m)) return;
-      periodPortfolio += entry.amount;
-
-      // Uma parcela é considerada inadimplente se:
-      // 1. O vencimento for ANTES do corte (já venceu no período em questão).
-      // 2. O valor pago ATÉ o corte não cobre esta parcela.
-      const isPaidAtCutoff = entry.installmentNumber <= calculatedPaidInstallments;
-      if (isPaidAtCutoff || entry.dueDate >= cutoffDate) return;
-
-      // Se estamos no mês vigente e o contrato já registrou a parcela como paga
-      if (!isClosed && entry.installmentNumber <= (Number(loan.paidInstallments) || 0)) {
-        return;
+    if (installments === 1) {
+      const firstDue = dueEntries[0]?.dueDate || "";
+      // Se venceu até a data de corte e não foi pago até o corte
+      if (firstDue && firstDue <= cutoffDate && remainingAtCutoff > 0.05) {
+        overdueAmount += remainingAtCutoff;
       }
-
-      if (installments === 1) {
-        const remainingSingle = Math.max(0, totalWithInterest - paidAmount);
-        if (remainingSingle <= 0.05 || isLoanFullyPaid) return;
-        overdueAmount += remainingSingle;
-        return;
-      }
-
-      overdueAmount += entry.amount;
-    });
+    } else {
+      // Para parcelados: verifica todas as parcelas que venceram até a data de corte
+      // e que não foram cobertas pelos pagamentos feitos até o corte
+      dueEntries.forEach((entry) => {
+        if (!entry.dueDate || entry.dueDate > cutoffDate) return;
+        const isPaidAtCutoff = entry.installmentNumber <= calculatedPaidInstallments;
+        if (!isPaidAtCutoff) {
+          if (!isClosed && entry.installmentNumber <= (Number(loan.paidInstallments) || 0)) {
+            return;
+          }
+          overdueAmount += entry.amount;
+        }
+      });
+    }
   });
 
-  return periodPortfolio > 0 ? (overdueAmount / periodPortfolio) * 100 : 0;
+  return activePortfolio > 0 ? (overdueAmount / activePortfolio) * 100 : 0;
 }
 
 function computeRenegotiationRate(

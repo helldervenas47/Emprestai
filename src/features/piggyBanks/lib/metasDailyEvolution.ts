@@ -60,10 +60,9 @@ function defaultRateAt(
   loans: Loan[],
   payments: Payment[],
   installmentSchedules: InstallmentSchedule[],
-  monthKey: string,
+  _monthKey: string,
   cutoff: string,
 ): number {
-  // Value-based: sum of overdue installments (due<=cutoff AND unpaid AT cutoff) vs total portfolio expected in the month.
   const paidByLoan = new Map<string, number>();
   payments.forEach((p: any) => {
     const d = ymd(p.date);
@@ -73,15 +72,24 @@ function defaultRateAt(
     paidByLoan.set(id, (paidByLoan.get(id) || 0) + (Number(p.amount) || 0));
   });
 
-  let portfolio = 0;
+  let activePortfolio = 0;
   let overdue = 0;
 
   loans.forEach((loan: any) => {
+    const start = ymd(loan.startDate || loan.start_date);
+    if (start && start > cutoff) return;
+
     const inst = Math.max(1, Number(loan.installments) || 1);
     const principal = Number(loan.amount) || 0;
     const rate = Number(loan.interestRate ?? loan.interest_rate) || 0;
     const total = calcTotalWithInterest(principal, rate);
     const iv = total / inst;
+
+    const paid = paidByLoan.get(loan.id) || 0;
+    const rem = Math.max(0, total - paid);
+    if (rem <= 0.01) return;
+
+    activePortfolio += rem;
 
     const schedules = installmentSchedules
       .filter((s) => s.loanId === loan.id)
@@ -101,20 +109,23 @@ function defaultRateAt(
             };
           });
 
-    const paid = paidByLoan.get(loan.id) || 0;
-
-    entries.forEach((e) => {
-      if (!e.due || e.due.slice(0, 7) !== monthKey) return;
-      portfolio += e.amount;
-      if (e.due >= cutoff) return; // not yet due at cutoff
-      const paidUpToThis = e.n * iv;
-      const isPaid = paid >= (e.n * iv) - 0.01;
-      if (isPaid) return;
-      overdue += e.amount;
-    });
+    if (inst <= 1) {
+      const firstDue = entries[0]?.due || "";
+      if (firstDue && firstDue <= cutoff && rem > 0.05) {
+        overdue += rem;
+      }
+    } else {
+      const calcPaidInst = Math.floor((paid + 0.01) / iv);
+      entries.forEach((e) => {
+        if (!e.due || e.due > cutoff) return;
+        if (e.n > calcPaidInst) {
+          overdue += e.amount;
+        }
+      });
+    }
   });
 
-  return portfolio > 0 ? (overdue / portfolio) * 100 : 0;
+  return activePortfolio > 0 ? (overdue / activePortfolio) * 100 : 0;
 }
 
 export function computeDailyEvolution(
