@@ -370,7 +370,7 @@ export function WhatsappReportCard() {
         supabase.from("whatsapp_payment_promises").select("loan_id, installment_number, promised_date").eq("user_id", ownerId),
         supabase
           .from("whatsapp_billing_queue")
-          .select("id, loan_id, loan_ids, status, sent_at")
+          .select("id, client_id, loan_id, loan_ids, status, sent_at")
           .eq("user_id", ownerId)
           .eq("status", "sent")
           .gte("sent_at", todayStart)

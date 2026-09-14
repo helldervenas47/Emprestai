@@ -158,6 +158,22 @@ describe("Central de Cobranças", () => {
     expect(result[0].message).not.toContain("NaN");
   });
 
+  it("separa principal e juros em contrato com modalidade Juros", () => {
+    const result = buildBillingCandidates({
+      loans: [{
+        ...loan("interest-mode", "2026-09-10"),
+        amount: 1100,
+        remainingAmount: 1430,
+        interestRate: 30,
+        paymentType: "Juros",
+      }],
+      clients: [client], schedules: [], payments: [], today: "2026-09-10",
+    });
+
+    expect(result[0].amount).toBe(1430);
+    expect(result[0].interestAmount).toBe(330);
+  });
+
   it("soma e informa múltiplas parcelas vencidas", () => {
     const result = buildBillingCandidates({
       loans: [{ ...loan("multiple-overdue", "2026-07-10"), installments: 3, remainingAmount: 300 }],

@@ -129,9 +129,11 @@ export function buildBillingCandidates(params: {
     if (loan.installments > 1) {
       const principalPerInstallment = safePrincipal / Math.max(1, loan.installments);
       chargedPrincipal = Math.min(baseAmount, principalPerInstallment * installmentCount);
-    } else if (loan.paymentType === "Juros") {
-      chargedPrincipal = 0;
     } else {
+      // `paymentType === "Juros"` descreve a forma de cobrança/renovação do
+      // contrato, não significa que todo o saldo a cobrar seja receita de juros.
+      // A Central separa o principal original do juros contratual também nesses
+      // contratos (ex.: 1.100 de principal + 330 de juros = 1.430 a cobrar).
       const contractualInterestRate = Number(loan.interestRate) || 0;
       const nominalInterest = (safePrincipal * contractualInterestRate) / 100;
       chargedPrincipal = Math.max(0, baseAmount - nominalInterest);

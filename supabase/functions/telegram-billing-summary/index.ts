@@ -480,13 +480,13 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
     const installmentCount = overdueInstallmentCount > 1 ? overdueInstallmentCount : 1;
 
     let chargedPrincipal = 0;
-    const paymentType = loan.payment_type || loan.paymentType;
     if (totalInstallments > 1) {
       const principalPerInstallment = safePrincipal / Math.max(1, totalInstallments);
       chargedPrincipal = Math.min(baseAmount, principalPerInstallment * installmentCount);
-    } else if (paymentType === "Juros") {
-      chargedPrincipal = 0;
     } else {
+      // O tipo "Juros" é a modalidade/ciclo do contrato. O saldo continua
+      // contendo principal + juros e precisa da mesma separação feita pela
+      // Central de Cobranças; tratá-lo como 100% juros inflava o resumo.
       const contractualInterestRate = Number(loan.interest_rate) || 0;
       const nominalInterest = (safePrincipal * contractualInterestRate) / 100;
       chargedPrincipal = Math.max(0, baseAmount - nominalInterest);
@@ -749,4 +749,3 @@ Deno.serve(async (req) => {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });
-
