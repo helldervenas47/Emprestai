@@ -21,6 +21,7 @@ export function DatePickerField({
   className,
   id,
   disabled,
+  popoverContentClassName,
 }: DatePickerFieldProps) {
   return (
     <NativeDatePicker
@@ -30,6 +31,7 @@ export function DatePickerField({
       className={className}
       id={id}
       disabled={disabled}
+      popoverContentClassName={popoverContentClassName}
     />
   );
 }

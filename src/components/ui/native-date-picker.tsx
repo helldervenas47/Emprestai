@@ -21,6 +21,7 @@ export interface NativeDatePickerProps {
   size?: "sm" | "default";
   displaySeparator?: "/" | "-";
   autoOpen?: boolean;
+  popoverContentClassName?: string;
 }
 
 // Detect environments where <input type="date"> / showPicker() are unreliable
@@ -67,6 +68,7 @@ export function NativeDatePicker({
   size = "default",
   displaySeparator = "/",
   autoOpen = false,
+  popoverContentClassName,
 }: NativeDatePickerProps) {
   const [open, setOpen] = React.useState(false);
   React.useEffect(() => {
@@ -103,7 +105,7 @@ export function NativeDatePicker({
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={true}>
       <PopoverTrigger asChild disabled={disabled}>
         <button
           type="button"
@@ -118,7 +120,10 @@ export function NativeDatePicker({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-auto p-2.5 sm:p-3 rounded-2xl shadow-xl border border-border/60 bg-popover/95 backdrop-blur-xl z-[200] pointer-events-auto animate-in fade-in-50 zoom-in-95"
+        className={cn(
+          "w-auto p-2.5 sm:p-3 rounded-2xl shadow-xl border border-border/60 bg-popover/95 backdrop-blur-xl z-[200] pointer-events-auto animate-in fade-in-50 zoom-in-95",
+          popoverContentClassName
+        )}
         align="start"
         side="bottom"
         sideOffset={6}
