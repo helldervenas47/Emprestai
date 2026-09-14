@@ -447,12 +447,238 @@ function getLoanLateFees(
     }
   }
 
-  return {
-    daysOverdue: maxDaysOverdue,
-    lateInterestTotal: Math.round(lateInterestTotal * 100) / 100,
-    penaltyTotal: Math.round(penaltyTotal * 100) / 100,
-    lateFees: Math.round((lateInterestTotal + penaltyTotal) * 100) / 100,
-  };
+function round2(v: number): number {
+  return Math.round((Number(v) || 0) * 100) / 100;
+}
+
+function totalWithInterest(amount: number, rate: number): number {
+  const p = Math.max(0, Number(amount) || 0);
+  const r = Number(rate) || 0;
+  return round2(p * (1 + r / 100));
+}
+
+interface AllocLoanLike {
+  id: string;
+  amount: number;
+  originalAmount?: number;
+  interestRate: number;
+  installments: number;
+  status?: string;
+}
+
+interface AllocPaymentLike {
+  id: string;
+  loanId: string;
+  amount: number;
+  date?: string;
+  installmentNumber?: number;
+  createdAt?: string;
+  metadata?: any;
+}
+
+interface InstallmentBreakdownEntry {
+  installmentNumber: number;
+  amount: number;
+  interest: number;
+  principal: number;
+}
+
+function buildInstallmentBreakdown(
+  loan: Pick<AllocLoanLike, "amount" | "interestRate" | "installments">,
+  customAmounts?: number[],
+): InstallmentBreakdownEntry[] {
+  const principal = Math.max(0, Number(loan.amount) || 0);
+  const N = Math.max(1, Math.floor(Number(loan.installments) || 1));
+  const rawTotal = totalWithInterest(principal, Number(loan.interestRate) || 0);
+
+  if (N === 1) {
+    const amt = customAmounts?.[0] ?? rawTotal;
+    const totalInterest1 = Math.max(0, Math.max(rawTotal, amt) - principal);
+    return [{ installmentNumber: 1, amount: round2(amt), interest: round2(totalInterest1), principal: round2(amt - totalInterest1) }];
+  }
+
+  const hasCustom = Array.isArray(customAmounts) && customAmounts.length === N;
+  const amounts: number[] = hasCustom
+    ? customAmounts!.map((v) => round2(Number(v) || 0))
+    : Array.from({ length: N }, () => round2(rawTotal / N));
+  const amountsSum = amounts.reduce((s, v) => s + v, 0);
+  const total = hasCustom ? Math.max(rawTotal, amountsSum) : rawTotal;
+  const totalInterest = Math.max(0, total - principal);
+
+  const entries: InstallmentBreakdownEntry[] = [];
+  let interestAccum = 0;
+  let principalAccum = 0;
+  for (let i = 0; i < N; i++) {
+    const amount = amounts[i];
+    if (i < N - 1) {
+      const share = amountsSum > 0 ? amount / amountsSum : 1 / N;
+      const interest = round2(totalInterest * share);
+      const principalPart = round2(amount - interest);
+      entries.push({ installmentNumber: i + 1, amount, interest, principal: principalPart });
+      interestAccum += interest;
+      principalAccum += principalPart;
+    } else {
+      const interest = Math.max(0, round2(totalInterest - interestAccum));
+      const principalPart = Math.max(0, round2(principal - principalAccum));
+      const amt = round2(interest + principalPart);
+      entries.push({ installmentNumber: i + 1, amount: amt || amount, interest, principal: principalPart });
+    }
+  }
+  return entries;
+}
+
+function allocateInterestByPayment(
+  loans: AllocLoanLike[],
+  payments: AllocPaymentLike[],
+): Map<string, number> {
+  const byId = new Map<string, number>();
+  const loanById = new Map(loans.map((l) => [l.id, l]));
+
+  const sorted = [...payments].sort((a, b) => {
+    const da = a.date ?? "";
+    const db = b.date ?? "";
+    if (da !== db) return da.localeCompare(db);
+    const ca = a.createdAt ?? "";
+    const cb = b.createdAt ?? "";
+    if (ca !== cb) return ca.localeCompare(cb);
+    return (a.id ?? "").localeCompare(b.id ?? "");
+  });
+
+  const priorInterestByLoan = new Map<string, number>();
+  const priorPrincipalByLoan = new Map<string, number>();
+  const interestRemainingByLoan = new Map<string, number>();
+  loans.forEach((l) => {
+    const total = totalWithInterest(l.amount, l.interestRate);
+    interestRemainingByLoan.set(l.id, Math.max(0, total - l.amount));
+  });
+
+  const scheduleByLoan = new Map<string, ReturnType<typeof buildInstallmentBreakdown>>();
+  for (const loan of loans) {
+    if (loan.installments <= 1) continue;
+    const totalDue = totalWithInterest(loan.amount, loan.interestRate);
+    const N = loan.installments;
+    const amounts = Array.from({ length: N }, () => round2(totalDue / N));
+    for (const p of sorted) {
+      if (p.loanId !== loan.id) continue;
+      const k = Number(p.installmentNumber);
+      if (k >= 1 && k <= N) amounts[k - 1] = round2(Number(p.amount) || amounts[k - 1]);
+    }
+    const schedule = buildInstallmentBreakdown(loan, amounts);
+    scheduleByLoan.set(loan.id, schedule);
+    const scheduledInterest = schedule.reduce((s, e) => s + e.interest, 0);
+    interestRemainingByLoan.set(loan.id, Math.max(interestRemainingByLoan.get(loan.id) ?? 0, scheduledInterest));
+  }
+
+  for (const p of sorted) {
+    const amt = Number(p.amount) || 0;
+    if (amt <= 0) { byId.set(p.id, 0); continue; }
+
+    const inst = Number(p.installmentNumber);
+    const loan = loanById.get(p.loanId);
+
+    if (inst === 0 || inst === -2) {
+      byId.set(p.id, round2(amt));
+      const rem = interestRemainingByLoan.get(p.loanId) ?? 0;
+      interestRemainingByLoan.set(p.loanId, Math.max(0, rem - amt));
+      continue;
+    }
+    if (inst === -3) {
+      byId.set(p.id, 0);
+      continue;
+    }
+
+    if (!loan) {
+      byId.set(p.id, round2(amt));
+      continue;
+    }
+
+    if (inst === -1) {
+      const iRemBefore = interestRemainingByLoan.get(p.loanId) ?? 0;
+      const interest = round2(Math.min(iRemBefore, amt));
+      byId.set(p.id, interest);
+      interestRemainingByLoan.set(p.loanId, Math.max(0, round2(iRemBefore - interest)));
+      priorInterestByLoan.set(p.loanId, (priorInterestByLoan.get(p.loanId) ?? 0) + interest);
+      continue;
+    }
+
+    const schedule = scheduleByLoan.get(p.loanId);
+    let interestPart = 0;
+    const remBefore = interestRemainingByLoan.get(p.loanId) ?? 0;
+    if (schedule) {
+      const entry = schedule.find((e) => e.installmentNumber === inst) ?? schedule[schedule.length - 1];
+      interestPart = Math.max(0, Math.min(round2(entry.interest), amt, remBefore));
+    } else {
+      const principalRemaining = Math.max(
+        0,
+        round2((loan.amount || 0) - (priorPrincipalByLoan.get(p.loanId) ?? 0)),
+      );
+      const principalPart = Math.min(amt, principalRemaining);
+      interestPart = Math.max(0, round2(amt - principalPart));
+    }
+    byId.set(p.id, interestPart);
+    priorInterestByLoan.set(p.loanId, (priorInterestByLoan.get(p.loanId) ?? 0) + interestPart);
+    interestRemainingByLoan.set(p.loanId, Math.max(0, remBefore - interestPart));
+    priorPrincipalByLoan.set(
+      p.loanId,
+      (priorPrincipalByLoan.get(p.loanId) ?? 0) + Math.max(0, round2(amt - interestPart)),
+    );
+  }
+
+  const lastPaymentByLoan = new Map<string, { id: string; amount: number }>();
+  sorted.forEach((p) => { lastPaymentByLoan.set(p.loanId, { id: p.id, amount: Number(p.amount) || 0 }); });
+
+  for (const loan of loans) {
+    if (loan.status !== "paid") continue;
+    const last = lastPaymentByLoan.get(loan.id);
+    if (!last) continue;
+    const total = totalWithInterest(loan.amount, loan.interestRate);
+    const scheduled = scheduleByLoan.get(loan.id);
+    const scheduledInterest = scheduled ? scheduled.reduce((s, e) => s + e.interest, 0) : 0;
+    const nominalInterest = Math.max(0, Math.max(total - loan.amount, scheduledInterest));
+
+    const loanPayments = payments.filter((p) => p.loanId === loan.id);
+    const totalPaid = loanPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+    const realTotalInterest = Math.max(0, round2(totalPaid - (Number(loan.amount) || 0)));
+    const targetInterest = Math.max(nominalInterest, realTotalInterest);
+
+    const allocated = loanPayments.reduce((s, p) => s + (byId.get(p.id) ?? 0), 0);
+    const diff = round2(targetInterest - allocated);
+    if (diff <= 0) continue;
+    const cur = byId.get(last.id) ?? 0;
+    const cap = Math.max(0, round2(last.amount - cur));
+    const add = Math.min(diff, cap);
+    if (add > 0) byId.set(last.id, round2(cur + add));
+  }
+
+  return byId;
+}
+
+function allocateInterestByPaymentUpTo(
+  loans: AllocLoanLike[],
+  payments: AllocPaymentLike[],
+  cutoffDate: string,
+): Map<string, number> {
+  const cutoff = String(cutoffDate ?? "").slice(0, 10);
+  const subset = cutoff ? payments.filter((p) => (p.date ?? "").slice(0, 10) <= cutoff) : payments;
+  return allocateInterestByPayment(loans, subset);
+}
+
+function sumInterestReceivedInPeriod(
+  loans: AllocLoanLike[],
+  payments: AllocPaymentLike[],
+  start: string,
+  end: string,
+): number {
+  const startIso = start.slice(0, 10);
+  const endIso = end.slice(0, 10);
+  const alloc = allocateInterestByPaymentUpTo(loans, payments, endIso);
+  let total = 0;
+  for (const p of payments) {
+    const d = (p.date ?? "").slice(0, 10);
+    if (d < startIso || d > endIso) continue;
+    total += alloc.get(p.id) ?? 0;
+  }
+  return round2(total);
 }
 
 async function buildWhatsappBillingReport(admin: any, ownerId: string, today: string): Promise<string> {
@@ -462,7 +688,7 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
   const tomorrowIso = tomorrowObj.toISOString();
 
   const [loansRes, clientsRes, schedulesRes, paymentsRes, promisesRes, sentQueueRes] = await Promise.all([
-    admin.from("loans").select("*").eq("user_id", ownerId).neq("status", "paid"),
+    admin.from("loans").select("*").eq("user_id", ownerId),
     admin.from("clients").select("*").eq("user_id", ownerId),
     admin.from("loan_installments").select("*").eq("user_id", ownerId),
     admin.from("payments").select("*").eq("user_id", ownerId),
@@ -485,6 +711,8 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
   const candidates: BillingCandidateItem[] = [];
 
   for (const loan of loans) {
+    if (loan.status === "paid") continue;
+
     const paidInstallments = Number(loan.paid_installments || 0);
     const totalInstallments = Math.max(1, Number(loan.installments || 1));
     if (paidInstallments >= totalInstallments) continue;
@@ -638,30 +866,29 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
   const groupedEnviadas = groupCandidatesByClient(enviadas);
   const groupedNaoEnviadas = groupCandidatesByClient(naoEnviadas);
 
-  // Total recebido hoje (pagamentos na data atual)
+  // Total recebido e Juros recebidos no dia atual (exata paridade com Dashboard)
+  const allocLoans: AllocLoanLike[] = loans.map((l: any) => ({
+    id: String(l.id),
+    amount: Number(l.amount) || 0,
+    originalAmount: l.original_amount != null ? Number(l.original_amount) : Number(l.amount),
+    interestRate: Number(l.interest_rate) || 0,
+    installments: Math.max(1, Number(l.installments) || 1),
+    status: l.status,
+  }));
+
+  const allocPayments: AllocPaymentLike[] = payments.map((p: any) => ({
+    id: String(p.id),
+    loanId: String(p.loan_id),
+    amount: Number(p.amount) || 0,
+    date: p.date,
+    installmentNumber: Number(p.installment_number),
+    createdAt: p.created_at || p.createdAt,
+    metadata: p.metadata,
+  }));
+
   const paymentsToday = payments.filter((p: any) => (p.date || "").slice(0, 10) === today);
   const totalReceivedToday = paymentsToday.reduce((sum: number, p: any) => sum + finiteMoney(p.amount), 0);
-
-  // Juros a receber da carteira ativa (mesma regra e paridade do Dashboard)
-  let capitalOnStreet = 0;
-  let pendingReceivable = 0;
-  for (const loan of loans) {
-    if (loan.status === "paid") continue;
-    const principal = finiteMoney(loan.amount);
-    const totalInst = Math.max(1, Number(loan.installments || 1));
-    const paidInst = Math.min(Number(loan.paid_installments || 0), totalInst);
-    const remainingRatio = Math.max(0, (totalInst - paidInst) / totalInst);
-    capitalOnStreet += principal * remainingRatio;
-
-    const totalPaidLoan = payments
-      .filter((p: any) => p.loan_id === loan.id)
-      .reduce((sum: number, p: any) => sum + finiteMoney(p.amount), 0);
-    const totalExp = Math.round(principal * (1 + (Number(loan.interest_rate) || 0) / 100));
-    const safeRem = finiteMoney(loan.remaining_amount);
-    const remaining = safeRem > 0 ? safeRem : Math.max(0, totalExp - totalPaidLoan);
-    pendingReceivable += remaining;
-  }
-  const jurosAReceber = Math.max(0, pendingReceivable - capitalOnStreet);
+  const interestReceivedToday = sumInterestReceivedInPeriod(allocLoans, allocPayments, today, today);
 
   const dateFormatted = formatDateBR(today);
 
@@ -676,7 +903,8 @@ async function buildWhatsappBillingReport(admin: any, ownerId: string, today: st
     ``,
     `💰 Juros: *${fmtBRL(totalInterest)}*`,
     `💵 Total a cobrar: *${fmtBRL(totalAmount)}*`,
-    `🪙 Juros a receber: *${fmtBRL(jurosAReceber)}*`,
+    ``,
+    `🪙 Juros recebidos: *${fmtBRL(interestReceivedToday)}*`,
     `📥 Total recebido: *${fmtBRL(totalReceivedToday)}*`,
     ``,
     `━━━━━━━━━━━━━━━━━━`,
