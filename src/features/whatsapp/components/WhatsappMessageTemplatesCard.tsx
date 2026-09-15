@@ -215,15 +215,15 @@ export function WhatsappMessageTemplatesCard() {
     if (activeTab === "center_multiple") {
       return currentMessage
         .replace(/\{nome_cliente\}|\{nome\}/g, "Maria Silva")
-        .replace(/\{lista_contratos\}/g, "• Contrato Casa — R$ 285,00 — vencido há 7 dia(s)\n• Contrato Moto — R$ 150,00 — vence hoje")
+        .replace(/\{lista_contratos\}/g, "• Casa — R$ 285,00 — Venc. 15/09\n• Moto — R$ 150,00 — Vence hoje")
         .replace(/\{quantidade_contratos\}/g, "2")
         .replace(/\{valor_total\}|\{valor_cobranca\}|\{valor\}/g, "R$ 435,00")
         .replace(/\{valor_base\}/g, "R$ 400,00")
         .replace(/\{encargos\}|\{juros\}/g, "R$ 35,00")
         .replace(/\{parcelas_vencidas\}/g, "2")
-        .replace(/\{etiquetas_contratos\}/g, "Contrato Casa, Contrato Moto")
+        .replace(/\{etiquetas_contratos\}/g, "Casa, Moto")
         .replace(/\{valores_contratos\}/g, "R$ 285,00; R$ 150,00")
-        .replace(/\{datas_priorizadas\}/g, "15/09/2026; 22/09/2026")
+        .replace(/\{datas_priorizadas\}/g, "15/09; 22/09")
         .replace(/\{link_pagamento\}/g, draft.pix_link || "chave-pix-exemplo");
     }
 

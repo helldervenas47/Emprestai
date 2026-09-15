@@ -61,6 +61,20 @@ function formatBR(date: string): string {
   return `${day}/${m}/${y}`;
 }
 
+function formatShortBR(date: string): string {
+  if (!date) return "";
+  const d = date.length >= 10 ? date.substring(0, 10) : date;
+  const parts = d.split("-");
+  return parts.length === 3 ? `${parts[2]}/${parts[1]}` : date;
+}
+
+function cleanLabel(label: string): string {
+  const trimmed = (label || "").trim();
+  if (!trimmed) return "";
+  const firstWord = trimmed.split(/\s+/)[0];
+  return firstWord || trimmed;
+}
+
 function applyVariables(message: string, ctx: {
   nome: string; valorParcela: number; dataVenc: string;
   diasAtraso: number; juros: number; valorTotal: number;
@@ -229,8 +243,8 @@ function getDueStatus(dueDate: string, today: string, veryOverdueDays: number): 
 }
 
 function getItemSituation(promisedDate: string | undefined, dueDate: string, daysOverdue: number, status: DueStatus): string {
-  if (promisedDate) return `Venc. ${formatBR(promisedDate)}`;
-  return daysOverdue > 0 ? `vencido há ${daysOverdue} dia(s)` : status === "vence_hoje" ? "vence hoje" : `vence em ${formatBR(dueDate)}`;
+  if (promisedDate) return `Venc. ${formatShortBR(promisedDate)}`;
+  return daysOverdue > 0 ? `Venc. ${formatShortBR(dueDate)}` : status === "vence_hoje" ? "Vence hoje" : `Venc. ${formatShortBR(dueDate)}`;
 }
 
 Deno.serve(async (req: Request) => {
@@ -504,13 +518,14 @@ Deno.serve(async (req: Request) => {
         let message = "";
         if (entries.length > 1) {
           const lines = entries.map((entry: any) => {
+            const label = cleanLabel(entry.label);
             const amountSummary = entry.overdueInstallmentCount > 1
-              ? `${entry.overdueInstallmentCount} parcelas vencidas — ${formatBRL(entry.amount)}`
+              ? `${formatBRL(entry.amount)} (${entry.overdueInstallmentCount}x)`
               : formatBRL(entry.amount);
             if (entry.promisedDate) {
-              return `• ${entry.label} — ${amountSummary} — Venc. ${formatBR(entry.dueDate)}`;
+              return `• ${label} — ${amountSummary} — Venc. ${formatShortBR(entry.dueDate)}`;
             }
-            return `• ${entry.label} — ${amountSummary} — ${entry.situation}`;
+            return `• ${label} — ${amountSummary} — ${entry.situation}`;
           }).join("\n");
 
           const groupedTemplate = (tplRow as any)?.message_center_multiple?.trim() || defaultCenterMultiple;
@@ -522,9 +537,9 @@ Deno.serve(async (req: Request) => {
             .replace(/\{valor_base\}/g, formatBRL(totalBase))
             .replace(/\{encargos\}|\{juros\}/g, formatBRL(totalFees))
             .replace(/\{parcelas_vencidas\}/g, String(totalOverdueInstallments))
-            .replace(/\{etiquetas_contratos\}/g, entries.map((entry: any) => entry.label).join(", "))
+            .replace(/\{etiquetas_contratos\}/g, entries.map((entry: any) => cleanLabel(entry.label)).join(", "))
             .replace(/\{valores_contratos\}/g, entries.map((entry: any) => formatBRL(entry.amount)).join("; "))
-            .replace(/\{datas_priorizadas\}|\{datas_vencimento\}/g, entries.map((entry: any) => formatBR(entry.dueDate)).join("; "))
+            .replace(/\{datas_priorizadas\}|\{datas_vencimento\}/g, entries.map((entry: any) => formatShortBR(entry.dueDate)).join("; "))
             .replace(/\{link_pagamento\}/g, linkPagamento);
         } else {
           const singleTemplate = (tplRow as any)?.message_center_single?.trim() || defaultCenterSingle;

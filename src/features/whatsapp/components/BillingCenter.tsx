@@ -19,6 +19,17 @@ type QueueRow = { id: string; batch_id: string; client_id: string; loan_id: stri
 type ClientBillingPreference = { id: string; name: string; openLoans: number; enabled: boolean };
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const date = (ymd: string) => ymd.split("-").reverse().join("/");
+const shortDate = (ymd: string) => {
+  if (!ymd) return "";
+  const parts = ymd.split("-");
+  return parts.length === 3 ? `${parts[2]}/${parts[1]}` : ymd;
+};
+const cleanLabel = (label: string) => {
+  const trimmed = (label || "").trim();
+  if (!trimmed) return "";
+  const firstWord = trimmed.split(/\s+/)[0];
+  return firstWord || trimmed;
+};
 const bahiaDay = (value: string | Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bahia" }).format(new Date(value));
 const getDaysUntil = (ymd: string, today: string) =>
   Math.round((new Date(`${ymd}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86_400_000);
@@ -770,20 +781,21 @@ function ClientBillingFolder({ group, sentToday, blockedToday = sentToday, selec
 }
 
 function itemSituation(item: BillingCandidate) {
-  if (item.promisedDate) return `Venc. ${date(item.billingDate)}`;
-  return item.daysOverdue > 0 ? `vencido há ${item.daysOverdue} dia(s)` : item.priority === "today" ? "vence hoje" : `vence em ${date(item.dueDate)}`;
+  if (item.promisedDate) return `Venc. ${shortDate(item.billingDate)}`;
+  return item.daysOverdue > 0 ? `Venc. ${shortDate(item.dueDate)}` : item.priority === "today" ? "Vence hoje" : `Venc. ${shortDate(item.dueDate)}`;
 }
 
 function singleContractMessage(item: BillingCandidate, template: string, pixLink: string): string {
+  const label = cleanLabel(item.contractLabel || item.clientName);
   return template
     .replace(/\{nome_cliente\}|\{nome\}/g, item.clientName)
-    .replace(/\{etiqueta\}/g, item.contractLabel)
+    .replace(/\{etiqueta\}/g, label)
     .replace(/\{valor_total\}|\{valor_cobranca\}|\{valor_parcela\}|\{valor\}/g, money.format(item.amount))
     .replace(/\{valor_base\}/g, money.format(item.baseAmount))
     .replace(/\{encargos\}|\{juros\}/g, money.format(item.lateFees))
     .replace(/\{parcelas_vencidas\}/g, String(item.overdueInstallmentCount))
-    .replace(/\{vencimento_original\}/g, date(item.dueDate))
-    .replace(/\{data_priorizada\}|\{data_vencimento\}/g, date(item.billingDate))
+    .replace(/\{vencimento_original\}/g, shortDate(item.dueDate))
+    .replace(/\{data_priorizada\}|\{data_vencimento\}/g, shortDate(item.billingDate))
     .replace(/\{dias_atraso\}/g, String(item.daysOverdue))
     .replace(/\{situacao\}/g, itemSituation(item))
     .replace(/\{link_pagamento\}/g, pixLink);
@@ -795,13 +807,14 @@ function consolidatedMessage(items: BillingCandidate[], template: string, pixLin
   const feesTotal = items.reduce((sum, item) => sum + item.lateFees, 0);
   const overdueInstallments = items.reduce((sum, item) => sum + item.overdueInstallmentCount, 0);
   const lines = items.map((item) => {
+    const label = cleanLabel(item.contractLabel || item.clientName);
     const amountSummary = item.overdueInstallmentCount > 1
-      ? `${item.overdueInstallmentCount} parcelas vencidas — ${money.format(item.amount)}`
+      ? `${money.format(item.amount)} (${item.overdueInstallmentCount}x)`
       : money.format(item.amount);
     if (item.promisedDate) {
-      return `• ${item.contractLabel} — ${amountSummary} — Venc. ${date(item.billingDate)}`;
+      return `• ${label} — ${amountSummary} — Venc. ${shortDate(item.billingDate)}`;
     }
-    return `• ${item.contractLabel} — ${amountSummary} — ${itemSituation(item)}`;
+    return `• ${label} — ${amountSummary} — ${itemSituation(item)}`;
   });
   return template
     .replace(/\{nome_cliente\}|\{nome\}/g, items[0].clientName)
@@ -811,8 +824,8 @@ function consolidatedMessage(items: BillingCandidate[], template: string, pixLin
     .replace(/\{valor_base\}/g, money.format(baseTotal))
     .replace(/\{encargos\}|\{juros\}/g, money.format(feesTotal))
     .replace(/\{parcelas_vencidas\}/g, String(overdueInstallments))
-    .replace(/\{etiquetas_contratos\}/g, items.map((item) => item.contractLabel).join(", "))
+    .replace(/\{etiquetas_contratos\}/g, items.map((item) => cleanLabel(item.contractLabel)).join(", "))
     .replace(/\{valores_contratos\}/g, items.map((item) => money.format(item.amount)).join("; "))
-    .replace(/\{datas_priorizadas\}/g, items.map((item) => date(item.billingDate)).join("; "))
+    .replace(/\{datas_priorizadas\}/g, items.map((item) => shortDate(item.billingDate)).join("; "))
     .replace(/\{link_pagamento\}/g, pixLink);
 }
