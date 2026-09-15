@@ -137,70 +137,68 @@ export function MonthlyPatrimonioVariationCard() {
       : "bg-muted text-muted-foreground border-border";
 
   return (
-    <Card no3d className="border border-border/60 bg-card hover:border-border transition-all duration-200 rounded-2xl shadow-2xs overflow-hidden">
-      <CardContent className="p-3.5 sm:p-4 space-y-3">
-        {/* Header do Card */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className="rounded-lg bg-primary/10 p-1.5 text-primary shrink-0">
-              <TrendingUp className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="text-xs sm:text-sm font-bold text-foreground leading-tight">Variação Mensal</p>
-              <p className="text-[10px] sm:text-xs text-muted-foreground">Comparativo de evolução patrimonial</p>
-            </div>
+    <div className="h-auto w-full rounded-2xl border border-border/60 bg-card hover:border-border transition-all duration-200 p-3.5 sm:p-4 space-y-3 shadow-2xs">
+      {/* Header do Card */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className="rounded-lg bg-primary/10 p-1.5 text-primary shrink-0">
+            <TrendingUp className="h-4 w-4" />
           </div>
+          <div>
+            <p className="text-xs sm:text-sm font-bold text-foreground leading-tight">Variação Mensal</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Comparativo de evolução patrimonial</p>
+          </div>
+        </div>
 
-          <div className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold inline-flex items-center gap-1 border ${trendBgColor}`}>
-            <TrendIcon className="h-3 w-3" />
+        <div className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold inline-flex items-center gap-1 border ${trendBgColor}`}>
+          <TrendIcon className="h-3 w-3" />
+          <span>{variacaoPct >= 0 ? "+" : ""}{variacaoPct.toFixed(2)}%</span>
+        </div>
+      </div>
+
+      {/* Grid de 4 Indicadores */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-2.5 pt-1">
+        {/* Mês Passado */}
+        <div className="rounded-xl border border-border/40 bg-muted/30 p-2.5 sm:p-3 flex flex-col justify-between">
+          <p className="text-[10px] sm:text-[11px] font-medium text-muted-foreground truncate">
+            Mês passado ({prevMonthName})
+          </p>
+          <p className="mt-1 text-xs sm:text-sm md:text-base font-bold tabular-nums text-foreground truncate">
+            {formatBRL(patrimonioMesPassado)}
+          </p>
+        </div>
+
+        {/* Patrimônio Atual */}
+        <div className="rounded-xl border border-border/40 bg-muted/30 p-2.5 sm:p-3 flex flex-col justify-between">
+          <p className="text-[10px] sm:text-[11px] font-medium text-muted-foreground truncate">
+            Patrimônio atual ({currentMonthName})
+          </p>
+          <p className="mt-1 text-xs sm:text-sm md:text-base font-bold tabular-nums text-foreground truncate">
+            {formatBRL(patrimonioAtual)}
+          </p>
+        </div>
+
+        {/* Diferença */}
+        <div className="rounded-xl border border-border/40 bg-muted/30 p-2.5 sm:p-3 flex flex-col justify-between">
+          <p className="text-[10px] sm:text-[11px] font-medium text-muted-foreground truncate">
+            Diferença
+          </p>
+          <p className={`mt-1 text-xs sm:text-sm md:text-base font-bold tabular-nums truncate ${trendTextColor}`}>
+            {diferenca >= 0 ? "+" : "−"} {formatBRL(Math.abs(diferenca))}
+          </p>
+        </div>
+
+        {/* Variação (%) */}
+        <div className="rounded-xl border border-border/40 bg-muted/30 p-2.5 sm:p-3 flex flex-col justify-between">
+          <p className="text-[10px] sm:text-[11px] font-medium text-muted-foreground truncate">
+            Variação (%)
+          </p>
+          <p className={`mt-1 text-xs sm:text-sm md:text-base font-bold tabular-nums truncate flex items-center gap-1 ${trendTextColor}`}>
+            <TrendIcon className="h-3 w-3 shrink-0" />
             <span>{variacaoPct >= 0 ? "+" : ""}{variacaoPct.toFixed(2)}%</span>
-          </div>
+          </p>
         </div>
-
-        {/* Grid de 4 Indicadores */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-2.5 pt-1">
-          {/* Mês Passado */}
-          <div className="rounded-xl border border-border/40 bg-muted/30 p-2.5 sm:p-3 flex flex-col justify-between">
-            <p className="text-[10px] sm:text-[11px] font-medium text-muted-foreground truncate">
-              Mês passado ({prevMonthName})
-            </p>
-            <p className="mt-1 text-xs sm:text-sm md:text-base font-bold tabular-nums text-foreground truncate">
-              {formatBRL(patrimonioMesPassado)}
-            </p>
-          </div>
-
-          {/* Patrimônio Atual */}
-          <div className="rounded-xl border border-border/40 bg-muted/30 p-2.5 sm:p-3 flex flex-col justify-between">
-            <p className="text-[10px] sm:text-[11px] font-medium text-muted-foreground truncate">
-              Patrimônio atual ({currentMonthName})
-            </p>
-            <p className="mt-1 text-xs sm:text-sm md:text-base font-bold tabular-nums text-foreground truncate">
-              {formatBRL(patrimonioAtual)}
-            </p>
-          </div>
-
-          {/* Diferença */}
-          <div className="rounded-xl border border-border/40 bg-muted/30 p-2.5 sm:p-3 flex flex-col justify-between">
-            <p className="text-[10px] sm:text-[11px] font-medium text-muted-foreground truncate">
-              Diferença
-            </p>
-            <p className={`mt-1 text-xs sm:text-sm md:text-base font-bold tabular-nums truncate ${trendTextColor}`}>
-              {diferenca >= 0 ? "+" : "−"} {formatBRL(Math.abs(diferenca))}
-            </p>
-          </div>
-
-          {/* Variação (%) */}
-          <div className="rounded-xl border border-border/40 bg-muted/30 p-2.5 sm:p-3 flex flex-col justify-between">
-            <p className="text-[10px] sm:text-[11px] font-medium text-muted-foreground truncate">
-              Variação (%)
-            </p>
-            <p className={`mt-1 text-xs sm:text-sm md:text-base font-bold tabular-nums truncate flex items-center gap-1 ${trendTextColor}`}>
-              <TrendIcon className="h-3 w-3 shrink-0" />
-              <span>{variacaoPct >= 0 ? "+" : ""}{variacaoPct.toFixed(2)}%</span>
-            </p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
