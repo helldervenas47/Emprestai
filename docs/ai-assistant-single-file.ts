@@ -978,18 +978,16 @@ ${params.liveData}
 ${params.knowledge}`;
 }
 async function callGemini(systemPrompt, history, question, apiKey) {
-  const models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
+  const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"];
   let lastError = "";
-  const contents = [
-    ...history.map((m) => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content || "" }]
-    })),
-    {
-      role: "user",
-      parts: [{ text: question }]
-    }
-  ];
+  const conversationText = history.map((m) => `${m.role === "assistant" ? "Assistente" : "Usu\xE1rio"}: ${m.content}`).join("\n");
+  const fullPrompt = `${systemPrompt}
+
+${conversationText ? `# HIST\xD3RICO:
+${conversationText}
+
+` : ""}# PERGUNTA DO USU\xC1RIO:
+${question}`;
   for (const model of models) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -997,10 +995,11 @@ async function callGemini(systemPrompt, history, question, apiKey) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: systemPrompt }]
-          },
-          contents,
+          contents: [
+            {
+              parts: [{ text: fullPrompt }]
+            }
+          ],
           generationConfig: {
             temperature: 0.2,
             maxOutputTokens: 1500
@@ -1019,6 +1018,27 @@ async function callGemini(systemPrompt, history, question, apiKey) {
     }
   }
   throw new Error(`AI request failed: ${lastError}`);
+}
+function fallbackHeuristicResponse(question, liveData) {
+  const q = question.toLowerCase();
+  if (q.includes("vence") || q.includes("hoje") || q.includes("vencimento") || q.includes("atraso") || q.includes("inadimplen")) {
+    return `Aqui est\xE1 o resumo dos seus vencimentos em tempo real:
+
+${liveData.split("## Indicadores Oficiais")[0].trim() || liveData}`;
+  }
+  if (q.includes("capital") || q.includes("lucro") || q.includes("receber") || q.includes("financeiro") || q.includes("total")) {
+    return `Aqui est\xE1 o resumo financeiro consolidado da sua carteira:
+
+${liveData}`;
+  }
+  if (q.includes("produto") || q.includes("estoque") || q.includes("venda")) {
+    return `Aqui est\xE1 a situa\xE7\xE3o do seu invent\xE1rio e estoque:
+
+${liveData}`;
+  }
+  return `Aqui est\xE1 o panorama atual da sua conta no Emprestaii:
+
+${liveData}`;
 }
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -1070,19 +1090,19 @@ Deno.serve(async (req) => {
       mode
     });
     const apiKey = Deno.env.get("GEMINI_API_KEY");
-    if (!apiKey) return json({ error: "GEMINI_API_KEY missing" }, 500);
     let reply = "";
-    try {
-      reply = await callGemini(systemPrompt, history, question, apiKey);
-    } catch (e) {
-      console.error("[ai-assistant] model call failed:", e);
-      return json({
-        error: "Assistente indispon\xEDvel no momento (falha no provedor de IA).",
-        detail: String(e?.message ?? e).slice(0, 500)
-      }, 502);
+    if (apiKey) {
+      try {
+        reply = await callGemini(systemPrompt, history, question, apiKey);
+      } catch (e) {
+        console.warn("[ai-assistant] Gemini API falhou, usando fallback direto com dados reais:", e);
+        reply = fallbackHeuristicResponse(question, liveData);
+      }
+    } else {
+      reply = fallbackHeuristicResponse(question, liveData);
     }
     if (!reply) {
-      reply = "N\xE3o consegui concluir a consulta agora. Reformule a pergunta ou tente novamente em instantes.";
+      reply = fallbackHeuristicResponse(question, liveData);
     }
     reply = redactSecrets(reply);
     if (missingPeriodDisclosure(reply)) {
