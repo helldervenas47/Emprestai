@@ -24,7 +24,6 @@ export const APP_TABS = [
   { id: "video_lessons", label: "Vídeo Aulas" },
   { id: "settings", label: "Configurações" },
   { id: "system", label: "Sistema" },
-  { id: "help", label: "Ajuda" },
 ] as const;
 
 export type AppTabId = (typeof APP_TABS)[number]["id"];

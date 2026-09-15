@@ -283,7 +283,6 @@ import { TrialBanner } from "@/features/admin/components/upgrade/TrialBanner";
 import { PlanExpirationInfo } from "@/components/PlanExpirationInfo";
 
 // Lazy load heavy components
-const HelpChat = lazy(() => import("@/components/HelpChat"));
 const VideoLessonsTab = lazy(() =>
   import("@/features/videoLessons/components/VideoLessonsTab").then((m) => ({ default: m.VideoLessonsTab })),
 );
@@ -453,7 +452,6 @@ const prefetchChunks = () => {
   void import("@/features/admin/components/PlanSubscribers");
   void import("@/components/BackupExport");
   void import("@/features/telegram/components/TelegramBotsHub");
-  void import("@/components/HelpChat");
 };
 if (typeof window !== "undefined") {
   const conn = (navigator as any).connection ?? null;
@@ -509,8 +507,7 @@ type Tab =
   | "calendar"
   | "video_lessons"
   | "settings"
-  | "system"
-  | "help";
+  | "system";
 type ClientSubTab = "clientes" | "veiculos" | "ranking";
 type VehicleSubTab = "veiculos" | "locadores";
 type PlanMgmtSubTab = "subscribers" | "plans";
@@ -536,7 +533,6 @@ const tabConfig = [
   { id: "video_lessons" as Tab, label: "Vídeo Aulas", icon: GraduationCap },
   { id: "settings" as Tab, label: "Configurações", icon: SettingsIcon },
   { id: "system" as Tab, label: "Sistema", icon: Sliders },
-  { id: "help" as Tab, label: "Assistente IA", icon: Sparkles },
 ];
 
 const LEGACY_CLIENT_PLAN_TAB_IDS = new Set([
@@ -673,14 +669,6 @@ const tabHelp: Record<Tab, { title: string; items: string[] }> = {
       "Administração: gerenciamento de usuários, aprovações e links de convite.",
       "Conta e Assinatura: visualize e altere o plano contratado.",
       "Personalização: identidade visual e temas do sistema.",
-    ],
-  },
-  help: {
-    title: "Assistente IA",
-    items: [
-      "Chat com o assistente de IA do app.",
-      "Tire dúvidas sobre qualquer recurso: cadastros, cofrinhos, relatórios, integrações.",
-      "As respostas são geradas em tempo real e cobrem todas as funcionalidades.",
     ],
   },
 };
@@ -1213,7 +1201,6 @@ const Index = () => {
     if (
       t.id !== "system" &&
       t.id !== "settings" &&
-      t.id !== "help" &&
       t.id !== "video_lessons" &&
       !isLegacyPlanTabs &&
       !planAccessLoading &&
@@ -1933,7 +1920,6 @@ const Index = () => {
                 )}
                 {tab === "system" && canAccessTab("system") && <SystemSettings />}
                 {tab === "video_lessons" && canAccessTab("video_lessons") && <VideoLessonsTab />}
-                {tab === "help" && canAccessTab("help") && <HelpChat />}
               </>
             )}
           </Suspense>
@@ -2247,7 +2233,7 @@ const Index = () => {
                     { label: "Principal", ids: ["overview", "calendar", "metas"] },
                     { label: "Financeiro", ids: ["expenses", "dashboard", "products", "boletos", "salary", "vehicles"] },
                     { label: "Gestão", ids: ["clients", "accountant", "telegram_reports", "billing_center"] },
-                    { label: "Ferramentas", ids: ["video_lessons", "help", "settings", "system"] },
+                    { label: "Ferramentas", ids: ["video_lessons", "settings", "system"] },
                   ];
                   const groupedNav = MOBILE_GROUPS.map((g) => ({
                     label: g.label,

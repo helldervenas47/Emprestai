@@ -49,7 +49,7 @@ export const SIDEBAR_GROUPS: SidebarGroup[] = [
     ids: ["expenses", "dashboard", "products", "vehicles", "boletos", "salary"],
   },
   { label: "Gestão", ids: ["clients", "accountant", "telegram_reports", "billing_center"] },
-  { label: "Sistema", ids: ["video_lessons", "help", "settings", "system"] },
+  { label: "Sistema", ids: ["video_lessons", "settings", "system"] },
 ];
 
 const STORAGE_KEY = "hvcred-sidebar-collapsed";
