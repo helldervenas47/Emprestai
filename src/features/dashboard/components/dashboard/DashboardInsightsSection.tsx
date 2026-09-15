@@ -500,7 +500,7 @@ export function DashboardInsightsSection(props: Props) {
       {isMobile ? (
         <Sheet open={riskAiOpen} onOpenChange={setRiskAiOpen}>
           <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl bg-card/80 backdrop-blur-xl backdrop-saturate-150">
-            <SheetHeader className="rounded-xl border border-primary/20 bg-card/70 p-4 shadow-[0_16px_40px_-20px_hsl(var(--primary)/0.35)] backdrop-blur-xl backdrop-saturate-150">
+            <SheetHeader className="rounded-xl border border-primary/20 bg-card/70 p-4 pr-12 text-left shadow-[0_16px_40px_-20px_hsl(var(--primary)/0.35)] backdrop-blur-xl backdrop-saturate-150">
               <SheetTitle className="flex items-center gap-2 text-foreground">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/20 bg-card/75 shadow-[0_8px_24px_-14px_hsl(var(--primary)/0.4)] backdrop-blur-xl backdrop-saturate-150">
                   <Sparkles className="h-4 w-4 text-primary" />
