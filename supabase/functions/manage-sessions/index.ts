@@ -88,10 +88,18 @@ Deno.serve(async (req) => {
       };
 
       const enriched = await Promise.all(
-        ((sessions as any[]) ?? []).map(async (s: any) => ({
-          ...s,
-          geo: await lookupGeo(s.ip),
-        })),
+        ((sessions as any[]) ?? []).map(async (s: any) => {
+          const ip = s.ip ?? s.ip_address ?? null;
+          const created_at = s.created_at ?? s.last_active_at ?? s.inserted_at ?? null;
+          const updated_at = s.updated_at ?? s.last_active_at ?? s.created_at ?? null;
+          return {
+            ...s,
+            ip,
+            created_at,
+            updated_at,
+            geo: await lookupGeo(ip),
+          };
+        }),
       );
 
       return new Response(

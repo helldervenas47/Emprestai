@@ -9,11 +9,14 @@ import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 
 interface SessionItem {
   id: string;
-  created_at: string;
-  updated_at: string;
+  created_at?: string | null;
+  updated_at?: string | null;
+  last_active_at?: string | null;
+  last_sign_in_at?: string | null;
   user_agent: string | null;
   ip: string | null;
-  not_after: string | null;
+  ip_address?: string | null;
+  not_after?: string | null;
   geo?: { city: string | null; region: string | null; country: string | null; lat?: number | null; lon?: number | null } | null;
 }
 
@@ -47,15 +50,17 @@ function detectOS(ua: string | null): string {
   return "";
 }
 
-function formatDate(iso: string): string {
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return "";
   try {
     const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
     return d.toLocaleString("pt-BR", {
       day: "2-digit", month: "2-digit", year: "numeric",
       hour: "2-digit", minute: "2-digit",
     });
   } catch {
-    return iso;
+    return "";
   }
 }
 
@@ -73,7 +78,14 @@ export function ActiveSessionsCard() {
         body: { action: "list" },
       });
       if (error) throw error;
-      setSessions(data?.sessions ?? []);
+      const rawSessions: any[] = data?.sessions ?? [];
+      const normalized = rawSessions.map((s) => ({
+        ...s,
+        ip: s.ip ?? s.ip_address ?? null,
+        created_at: s.created_at ?? s.last_active_at ?? s.last_sign_in_at ?? null,
+        updated_at: s.updated_at ?? s.last_active_at ?? s.created_at ?? null,
+      }));
+      setSessions(normalized);
       setCurrentId(data?.current_session_id ?? null);
     } catch (e: any) {
       toast.error("Falha ao carregar sessões: " + (e?.message || "erro"));
@@ -177,7 +189,7 @@ export function ActiveSessionsCard() {
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Último acesso: {formatDate(s.updated_at || s.created_at)}
+                        Último acesso: {formatDate(s.updated_at || s.created_at) || (isCurrent ? "Agora (sessão atual)" : "Recente")}
                       </p>
                     </div>
                   </div>
