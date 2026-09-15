@@ -33,6 +33,7 @@ supabase link --project-ref "$PROJECT_REF" --password "$DB_PASSWORD"
 FUNCTIONS=(
   admin-create-user
   admin-manage-user
+  ai-assistant
   daily-planning-summary
   debug-telegram
   export-full-backup
