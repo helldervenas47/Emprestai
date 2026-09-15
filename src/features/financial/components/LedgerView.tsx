@@ -524,7 +524,7 @@ export function LedgerView({ readOnly = false }: Props) {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+        <div className="space-y-2 sm:space-y-0 sm:grid sm:grid-cols-12 sm:gap-2 sm:items-center">
           {/* Navegação de Mês */}
           <div className="sm:col-span-6 md:col-span-5">
             <MonthNavigator
@@ -534,8 +534,8 @@ export function LedgerView({ readOnly = false }: Props) {
             />
           </div>
 
-          {/* Select Carteiras */}
-          <div className="sm:col-span-3 md:col-span-3">
+          {/* Select Carteiras e Categorias lado a lado no mobile */}
+          <div className="grid grid-cols-2 gap-2 sm:col-span-6 md:col-span-7">
             <Select value={filterWallet} onValueChange={(v: any) => setFilterWallet(v)}>
               <SelectTrigger className="h-9 w-full rounded-xl text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -544,10 +544,7 @@ export function LedgerView({ readOnly = false }: Props) {
                 <SelectItem value="cash">Dinheiro</SelectItem>
               </SelectContent>
             </Select>
-          </div>
 
-          {/* Select Categorias */}
-          <div className="sm:col-span-3 md:col-span-4">
             <Select value={filterCat} onValueChange={(v: any) => setFilterCat(v)}>
               <SelectTrigger className="h-9 w-full rounded-xl text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
