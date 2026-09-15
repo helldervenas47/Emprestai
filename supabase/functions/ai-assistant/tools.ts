@@ -508,6 +508,8 @@ export async function executeTool(name: string, args: any, ctx: ToolContext): Pr
           valor: formatBRL(num(s.total ?? s.total_amount ?? s.amount ?? s.value)),
         })),
       };
+    }
+
     case "list_products": {
       const { data } = await ctx.client
         .from("products")

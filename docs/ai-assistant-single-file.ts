@@ -343,9 +343,13 @@ function allocateInterestByPayment(loans, payments) {
     const total = totalWithInterest(loan.amount, loan.interestRate);
     const scheduled = scheduleByLoan.get(loan.id);
     const scheduledInterest = scheduled ? scheduled.reduce((s, e) => s + e.interest, 0) : 0;
-    const expectedInterest = Math.max(0, Math.max(total - loan.amount, scheduledInterest));
-    const allocated = payments.filter((p) => p.loanId === loan.id).reduce((s, p) => s + (byId.get(p.id) ?? 0), 0);
-    const diff = round2(expectedInterest - allocated);
+    const nominalInterest = Math.max(0, Math.max(total - loan.amount, scheduledInterest));
+    const loanPayments = payments.filter((p) => p.loanId === loan.id);
+    const totalPaid = loanPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+    const realTotalInterest = Math.max(0, round2(totalPaid - (Number(loan.amount) || 0)));
+    const targetInterest = Math.max(nominalInterest, realTotalInterest);
+    const allocated = loanPayments.reduce((s, p) => s + (byId.get(p.id) ?? 0), 0);
+    const diff = round2(targetInterest - allocated);
     if (diff <= 0) continue;
     const cur = byId.get(last.id) ?? 0;
     const cap = Math.max(0, round2(last.amount - cur));
@@ -980,6 +984,27 @@ var TOOL_DEFINITIONS = [
   {
     type: "function",
     function: {
+      name: "list_products",
+      description: "Lista produtos cadastrados no invent\xE1rio/estoque com quantidade atual, estoque sugerido, pre\xE7o, custo e alerta de estoque baixo/zerado.",
+      parameters: {
+        type: "object",
+        properties: {
+          low_stock_only: {
+            type: "boolean",
+            description: "Se verdadeiro, retorna apenas produtos com estoque baixo ou zerado."
+          },
+          search: {
+            type: "string",
+            description: "Filtro opcional de busca por nome ou descri\xE7\xE3o do produto."
+          }
+        },
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
       name: "get_goals_progress",
       description: "Metas mensais do usu\xE1rio e progresso frente aos agregados oficiais.",
       parameters: { type: "object", properties: { period: periodParam }, additionalProperties: false }
@@ -1192,6 +1217,41 @@ async function executeTool(name, args, ctx) {
         }))
       };
     }
+    case "list_products": {
+      const { data } = await ctx.client.from("products").select("id, name, description, price, cost, last_purchase_price, suggested_stock, stock, active").eq("user_id", ctx.ownerId);
+      const all = (data ?? []).map((p) => {
+        const stock = p.stock != null ? Number(p.stock) : 0;
+        const suggested = p.suggested_stock != null ? Number(p.suggested_stock) : null;
+        const isLow = stock <= 0 || (suggested != null && suggested > 0 ? stock <= suggested : stock <= 5);
+        return {
+          id: p.id,
+          nome: String(p.name ?? "\u2014"),
+          descricao: p.description ? String(p.description) : null,
+          estoque_atual: stock,
+          estoque_sugerido: suggested,
+          preco_venda: formatBRL(num2(p.price)),
+          custo: formatBRL(num2(p.cost || p.last_purchase_price)),
+          status_estoque: stock <= 0 ? "zerado" : isLow ? "baixo" : "normal",
+          ativo: p.active !== false
+        };
+      });
+      let filtered = all.filter((p) => p.ativo);
+      if (args?.low_stock_only) {
+        filtered = filtered.filter((p) => p.status_estoque === "zerado" || p.status_estoque === "baixo");
+      }
+      if (args?.search && typeof args.search === "string" && args.search.trim()) {
+        const q = args.search.toLowerCase().trim();
+        filtered = filtered.filter((p) => p.nome.toLowerCase().includes(q) || p.descricao && p.descricao.toLowerCase().includes(q));
+      }
+      const zerados = all.filter((p) => p.status_estoque === "zerado").length;
+      const baixos = all.filter((p) => p.status_estoque === "baixo").length;
+      return {
+        total_produtos: all.length,
+        produtos_zerados: zerados,
+        produtos_estoque_baixo: baixos,
+        itens: filtered.slice(0, 30)
+      };
+    }
     case "get_goals_progress": {
       const { data } = await ctx.client.from("monthly_goals").select("*").eq("user_id", ctx.ownerId);
       const rows = data ?? [];
@@ -1220,9 +1280,15 @@ async function executeTool(name, args, ctx) {
 }
 
 // supabase/functions/ai-assistant/index.ts
-var MODEL_CHAIN = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b"];
+var MODEL_CHAIN = [
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+  "gemini-1.5-pro",
+  "gemini-2.0-flash-lite",
+  "gemini-1.5-flash-8b"
+];
 var AI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-var MAX_TOOL_STEPS = 6;
+var MAX_TOOL_STEPS = 3;
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -1259,21 +1325,34 @@ ${params.knowledge}`;
 async function callModel(messages, apiKey) {
   let lastError = "";
   for (const model of MODEL_CHAIN) {
-    const resp = await fetch(AI_ENDPOINT, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        messages,
-        tools: TOOL_DEFINITIONS,
-        tool_choice: "auto",
-        temperature: 0.2
-      })
-    });
-    if (resp.ok) return await resp.json();
-    lastError = `${resp.status} ${await resp.text()}`;
-    if (resp.status === 404 || resp.status === 429 || resp.status >= 500) continue;
-    break;
+    try {
+      const resp = await fetch(AI_ENDPOINT, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "x-goog-api-key": apiKey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          tools: TOOL_DEFINITIONS,
+          tool_choice: "auto",
+          temperature: 0.2,
+          max_tokens: 1200
+        })
+      });
+      if (resp.ok) return await resp.json();
+      const errText = await resp.text();
+      lastError = `[${model}] ${resp.status} ${errText}`;
+      if (resp.status === 400 || resp.status === 404 || resp.status === 429 || resp.status >= 500) {
+        continue;
+      }
+      break;
+    } catch (fetchErr) {
+      lastError = `[${model}] Falha de rede: ${String(fetchErr?.message ?? fetchErr)}`;
+      continue;
+    }
   }
   throw new Error(`AI request failed: ${lastError}`);
 }
