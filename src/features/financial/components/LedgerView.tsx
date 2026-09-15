@@ -450,7 +450,7 @@ export function LedgerView({ readOnly = false }: Props) {
       <ConsolidatedBalanceCards variant="bento" />
 
       {/* Variação Mensal do Patrimônio */}
-      <MonthlyPatrimonioVariationCard />
+      <MonthlyPatrimonioVariationCard filterMonth={filterMonth} />
 
       {/* Entradas/Saídas do período filtrado — Cashflow Cards */}
       <div className="grid grid-cols-2 gap-2 sm:gap-3">

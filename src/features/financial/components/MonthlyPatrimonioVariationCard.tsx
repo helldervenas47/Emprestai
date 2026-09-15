@@ -1,12 +1,12 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-const formatBRL = (n: number) =>
-  (n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 import { useLoans } from "@/features/loans/hooks/useLoans";
 import { getBalances } from "@/features/financial/lib/balance";
 import { getLoanReceivable } from "@/features/loans/lib/loanLateFees";
 import { ArrowUp, ArrowDown, Minus, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/userClient";
+
+const formatBRL = (n: number) =>
+  (n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const PATRIMONIO_SNAP_KEY = "patrimonio.snapshots.v1";
 const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -21,7 +21,11 @@ const normalizeSnap = (v: any): Snap | null => {
   return null;
 };
 
-export function MonthlyPatrimonioVariationCard() {
+interface MonthlyPatrimonioVariationCardProps {
+  filterMonth?: string;
+}
+
+export function MonthlyPatrimonioVariationCard({ filterMonth = "all" }: MonthlyPatrimonioVariationCardProps) {
   const { loans, payments, installmentSchedules } = useLoans();
   const [dashboardAccount, setDashboardAccount] = useState(0);
   const [dashboardCash, setDashboardCash] = useState(0);
@@ -53,15 +57,28 @@ export function MonthlyPatrimonioVariationCard() {
   );
 
   const contaMaisDinheiro = dashboardAccount + dashboardCash;
-  const patrimonioAtual = contaMaisDinheiro + pendingLoans;
+  const livePatrimonioTotal = contaMaisDinheiro + pendingLoans;
 
-  const now = new Date();
+  const now = useMemo(() => new Date(), []);
   const currentKey = monthKey(now);
-  const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const prevKey = monthKey(prevDate);
 
-  const prevMonthName = prevDate.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
-  const currentMonthName = now.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+  const targetDate = useMemo(() => {
+    if (filterMonth && filterMonth !== "all" && /^\d{4}-\d{2}$/.test(filterMonth)) {
+      const [y, m] = filterMonth.split("-").map(Number);
+      return new Date(y, m - 1, 1);
+    }
+    return now;
+  }, [filterMonth, now]);
+
+  const targetKey = monthKey(targetDate);
+  const targetPrevDate = useMemo(
+    () => new Date(targetDate.getFullYear(), targetDate.getMonth() - 1, 1),
+    [targetDate],
+  );
+  const targetPrevKey = monthKey(targetPrevDate);
+
+  const prevMonthName = targetPrevDate.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+  const currentMonthName = targetDate.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
 
   const reloadSnaps = useCallback(async () => {
     try {
@@ -98,16 +115,11 @@ export function MonthlyPatrimonioVariationCard() {
         }
       }
 
-      // Seeds padrão se não existirem
-      if (snaps[prevKey] == null) {
-        snaps[prevKey] = 79235.36;
-      }
-
       setSnapsMap(snaps);
     } catch {
       setSnapsMap({});
     }
-  }, [prevKey]);
+  }, []);
 
   useEffect(() => {
     reloadSnaps();
@@ -116,12 +128,26 @@ export function MonthlyPatrimonioVariationCard() {
     return () => window.removeEventListener("patrimonio:snapshots-changed", onChange);
   }, [reloadSnaps]);
 
-  const prevSnap = useMemo(() => normalizeSnap(snapsMap[prevKey]), [snapsMap, prevKey]);
-  const patrimonioMesPassado = prevSnap?.total ?? 79235.36;
+  const targetSnap = useMemo(() => {
+    if (targetKey === currentKey) {
+      return { account: contaMaisDinheiro, rua: pendingLoans, total: livePatrimonioTotal };
+    }
+    return normalizeSnap(snapsMap[targetKey]);
+  }, [targetKey, currentKey, contaMaisDinheiro, pendingLoans, livePatrimonioTotal, snapsMap]);
 
-  const diferenca = patrimonioAtual - patrimonioMesPassado;
+  const targetPrevSnap = useMemo(() => {
+    if (targetPrevKey === currentKey) {
+      return { account: contaMaisDinheiro, rua: pendingLoans, total: livePatrimonioTotal };
+    }
+    return normalizeSnap(snapsMap[targetPrevKey]);
+  }, [targetPrevKey, currentKey, contaMaisDinheiro, pendingLoans, livePatrimonioTotal, snapsMap]);
+
+  const patrimonioMesSelecionado = targetSnap?.total ?? (targetKey === currentKey ? livePatrimonioTotal : 0);
+  const patrimonioMesAnterior = targetPrevSnap?.total ?? 0;
+
+  const diferenca = patrimonioMesSelecionado - patrimonioMesAnterior;
   const variacaoPct =
-    patrimonioMesPassado !== 0 ? (diferenca / Math.abs(patrimonioMesPassado)) * 100 : 0;
+    patrimonioMesAnterior !== 0 ? (diferenca / Math.abs(patrimonioMesAnterior)) * 100 : 0;
 
   const trend: "up" | "down" | "flat" =
     Math.abs(variacaoPct) < 0.005 ? "flat" : variacaoPct > 0 ? "up" : "down";
@@ -161,20 +187,20 @@ export function MonthlyPatrimonioVariationCard() {
         {/* Mês Passado */}
         <div className="rounded-xl border border-border/40 bg-muted/30 p-2.5 sm:p-3 flex flex-col justify-between">
           <p className="text-[10px] sm:text-[11px] font-medium text-muted-foreground truncate">
-            Mês passado ({prevMonthName})
+            Mês anterior ({prevMonthName})
           </p>
           <p className="mt-1 text-xs sm:text-sm md:text-base font-bold tabular-nums text-foreground truncate">
-            {formatBRL(patrimonioMesPassado)}
+            {formatBRL(patrimonioMesAnterior)}
           </p>
         </div>
 
         {/* Patrimônio Atual */}
         <div className="rounded-xl border border-border/40 bg-muted/30 p-2.5 sm:p-3 flex flex-col justify-between">
           <p className="text-[10px] sm:text-[11px] font-medium text-muted-foreground truncate">
-            Patrimônio atual ({currentMonthName})
+            Patrimônio ({currentMonthName})
           </p>
           <p className="mt-1 text-xs sm:text-sm md:text-base font-bold tabular-nums text-foreground truncate">
-            {formatBRL(patrimonioAtual)}
+            {formatBRL(patrimonioMesSelecionado)}
           </p>
         </div>
 
