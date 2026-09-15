@@ -73,33 +73,54 @@ ${params.liveData}
 ${params.knowledge}`;
 }
 
-async function callModel(messages: ChatMessage[], apiKey: string): Promise<any> {
+async function callGemini(
+  systemPrompt: string,
+  history: ChatMessage[],
+  question: string,
+  apiKey: string,
+): Promise<string> {
+  const models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
   let lastError = "";
-  for (const model of MODEL_CHAIN) {
+
+  const contents = [
+    ...history.map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content || "" }],
+    })),
+    {
+      role: "user",
+      parts: [{ text: question }],
+    },
+  ];
+
+  for (const model of models) {
     try {
-      const resp = await fetch(AI_ENDPOINT, {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const resp = await fetch(url, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model,
-          messages,
-          temperature: 0.2,
-          max_tokens: 1500,
+          systemInstruction: {
+            parts: [{ text: systemPrompt }],
+          },
+          contents,
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 1500,
+          },
         }),
       });
-      if (resp.ok) return await resp.json();
+
+      if (resp.ok) {
+        const data = await resp.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) return text.trim();
+      }
+
       const errText = await resp.text();
       lastError = `[${model}] ${resp.status} ${errText}`;
-      if (resp.status === 404 || resp.status === 429 || resp.status >= 500) {
-        continue;
-      }
-      break;
     } catch (fetchErr) {
       lastError = `[${model}] Falha de rede: ${String((fetchErr as Error)?.message ?? fetchErr)}`;
-      continue;
     }
   }
 
@@ -120,8 +141,6 @@ Deno.serve(async (req) => {
     if (userError || !userRes?.user) return json({ error: "Unauthorized" }, 401);
     const userId = userRes.user.id;
 
-    // Rate limit e resolução de owner dependem do service role; nunca podem
-    // derrubar o assistente se o secret/RPC não estiver disponível.
     try {
       const allowed = await checkRateLimit({
         bucket: "ai-assistant",
@@ -142,7 +161,6 @@ Deno.serve(async (req) => {
     } catch (e) {
       console.error("[ai-assistant] owner resolution fallback:", e);
     }
-
 
     const body = await req.json().catch(() => ({}));
     const question = String(body?.message ?? body?.question ?? "").trim().slice(0, 2000);
@@ -176,16 +194,9 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) return json({ error: "GEMINI_API_KEY missing" }, 500);
 
-    const messages: ChatMessage[] = [
-      { role: "system", content: systemPrompt },
-      ...history,
-      { role: "user", content: question },
-    ];
-
     let reply = "";
     try {
-      const data = await callModel(messages, apiKey);
-      reply = String(data?.choices?.[0]?.message?.content ?? "").trim();
+      reply = await callGemini(systemPrompt, history, question, apiKey);
     } catch (e) {
       console.error("[ai-assistant] model call failed:", e);
       return json({

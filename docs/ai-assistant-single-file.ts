@@ -943,8 +943,6 @@ ${lowStockLines.length > 0 ? lowStockLines.join("\n") : "Estoque regular / sem p
 }
 
 // supabase/functions/ai-assistant/index.ts
-var MODEL_CHAIN = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
-var AI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -979,33 +977,45 @@ ${params.liveData}
 # Conhecimento de dom\xEDnio
 ${params.knowledge}`;
 }
-async function callModel(messages, apiKey) {
+async function callGemini(systemPrompt, history, question, apiKey) {
+  const models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
   let lastError = "";
-  for (const model of MODEL_CHAIN) {
+  const contents = [
+    ...history.map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content || "" }]
+    })),
+    {
+      role: "user",
+      parts: [{ text: question }]
+    }
+  ];
+  for (const model of models) {
     try {
-      const resp = await fetch(AI_ENDPOINT, {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const resp = await fetch(url, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model,
-          messages,
-          temperature: 0.2,
-          max_tokens: 1500
+          systemInstruction: {
+            parts: [{ text: systemPrompt }]
+          },
+          contents,
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 1500
+          }
         })
       });
-      if (resp.ok) return await resp.json();
+      if (resp.ok) {
+        const data = await resp.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) return text.trim();
+      }
       const errText = await resp.text();
       lastError = `[${model}] ${resp.status} ${errText}`;
-      if (resp.status === 404 || resp.status === 429 || resp.status >= 500) {
-        continue;
-      }
-      break;
     } catch (fetchErr) {
       lastError = `[${model}] Falha de rede: ${String(fetchErr?.message ?? fetchErr)}`;
-      continue;
     }
   }
   throw new Error(`AI request failed: ${lastError}`);
@@ -1061,15 +1071,9 @@ Deno.serve(async (req) => {
     });
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) return json({ error: "GEMINI_API_KEY missing" }, 500);
-    const messages = [
-      { role: "system", content: systemPrompt },
-      ...history,
-      { role: "user", content: question }
-    ];
     let reply = "";
     try {
-      const data = await callModel(messages, apiKey);
-      reply = String(data?.choices?.[0]?.message?.content ?? "").trim();
+      reply = await callGemini(systemPrompt, history, question, apiKey);
     } catch (e) {
       console.error("[ai-assistant] model call failed:", e);
       return json({
