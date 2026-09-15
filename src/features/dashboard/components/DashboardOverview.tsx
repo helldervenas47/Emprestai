@@ -314,6 +314,7 @@ export function DashboardOverview({
       <DashboardInsightsSection
         readOnly={readOnly}
         isMobile={isMobile}
+        range={range}
         rangeLabel={range.label}
         formatCurrency={formatCurrency}
         data={data}

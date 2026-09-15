@@ -51,10 +51,12 @@ const sheetVariants = cva(
 
 interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
-    VariantProps<typeof sheetVariants> {}
+    VariantProps<typeof sheetVariants> {
+  showCloseButton?: boolean;
+}
 
 const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Content>, SheetContentProps>(
-  ({ side = "right", className, children, onOpenAutoFocus, onCloseAutoFocus, ...props }, ref) => {
+  ({ side = "right", className, children, showCloseButton = true, onOpenAutoFocus, onCloseAutoFocus, ...props }, ref) => {
     const contentRef = React.useRef<React.ElementRef<typeof SheetPrimitive.Content>>(null);
 
     return (
@@ -89,13 +91,15 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
         >
 
         {children}
-        <SheetPrimitive.Close
-          className="absolute right-4 inline-flex items-center justify-center min-h-11 min-w-11 rounded-md opacity-70 ring-offset-background transition-opacity data-[state=open]:bg-secondary hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
-          style={{ top: `calc(env(safe-area-inset-top) + 1rem)` }}
-        >
-          <X className="w-5 h-5" aria-hidden="true" />
-          <span className="sr-only">Fechar</span>
-        </SheetPrimitive.Close>
+        {showCloseButton && (
+          <SheetPrimitive.Close
+            className="absolute right-4 inline-flex items-center justify-center min-h-11 min-w-11 rounded-md opacity-70 ring-offset-background transition-opacity data-[state=open]:bg-secondary hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+            style={{ top: `calc(env(safe-area-inset-top) + 1rem)` }}
+          >
+            <X className="w-5 h-5" aria-hidden="true" />
+            <span className="sr-only">Fechar</span>
+          </SheetPrimitive.Close>
+        )}
         </SheetPrimitive.Content>
       </SheetPortal>
     );

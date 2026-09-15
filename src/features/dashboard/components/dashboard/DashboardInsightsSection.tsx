@@ -17,6 +17,7 @@ interface Props {
   readOnly: boolean;
   isMobile: boolean;
   rangeLabel: string;
+  range?: { start: Date; end: Date; label: string };
   formatCurrency: (v: number) => string;
   data: Metrics["data"];
   receivedDetail: Metrics["receivedDetail"];
@@ -55,9 +56,26 @@ interface Props {
   generateRiskAiReport: () => void;
 }
 
+function formatDDMMAAAA(date: Date): string {
+  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const y = date.getFullYear();
+  return `${d}-${m}-${y}`;
+}
+
+function getFormattedDateRange(range?: { start: Date; end: Date; label: string }, fallbackLabel?: string): string {
+  if (!range) return fallbackLabel || "";
+  const startStr = formatDDMMAAAA(range.start);
+  const endStr = formatDDMMAAAA(range.end);
+  if (startStr === endStr) {
+    return startStr;
+  }
+  return `${startStr} a ${endStr}`;
+}
+
 export function DashboardInsightsSection(props: Props) {
   const {
-    readOnly, isMobile, rangeLabel, formatCurrency,
+    readOnly, isMobile, rangeLabel, range, formatCurrency,
     data, receivedDetail,
     txFilter, setTxFilter, showAllTx, setShowAllTx,
     onDeletePayment, onDeleteSale, onDeleteLoan,
@@ -231,9 +249,12 @@ export function DashboardInsightsSection(props: Props) {
 
       {/* Interest Detail Sheet */}
       <Sheet open={showInterestDetail} onOpenChange={setShowInterestDetail}>
-        <SheetContent side="bottom" className="max-h-[80vh] overflow-y-auto" onOpenAutoFocus={(e) => e.preventDefault()}>
-          <SheetHeader>
-            <SheetTitle>Juros Recebidos — {rangeLabel}</SheetTitle>
+        <SheetContent side="bottom" showCloseButton={false} className="max-h-[80vh] overflow-y-auto" onOpenAutoFocus={(e) => e.preventDefault()}>
+          <SheetHeader className="text-center sm:text-center pr-0 sm:pr-0 items-center justify-center space-y-1">
+            <SheetTitle className="text-center">Juros Recebidos</SheetTitle>
+            <p className="text-xs text-muted-foreground text-center font-medium">
+              {getFormattedDateRange(range, rangeLabel)}
+            </p>
           </SheetHeader>
           <div className="mt-4 space-y-2">
             <Input
@@ -290,9 +311,12 @@ export function DashboardInsightsSection(props: Props) {
 
       {/* Received by payment method detail */}
       <Sheet open={!!receivedDetailMethodId} onOpenChange={(o) => { if (!o) setReceivedDetailMethodId(null); }}>
-        <SheetContent side="bottom" className="max-h-[80vh] overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Recebido via {receivedDetail?.methodName} — {rangeLabel}</SheetTitle>
+        <SheetContent side="bottom" showCloseButton={false} className="max-h-[80vh] overflow-y-auto">
+          <SheetHeader className="text-center sm:text-center pr-0 sm:pr-0 items-center justify-center space-y-1">
+            <SheetTitle className="text-center">Recebido via {receivedDetail?.methodName}</SheetTitle>
+            <p className="text-xs text-muted-foreground text-center font-medium">
+              {getFormattedDateRange(range, rangeLabel)}
+            </p>
           </SheetHeader>
           <div className="mt-4 space-y-2">
             {!receivedDetail || receivedDetail.rows.length === 0 ? (
@@ -322,15 +346,18 @@ export function DashboardInsightsSection(props: Props) {
 
       {/* Interest Expected Detail Sheet */}
       <Sheet open={showInterestExpectedDetail} onOpenChange={setShowInterestExpectedDetail}>
-        <SheetContent side="bottom" className="max-h-[80vh] overflow-y-auto" onOpenAutoFocus={(e) => e.preventDefault()}>
-          <SheetHeader>
-            <SheetTitle>
+        <SheetContent side="bottom" showCloseButton={false} className="max-h-[80vh] overflow-y-auto" onOpenAutoFocus={(e) => e.preventDefault()}>
+          <SheetHeader className="text-center sm:text-center pr-0 sm:pr-0 items-center justify-center space-y-1">
+            <SheetTitle className="text-center">
               {interestExpectedFilter === "pending"
                 ? "Juros Pendentes do Mês"
                 : interestExpectedFilter === "overdue"
                 ? "Juros Vencidos"
-                : "Juros a Receber no Mês"} — {rangeLabel}
+                : "Juros a Receber no Mês"}
             </SheetTitle>
+            <p className="text-xs text-muted-foreground text-center font-medium">
+              {getFormattedDateRange(range, rangeLabel)}
+            </p>
           </SheetHeader>
           {(() => {
             const q = interestExpectedSearch.trim().toLowerCase();
