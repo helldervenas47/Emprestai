@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
-import { Settings, TrendingUp, Wallet, Landmark, Banknote, PiggyBank, Car, ArrowDownCircle, ArrowUpRight, ArrowDownRight, PieChart, Percent, Hourglass, BarChart3, Trophy, CalendarClock, CalendarX, LineChart, Gem, ArrowUp, ArrowDown, Minus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Settings, TrendingUp, Wallet, Landmark, Banknote, PiggyBank, Car, ArrowDownCircle, ArrowUpRight, ArrowDownRight, PieChart, Percent, Hourglass, BarChart3, Trophy, CalendarClock, CalendarX, LineChart, Gem, ArrowUp, ArrowDown, Minus, ChevronLeft, ChevronRight, Eye, EyeOff } from "lucide-react";
 import { useLoans } from "@/features/loans/hooks/useLoans";
 import { getLoanReceivable } from "@/features/loans/lib/loanLateFees";
 import { useProducts } from "@/features/sales/hooks/useProducts";
@@ -119,6 +119,7 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
   const [openSettings, setOpenSettings] = useState(false);
   const [openPiggyBreakdown, setOpenPiggyBreakdown] = useState(false);
   const [openStockBreakdown, setOpenStockBreakdown] = useState(false);
+  const [showMaosAmounts, setShowMaosAmounts] = useState(true);
   const { extraCards, visibility, setExtraCards, setVisibility, toggleExtra, toggleVis } = useDashboardPrefs();
 
 
@@ -659,32 +660,93 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
 
       <Dialog open={openMaos} onOpenChange={setOpenMaos}>
         <DialogContent
-          className="!p-0 overflow-hidden border-border/60 bg-gradient-to-br from-background via-background to-muted/30 backdrop-blur-xl max-sm:!fixed max-sm:!inset-0 max-sm:!left-0 max-sm:!top-0 max-sm:!translate-x-0 max-sm:!translate-y-0 max-sm:!max-w-none max-sm:!w-screen max-sm:!h-screen max-sm:!max-h-screen max-sm:!rounded-none max-sm:!flex max-sm:!flex-col max-sm:!gap-0 sm:max-w-md"
+          className="!p-0 overflow-hidden border-border/60 bg-gradient-to-b from-background via-background to-muted/20 backdrop-blur-xl max-sm:!fixed max-sm:!inset-0 max-sm:!left-0 max-sm:!top-0 max-sm:!translate-x-0 max-sm:!translate-y-0 max-sm:!max-w-none max-sm:!w-screen max-sm:!h-screen max-sm:!max-h-screen max-sm:!rounded-none max-sm:!flex max-sm:!flex-col max-sm:!gap-0 sm:max-w-md sm:rounded-3xl shadow-2xl"
         >
-          <DialogHeader className="px-5 pt-5 pb-3" style={{ paddingTop: "calc(1.25rem + env(safe-area-inset-top))" }}>
-            <DialogTitle className="flex items-center gap-2 text-base pr-20">
-              <Wallet className="h-4 w-4 text-success" /> Saldo Total em Mãos
+          <div className="mx-auto h-1.5 w-12 rounded-full bg-muted-foreground/20 mt-3 sm:hidden shrink-0" />
+          <DialogHeader className="px-5 pt-3 pb-2 relative" style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top))" }}>
+            <DialogTitle className="flex items-center gap-2 text-base pr-20 font-bold tracking-tight">
+              <div className="h-7 w-7 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                <Wallet className="h-4 w-4" />
+              </div>
+              Saldo Total em Mãos
             </DialogTitle>
             <button
               type="button"
               onClick={() => setOpenSettings(true)}
               aria-label="Configurações do saldo"
               title="Configurações do saldo"
-              className="absolute right-12 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/80 hover:text-foreground hover:bg-accent/60 transition-colors focus:outline-none focus:ring-2 focus:ring-ring/40"
-              style={{ top: "calc(0.625rem + env(safe-area-inset-top))" }}
+              className="absolute right-12 inline-flex h-8 w-8 items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors focus:outline-none focus:ring-2 focus:ring-ring/40"
+              style={{ top: "calc(0.5rem + env(safe-area-inset-top))" }}
             >
-              <Settings className="w-[25px] h-[20px]" />
+              <Settings className="w-[18px] h-[18px]" />
             </button>
-            <div className="mt-3 rounded-2xl border border-border/60 bg-gradient-to-br from-success/10 via-success/5 to-transparent p-4 shadow-sm">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total consolidado</p>
-              {balanceLoading ? (
-                <span aria-hidden className="mt-2 inline-block h-8 w-44 animate-pulse rounded-md bg-muted-foreground/25" />
-              ) : (
-                <p className={`text-3xl font-bold tabular-nums leading-tight mt-1 ${totalEmMaos < 0 ? "text-destructive" : "text-foreground"}`}>
-                  {formatBRL(totalEmMaos)}
-                </p>
-              )}
-            </div>
+            {(() => {
+              const baseReceitas = incomesBalance;
+              const breakdownParts = [
+                { label: "Conta", value: Math.max(0, dashboardAccount), color: "bg-indigo-500", tint: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400" },
+                { label: "Dinheiro", value: Math.max(0, dashboardCash), color: "bg-emerald-500", tint: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
+                { label: "Receitas", value: Math.max(0, baseReceitas), color: "bg-amber-500", tint: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
+                { label: "Cofrinhos", value: Math.max(0, piggyTotal), color: "bg-pink-500", tint: "bg-pink-500/15 text-pink-600 dark:text-pink-400" },
+                { label: "Veículos", value: Math.max(0, vehicleBalance), color: "bg-cyan-500", tint: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" },
+              ];
+              const positiveTotal = breakdownParts.reduce((s, p) => s + p.value, 0);
+
+              return (
+                <div className="mt-3 relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent p-4 shadow-xs backdrop-blur-md">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total consolidado</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowMaosAmounts(!showMaosAmounts)}
+                      aria-label={showMaosAmounts ? "Ocultar valores" : "Mostrar valores"}
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-emerald-500/10 transition-colors"
+                      title={showMaosAmounts ? "Ocultar valores" : "Mostrar valores"}
+                    >
+                      {showMaosAmounts ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                  {balanceLoading ? (
+                    <span aria-hidden className="mt-2 inline-block h-8 w-44 animate-pulse rounded-md bg-muted-foreground/25" />
+                  ) : (
+                    <p className={`text-3xl font-extrabold tabular-nums leading-tight mt-1 tracking-tight ${totalEmMaos < 0 ? "text-destructive" : "text-foreground"}`}>
+                      {showMaosAmounts ? formatBRL(totalEmMaos) : "R$ ••••••••"}
+                    </p>
+                  )}
+                  {positiveTotal > 0 && showMaosAmounts && (
+                    <div className="mt-3 space-y-1.5 pt-2.5 border-t border-emerald-500/15">
+                      <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted/60 gap-0.5">
+                        {breakdownParts.map(
+                          (p) =>
+                            p.value > 0 && (
+                              <div
+                                key={p.label}
+                                className={`${p.color} transition-all duration-300`}
+                                style={{ width: `${(p.value / positiveTotal) * 100}%` }}
+                                title={`${p.label}: ${formatBRL(p.value)} (${((p.value / positiveTotal) * 100).toFixed(0)}%)`}
+                              />
+                            ),
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[10px] text-muted-foreground pt-0.5">
+                        {breakdownParts
+                          .filter((p) => p.value > 0)
+                          .slice(0, 4)
+                          .map((p) => (
+                            <div key={p.label} className="flex items-center gap-1">
+                              <span className={`h-1.5 w-1.5 rounded-full ${p.color}`} />
+                              <span>{p.label}</span>
+                              <span className="font-semibold text-foreground">{((p.value / positiveTotal) * 100).toFixed(0)}%</span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </DialogHeader>
           <ScrollArea
             className="max-h-[60vh] max-sm:max-h-none max-sm:flex-1 max-sm:h-full px-5 pb-5"
@@ -692,6 +754,15 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
           >
             {(() => {
               const baseReceitas = incomesBalance;
+              const breakdownParts = [
+                { label: "Conta", value: Math.max(0, dashboardAccount), color: "bg-indigo-500" },
+                { label: "Dinheiro", value: Math.max(0, dashboardCash), color: "bg-emerald-500" },
+                { label: "Receitas", value: Math.max(0, baseReceitas), color: "bg-amber-500" },
+                { label: "Cofrinhos", value: Math.max(0, piggyTotal), color: "bg-pink-500" },
+                { label: "Veículos", value: Math.max(0, vehicleBalance), color: "bg-cyan-500" },
+              ];
+              const positiveTotal = breakdownParts.reduce((s, p) => s + p.value, 0);
+
               const Item = ({
                 icon: Icon,
                 label,
@@ -709,73 +780,82 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
                 onClick?: () => void;
                 loading?: boolean;
               }) => {
+                const pct = positiveTotal > 0 && value > 0 ? (value / positiveTotal) * 100 : 0;
                 const inner = (
-                  <>
-                    <div className={`shrink-0 h-9 w-9 rounded-full flex items-center justify-center ${tint}`}>
-                      <Icon className="h-4 w-4" />
+                  <div className="flex items-center gap-3 p-3 transition-colors hover:bg-accent/40 w-full text-left">
+                    <div className={`shrink-0 h-10 w-10 rounded-xl flex items-center justify-center ${tint} shadow-2xs`}>
+                      <Icon className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground truncate">{label}</p>
-                      {hint && <p className="text-[10px] text-muted-foreground truncate">{hint}</p>}
+                      <p className="text-sm font-semibold text-foreground truncate">{label}</p>
+                      {hint && <p className="text-[11px] text-muted-foreground truncate">{hint}</p>}
                     </div>
-                    {loading ? (
-                      <span aria-hidden className="inline-block h-4 w-20 animate-pulse rounded bg-muted-foreground/25" />
-                    ) : (
-                      <span className={`text-sm font-bold tabular-nums ${value < 0 ? "text-destructive" : "text-foreground"}`}>
-                        {formatBRL(value)}
-                      </span>
-                    )}
-                  </>
+                    <div className="text-right shrink-0">
+                      {loading ? (
+                        <span aria-hidden className="inline-block h-4 w-16 animate-pulse rounded bg-muted-foreground/25" />
+                      ) : (
+                        <>
+                          <p className={`text-sm font-bold tabular-nums ${value < 0 ? "text-destructive" : "text-foreground"}`}>
+                            {showMaosAmounts ? formatBRL(value) : "••••••"}
+                          </p>
+                          {value > 0 && positiveTotal > 0 && (
+                            <span className="inline-flex items-center text-[10px] font-medium text-muted-foreground">
+                              {pct >= 1 ? `${pct.toFixed(0)}% do total` : "< 1%"}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    {onClick && <ChevronRight className="h-4 w-4 text-muted-foreground/60 shrink-0 -ml-1" />}
+                  </div>
                 );
                 if (onClick) {
                   return (
                     <button
                       type="button"
                       onClick={onClick}
-                      className="w-full flex items-center gap-3 rounded-xl border border-border/50 bg-card/60 backdrop-blur-sm p-3 shadow-sm hover:bg-card/80 transition-colors text-left focus:outline-none focus:ring-2 focus:ring-ring/40"
+                      className="w-full text-left focus:outline-none focus:bg-accent/50 block transition-colors"
                     >
                       {inner}
                     </button>
                   );
                 }
-                return (
-                  <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-card/60 backdrop-blur-sm p-3 shadow-sm hover:bg-card/80 transition-colors">
-                    {inner}
-                  </div>
-                );
+                return inner;
               };
 
-              const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-                <div className="space-y-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-1">{title}</p>
-                  <div className="space-y-2">{children}</div>
+              const GroupedSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
+                <div className="space-y-1.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1">{title}</p>
+                  <div className="overflow-hidden rounded-2xl border border-border/50 bg-card/70 backdrop-blur-md shadow-xs divide-y divide-border/30">
+                    {children}
+                  </div>
                 </div>
               );
 
               const contasItems = [
                 visibility.account && (
-                  <Item key="account" icon={Landmark} label="Conta" hint="Saldo bancário (Dashboard)" value={dashboardAccount} tint="bg-primary/15 text-primary" />
+                  <Item key="account" icon={Landmark} label="Conta" hint="Saldo bancário (Dashboard)" value={dashboardAccount} tint="bg-indigo-500/15 text-indigo-600 dark:text-indigo-400" />
                 ),
                 visibility.cash && (
-                  <Item key="cash" icon={Banknote} label="Dinheiro" hint="Carteira (Dashboard)" value={dashboardCash} tint="bg-success/15 text-success" />
+                  <Item key="cash" icon={Banknote} label="Dinheiro" hint="Carteira (Dashboard)" value={dashboardCash} tint="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" />
                 ),
                 visibility.incomes && (
-                  <Item key="incomes" icon={ArrowDownCircle} label="Saldo em Conta (Receitas)" hint="Receitas − Despesas pessoais" value={baseReceitas} tint="bg-warning/15 text-warning" loading={balanceLoading} />
+                  <Item key="incomes" icon={ArrowDownCircle} label="Saldo em Conta (Receitas)" hint="Receitas − Despesas pessoais" value={baseReceitas} tint="bg-amber-500/15 text-amber-600 dark:text-amber-400" loading={balanceLoading} />
                 ),
               ].filter(Boolean);
               const reservasItems = [
                 visibility.piggy && (
-                  <Item key="piggy" icon={PiggyBank} label="Total dos Cofrinhos" hint={`${piggyBanks.length} ${piggyBanks.length === 1 ? "cofrinho" : "cofrinhos"}`} value={piggyTotal} tint="bg-pink-500/15 text-pink-500" onClick={() => setOpenPiggyBreakdown(true)} />
+                  <Item key="piggy" icon={PiggyBank} label="Total dos Cofrinhos" hint={`${piggyBanks.length} ${piggyBanks.length === 1 ? "cofrinho" : "cofrinhos"}`} value={piggyTotal} tint="bg-pink-500/15 text-pink-600 dark:text-pink-400" onClick={() => setOpenPiggyBreakdown(true)} />
                 ),
                 visibility.vehicle && (
-                  <Item key="vehicle" icon={Car} label="Saldo de Veículos" hint="Reserva vinculada a veículos" value={vehicleBalance} tint="bg-blue-500/15 text-blue-500" />
+                  <Item key="vehicle" icon={Car} label="Saldo de Veículos" hint="Reserva vinculada a veículos" value={vehicleBalance} tint="bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" />
                 ),
               ].filter(Boolean);
 
               return (
                 <div className="space-y-4">
-                  {contasItems.length > 0 && <Section title="Contas">{contasItems}</Section>}
-                  {reservasItems.length > 0 && <Section title="Reservas">{reservasItems}</Section>}
+                  {contasItems.length > 0 && <GroupedSection title="Contas">{contasItems}</GroupedSection>}
+                  {reservasItems.length > 0 && <GroupedSection title="Reservas">{reservasItems}</GroupedSection>}
 
                   {(() => {
                     const now = new Date();
@@ -802,11 +882,11 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
                     const prevOut = prevMonthOutExp.reduce((s: number, e: any) => s + (Number(e.amount) || 0), 0);
 
                     const CardBox = ({ icon: Icon, title, children }: { icon: typeof TrendingUp; title: string; children: React.ReactNode }) => (
-                      <div className="space-y-2">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-1 flex items-center gap-1">
-                          <Icon className="h-3 w-3" /> {title}
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1 flex items-center gap-1.5">
+                          <Icon className="h-3.5 w-3.5" /> {title}
                         </p>
-                        <div className="rounded-xl border border-border/50 bg-card/60 backdrop-blur-sm p-3">
+                        <div className="rounded-2xl border border-border/50 bg-card/70 backdrop-blur-md p-3.5 shadow-xs">
                           {children}
                         </div>
                       </div>
@@ -816,18 +896,18 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
                       switch (key) {
                         case "composicao": {
                           const parts = [
-                            { label: "Conta", value: Math.max(0, dashboardAccount), color: "bg-primary" },
-                            { label: "Dinheiro", value: Math.max(0, dashboardCash), color: "bg-success" },
-                            { label: "Receitas", value: Math.max(0, baseReceitas), color: "bg-warning" },
+                            { label: "Conta", value: Math.max(0, dashboardAccount), color: "bg-indigo-500" },
+                            { label: "Dinheiro", value: Math.max(0, dashboardCash), color: "bg-emerald-500" },
+                            { label: "Receitas", value: Math.max(0, baseReceitas), color: "bg-amber-500" },
                             { label: "Cofrinhos", value: Math.max(0, piggyTotal), color: "bg-pink-500" },
-                            { label: "Veículos", value: Math.max(0, vehicleBalance), color: "bg-blue-500" },
+                            { label: "Veículos", value: Math.max(0, vehicleBalance), color: "bg-cyan-500" },
                           ];
                           const sum = parts.reduce((s, p) => s + p.value, 0);
                           if (sum <= 0) return null;
                           return (
                             <CardBox key={key} icon={PieChart} title="Composição do saldo">
                               <div className="space-y-3">
-                                <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                                <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted/60 gap-0.5">
                                   {parts.map((p) =>
                                     p.value > 0 ? (
                                       <div key={p.label} className={p.color} style={{ width: `${(p.value / sum) * 100}%` }} title={`${p.label}: ${formatBRL(p.value)}`} />
