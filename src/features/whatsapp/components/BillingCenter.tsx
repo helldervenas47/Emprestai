@@ -66,7 +66,7 @@ export function BillingCenter() {
   const [confirm, setConfirm] = React.useState<BillingCandidate[] | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [creating, setCreating] = React.useState(false);
-  const [chargedTodayOpen, setChargedTodayOpen] = React.useState(false);
+  const [chargedTodayOpen, setChargedTodayOpen] = React.useState(true);
   const [clientsOpen, setClientsOpen] = React.useState(false);
   const [clientPreferences, setClientPreferences] = React.useState<ClientBillingPreference[]>([]);
   const [clientPreferenceDraft, setClientPreferenceDraft] = React.useState<Set<string>>(new Set());
