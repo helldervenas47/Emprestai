@@ -449,6 +449,9 @@ export function LedgerView({ readOnly = false }: Props) {
       {/* Indicadores consolidados — layout bento */}
       <ConsolidatedBalanceCards variant="bento" />
 
+      {/* Variação Mensal do Patrimônio */}
+      <MonthlyPatrimonioVariationCard />
+
       {/* Entradas/Saídas do período filtrado — Cashflow Cards */}
       <div className="grid grid-cols-2 gap-2 sm:gap-3">
         <div className="rounded-xl border border-border/60 bg-emerald-500/[0.04] dark:bg-emerald-500/[0.08] p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 transition-colors hover:bg-emerald-500/[0.07]">
@@ -471,9 +474,6 @@ export function LedgerView({ readOnly = false }: Props) {
           </div>
         </div>
       </div>
-
-      {/* Variação Mensal do Patrimônio */}
-      <MonthlyPatrimonioVariationCard />
 
       {/* Toolbar Unificada de Filtros + Ações */}
       <div className="bg-card/70 border border-border/60 rounded-2xl p-2.5 sm:p-3 space-y-2.5 shadow-2xs">
