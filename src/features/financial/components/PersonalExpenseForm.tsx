@@ -365,7 +365,7 @@ export function PersonalExpenseForm({ onAdd, onClose }: Props) {
                     <SelectTrigger className="h-10 text-sm">
                       <SelectValue placeholder="Selecione uma categoria" />
                     </SelectTrigger>
-                    <SelectContent className="max-h-64">
+                    <SelectContent>
                       {(() => {
                         const customNames = new Set(
                           customCategories.map((c) => c.name.trim().toLowerCase()),
