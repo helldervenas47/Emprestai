@@ -105,7 +105,7 @@ serve(async (req) => {
 
       const { data: matchedClients, error: clientErr } = await admin
         .from("clients")
-        .select("id, user_id, name, phone, document, active")
+        .select("id, user_id, name, phone, cpf, active")
         .in("phone", phoneVariants)
         .eq("active", true);
 
@@ -149,9 +149,9 @@ serve(async (req) => {
 
       const { data: loans } = await admin
         .from("loans")
-        .select("id, amount, total_amount, remaining_amount, installments, paid_installments, due_date, status")
+        .select("id, amount, installments, paid_installments, due_date, status, borrower_id, borrower_name")
         .eq("user_id", userId)
-        .or(`client_id.eq.${client.id},borrower_id.eq.${client.id}`)
+        .or(`borrower_id.eq.${client.id},borrower_name.ilike.%${client.name}%`)
         .neq("status", "paid");
 
       // Gerencia sessão de conversa
@@ -185,7 +185,7 @@ serve(async (req) => {
           .eq("id", conv.id);
       }
 
-      // Memória Conversacional: Resgata as últimas 5 mensagens
+      // Memória Conversacional
       let recentHistory: any[] = [];
       if (conversationId) {
         const { data: msgs } = await admin
@@ -242,9 +242,9 @@ serve(async (req) => {
 
       let loanQuery = admin
         .from("loans")
-        .select("id, amount, total_amount, remaining_amount, installments, paid_installments, due_date, status")
+        .select("id, amount, installments, paid_installments, due_date, status, borrower_id")
         .eq("user_id", user_id)
-        .or(`client_id.eq.${client_id},borrower_id.eq.${client_id}`)
+        .eq("borrower_id", client_id)
         .neq("status", "paid");
 
       if (loan_id) loanQuery = loanQuery.eq("id", loan_id);
@@ -293,7 +293,7 @@ serve(async (req) => {
         );
       }
 
-      const fallbackAmount = Number(activeLoan.remaining_amount || activeLoan.amount || 0);
+      const fallbackAmount = Number(activeLoan.amount || 0);
       const fallbackDue = activeLoan.due_date;
       return new Response(
         JSON.stringify({
@@ -326,9 +326,9 @@ serve(async (req) => {
 
       let loanQuery = admin
         .from("loans")
-        .select("id, amount, total_amount, remaining_amount, installments, paid_installments, status")
+        .select("id, amount, installments, paid_installments, status, borrower_id")
         .eq("user_id", user_id)
-        .or(`client_id.eq.${client_id},borrower_id.eq.${client_id}`)
+        .eq("borrower_id", client_id)
         .neq("status", "paid");
 
       if (loan_id) loanQuery = loanQuery.eq("id", loan_id);
@@ -388,9 +388,9 @@ serve(async (req) => {
 
       let loanQuery = admin
         .from("loans")
-        .select("id, amount, total_amount, remaining_amount, installments, paid_installments, status, start_date, due_date")
+        .select("id, amount, installments, paid_installments, status, start_date, due_date, borrower_id")
         .eq("user_id", user_id)
-        .or(`client_id.eq.${client_id},borrower_id.eq.${client_id}`)
+        .eq("borrower_id", client_id)
         .neq("status", "paid");
 
       if (loan_id) loanQuery = loanQuery.eq("id", loan_id);
@@ -420,14 +420,14 @@ serve(async (req) => {
       const totalRemaining =
         pendingInstallments && pendingInstallments.length > 0
           ? pendingInstallments.reduce((acc, curr) => acc + Number(curr.amount || 0), 0)
-          : Number(activeLoan.remaining_amount || activeLoan.total_amount || activeLoan.amount || 0);
+          : Number(activeLoan.amount || 0);
 
       return new Response(
         JSON.stringify({
           has_active_loan: true,
           loan_id: activeLoan.id,
-          total_amount: Number(activeLoan.total_amount || activeLoan.amount),
-          total_amount_formatted: formatBRL(Number(activeLoan.total_amount || activeLoan.amount)),
+          total_amount: Number(activeLoan.amount),
+          total_amount_formatted: formatBRL(Number(activeLoan.amount)),
           remaining_amount: totalRemaining,
           remaining_amount_formatted: formatBRL(totalRemaining),
           remaining_installments_count: remainingInstallmentsCount,
@@ -463,7 +463,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({
             has_pix: false,
-            message: "A chave PIX não está configurada no momento. Por favor, consulte o credor.",
+            message: "A chave PIX não está configurada no momento. Por favor, consulte seu credor.",
           }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
