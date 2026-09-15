@@ -321,27 +321,29 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
   return (
     <>
       {variant === "bento" ? (
-        <div className="space-y-3">
+        <div className="space-y-2.5 sm:space-y-3">
           {/* Hero card — Saldo Total */}
           <Card
             no3d
-            className="cursor-pointer border-none bg-success text-success-foreground shadow-sm transition-transform active:scale-[0.99]"
+            className="cursor-pointer border border-emerald-500/20 bg-gradient-to-br from-emerald-600 via-emerald-600 to-teal-700 dark:from-emerald-800 dark:via-emerald-900 dark:to-teal-950 text-white shadow-sm transition-all duration-200 hover:brightness-105 active:scale-[0.99] rounded-2xl overflow-hidden"
             onClick={() => setOpenTotal(true)}
           >
             <CardContent className="p-4 sm:p-5">
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <div className="rounded-lg bg-success-foreground/20 p-1.5">
-                      <Landmark className="h-4 w-4 sm:h-5 sm:w-5 text-success-foreground" />
+                    <div className="rounded-lg bg-white/15 backdrop-blur-sm p-1.5 text-white">
+                      <Landmark className="h-4 w-4 sm:h-5 sm:w-5" />
                     </div>
-                    <p className="text-xs sm:text-sm font-medium text-success-foreground/90">Saldo total</p>
+                    <div>
+                      <p className="text-xs sm:text-sm font-medium text-emerald-100">Saldo total em conta e dinheiro</p>
+                    </div>
                   </div>
-                  <p className="mt-2 text-2xl sm:text-3xl font-bold tabular-nums tracking-tight text-success-foreground truncate">
+                  <p className="mt-2 text-2xl sm:text-3xl font-extrabold tabular-nums tracking-tight text-white truncate">
                     {formatBRL(contaMaisDinheiro)}
                   </p>
                 </div>
-                <div className="shrink-0 rounded-full bg-success-foreground/20 px-2.5 py-1 text-[11px] font-semibold text-success-foreground inline-flex items-center gap-1">
+                <div className="shrink-0 rounded-full bg-white/15 backdrop-blur-sm px-2.5 py-1 text-[11px] font-semibold text-white inline-flex items-center gap-1 border border-white/15">
                   <VariacaoIcon className="h-3 w-3" />
                   {variacaoPct == null ? "—" : `${variacaoPct >= 0 ? "+" : ""}${variacaoPct.toFixed(2)}%`}
                 </div>
@@ -350,20 +352,20 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
           </Card>
 
           {/* Bento grid — 4 secondary metrics */}
-          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
             <Card
               no3d
-              className="cursor-pointer border border-border/60 bg-muted/40 transition-colors hover:bg-muted/60"
+              className="cursor-pointer border border-border/60 bg-card hover:bg-accent/40 hover:border-border transition-all duration-200 rounded-xl shadow-xs"
               onClick={() => setOpenPatrimonio(true)}
             >
-              <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center">
-                <div className="flex items-center justify-center gap-1.5">
-                  <div className="rounded-md bg-primary/10 p-1">
-                    <Gem className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+              <CardContent className="p-3 sm:p-3.5 flex flex-col justify-between h-full">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-lg bg-primary/10 p-1.5 shrink-0">
+                    <Gem className="h-3.5 w-3.5 text-primary" />
                   </div>
-                  <p className="text-[10px] sm:text-xs font-medium text-muted-foreground">Patrimônio</p>
+                  <p className="text-[11px] sm:text-xs font-medium text-muted-foreground truncate">Patrimônio</p>
                 </div>
-                <p className={`mt-1.5 text-sm sm:text-base font-bold tabular-nums truncate text-center ${patrimonioTotal < 0 ? "text-destructive" : "text-foreground"}`}>
+                <p className={`mt-2 text-sm sm:text-base font-bold tabular-nums truncate ${patrimonioTotal < 0 ? "text-destructive" : "text-foreground"}`}>
                   {formatBRL(patrimonioTotal)}
                 </p>
               </CardContent>
@@ -371,20 +373,20 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
 
             <Card
               no3d
-              className="cursor-pointer border border-border/60 bg-muted/40 transition-colors hover:bg-muted/60"
+              className="cursor-pointer border border-border/60 bg-card hover:bg-accent/40 hover:border-border transition-all duration-200 rounded-xl shadow-xs"
               onClick={() => setOpenMaos(true)}
             >
-              <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center">
-                <div className="flex items-center justify-center gap-1.5">
-                  <div className="rounded-md bg-success/10 p-1">
-                    <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-success" />
+              <CardContent className="p-3 sm:p-3.5 flex flex-col justify-between h-full">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-lg bg-emerald-500/10 p-1.5 shrink-0">
+                    <Wallet className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                   </div>
-                  <p className="text-[10px] sm:text-xs font-medium text-muted-foreground">Total Geral</p>
+                  <p className="text-[11px] sm:text-xs font-medium text-muted-foreground truncate">Total Geral</p>
                 </div>
                 {balanceLoading ? (
                   <span aria-hidden className="mt-2 inline-block h-5 w-24 animate-pulse rounded-md bg-muted-foreground/25" />
                 ) : (
-                  <p className={`mt-1.5 text-sm sm:text-base font-bold tabular-nums truncate text-center ${totalEmMaos < 0 ? "text-destructive" : "text-foreground"}`}>
+                  <p className={`mt-2 text-sm sm:text-base font-bold tabular-nums truncate ${totalEmMaos < 0 ? "text-destructive" : "text-foreground"}`}>
                     {formatBRL(totalEmMaos)}
                   </p>
                 )}
@@ -393,17 +395,17 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
 
             <Card
               no3d
-              className="cursor-pointer border border-border/60 bg-primary/5 transition-colors hover:bg-primary/10"
+              className="cursor-pointer border border-border/60 bg-card hover:bg-accent/40 hover:border-border transition-all duration-200 rounded-xl shadow-xs"
               onClick={() => setOpenRua(true)}
             >
-              <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center">
-                <div className="flex items-center justify-center gap-1.5">
-                  <div className="rounded-md bg-primary/10 p-1">
-                    <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+              <CardContent className="p-3 sm:p-3.5 flex flex-col justify-between h-full">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-lg bg-blue-500/10 p-1.5 shrink-0">
+                    <TrendingUp className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                   </div>
-                  <p className="text-[10px] sm:text-xs font-medium text-primary/80">Na Rua</p>
+                  <p className="text-[11px] sm:text-xs font-medium text-muted-foreground truncate">Na Rua</p>
                 </div>
-                <p className={`mt-1.5 text-sm sm:text-base font-bold tabular-nums truncate text-center ${totalNaRua < 0 ? "text-destructive" : "text-foreground"}`}>
+                <p className={`mt-2 text-sm sm:text-base font-bold tabular-nums truncate ${totalNaRua < 0 ? "text-destructive" : "text-foreground"}`}>
                   {formatBRL(totalNaRua)}
                 </p>
               </CardContent>
@@ -411,17 +413,17 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
 
             <Card
               no3d
-              className="cursor-pointer border border-border/60 bg-warning/10 transition-colors hover:bg-warning/15"
+              className="cursor-pointer border border-border/60 bg-card hover:bg-accent/40 hover:border-border transition-all duration-200 rounded-xl shadow-xs"
               onClick={() => setOpenStockBreakdown(true)}
             >
-              <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center">
-                <div className="flex items-center justify-center gap-1.5">
-                  <div className="rounded-md bg-warning/15 p-1">
-                    <PiggyBank className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-warning" />
+              <CardContent className="p-3 sm:p-3.5 flex flex-col justify-between h-full">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-lg bg-amber-500/10 p-1.5 shrink-0">
+                    <PiggyBank className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
                   </div>
-                  <p className="text-[10px] sm:text-xs font-medium text-muted-foreground">Em estoque</p>
+                  <p className="text-[11px] sm:text-xs font-medium text-muted-foreground truncate">Em estoque</p>
                 </div>
-                <p className={`mt-1.5 text-sm sm:text-base font-bold tabular-nums truncate text-center ${stockValue < 0 ? "text-destructive" : "text-foreground"}`}>
+                <p className={`mt-2 text-sm sm:text-base font-bold tabular-nums truncate ${stockValue < 0 ? "text-destructive" : "text-foreground"}`}>
                   {formatBRL(stockValue)}
                 </p>
               </CardContent>

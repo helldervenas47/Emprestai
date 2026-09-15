@@ -448,39 +448,41 @@ export function LedgerView({ readOnly = false }: Props) {
       {/* Indicadores consolidados — layout bento */}
       <ConsolidatedBalanceCards variant="bento" />
 
-      {/* Entradas/Saídas do período filtrado */}
-      <div className="flex gap-2 sm:gap-3">
-        <div className="flex-1 rounded-2xl border border-border/60 bg-success/10 p-3 flex items-center justify-center gap-3 transition-colors hover:bg-success/15 text-center">
-          <div className="rounded-xl bg-success p-2 text-success-foreground shrink-0">
+      {/* Entradas/Saídas do período filtrado — Cashflow Cards */}
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
+        <div className="rounded-xl border border-border/60 bg-emerald-500/[0.04] dark:bg-emerald-500/[0.08] p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 transition-colors hover:bg-emerald-500/[0.07]">
+          <div className="rounded-lg bg-emerald-500/15 p-2 text-emerald-600 dark:text-emerald-400 shrink-0">
             <ArrowUpRight className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
-          <div className="min-w-0 text-left">
-            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-success">Entradas</p>
-            <p className="text-sm sm:text-base font-bold tabular-nums text-success truncate">{formatBRL(totals.totalIn)}</p>
+          <div className="min-w-0">
+            <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Entradas</p>
+            <p className="text-sm sm:text-base md:text-lg font-extrabold tabular-nums text-emerald-600 dark:text-emerald-400 truncate">{formatBRL(totals.totalIn)}</p>
           </div>
         </div>
-        <div className="flex-1 rounded-2xl border border-border/60 bg-destructive/10 p-3 flex items-center justify-center gap-3 transition-colors hover:bg-destructive/15 text-center">
-          <div className="rounded-xl bg-destructive p-2 text-destructive-foreground shrink-0">
+
+        <div className="rounded-xl border border-border/60 bg-rose-500/[0.04] dark:bg-rose-500/[0.08] p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 transition-colors hover:bg-rose-500/[0.07]">
+          <div className="rounded-lg bg-rose-500/15 p-2 text-rose-600 dark:text-rose-400 shrink-0">
             <ArrowDownRight className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
-          <div className="min-w-0 text-left">
-            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-destructive">Saídas</p>
-            <p className="text-sm sm:text-base font-bold tabular-nums text-destructive truncate">{formatBRL(totals.totalOut)}</p>
+          <div className="min-w-0">
+            <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Saídas</p>
+            <p className="text-sm sm:text-base md:text-lg font-extrabold tabular-nums text-rose-600 dark:text-rose-400 truncate">{formatBRL(totals.totalOut)}</p>
           </div>
         </div>
       </div>
 
-      {/* Filtros + ações */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 flex-1">
+      {/* Toolbar Unificada de Filtros + Ações */}
+      <div className="bg-card/70 border border-border/60 rounded-2xl p-2.5 sm:p-3 space-y-2.5 shadow-2xs">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+          {/* Segmented Control: Tudo / Entradas / Saídas */}
+          <div className="flex items-center p-1 bg-muted/80 rounded-xl gap-1 shrink-0">
             <button
               type="button"
               onClick={() => setFilterDir("all")}
-              className={`flex-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+              className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
                 filterDir === "all"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               Tudo
@@ -488,10 +490,10 @@ export function LedgerView({ readOnly = false }: Props) {
             <button
               type="button"
               onClick={() => setFilterDir("in")}
-              className={`flex-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+              className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
                 filterDir === "in"
-                  ? "bg-success text-success-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  ? "bg-emerald-600 text-white shadow-xs"
+                  : "text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400"
               }`}
             >
               Entradas
@@ -499,45 +501,55 @@ export function LedgerView({ readOnly = false }: Props) {
             <button
               type="button"
               onClick={() => setFilterDir("out")}
-              className={`flex-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+              className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
                 filterDir === "out"
-                  ? "bg-destructive text-destructive-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  ? "bg-rose-600 text-white shadow-xs"
+                  : "text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400"
               }`}
             >
               Saídas
             </button>
           </div>
+
+          {/* Ações (Desktop / Tablet) */}
           {!readOnly && (
-            <div className="flex items-center gap-1.5 shrink-0 sm:hidden">
-              <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)} className="h-9 rounded-full">
-                <ArrowLeftRight className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Transferir</span>
+            <div className="hidden sm:flex items-center gap-2 shrink-0">
+              <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)} className="h-8 rounded-lg px-3 text-xs font-medium">
+                <ArrowLeftRight className="h-3.5 w-3.5 mr-1.5" /> Transferir
               </Button>
-              <Button size="sm" onClick={() => setAdjustOpen(true)} className="h-9 w-9 sm:w-auto rounded-full px-0 sm:px-3">
-                <Plus className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Ajustar</span>
+              <Button size="sm" onClick={() => setAdjustOpen(true)} className="h-8 rounded-lg px-3 text-xs font-medium">
+                <Plus className="h-3.5 w-3.5 mr-1.5" /> Ajustar Saldo
               </Button>
             </div>
           )}
         </div>
 
-        <div className="flex flex-col gap-2">
-          <MonthNavigator
-            value={filterMonth}
-            onChange={setFilterMonth}
-            className="w-full"
-          />
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-nowrap sm:items-stretch">
-            <ListFilter className="hidden sm:block h-4 w-4 text-muted-foreground shrink-0 self-center" />
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+          {/* Navegação de Mês */}
+          <div className="sm:col-span-6 md:col-span-5">
+            <MonthNavigator
+              value={filterMonth}
+              onChange={setFilterMonth}
+              className="w-full"
+            />
+          </div>
+
+          {/* Select Carteiras */}
+          <div className="sm:col-span-3 md:col-span-3">
             <Select value={filterWallet} onValueChange={(v: any) => setFilterWallet(v)}>
-              <SelectTrigger className="h-9 w-full sm:flex-1 rounded-full text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full rounded-xl text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas as carteiras</SelectItem>
                 <SelectItem value="account">Conta</SelectItem>
                 <SelectItem value="cash">Dinheiro</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Select Categorias */}
+          <div className="sm:col-span-3 md:col-span-4">
             <Select value={filterCat} onValueChange={(v: any) => setFilterCat(v)}>
-              <SelectTrigger className="h-9 w-full sm:flex-1 rounded-full text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full rounded-xl text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas as categorias</SelectItem>
                 {Object.entries(categoryLabels)
@@ -549,13 +561,15 @@ export function LedgerView({ readOnly = false }: Props) {
             </Select>
           </div>
         </div>
+
+        {/* Ações Mobile */}
         {!readOnly && (
-          <div className="hidden sm:flex sm:flex-1 sm:items-stretch gap-1.5">
-            <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)} className="h-9 flex-1 rounded-full px-3">
-              <ArrowLeftRight className="h-4 w-4 mr-1" /> Transferir
+          <div className="flex sm:hidden items-center gap-2 pt-1 border-t border-border/40">
+            <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)} className="flex-1 h-8 rounded-lg text-xs font-medium">
+              <ArrowLeftRight className="h-3.5 w-3.5 mr-1" /> Transferir
             </Button>
-            <Button size="sm" onClick={() => setAdjustOpen(true)} className="h-9 flex-1 rounded-full px-3">
-              <Plus className="h-4 w-4 mr-1" /> Ajustar
+            <Button size="sm" onClick={() => setAdjustOpen(true)} className="flex-1 h-8 rounded-lg text-xs font-medium">
+              <Plus className="h-3.5 w-3.5 mr-1" /> Ajustar Saldo
             </Button>
           </div>
         )}
