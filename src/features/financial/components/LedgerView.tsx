@@ -21,6 +21,7 @@ import { usePaymentMethods } from "@/hooks/usePaymentMethods";
 import { getLedgerDisplay, statusToneClass } from "@/features/financial/lib/ledgerDisplay";
 
 import { ConsolidatedBalanceCards } from "@/features/dashboard/components/ConsolidatedBalanceCards";
+import { MonthlyPatrimonioVariationCard } from "@/features/financial/components/MonthlyPatrimonioVariationCard";
 import { supabase } from "@/integrations/supabase/userClient";
 import { toast } from "sonner";
 import { isVehicleExpenseCategory } from "@/features/vehicles/components/VehicleExpenseForm";
@@ -470,6 +471,9 @@ export function LedgerView({ readOnly = false }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Variação Mensal do Patrimônio */}
+      <MonthlyPatrimonioVariationCard />
 
       {/* Toolbar Unificada de Filtros + Ações */}
       <div className="bg-card/70 border border-border/60 rounded-2xl p-2.5 sm:p-3 space-y-2.5 shadow-2xs">
