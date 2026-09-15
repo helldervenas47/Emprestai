@@ -80,6 +80,7 @@ ${params.knowledge}`;
 
 async function callModel(messages: ChatMessage[], apiKey: string): Promise<any> {
   let lastError = "";
+  // 1ª Tentativa: Com Function Calling (Tools)
   for (const model of MODEL_CHAIN) {
     try {
       const resp = await fetch(AI_ENDPOINT, {
@@ -101,7 +102,6 @@ async function callModel(messages: ChatMessage[], apiKey: string): Promise<any> 
       if (resp.ok) return await resp.json();
       const errText = await resp.text();
       lastError = `[${model}] ${resp.status} ${errText}`;
-      // 400 (Bad Request), 404 (Not Found), 429 (Rate Limit) ou 5xx (Server Error) → tenta o próximo da cadeia.
       if (resp.status === 400 || resp.status === 404 || resp.status === 429 || resp.status >= 500) {
         continue;
       }
@@ -111,6 +111,33 @@ async function callModel(messages: ChatMessage[], apiKey: string): Promise<any> 
       continue;
     }
   }
+
+  // 2ª Tentativa (Fallback de contingência): Chamada direta sem tools
+  console.warn(`[ai-assistant] Chamada com tools falhou (${lastError}). Tentando fallback conversacional.`);
+  for (const model of ["gemini-2.0-flash", "gemini-1.5-flash"]) {
+    try {
+      const resp = await fetch(AI_ENDPOINT, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "x-goog-api-key": apiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: 0.2,
+          max_tokens: 1200,
+        }),
+      });
+      if (resp.ok) return await resp.json();
+      const errText = await resp.text();
+      lastError = `[${model} fallback] ${resp.status} ${errText}`;
+    } catch (fetchErr) {
+      lastError = `[${model} fallback] Falha de rede: ${String((fetchErr as Error)?.message ?? fetchErr)}`;
+    }
+  }
+
   throw new Error(`AI request failed: ${lastError}`);
 }
 

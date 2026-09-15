@@ -143,7 +143,7 @@ export const TOOL_DEFINITIONS = [
       name: "get_financial_overview",
       description:
         "Indicadores oficiais da carteira no período: capital ativo, total a receber, recebido, lucro realizado, juros pendentes, contratos e inadimplência.",
-      parameters: { type: "object", properties: { period: periodParam }, additionalProperties: false },
+      parameters: { type: "object", properties: { period: periodParam } },
     },
   },
   {
@@ -158,7 +158,6 @@ export const TOOL_DEFINITIONS = [
           client_name: { type: "string", description: "Parte do nome do cliente" },
           limit: { type: "number", description: "Máximo de contratos (padrão 20)" },
         },
-        additionalProperties: false,
       },
     },
   },
@@ -173,7 +172,6 @@ export const TOOL_DEFINITIONS = [
           loan_id: { type: "string" },
           client_name: { type: "string", description: "Alternativa ao id: nome do cliente" },
         },
-        additionalProperties: false,
       },
     },
   },
@@ -182,7 +180,7 @@ export const TOOL_DEFINITIONS = [
     function: {
       name: "list_overdue",
       description: "Contratos vencidos com dias de atraso e valor em aberto (inadimplência).",
-      parameters: { type: "object", properties: { limit: { type: "number" } }, additionalProperties: false },
+      parameters: { type: "object", properties: { limit: { type: "number" } } },
     },
   },
   {
@@ -194,7 +192,6 @@ export const TOOL_DEFINITIONS = [
         type: "object",
         properties: { client_name: { type: "string" } },
         required: ["client_name"],
-        additionalProperties: false,
       },
     },
   },
@@ -203,7 +200,7 @@ export const TOOL_DEFINITIONS = [
     function: {
       name: "get_income_expense_summary",
       description: "Receitas e despesas do período, com as maiores categorias de despesa.",
-      parameters: { type: "object", properties: { period: periodParam }, additionalProperties: false },
+      parameters: { type: "object", properties: { period: periodParam } },
     },
   },
   {
@@ -211,7 +208,7 @@ export const TOOL_DEFINITIONS = [
     function: {
       name: "list_sales",
       description: "Vendas de produtos no período, com total faturado.",
-      parameters: { type: "object", properties: { period: periodParam }, additionalProperties: false },
+      parameters: { type: "object", properties: { period: periodParam } },
     },
   },
   {
@@ -231,7 +228,6 @@ export const TOOL_DEFINITIONS = [
             description: "Filtro opcional de busca por nome ou descrição do produto.",
           },
         },
-        additionalProperties: false,
       },
     },
   },
@@ -240,7 +236,7 @@ export const TOOL_DEFINITIONS = [
     function: {
       name: "get_goals_progress",
       description: "Metas mensais do usuário e progresso frente aos agregados oficiais.",
-      parameters: { type: "object", properties: { period: periodParam }, additionalProperties: false },
+      parameters: { type: "object", properties: { period: periodParam } },
     },
   },
 ] as const;

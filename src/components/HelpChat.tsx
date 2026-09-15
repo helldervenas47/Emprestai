@@ -317,12 +317,15 @@ export default function HelpChat() {
 
         clearTimeout(timeoutId);
 
-        const data = (await response.json().catch(() => null)) as { reply?: string; error?: string } | null;
-        const reply =
+        const data = (await response.json().catch(() => null)) as { reply?: string; error?: string; detail?: string } | null;
+        let reply =
           !response.ok || data?.error || !data?.reply
             ? `⚠️ ${data?.error || `Falha ao chamar o assistente (${response.status}).`}`
             : data.reply;
-        if (reply.startsWith("⚠️")) toast.error(reply.replace("⚠️ ", ""));
+        if (data?.detail && (!response.ok || data?.error)) {
+          reply += `\n\n_${data.detail}_`;
+        }
+        if (reply.startsWith("⚠️")) toast.error(data?.error || `Falha (${response.status})`);
 
         const finalMsgs: Msg[] = [...next, { role: "assistant", content: reply, at: Date.now() }];
         setMessages(finalMsgs);

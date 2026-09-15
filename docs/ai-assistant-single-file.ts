@@ -910,7 +910,7 @@ var TOOL_DEFINITIONS = [
     function: {
       name: "get_financial_overview",
       description: "Indicadores oficiais da carteira no per\xEDodo: capital ativo, total a receber, recebido, lucro realizado, juros pendentes, contratos e inadimpl\xEAncia.",
-      parameters: { type: "object", properties: { period: periodParam }, additionalProperties: false }
+      parameters: { type: "object", properties: { period: periodParam } }
     }
   },
   {
@@ -924,8 +924,7 @@ var TOOL_DEFINITIONS = [
           status: { type: "string", description: "active, paid ou overdue" },
           client_name: { type: "string", description: "Parte do nome do cliente" },
           limit: { type: "number", description: "M\xE1ximo de contratos (padr\xE3o 20)" }
-        },
-        additionalProperties: false
+        }
       }
     }
   },
@@ -939,8 +938,7 @@ var TOOL_DEFINITIONS = [
         properties: {
           loan_id: { type: "string" },
           client_name: { type: "string", description: "Alternativa ao id: nome do cliente" }
-        },
-        additionalProperties: false
+        }
       }
     }
   },
@@ -949,7 +947,7 @@ var TOOL_DEFINITIONS = [
     function: {
       name: "list_overdue",
       description: "Contratos vencidos com dias de atraso e valor em aberto (inadimpl\xEAncia).",
-      parameters: { type: "object", properties: { limit: { type: "number" } }, additionalProperties: false }
+      parameters: { type: "object", properties: { limit: { type: "number" } } }
     }
   },
   {
@@ -960,8 +958,7 @@ var TOOL_DEFINITIONS = [
       parameters: {
         type: "object",
         properties: { client_name: { type: "string" } },
-        required: ["client_name"],
-        additionalProperties: false
+        required: ["client_name"]
       }
     }
   },
@@ -970,7 +967,7 @@ var TOOL_DEFINITIONS = [
     function: {
       name: "get_income_expense_summary",
       description: "Receitas e despesas do per\xEDodo, com as maiores categorias de despesa.",
-      parameters: { type: "object", properties: { period: periodParam }, additionalProperties: false }
+      parameters: { type: "object", properties: { period: periodParam } }
     }
   },
   {
@@ -978,7 +975,7 @@ var TOOL_DEFINITIONS = [
     function: {
       name: "list_sales",
       description: "Vendas de produtos no per\xEDodo, com total faturado.",
-      parameters: { type: "object", properties: { period: periodParam }, additionalProperties: false }
+      parameters: { type: "object", properties: { period: periodParam } }
     }
   },
   {
@@ -997,8 +994,7 @@ var TOOL_DEFINITIONS = [
             type: "string",
             description: "Filtro opcional de busca por nome ou descri\xE7\xE3o do produto."
           }
-        },
-        additionalProperties: false
+        }
       }
     }
   },
@@ -1007,7 +1003,7 @@ var TOOL_DEFINITIONS = [
     function: {
       name: "get_goals_progress",
       description: "Metas mensais do usu\xE1rio e progresso frente aos agregados oficiais.",
-      parameters: { type: "object", properties: { period: periodParam }, additionalProperties: false }
+      parameters: { type: "object", properties: { period: periodParam } }
     }
   }
 ];
@@ -1352,6 +1348,30 @@ async function callModel(messages, apiKey) {
     } catch (fetchErr) {
       lastError = `[${model}] Falha de rede: ${String(fetchErr?.message ?? fetchErr)}`;
       continue;
+    }
+  }
+  console.warn(`[ai-assistant] Chamada com tools falhou (${lastError}). Tentando fallback conversacional.`);
+  for (const model of ["gemini-2.0-flash", "gemini-1.5-flash"]) {
+    try {
+      const resp = await fetch(AI_ENDPOINT, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "x-goog-api-key": apiKey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: 0.2,
+          max_tokens: 1200
+        })
+      });
+      if (resp.ok) return await resp.json();
+      const errText = await resp.text();
+      lastError = `[${model} fallback] ${resp.status} ${errText}`;
+    } catch (fetchErr) {
+      lastError = `[${model} fallback] Falha de rede: ${String(fetchErr?.message ?? fetchErr)}`;
     }
   }
   throw new Error(`AI request failed: ${lastError}`);
