@@ -329,7 +329,7 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
             onClick={() => setOpenTotal(true)}
           >
             <CardContent className="p-4 sm:p-5">
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <div className="rounded-lg bg-white/15 backdrop-blur-sm p-1.5 text-white">
@@ -342,10 +342,6 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
                   <p className="mt-2 text-2xl sm:text-3xl font-extrabold tabular-nums tracking-tight text-white truncate">
                     {formatBRL(contaMaisDinheiro)}
                   </p>
-                </div>
-                <div className="shrink-0 rounded-full bg-white/15 backdrop-blur-sm px-2.5 py-1 text-[11px] font-semibold text-white inline-flex items-center gap-1 border border-white/15">
-                  <VariacaoIcon className="h-3 w-3" />
-                  {variacaoPct == null ? "—" : `${variacaoPct >= 0 ? "+" : ""}${variacaoPct.toFixed(2)}%`}
                 </div>
               </div>
             </CardContent>
