@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
-import { Settings, TrendingUp, Wallet, Landmark, Banknote, PiggyBank, Car, ArrowDownCircle, ArrowUpRight, ArrowDownRight, PieChart, Percent, Hourglass, BarChart3, Trophy, CalendarClock, CalendarX, LineChart, Gem, ArrowUp, ArrowDown, Minus, ChevronLeft, ChevronRight, Eye, EyeOff } from "lucide-react";
+import { Settings, TrendingUp, Wallet, Landmark, Banknote, PiggyBank, Car, ArrowDownCircle, ArrowUpRight, ArrowDownRight, PieChart, Percent, Hourglass, BarChart3, Trophy, CalendarClock, CalendarX, LineChart, Gem, ArrowUp, ArrowDown, Minus, ChevronLeft, ChevronRight, Eye, EyeOff, X } from "lucide-react";
 import { useLoans } from "@/features/loans/hooks/useLoans";
 import { getLoanReceivable } from "@/features/loans/lib/loanLateFees";
 import { useProducts } from "@/features/sales/hooks/useProducts";
@@ -660,26 +660,38 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
 
       <Dialog open={openMaos} onOpenChange={setOpenMaos}>
         <DialogContent
+          showCloseButton={false}
           className="!p-0 overflow-hidden border-border/60 bg-gradient-to-b from-background via-background to-muted/20 backdrop-blur-xl max-sm:!fixed max-sm:!inset-0 max-sm:!left-0 max-sm:!top-0 max-sm:!translate-x-0 max-sm:!translate-y-0 max-sm:!max-w-none max-sm:!w-screen max-sm:!h-screen max-sm:!max-h-screen max-sm:!rounded-none max-sm:!flex max-sm:!flex-col max-sm:!gap-0 sm:max-w-md sm:rounded-3xl shadow-2xl"
         >
           <div className="mx-auto h-1.5 w-12 rounded-full bg-muted-foreground/20 mt-3 sm:hidden shrink-0" />
-          <DialogHeader className="px-5 pt-3 pb-2 relative" style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top))" }}>
-            <DialogTitle className="flex items-center gap-2 text-base pr-20 font-bold tracking-tight">
-              <div className="h-7 w-7 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                <Wallet className="h-4 w-4" />
+          <DialogHeader className="px-5 pt-3 pb-2" style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top))" }}>
+            <div className="flex items-center justify-between gap-2">
+              <DialogTitle className="flex items-center gap-2 text-base font-bold tracking-tight">
+                <div className="h-7 w-7 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                  <Wallet className="h-4 w-4" />
+                </div>
+                Saldo Total em Mãos
+              </DialogTitle>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setOpenSettings(true)}
+                  aria-label="Configurações do saldo"
+                  title="Configurações do saldo"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors focus:outline-none focus:ring-2 focus:ring-ring/40"
+                >
+                  <Settings className="w-4 h-4" />
+                </button>
+                <DialogClose
+                  aria-label="Fechar"
+                  title="Fechar"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors focus:outline-none focus:ring-2 focus:ring-ring/40"
+                >
+                  <X className="w-4 h-4" />
+                  <span className="sr-only">Fechar</span>
+                </DialogClose>
               </div>
-              Saldo Total em Mãos
-            </DialogTitle>
-            <button
-              type="button"
-              onClick={() => setOpenSettings(true)}
-              aria-label="Configurações do saldo"
-              title="Configurações do saldo"
-              className="absolute right-12 inline-flex h-8 w-8 items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors focus:outline-none focus:ring-2 focus:ring-ring/40"
-              style={{ top: "calc(0.5rem + env(safe-area-inset-top))" }}
-            >
-              <Settings className="w-[18px] h-[18px]" />
-            </button>
+            </div>
             {(() => {
               const baseReceitas = incomesBalance;
               const breakdownParts = [
