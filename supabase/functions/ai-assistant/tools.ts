@@ -217,6 +217,27 @@ export const TOOL_DEFINITIONS = [
   {
     type: "function",
     function: {
+      name: "list_products",
+      description: "Lista produtos cadastrados no inventário/estoque com quantidade atual, estoque sugerido, preço, custo e alerta de estoque baixo/zerado.",
+      parameters: {
+        type: "object",
+        properties: {
+          low_stock_only: {
+            type: "boolean",
+            description: "Se verdadeiro, retorna apenas produtos com estoque baixo ou zerado.",
+          },
+          search: {
+            type: "string",
+            description: "Filtro opcional de busca por nome ou descrição do produto.",
+          },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "get_goals_progress",
       description: "Metas mensais do usuário e progresso frente aos agregados oficiais.",
       parameters: { type: "object", properties: { period: periodParam }, additionalProperties: false },
@@ -486,6 +507,47 @@ export async function executeTool(name: string, args: any, ctx: ToolContext): Pr
           descricao: String(s.product_name ?? s.description ?? "—"),
           valor: formatBRL(num(s.total ?? s.total_amount ?? s.amount ?? s.value)),
         })),
+      };
+    case "list_products": {
+      const { data } = await ctx.client
+        .from("products")
+        .select("id, name, description, price, cost, last_purchase_price, suggested_stock, stock, active")
+        .eq("user_id", ctx.ownerId);
+
+      const all = (data ?? []).map((p: any) => {
+        const stock = p.stock != null ? Number(p.stock) : 0;
+        const suggested = p.suggested_stock != null ? Number(p.suggested_stock) : null;
+        const isLow = stock <= 0 || (suggested != null && suggested > 0 ? stock <= suggested : stock <= 5);
+        return {
+          id: p.id,
+          nome: String(p.name ?? "—"),
+          descricao: p.description ? String(p.description) : null,
+          estoque_atual: stock,
+          estoque_sugerido: suggested,
+          preco_venda: formatBRL(num(p.price)),
+          custo: formatBRL(num(p.cost || p.last_purchase_price)),
+          status_estoque: stock <= 0 ? "zerado" : isLow ? "baixo" : "normal",
+          ativo: p.active !== false,
+        };
+      });
+
+      let filtered = all.filter((p) => p.ativo);
+      if (args?.low_stock_only) {
+        filtered = filtered.filter((p) => p.status_estoque === "zerado" || p.status_estoque === "baixo");
+      }
+      if (args?.search && typeof args.search === "string" && args.search.trim()) {
+        const q = args.search.toLowerCase().trim();
+        filtered = filtered.filter((p) => p.nome.toLowerCase().includes(q) || (p.descricao && p.descricao.toLowerCase().includes(q)));
+      }
+
+      const zerados = all.filter((p) => p.status_estoque === "zerado").length;
+      const baixos = all.filter((p) => p.status_estoque === "baixo").length;
+
+      return {
+        total_produtos: all.length,
+        produtos_zerados: zerados,
+        produtos_estoque_baixo: baixos,
+        itens: filtered.slice(0, 30),
       };
     }
 
