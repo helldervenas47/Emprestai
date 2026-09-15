@@ -1053,7 +1053,7 @@ export function LoanForm({ onAdd, onSaveSchedule, onClose, clients, loans, payme
                       address: "",
                       city: "",
                       state: "",
-                      score: "",
+                      score: "0",
                       active: true,
                     });
                     if (newId) {
