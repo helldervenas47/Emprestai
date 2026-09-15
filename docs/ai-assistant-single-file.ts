@@ -838,20 +838,6 @@ function num2(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
 }
-function sumBy(rows, keys) {
-  return rows.reduce((acc, row) => {
-    for (const k of keys) {
-      if (row?.[k] != null) return acc + num2(row[k]);
-    }
-    return acc;
-  }, 0);
-}
-function pickDate(row) {
-  for (const k of ["date", "due_date", "sale_date", "created_at", "start_date"]) {
-    if (row?.[k]) return String(row[k]).slice(0, 10);
-  }
-  return "";
-}
 function effectiveDueDate(loan, installments) {
   const rows = installments.filter((i) => String(i.loan_id) === String(loan.id)).sort((a, b) => num2(a.installment_number) - num2(b.installment_number));
   if (rows.length > 0) {
@@ -900,391 +886,65 @@ function loanClientName(loan, names) {
   const id = String(loan?.borrower_id ?? loan?.client_id ?? "");
   return names.get(id) ?? "\u2014";
 }
-var periodParam = {
-  type: "string",
-  description: "Per\xEDodo em linguagem natural pt-BR (ex.: 'hoje', 'esta semana', 'm\xEAs passado', 'julho de 2026', '2026-01-01 a 2026-03-31'). Padr\xE3o: m\xEAs atual."
-};
-var TOOL_DEFINITIONS = [
-  {
-    type: "function",
-    function: {
-      name: "get_financial_overview",
-      description: "Indicadores oficiais da carteira no per\xEDodo: capital ativo, total a receber, recebido, lucro realizado, juros pendentes, contratos e inadimpl\xEAncia.",
-      parameters: { type: "object", properties: { period: periodParam } }
+async function loadLiveDataContext(ctx, period) {
+  try {
+    const [names, rows] = await Promise.all([
+      clientNameMap(ctx),
+      loadLoansAndPayments(ctx).catch(() => ({ loanRows: [], paymentRows: [], installmentRows: [] }))
+    ]);
+    const agg = aggregatesFor(ctx, rows, period);
+    const today = ctx.todayIso;
+    const dueToday = rows.loanRows.filter((l) => !["paid", "completed"].includes(String(l.status ?? "").toLowerCase())).filter((l) => String(l.due_date ?? "").slice(0, 10) === today).map((l) => `- Cliente: **${loanClientName(l, names)}** | Valor: ${formatBRL(num2(l.amount))} | Vencimento: Hoje (${today}) | Status: ${l.status}`);
+    const overdue = rows.loanRows.filter((l) => !["paid", "completed"].includes(String(l.status ?? "").toLowerCase())).filter((l) => {
+      const due = String(l.due_date ?? "").slice(0, 10);
+      return due && due < today;
+    }).slice(0, 10).map((l) => `- Cliente: **${loanClientName(l, names)}** | Venceu em: ${String(l.due_date).slice(0, 10)} | Valor: ${formatBRL(num2(l.amount))}`);
+    const upcoming = rows.loanRows.filter((l) => !["paid", "completed"].includes(String(l.status ?? "").toLowerCase())).filter((l) => {
+      const due = String(l.due_date ?? "").slice(0, 10);
+      return due && due > today;
+    }).slice(0, 10).map((l) => `- Cliente: **${loanClientName(l, names)}** | Vencimento: ${String(l.due_date).slice(0, 10)} | Valor: ${formatBRL(num2(l.amount))}`);
+    let lowStockLines = [];
+    try {
+      const { data: prods } = await ctx.client.from("products").select("name, stock, suggested_stock, price").eq("user_id", ctx.ownerId);
+      lowStockLines = (prods ?? []).filter((p) => {
+        const stock = Number(p.stock ?? 0);
+        const sug = p.suggested_stock != null ? Number(p.suggested_stock) : 5;
+        return stock <= sug;
+      }).slice(0, 10).map((p) => `- Produto: **${p.name}** | Estoque atual: ${p.stock} (sugerido: ${p.suggested_stock ?? 5}) | Pre\xE7o: ${formatBRL(p.price)}`);
+    } catch {
     }
-  },
-  {
-    type: "function",
-    function: {
-      name: "list_loans",
-      description: "Lista contratos de empr\xE9stimo do usu\xE1rio, com filtro opcional por status ou nome do cliente.",
-      parameters: {
-        type: "object",
-        properties: {
-          status: { type: "string", description: "active, paid ou overdue" },
-          client_name: { type: "string", description: "Parte do nome do cliente" },
-          limit: { type: "number", description: "M\xE1ximo de contratos (padr\xE3o 20)" }
-        }
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_loan_details",
-      description: "Detalhe de um contrato: valor, taxa, parcelas, pagamentos recebidos e situa\xE7\xE3o atual.",
-      parameters: {
-        type: "object",
-        properties: {
-          loan_id: { type: "string" },
-          client_name: { type: "string", description: "Alternativa ao id: nome do cliente" }
-        }
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "list_overdue",
-      description: "Contratos vencidos com dias de atraso e valor em aberto (inadimpl\xEAncia).",
-      parameters: { type: "object", properties: { limit: { type: "number" } } }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_client_summary",
-      description: "Resumo de um cliente: contratos, total emprestado, pago e em aberto.",
-      parameters: {
-        type: "object",
-        properties: { client_name: { type: "string" } },
-        required: ["client_name"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_income_expense_summary",
-      description: "Receitas e despesas do per\xEDodo, com as maiores categorias de despesa.",
-      parameters: { type: "object", properties: { period: periodParam } }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "list_sales",
-      description: "Vendas de produtos no per\xEDodo, com total faturado.",
-      parameters: { type: "object", properties: { period: periodParam } }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "list_products",
-      description: "Lista produtos cadastrados no invent\xE1rio/estoque com quantidade atual, estoque sugerido, pre\xE7o, custo e alerta de estoque baixo/zerado.",
-      parameters: {
-        type: "object",
-        properties: {
-          low_stock_only: {
-            type: "boolean",
-            description: "Se verdadeiro, retorna apenas produtos com estoque baixo ou zerado."
-          },
-          search: {
-            type: "string",
-            description: "Filtro opcional de busca por nome ou descri\xE7\xE3o do produto."
-          }
-        }
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_goals_progress",
-      description: "Metas mensais do usu\xE1rio e progresso frente aos agregados oficiais.",
-      parameters: { type: "object", properties: { period: periodParam } }
-    }
-  }
-];
-async function executeTool(name, args, ctx) {
-  const period = resolvePeriod(args?.period ?? null, ctx.todayIso);
-  switch (name) {
-    case "get_financial_overview": {
-      const rows = await loadLoansAndPayments(ctx);
-      const agg = aggregatesFor(ctx, rows, period);
-      return {
-        periodo: period.label,
-        contratos: {
-          total: agg.contractsTotal,
-          ativos: agg.contractsActive,
-          quitados: agg.contractsPaid,
-          vencidos: agg.contractsOverdue,
-          iniciados_no_periodo: agg.contractsStartedInPeriod
-        },
-        capital_ativo: formatBRL(agg.principalRemaining),
-        total_a_receber: formatBRL(agg.totalReceivable),
-        composicao_total_a_receber: {
-          capital_ativo: formatBRL(agg.principalRemaining),
-          juros_pendentes: formatBRL(agg.contractualInterestRemaining),
-          multa_pendente: formatBRL(agg.penaltyPending),
-          juros_atraso_pendentes: formatBRL(agg.lateInterestPending),
-          formula: "total_a_receber = capital_ativo + juros_pendentes + multa_pendente + juros_atraso_pendentes"
-        },
-        juros_pendentes: formatBRL(agg.contractualInterestRemaining),
-        multa_pendente: formatBRL(agg.penaltyPending),
-        juros_atraso_pendentes: formatBRL(agg.lateInterestPending),
-        valor_vencido: formatBRL(agg.overdueAmount),
-        observacao_valor_vencido: "valor_vencido \xE9 um recorte do total a receber (parcelas j\xE1 vencidas) e N\xC3O deve ser somado \xE0 composi\xE7\xE3o acima.",
-        recebido_no_periodo: {
-          total: formatBRL(agg.receivedInPeriod.total),
-          principal: formatBRL(agg.receivedInPeriod.principal),
-          juros: formatBRL(agg.receivedInPeriod.interest),
-          multa: formatBRL(agg.receivedInPeriod.penalty),
-          juros_atraso: formatBRL(agg.receivedInPeriod.lateInterest),
-          pagamentos: agg.receivedInPeriod.count
-        },
-        lucro_realizado_no_periodo: formatBRL(agg.realizedProfitInPeriod),
-        versao_calculo: agg.calculationVersion
-      };
-    }
-    case "list_loans": {
-      const rows = await loadLoansAndPayments(ctx);
-      const names = await clientNameMap(ctx);
-      const limit = Math.min(Math.max(num2(args?.limit) || 20, 1), 50);
-      const wanted = String(args?.status ?? "").trim().toLowerCase();
-      const clientFilter = String(args?.client_name ?? "").trim().toLowerCase();
-      const list = rows.loanRows.filter((l) => wanted ? String(l.status ?? "").toLowerCase() === wanted : true).filter(
-        (l) => clientFilter ? loanClientName(l, names).toLowerCase().includes(clientFilter) : true
-      ).slice(0, limit).map((l) => {
-        const paid = rows.paymentRows.filter((p) => String(p.loan_id) === String(l.id)).reduce((acc, p) => acc + num2(p.amount), 0);
-        return {
-          id: String(l.id),
-          cliente: loanClientName(l, names),
-          valor_emprestado: formatBRL(num2(l.amount)),
-          taxa_mensal: `${num2(l.interest_rate)}%`,
-          parcelas: num2(l.installments) || 1,
-          status: l.status,
-          vencimento: pickDate(l),
-          total_pago: formatBRL(paid)
-        };
-      });
-      return { periodo: "todos os contratos", quantidade: list.length, contratos: list };
-    }
-    case "get_loan_details": {
-      const rows = await loadLoansAndPayments(ctx);
-      const names = await clientNameMap(ctx);
-      const id = String(args?.loan_id ?? "").trim();
-      const clientFilter = String(args?.client_name ?? "").trim().toLowerCase();
-      const loan = rows.loanRows.find(
-        (l) => id ? String(l.id) === id : clientFilter && loanClientName(l, names).toLowerCase().includes(clientFilter)
-      );
-      if (!loan) return { encontrado: false, motivo: "Nenhum contrato correspondente ao filtro informado." };
-      const payments = rows.paymentRows.filter((p) => String(p.loan_id) === String(loan.id)).sort((a, b) => pickDate(a).localeCompare(pickDate(b)));
-      const agg = aggregatesFor(
-        ctx,
-        { loanRows: [loan], paymentRows: payments },
-        resolvePeriod("ano", ctx.todayIso)
-      );
-      return {
-        encontrado: true,
-        id: String(loan.id),
-        cliente: loanClientName(loan, names),
-        valor_emprestado: formatBRL(num2(loan.amount)),
-        taxa_mensal: `${num2(loan.interest_rate)}%`,
-        parcelas: num2(loan.installments) || 1,
-        status: loan.status,
-        vencimento: pickDate(loan),
-        principal_restante: formatBRL(agg.principalRemaining),
-        juros_restantes: formatBRL(agg.contractualInterestRemaining),
-        saldo_total_a_receber: formatBRL(agg.totalReceivable),
-        pagamentos: payments.map((p) => ({ data: pickDate(p), valor: formatBRL(num2(p.amount)) }))
-      };
-    }
-    case "list_overdue": {
-      const rows = await loadLoansAndPayments(ctx);
-      const names = await clientNameMap(ctx);
-      const limit = Math.min(Math.max(num2(args?.limit) || 20, 1), 50);
-      const today = ctx.todayIso;
-      const overdue = rows.loanRows.filter((l) => !["paid", "completed"].includes(String(l.status ?? "").toLowerCase())).filter((l) => {
-        const due = String(l.due_date ?? "").slice(0, 10);
-        return due && due < today;
-      }).map((l) => {
-        const due = String(l.due_date ?? "").slice(0, 10);
-        const dias = Math.max(
-          0,
-          Math.floor(
-            ((/* @__PURE__ */ new Date(`${today}T00:00:00`)).getTime() - (/* @__PURE__ */ new Date(`${due}T00:00:00`)).getTime()) / 864e5
-          )
-        );
-        const single = aggregatesFor(
-          ctx,
-          { loanRows: [l], paymentRows: rows.paymentRows.filter((p) => String(p.loan_id) === String(l.id)) },
-          resolvePeriod("ano", ctx.todayIso)
-        );
-        const parcelaVencida = rows.installmentRows.find(
-          (i) => String(i.loan_id) === String(l.id) && String(i.due_date ?? "").slice(0, 10) === due
-        );
-        return {
-          id: String(l.id),
-          cliente: loanClientName(l, names),
-          vencimento: due,
-          dias_atraso: dias,
-          valor_emprestado: formatBRL(num2(l.amount)),
-          parcela_vencida: parcelaVencida ? formatBRL(num2(parcelaVencida.amount)) : null,
-          saldo_devedor: formatBRL(single.overdueAmount),
-          multa_pendente: formatBRL(single.penaltyPending ?? 0),
-          juros_atraso_pendentes: formatBRL(single.lateInterestPending ?? 0),
-          total_em_aberto: formatBRL(single.totalReceivable)
-        };
-      }).sort((a, b) => b.dias_atraso - a.dias_atraso).slice(0, limit);
-      return {
-        referencia: today,
-        quantidade: overdue.length,
-        observacao: "vencimento = data da primeira parcela em aberto (mesma regra do app). total_em_aberto = saldo_devedor + multa_pendente + juros_atraso_pendentes; parcela_vencida \xE9 apenas o valor daquela parcela.",
-        contratos_vencidos: overdue
-      };
-    }
-    case "get_client_summary": {
-      const filter = String(args?.client_name ?? "").trim().toLowerCase();
-      const names = await clientNameMap(ctx);
-      const matches = [...names.entries()].filter(([, name2]) => name2.toLowerCase().includes(filter));
-      if (matches.length === 0) return { encontrado: false, motivo: "Nenhum cliente com esse nome." };
-      const rows = await loadLoansAndPayments(ctx);
-      const ids = new Set(matches.map(([id]) => id));
-      const loanRows = rows.loanRows.filter(
-        (l) => ids.has(String(l.borrower_id ?? l.client_id)) || loanClientName(l, names).toLowerCase().includes(filter)
-      );
-      const loanIds = new Set(loanRows.map((l) => String(l.id)));
-      const paymentRows = rows.paymentRows.filter((p) => loanIds.has(String(p.loan_id)));
-      const agg = aggregatesFor(ctx, { loanRows, paymentRows }, resolvePeriod("ano", ctx.todayIso));
-      return {
-        encontrado: true,
-        clientes: matches.map(([, name2]) => name2),
-        contratos: loanRows.length,
-        contratos_ativos: agg.contractsActive,
-        total_emprestado: formatBRL(agg.principalLentActive),
-        principal_restante: formatBRL(agg.principalRemaining),
-        total_recebido: formatBRL(agg.receivedAllTime.total),
-        saldo_a_receber: formatBRL(agg.totalReceivable)
-      };
-    }
-    case "get_income_expense_summary": {
-      const [{ data: incomes }, { data: expenses }] = await Promise.all([
-        ctx.client.from("incomes").select("*").eq("user_id", ctx.ownerId).gte("received_date", period.startIso).lte("received_date", period.endIso),
-        ctx.client.from("expenses").select("*").eq("user_id", ctx.ownerId).gte("due_date", period.startIso).lte("due_date", period.endIso)
-      ]);
-      const incomeRows = incomes ?? [];
-      const expenseRows = (expenses ?? []).filter(
-        (e) => String(e.type ?? e.category ?? "") !== "credit_card_invoice_payment"
-      );
-      const totalIncome = sumBy(incomeRows, ["amount", "value"]);
-      const totalExpense = sumBy(expenseRows, ["amount", "value"]);
-      const byCategory = /* @__PURE__ */ new Map();
-      for (const e of expenseRows) {
-        const key = String(e.category ?? e.description ?? "Sem categoria");
-        byCategory.set(key, (byCategory.get(key) ?? 0) + num2(e.amount ?? e.value));
-      }
-      const top = [...byCategory.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([categoria, valor]) => ({ categoria, valor: formatBRL(valor) }));
-      return {
-        periodo: period.label,
-        receitas: formatBRL(totalIncome),
-        despesas: formatBRL(totalExpense),
-        resultado: formatBRL(totalIncome - totalExpense),
-        lancamentos: { receitas: incomeRows.length, despesas: expenseRows.length },
-        maiores_categorias_de_despesa: top
-      };
-    }
-    case "list_sales": {
-      const { data } = await ctx.client.from("sales").select("*").eq("user_id", ctx.ownerId);
-      const rows = (data ?? []).filter((s) => {
-        const d = pickDate(s);
-        return d >= period.startIso && d <= period.endIso;
-      });
-      const total = sumBy(rows, ["total", "total_amount", "amount", "value"]);
-      return {
-        periodo: period.label,
-        quantidade: rows.length,
-        total_faturado: formatBRL(total),
-        vendas: rows.slice(0, 20).map((s) => ({
-          data: pickDate(s),
-          descricao: String(s.product_name ?? s.description ?? "\u2014"),
-          valor: formatBRL(num2(s.total ?? s.total_amount ?? s.amount ?? s.value))
-        }))
-      };
-    }
-    case "list_products": {
-      const { data } = await ctx.client.from("products").select("id, name, description, price, cost, last_purchase_price, suggested_stock, stock, active").eq("user_id", ctx.ownerId);
-      const all = (data ?? []).map((p) => {
-        const stock = p.stock != null ? Number(p.stock) : 0;
-        const suggested = p.suggested_stock != null ? Number(p.suggested_stock) : null;
-        const isLow = stock <= 0 || (suggested != null && suggested > 0 ? stock <= suggested : stock <= 5);
-        return {
-          id: p.id,
-          nome: String(p.name ?? "\u2014"),
-          descricao: p.description ? String(p.description) : null,
-          estoque_atual: stock,
-          estoque_sugerido: suggested,
-          preco_venda: formatBRL(num2(p.price)),
-          custo: formatBRL(num2(p.cost || p.last_purchase_price)),
-          status_estoque: stock <= 0 ? "zerado" : isLow ? "baixo" : "normal",
-          ativo: p.active !== false
-        };
-      });
-      let filtered = all.filter((p) => p.ativo);
-      if (args?.low_stock_only) {
-        filtered = filtered.filter((p) => p.status_estoque === "zerado" || p.status_estoque === "baixo");
-      }
-      if (args?.search && typeof args.search === "string" && args.search.trim()) {
-        const q = args.search.toLowerCase().trim();
-        filtered = filtered.filter((p) => p.nome.toLowerCase().includes(q) || p.descricao && p.descricao.toLowerCase().includes(q));
-      }
-      const zerados = all.filter((p) => p.status_estoque === "zerado").length;
-      const baixos = all.filter((p) => p.status_estoque === "baixo").length;
-      return {
-        total_produtos: all.length,
-        produtos_zerados: zerados,
-        produtos_estoque_baixo: baixos,
-        itens: filtered.slice(0, 30)
-      };
-    }
-    case "get_goals_progress": {
-      const { data } = await ctx.client.from("monthly_goals").select("*").eq("user_id", ctx.ownerId);
-      const rows = data ?? [];
-      const rowsInPeriod = rows.filter((g) => {
-        const ref = String(g.month ?? g.reference_month ?? pickDate(g)).slice(0, 7);
-        return !ref || ref >= period.startIso.slice(0, 7) && ref <= period.endIso.slice(0, 7);
-      });
-      if (rowsInPeriod.length === 0) return { periodo: period.label, encontrado: false, motivo: "Nenhuma meta cadastrada no per\xEDodo." };
-      const loans = await loadLoansAndPayments(ctx);
-      const agg = aggregatesFor(ctx, loans, period);
-      return {
-        periodo: period.label,
-        encontrado: true,
-        metas: rowsInPeriod,
-        realizado_no_periodo: {
-          recebido: formatBRL(agg.receivedInPeriod.total),
-          lucro_realizado: formatBRL(agg.realizedProfitInPeriod),
-          contratos_iniciados: agg.contractsStartedInPeriod,
-          principal_emprestado: formatBRL(agg.principalLentInPeriod)
-        }
-      };
-    }
-    default:
-      return { erro: `Tool desconhecida: ${name}` };
+    return `
+# DADOS REAIS DO USU\xC1RIO EM TEMPO REAL
+- Data de refer\xEAncia (Hoje): ${today}
+- Per\xEDodo padr\xE3o: ${period.label}
+
+## Indicadores Oficiais da Carteira
+- Capital Ativo (Principal): ${formatBRL(agg.principalRemaining)}
+- Total a Receber: ${formatBRL(agg.totalReceivable)} (composi\xE7\xE3o: Capital ${formatBRL(agg.principalRemaining)} + Juros Pendentes ${formatBRL(agg.contractualInterestRemaining)} + Multas/Atraso ${formatBRL((agg.penaltyPending ?? 0) + (agg.lateInterestPending ?? 0))})
+- Total Recebido no Per\xEDodo: ${formatBRL(agg.receivedInPeriod.total)}
+- Lucro Realizado no Per\xEDodo: ${formatBRL(agg.realizedProfitInPeriod)}
+- Contratos: ${agg.contractsActive} ativos, ${agg.contractsOverdue} vencidos, ${agg.contractsPaid} quitados
+
+## Vencimentos de Hoje (${today})
+${dueToday.length > 0 ? dueToday.join("\n") : "Nenhum contrato vence hoje."}
+
+## Contratos Vencidos / Em Atraso
+${overdue.length > 0 ? overdue.join("\n") : "Nenhum contrato em atraso."}
+
+## Pr\xF3ximos Vencimentos
+${upcoming.length > 0 ? upcoming.join("\n") : "Nenhum vencimento futuro pr\xF3ximo."}
+
+## Alertas de Estoque (Produtos Baixos/Zerados)
+${lowStockLines.length > 0 ? lowStockLines.join("\n") : "Estoque regular / sem produtos em n\xEDvel cr\xEDtico."}`;
+  } catch (e) {
+    console.error("[ai-assistant] Erro ao carregar live data context:", e);
+    return "";
   }
 }
 
 // supabase/functions/ai-assistant/index.ts
-var MODEL_CHAIN = [
-  "gemini-2.0-flash",
-  "gemini-1.5-flash",
-  "gemini-1.5-pro",
-  "gemini-2.0-flash-lite",
-  "gemini-1.5-flash-8b"
-];
+var MODEL_CHAIN = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
 var AI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-var MAX_TOOL_STEPS = 3;
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -1295,25 +955,26 @@ function buildSystemPrompt(params) {
   return `Voc\xEA \xE9 o EmprestAI, assistente financeiro s\xEAnior do aplicativo Emprestaii.
 
 # Identidade
-Voc\xEA conhece profundamente o produto E tem acesso aos dados reais do usu\xE1rio atrav\xE9s de tools.
-Voc\xEA N\xC3O \xE9 um tutor gen\xE9rico: quando a pergunta envolve n\xFAmeros, voc\xEA consulta os dados antes de responder.
+Voc\xEA conhece profundamente o produto E tem acesso aos dados reais do usu\xE1rio abaixo.
+Voc\xEA N\xC3O \xE9 um tutor gen\xE9rico: responda sempre com base nos dados reais do usu\xE1rio.
 
 # Contexto atual
 - Data de hoje: ${params.todayIso}
-- Per\xEDodo padr\xE3o quando o usu\xE1rio n\xE3o especificar: ${params.periodLabel}
+- Per\xEDodo considerado: ${params.periodLabel}
 - Aba aberta no app: ${params.tab ?? "desconhecida"}
 - Modo: ${params.mode ?? "n\xE3o informado"}
 
 # Regras inviol\xE1veis
-1. NUNCA invente n\xFAmeros. Todo valor citado deve vir de uma tool executada nesta conversa.
-2. Se a tool n\xE3o retornar registros, diga explicitamente que n\xE3o encontrou registros no per\xEDodo \u2014 n\xE3o estime.
-3. Sempre informe o per\xEDodo a que os valores se referem.
+1. NUNCA invente n\xFAmeros. Todo valor citado deve vir dos dados reais fornecidos abaixo.
+2. Se n\xE3o houver registros para a pergunta (ex.: nenhum vencimento hoje), diga explicitamente isso de forma clara e amig\xE1vel.
+3. Sempre informe o per\xEDodo ou data a que os valores se referem.
 4. Formate dinheiro como R$ 1.234,56 (nunca abreviado).
-5. Se a pergunta for amb\xEDgua (cliente, per\xEDodo ou m\xF3dulo), pergunte antes de consultar.
-6. Nunca exiba tokens, chaves, IDs internos de credenciais ou dados de outros usu\xE1rios.
-7. Ao explicar um c\xE1lculo, use as f\xF3rmulas oficiais do conhecimento abaixo \u2014 n\xE3o crie f\xF3rmulas pr\xF3prias.
-8. Respostas curtas e diretas em portugu\xEAs do Brasil, com listas quando houver mais de dois n\xFAmeros.
-9. Ao decompor um total, use apenas os campos de "composicao_*" devolvidos pela tool e respeite a f\xF3rmula indicada. Nunca liste "valor_vencido" como parcela da composi\xE7\xE3o do total a receber \u2014 ele \xE9 um recorte (parcelas vencidas), n\xE3o uma parcela som\xE1vel.
+5. Se a pergunta for amb\xEDgua, pe\xE7a esclarecimento educadamente.
+6. Nunca exiba tokens, senhas ou credenciais.
+7. Ao explicar um c\xE1lculo, use as f\xF3rmulas oficiais do conhecimento de dom\xEDnio.
+8. Respostas curtas, diretas e elegantes em portugu\xEAs do Brasil, utilizando listas em t\xF3picos quando houver m\xFAltiplos itens.
+
+${params.liveData}
 
 # Conhecimento de dom\xEDnio
 ${params.knowledge}`;
@@ -1326,52 +987,25 @@ async function callModel(messages, apiKey) {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          "x-goog-api-key": apiKey,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
           model,
           messages,
-          tools: TOOL_DEFINITIONS,
-          tool_choice: "auto",
           temperature: 0.2,
-          max_tokens: 1200
+          max_tokens: 1500
         })
       });
       if (resp.ok) return await resp.json();
       const errText = await resp.text();
       lastError = `[${model}] ${resp.status} ${errText}`;
-      if (resp.status === 400 || resp.status === 404 || resp.status === 429 || resp.status >= 500) {
+      if (resp.status === 404 || resp.status === 429 || resp.status >= 500) {
         continue;
       }
       break;
     } catch (fetchErr) {
       lastError = `[${model}] Falha de rede: ${String(fetchErr?.message ?? fetchErr)}`;
       continue;
-    }
-  }
-  console.warn(`[ai-assistant] Chamada com tools falhou (${lastError}). Tentando fallback conversacional.`);
-  for (const model of ["gemini-2.0-flash", "gemini-1.5-flash"]) {
-    try {
-      const resp = await fetch(AI_ENDPOINT, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "x-goog-api-key": apiKey,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model,
-          messages,
-          temperature: 0.2,
-          max_tokens: 1200
-        })
-      });
-      if (resp.ok) return await resp.json();
-      const errText = await resp.text();
-      lastError = `[${model} fallback] ${resp.status} ${errText}`;
-    } catch (fetchErr) {
-      lastError = `[${model} fallback] Falha de rede: ${String(fetchErr?.message ?? fetchErr)}`;
     }
   }
   throw new Error(`AI request failed: ${lastError}`);
@@ -1415,8 +1049,11 @@ Deno.serve(async (req) => {
     const todayIso = String(body?.context?.today ?? (/* @__PURE__ */ new Date()).toISOString().slice(0, 10));
     const defaultPeriod = resolvePeriod(body?.context?.period ?? null, todayIso);
     const domains = selectDomains(question, tab);
+    const ctx = { client: userClient, ownerId, todayIso };
+    const liveData = await loadLiveDataContext(ctx, defaultPeriod);
     const systemPrompt = buildSystemPrompt({
       knowledge: buildKnowledgeBlock(domains),
+      liveData,
       todayIso,
       periodLabel: defaultPeriod.label,
       tab,
@@ -1424,55 +1061,21 @@ Deno.serve(async (req) => {
     });
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) return json({ error: "GEMINI_API_KEY missing" }, 500);
-    const ctx = { client: userClient, ownerId, todayIso };
     const messages = [
       { role: "system", content: systemPrompt },
       ...history,
       { role: "user", content: question }
     ];
-    const toolsUsed = [];
     let reply = "";
-    for (let step = 0; step < MAX_TOOL_STEPS; step++) {
-      let data;
-      try {
-        data = await callModel(messages, apiKey);
-      } catch (e) {
-        console.error("[ai-assistant] model call failed:", e);
-        return json({
-          error: "Assistente indispon\xEDvel no momento (falha no provedor de IA).",
-          detail: String(e?.message ?? e).slice(0, 500)
-        }, 502);
-      }
-      const choice = data?.choices?.[0]?.message;
-      if (!choice) break;
-      const calls = choice.tool_calls ?? [];
-      if (calls.length === 0) {
-        reply = String(choice.content ?? "").trim();
-        break;
-      }
-      messages.push({ role: "assistant", content: choice.content ?? null, tool_calls: calls });
-      for (const call of calls) {
-        const name = call?.function?.name ?? "";
-        let args = {};
-        try {
-          args = JSON.parse(call?.function?.arguments || "{}");
-        } catch {
-          args = {};
-        }
-        toolsUsed.push(name);
-        let result;
-        try {
-          result = await executeTool(name, args, ctx);
-        } catch (error) {
-          console.error(`[ai-assistant] tool ${name} failed:`, error);
-          result = { erro: "N\xE3o foi poss\xEDvel consultar os dados agora." };
-        }
-        messages.push({
-          role: "tool",
-          tool_call_id: call.id,
-          content: JSON.stringify(result).slice(0, 2e4)
-        });
-      }
+    try {
+      const data = await callModel(messages, apiKey);
+      reply = String(data?.choices?.[0]?.message?.content ?? "").trim();
+    } catch (e) {
+      console.error("[ai-assistant] model call failed:", e);
+      return json({
+        error: "Assistente indispon\xEDvel no momento (falha no provedor de IA).",
+        detail: String(e?.message ?? e).slice(0, 500)
+      }, 502);
     }
     if (!reply) {
       reply = "N\xE3o consegui concluir a consulta agora. Reformule a pergunta ou tente novamente em instantes.";
@@ -1485,7 +1088,7 @@ _Per\xEDodo considerado: ${defaultPeriod.label}._`;
     }
     return json({
       reply,
-      tools_used: toolsUsed,
+      tools_used: ["live_database_sync"],
       domains,
       period: defaultPeriod,
       learnable: isLearnableAnswer(question, reply)

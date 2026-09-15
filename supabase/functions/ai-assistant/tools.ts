@@ -67,7 +67,7 @@ function effectiveDueDate(loan: any, installments: any[]): string {
   return String(loan.due_date ?? "").slice(0, 10);
 }
 
-async function loadLoansAndPayments(ctx: ToolContext) {
+export async function loadLoansAndPayments(ctx: ToolContext) {
   const { data: loans, error: loansError } = await ctx.client
     .from("loans")
     .select("*")
@@ -101,8 +101,7 @@ async function loadLoansAndPayments(ctx: ToolContext) {
   return { loanRows, paymentRows: payments ?? [], installmentRows };
 }
 
-
-function aggregatesFor(ctx: ToolContext, rows: { loanRows: any[]; paymentRows: any[] }, period: ResolvedPeriod) {
+export function aggregatesFor(ctx: ToolContext, rows: { loanRows: any[]; paymentRows: any[] }, period: ResolvedPeriod) {
   return buildAggregatesFromRows({
     loanRows: rows.loanRows,
     paymentRows: rows.paymentRows,
@@ -111,19 +110,98 @@ function aggregatesFor(ctx: ToolContext, rows: { loanRows: any[]; paymentRows: a
   });
 }
 
-async function clientNameMap(ctx: ToolContext): Promise<Map<string, string>> {
+export async function clientNameMap(ctx: ToolContext): Promise<Map<string, string>> {
   const { data } = await ctx.client.from("clients").select("id, name").eq("user_id", ctx.ownerId);
   const map = new Map<string, string>();
   for (const row of data ?? []) map.set(String(row.id), String(row.name ?? ""));
   return map;
 }
 
-
-function loanClientName(loan: any, names: Map<string, string>): string {
+export function loanClientName(loan: any, names: Map<string, string>): string {
   const direct = String(loan?.borrower_name ?? "").trim();
   if (direct) return direct;
   const id = String(loan?.borrower_id ?? loan?.client_id ?? "");
   return names.get(id) ?? "—";
+}
+
+export async function loadLiveDataContext(ctx: ToolContext, period: ResolvedPeriod): Promise<string> {
+  try {
+    const [names, rows] = await Promise.all([
+      clientNameMap(ctx),
+      loadLoansAndPayments(ctx).catch(() => ({ loanRows: [], paymentRows: [], installmentRows: [] })),
+    ]);
+    const agg = aggregatesFor(ctx, rows, period);
+    const today = ctx.todayIso;
+
+    // Contratos vencendo hoje
+    const dueToday = rows.loanRows
+      .filter((l) => !["paid", "completed"].includes(String(l.status ?? "").toLowerCase()))
+      .filter((l) => String(l.due_date ?? "").slice(0, 10) === today)
+      .map((l) => `- Cliente: **${loanClientName(l, names)}** | Valor: ${formatBRL(num(l.amount))} | Vencimento: Hoje (${today}) | Status: ${l.status}`);
+
+    // Contratos vencidos / em atraso
+    const overdue = rows.loanRows
+      .filter((l) => !["paid", "completed"].includes(String(l.status ?? "").toLowerCase()))
+      .filter((l) => {
+        const due = String(l.due_date ?? "").slice(0, 10);
+        return due && due < today;
+      })
+      .slice(0, 10)
+      .map((l) => `- Cliente: **${loanClientName(l, names)}** | Venceu em: ${String(l.due_date).slice(0, 10)} | Valor: ${formatBRL(num(l.amount))}`);
+
+    // Próximos vencimentos
+    const upcoming = rows.loanRows
+      .filter((l) => !["paid", "completed"].includes(String(l.status ?? "").toLowerCase()))
+      .filter((l) => {
+        const due = String(l.due_date ?? "").slice(0, 10);
+        return due && due > today;
+      })
+      .slice(0, 10)
+      .map((l) => `- Cliente: **${loanClientName(l, names)}** | Vencimento: ${String(l.due_date).slice(0, 10)} | Valor: ${formatBRL(num(l.amount))}`);
+
+    // Produtos com estoque baixo
+    let lowStockLines: string[] = [];
+    try {
+      const { data: prods } = await ctx.client.from("products").select("name, stock, suggested_stock, price").eq("user_id", ctx.ownerId);
+      lowStockLines = (prods ?? [])
+        .filter((p: any) => {
+          const stock = Number(p.stock ?? 0);
+          const sug = p.suggested_stock != null ? Number(p.suggested_stock) : 5;
+          return stock <= sug;
+        })
+        .slice(0, 10)
+        .map((p: any) => `- Produto: **${p.name}** | Estoque atual: ${p.stock} (sugerido: ${p.suggested_stock ?? 5}) | Preço: ${formatBRL(p.price)}`);
+    } catch {
+      // ignore
+    }
+
+    return `
+# DADOS REAIS DO USUÁRIO EM TEMPO REAL
+- Data de referência (Hoje): ${today}
+- Período padrão: ${period.label}
+
+## Indicadores Oficiais da Carteira
+- Capital Ativo (Principal): ${formatBRL(agg.principalRemaining)}
+- Total a Receber: ${formatBRL(agg.totalReceivable)} (composição: Capital ${formatBRL(agg.principalRemaining)} + Juros Pendentes ${formatBRL(agg.contractualInterestRemaining)} + Multas/Atraso ${formatBRL((agg.penaltyPending ?? 0) + (agg.lateInterestPending ?? 0))})
+- Total Recebido no Período: ${formatBRL(agg.receivedInPeriod.total)}
+- Lucro Realizado no Período: ${formatBRL(agg.realizedProfitInPeriod)}
+- Contratos: ${agg.contractsActive} ativos, ${agg.contractsOverdue} vencidos, ${agg.contractsPaid} quitados
+
+## Vencimentos de Hoje (${today})
+${dueToday.length > 0 ? dueToday.join("\n") : "Nenhum contrato vence hoje."}
+
+## Contratos Vencidos / Em Atraso
+${overdue.length > 0 ? overdue.join("\n") : "Nenhum contrato em atraso."}
+
+## Próximos Vencimentos
+${upcoming.length > 0 ? upcoming.join("\n") : "Nenhum vencimento futuro próximo."}
+
+## Alertas de Estoque (Produtos Baixos/Zerados)
+${lowStockLines.length > 0 ? lowStockLines.join("\n") : "Estoque regular / sem produtos em nível crítico."}`;
+  } catch (e) {
+    console.error("[ai-assistant] Erro ao carregar live data context:", e);
+    return "";
+  }
 }
 
 /* ---------------------------------------------------------------------------
