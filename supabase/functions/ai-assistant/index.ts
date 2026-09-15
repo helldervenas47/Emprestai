@@ -20,7 +20,13 @@ import {
   selectDomains,
 } from "./pure.ts";
 
-const MODEL_CHAIN = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b"];
+const MODEL_CHAIN = [
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+  "gemini-1.5-pro",
+  "gemini-2.0-flash-lite",
+  "gemini-1.5-flash-8b",
+];
 const AI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 const MAX_TOOL_STEPS = 3;
 
@@ -75,23 +81,35 @@ ${params.knowledge}`;
 async function callModel(messages: ChatMessage[], apiKey: string): Promise<any> {
   let lastError = "";
   for (const model of MODEL_CHAIN) {
-    const resp = await fetch(AI_ENDPOINT, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        messages,
-        tools: TOOL_DEFINITIONS,
-        tool_choice: "auto",
-        temperature: 0.2,
-        max_tokens: 1200,
-      }),
-    });
-    if (resp.ok) return await resp.json();
-    lastError = `${resp.status} ${await resp.text()}`;
-    // 404 = modelo descontinuado/indisponível → tenta o próximo da cadeia.
-    if (resp.status === 404 || resp.status === 429 || resp.status >= 500) continue;
-    break;
+    try {
+      const resp = await fetch(AI_ENDPOINT, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "x-goog-api-key": apiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          tools: TOOL_DEFINITIONS,
+          tool_choice: "auto",
+          temperature: 0.2,
+          max_tokens: 1200,
+        }),
+      });
+      if (resp.ok) return await resp.json();
+      const errText = await resp.text();
+      lastError = `[${model}] ${resp.status} ${errText}`;
+      // 400 (Bad Request), 404 (Not Found), 429 (Rate Limit) ou 5xx (Server Error) → tenta o próximo da cadeia.
+      if (resp.status === 400 || resp.status === 404 || resp.status === 429 || resp.status >= 500) {
+        continue;
+      }
+      break;
+    } catch (fetchErr) {
+      lastError = `[${model}] Falha de rede: ${String((fetchErr as Error)?.message ?? fetchErr)}`;
+      continue;
+    }
   }
   throw new Error(`AI request failed: ${lastError}`);
 }
