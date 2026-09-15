@@ -45,7 +45,6 @@ export function generatePhoneVariants(raw: string): string[] {
   let digits = (raw || "").replace(/\D/g, "");
   if (!digits) return [];
 
-  // Remove 55 se presente
   let withoutCountry = digits;
   if (digits.startsWith("55") && digits.length >= 12) {
     withoutCountry = digits.substring(2);
@@ -56,14 +55,11 @@ export function generatePhoneVariants(raw: string): string[] {
   variants.add(withoutCountry);
   variants.add(`55${withoutCountry}`);
 
-  // Trata 9º dígito móvel (DDD + 9 dígitos vs DDD + 8 dígitos)
   if (withoutCountry.length === 11 && withoutCountry[2] === "9") {
-    // Versão com 8 dígitos
     const eightDigits = withoutCountry.slice(0, 2) + withoutCountry.slice(3);
     variants.add(eightDigits);
     variants.add(`55${eightDigits}`);
   } else if (withoutCountry.length === 10) {
-    // Versão com 9 dígitos adicionado
     const nineDigits = withoutCountry.slice(0, 2) + "9" + withoutCountry.slice(2);
     variants.add(nineDigits);
     variants.add(`55${nineDigits}`);
@@ -94,7 +90,7 @@ serve(async (req) => {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
 
     // -------------------------------------------------------------
-    // 1. LOOKUP DE CLIENTE E CREDOR
+    // 1. LOOKUP DE CLIENTE, CREDOR E MEMÓRIA DE CONVERSA
     // -------------------------------------------------------------
     if (pathname === "/lookup" || pathname === "") {
       const { phone, provider_message_id } = body;
@@ -107,7 +103,6 @@ serve(async (req) => {
 
       const phoneVariants = generatePhoneVariants(phone);
 
-      // Busca clientes ativos no EmprestAI com correspondência em qualquer variação de telefone
       const { data: matchedClients, error: clientErr } = await admin
         .from("clients")
         .select("id, user_id, name, phone, document, active")
@@ -127,7 +122,6 @@ serve(async (req) => {
         );
       }
 
-      // Verificação de ambiguidade (se existir clientes em múltiplos credores)
       const distinctUsers = Array.from(new Set(matchedClients.map((c) => c.user_id)));
       if (distinctUsers.length > 1) {
         return new Response(
@@ -144,7 +138,6 @@ serve(async (req) => {
       const client = matchedClients[0];
       const userId = client.user_id;
 
-      // Busca dados do credor (Nome da empresa / Display Name e Branding)
       const [{ data: profile }, { data: branding }, { data: billingMessages }] = await Promise.all([
         admin.from("profiles").select("display_name, phone").eq("user_id", userId).maybeSingle(),
         admin.from("app_branding").select("app_title, company_name").eq("owner_id", userId).maybeSingle(),
@@ -154,7 +147,6 @@ serve(async (req) => {
       const creditorName = branding?.company_name || branding?.app_title || profile?.display_name || "Financeira";
       const hasPix = !!billingMessages?.pix_link?.trim();
 
-      // Busca empréstimos ativos do cliente
       const { data: loans } = await admin
         .from("loans")
         .select("id, amount, total_amount, remaining_amount, installments, paid_installments, due_date, status")
@@ -162,7 +154,7 @@ serve(async (req) => {
         .or(`client_id.eq.${client.id},borrower_id.eq.${client.id}`)
         .neq("status", "paid");
 
-      // Gerencia ou recupera sessão de conversa
+      // Gerencia sessão de conversa
       const { data: conv } = await admin
         .from("whatsapp_customer_conversations")
         .select("*")
@@ -193,6 +185,23 @@ serve(async (req) => {
           .eq("id", conv.id);
       }
 
+      // Memória Conversacional: Resgata as últimas 5 mensagens
+      let recentHistory: any[] = [];
+      if (conversationId) {
+        const { data: msgs } = await admin
+          .from("whatsapp_customer_messages")
+          .select("direction, intent, content, created_at")
+          .eq("conversation_id", conversationId)
+          .order("created_at", { ascending: false })
+          .limit(5);
+
+        recentHistory = (msgs || []).reverse().map((m) => ({
+          role: m.direction === "inbound" ? "user" : "assistant",
+          intent: m.intent,
+          content: m.content,
+        }));
+      }
+
       return new Response(
         JSON.stringify({
           found: true,
@@ -213,6 +222,7 @@ serve(async (req) => {
             active_loans_count: loans?.length || 0,
             primary_loan_id: loans?.[0]?.id || null,
           },
+          recent_history: recentHistory,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
@@ -230,7 +240,6 @@ serve(async (req) => {
         });
       }
 
-      // Validação estrita multi-tenant: o empréstimo precisa pertencer a este client_id e user_id
       let loanQuery = admin
         .from("loans")
         .select("id, amount, total_amount, remaining_amount, installments, paid_installments, due_date, status")
@@ -250,7 +259,6 @@ serve(async (req) => {
 
       const activeLoan = loans[0];
 
-      // Busca cronograma de parcelas
       const { data: installments } = await admin
         .from("loan_installments")
         .select("id, installment_number, due_date, amount, paid")
@@ -285,7 +293,6 @@ serve(async (req) => {
         );
       }
 
-      // Se não houver cronograma detalhado, recorre à data base do contrato
       const fallbackAmount = Number(activeLoan.remaining_amount || activeLoan.amount || 0);
       const fallbackDue = activeLoan.due_date;
       return new Response(
@@ -398,7 +405,6 @@ serve(async (req) => {
 
       const activeLoan = loans[0];
 
-      // Busca parcelas em aberto
       const { data: pendingInstallments } = await admin
         .from("loan_installments")
         .select("id, amount, paid")
@@ -457,7 +463,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({
             has_pix: false,
-            message: "A chave PIX não está configurada no momento. Por favor, solicite a um atendente.",
+            message: "A chave PIX não está configurada no momento. Por favor, consulte o credor.",
           }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
@@ -468,7 +474,7 @@ serve(async (req) => {
           has_pix: true,
           pix_key: pixKey,
           beneficiary_name: holder,
-          instructions: "Após efetuar o pagamento, basta enviar o comprovante ou me avisar por aqui.",
+          instructions: "Após efetuar o pagamento, basta me avisar por aqui.",
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
@@ -486,7 +492,6 @@ serve(async (req) => {
         });
       }
 
-      // Insere aviso de pagamento na tabela de promessas sem alterar valores financeiros
       await admin.from("whatsapp_payment_promises").insert({
         user_id: user_id,
         client_id: client_id,
@@ -543,7 +548,6 @@ serve(async (req) => {
     if (pathname === "/log-message") {
       const { conversation_id, provider_message_id, direction, phone, intent, content, tool_called, tool_result } = body;
 
-      // Checa duplicidade se provider_message_id for fornecido
       if (provider_message_id) {
         const { data: existing } = await admin
           .from("whatsapp_customer_messages")
