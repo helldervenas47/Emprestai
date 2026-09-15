@@ -303,16 +303,7 @@ export function AppSidebar({
                   );
                   return (
                     <li key={item.id}>
-                      {collapsed ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>{button}</TooltipTrigger>
-                          <TooltipContent side="right" sideOffset={8}>
-                            {item.label}
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        button
-                      )}
+                      {button}
                     </li>
                   );
                 })}
