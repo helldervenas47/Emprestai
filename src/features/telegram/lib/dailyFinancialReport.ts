@@ -203,6 +203,8 @@ export function buildDailyFinancialData(params: {
 
   // 7. Faturas de Cartão de Crédito e Lançamentos no Extrato (account_ledger)
   const ledgerRows = (params as any).ledgerRows || (params as any).ledger || [];
+  const processedCardIds = new Set<string>();
+
   for (const row of ledgerRows) {
     const rowDate = (row.occurred_on || row.occurredOn || (row.created_at ? String(row.created_at).slice(0, 10) : "")).slice(0, 10);
     if (rowDate === date) {
@@ -214,6 +216,9 @@ export function buildDailyFinancialData(params: {
       if (isOut && isInvoice) {
         const val = Number(row.amount) || 0;
         if (val > 0) {
+          if (row.metadata?.credit_card_id) {
+            processedCardIds.add(String(row.metadata.credit_card_id));
+          }
           personalExpenseItems.push({
             description: row.description || "Pagamento de Fatura de Cartão",
             amount: round2(val),
@@ -223,35 +228,92 @@ export function buildDailyFinancialData(params: {
     }
   }
 
-  // 8. Faturas marcadas como pagas em credit_card_invoice_openings
+  // 8. Faturas dos Cartões de Crédito (vencimento na data ou pagas na data)
   const openings = (params as any).openings || [];
   const cards = (params as any).creditCards || (params as any).cards || [];
+  const targetDay = Number(date.split("-")[2]) || 0;
+  const targetMonth = date.slice(0, 7);
+
+  for (const card of cards) {
+    if (card.active === false) continue;
+    if (processedCardIds.has(String(card.id))) continue;
+
+    const dueDay = Number(card.due_day || card.dueDay) || 0;
+    const closingDay = Number(card.closing_day || card.closingDay) || 1;
+
+    // Busca opening do ciclo do mês
+    const op = openings.find((o: any) => {
+      const cId = o.card_id || o.cardId;
+      const cKey = o.cycle_key || o.cycleKey || "";
+      return String(cId) === String(card.id) && String(cKey).startsWith(targetMonth);
+    }) || openings.find((o: any) => String(o.card_id || o.cardId) === String(card.id));
+
+    const notes = op?.notes || "";
+    const paidMatch = /\[PAID_DATE:(\d{4}-\d{2}-\d{2})\]/i.exec(notes);
+    const paidDate = paidMatch ? paidMatch[1] : null;
+    const isPaid = /\[PAGA\]/i.test(notes) || !!paidDate;
+    const isPaidToday = paidDate === date;
+    const isDueToday = dueDay === targetDay;
+
+    if (isDueToday || isPaidToday) {
+      const paidValMatch = /\[PAID:([0-9]+(?:\.[0-9]+)?)\]/i.exec(notes);
+      const totalValMatch = /\[TOTAL:([0-9]+(?:\.[0-9]+)?)\]/i.exec(notes);
+      
+      // Soma itens de despesas associadas a este cartão no ciclo
+      const cardTag = (card.nickname || card.bank || "").toLowerCase();
+      const cardExpenses = expenses.filter((e) => {
+        const eNotes = (e.notes || "").toLowerCase();
+        const eCat = (e.category || "").toLowerCase();
+        const isCard = eNotes.includes("[crédito]") || eNotes.includes("[credito]") || eCat.includes("cartão") || eCat.includes("cartao");
+        const matchesCard = !cardTag || eNotes.includes(cardTag) || eNotes.includes(String(card.last_four || card.lastFour || "").toLowerCase());
+        return isCard && matchesCard;
+      });
+
+      const cardItemsTotal = cardExpenses.reduce((s, e) => {
+        const inst = Number(e.installments) || 1;
+        const val = inst > 1 && !e.parent_expense_id && !e.parentExpenseId ? (Number(e.amount) || 0) / inst : (Number(e.amount) || 0);
+        return s + val;
+      }, 0);
+
+      const opAmount = Number(op?.opening_amount || op?.openingAmount) || 0;
+      const totalInvoice = totalValMatch ? Number(totalValMatch[1]) : (cardItemsTotal + opAmount);
+      const paidInvoice = paidValMatch ? Number(paidValMatch[1]) : (isPaid ? (opAmount + cardItemsTotal) : 0);
+      const finalVal = paidInvoice > 0 ? paidInvoice : totalInvoice;
+
+      if (finalVal > 0) {
+        processedCardIds.add(String(card.id));
+        const cardLabel = card.nickname || card.bank ? `Fatura ${card.nickname || card.bank}` : "Fatura Cartão de Crédito";
+        personalExpenseItems.push({
+          description: cardLabel,
+          amount: round2(finalVal),
+        });
+      }
+    }
+  }
+
+  // 9. Faturas órfãs em credit_card_invoice_openings
   for (const op of openings) {
+    const cardIdStr = String(op.card_id || op.cardId || "");
+    if (processedCardIds.has(cardIdStr)) continue;
+
     const notes = op.notes || "";
     const paidMatch = /\[PAID_DATE:(\d{4}-\d{2}-\d{2})\]/i.exec(notes);
     const paidDate = paidMatch ? paidMatch[1] : null;
     const isPaid = /\[PAGA\]/i.test(notes) || !!paidDate;
-    
-    if (paidDate === date || (isPaid && !paidDate && op.cycle_key && op.cycle_key.startsWith(date.slice(0, 7)))) {
-      // Verifica se já não foi incluído pelo account_ledger
-      const alreadyInLedger = ledgerRows.some((r: any) => {
-        const rDate = (r.occurred_on || r.occurredOn || "").slice(0, 10);
-        return rDate === date && r.metadata?.credit_card_id === op.card_id && r.metadata?.cycle_key === op.cycle_key;
-      });
 
-      if (!alreadyInLedger) {
-        const paidValMatch = /\[PAID:([0-9]+(?:\.[0-9]+)?)\]/i.exec(notes);
-        const totalValMatch = /\[TOTAL:([0-9]+(?:\.[0-9]+)?)\]/i.exec(notes);
-        const val = paidValMatch ? Number(paidValMatch[1]) : totalValMatch ? Number(totalValMatch[1]) : Number(op.opening_amount) || 0;
-        
-        if (val > 0) {
-          const card = cards.find((c: any) => c.id === op.card_id);
-          const cardLabel = card?.nickname || card?.bank ? `Fatura ${card.nickname || card.bank}` : "Fatura Cartão de Crédito";
-          personalExpenseItems.push({
-            description: cardLabel,
-            amount: round2(val),
-          });
-        }
+    if (paidDate === date || (isPaid && !paidDate && op.cycle_key && String(op.cycle_key).startsWith(date.slice(0, 7)))) {
+      const paidValMatch = /\[PAID:([0-9]+(?:\.[0-9]+)?)\]/i.exec(notes);
+      const totalValMatch = /\[TOTAL:([0-9]+(?:\.[0-9]+)?)\]/i.exec(notes);
+      const val = paidValMatch ? Number(paidValMatch[1]) : totalValMatch ? Number(totalValMatch[1]) : Number(op.opening_amount || op.openingAmount) || 0;
+
+      if (val > 0) {
+        processedCardIds.add(cardIdStr);
+        const card = cards.find((c: any) => String(c.id) === cardIdStr);
+        const cardLabel = card?.nickname || card?.bank ? `Fatura ${card.nickname || card.bank}` : "Fatura Cartão de Crédito";
+        personalExpenseItems.push({
+          description: cardLabel,
+          amount: round2(val),
+        });
       }
     }
   }

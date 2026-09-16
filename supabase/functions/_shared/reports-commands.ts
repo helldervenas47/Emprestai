@@ -1531,6 +1531,8 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
   }
 
   // 7. Faturas de Cartão de Crédito e Lançamentos no Extrato (account_ledger)
+  const processedCardIds = new Set<string>();
+
   for (const row of rawLedger) {
     const rowDate = String(row.occurred_on || row.created_at || "").slice(0, 10);
     if (rowDate === date) {
@@ -1542,6 +1544,9 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
       if (isOut && isInvoice) {
         const val = Number(row.amount) || 0;
         if (val > 0) {
+          if (row.metadata?.credit_card_id) {
+            processedCardIds.add(String(row.metadata.credit_card_id));
+          }
           personalExpenseItems.push({
             description: row.description || "Pagamento de Fatura de Cartão",
             amount: round2(val),
@@ -1551,32 +1556,89 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
     }
   }
 
-  // 8. Faturas marcadas como pagas em credit_card_invoice_openings
+  // 8. Faturas dos Cartões de Crédito (vencimento na data ou pagas na data)
+  const targetDay = Number(date.split("-")[2]) || 0;
+  const targetMonth = date.slice(0, 7);
+
+  for (const card of rawCards) {
+    if (card.active === false) continue;
+    if (processedCardIds.has(String(card.id))) continue;
+
+    const dueDay = Number(card.due_day || card.dueDay) || 0;
+    const closingDay = Number(card.closing_day || card.closingDay) || 1;
+
+    // Busca opening do ciclo do mês
+    const op = rawOpenings.find((o: any) => {
+      const cId = o.card_id || o.cardId;
+      const cKey = o.cycle_key || o.cycleKey || "";
+      return String(cId) === String(card.id) && String(cKey).startsWith(targetMonth);
+    }) || rawOpenings.find((o: any) => String(o.card_id || o.cardId) === String(card.id));
+
+    const notes = op?.notes || "";
+    const paidMatch = /\[PAID_DATE:(\d{4}-\d{2}-\d{2})\]/i.exec(notes);
+    const paidDate = paidMatch ? paidMatch[1] : null;
+    const isPaid = /\[PAGA\]/i.test(notes) || !!paidDate;
+    const isPaidToday = paidDate === date;
+    const isDueToday = dueDay === targetDay;
+
+    if (isDueToday || isPaidToday) {
+      const paidValMatch = /\[PAID:([0-9]+(?:\.[0-9]+)?)\]/i.exec(notes);
+      const totalValMatch = /\[TOTAL:([0-9]+(?:\.[0-9]+)?)\]/i.exec(notes);
+
+      const cardTag = (card.nickname || card.bank || "").toLowerCase();
+      const cardExpenses = rawExpenses.filter((e: any) => {
+        const eNotes = (e.notes || "").toLowerCase();
+        const eCat = (e.category || "").toLowerCase();
+        const isCard = eNotes.includes("[crédito]") || eNotes.includes("[credito]") || eCat.includes("cartão") || eCat.includes("cartao");
+        const matchesCard = !cardTag || eNotes.includes(cardTag) || eNotes.includes(String(card.last_four || "").toLowerCase());
+        return isCard && matchesCard;
+      });
+
+      const cardItemsTotal = cardExpenses.reduce((s: number, e: any) => {
+        const inst = Number(e.installments) || 1;
+        const val = inst > 1 && !e.parent_expense_id ? (Number(e.amount) || 0) / inst : (Number(e.amount) || 0);
+        return s + val;
+      }, 0);
+
+      const opAmount = Number(op?.opening_amount) || 0;
+      const totalInvoice = totalValMatch ? Number(totalValMatch[1]) : (cardItemsTotal + opAmount);
+      const paidInvoice = paidValMatch ? Number(paidValMatch[1]) : (isPaid ? (opAmount + cardItemsTotal) : 0);
+      const finalVal = paidInvoice > 0 ? paidInvoice : totalInvoice;
+
+      if (finalVal > 0) {
+        processedCardIds.add(String(card.id));
+        const cardLabel = card.nickname || card.bank ? `Fatura ${card.nickname || card.bank}` : "Fatura Cartão de Crédito";
+        personalExpenseItems.push({
+          description: cardLabel,
+          amount: round2(finalVal),
+        });
+      }
+    }
+  }
+
+  // 9. Faturas órfãs em credit_card_invoice_openings
   for (const op of rawOpenings) {
+    const cardIdStr = String(op.card_id || "");
+    if (processedCardIds.has(cardIdStr)) continue;
+
     const notes = op.notes || "";
     const paidMatch = /\[PAID_DATE:(\d{4}-\d{2}-\d{2})\]/i.exec(notes);
     const paidDate = paidMatch ? paidMatch[1] : null;
     const isPaid = /\[PAGA\]/i.test(notes) || !!paidDate;
-    
-    if (paidDate === date || (isPaid && !paidDate && op.cycle_key && String(op.cycle_key).startsWith(date.slice(0, 7)))) {
-      const alreadyInLedger = rawLedger.some((r: any) => {
-        const rDate = String(r.occurred_on || "").slice(0, 10);
-        return rDate === date && r.metadata?.credit_card_id === op.card_id && r.metadata?.cycle_key === op.cycle_key;
-      });
 
-      if (!alreadyInLedger) {
-        const paidValMatch = /\[PAID:([0-9]+(?:\.[0-9]+)?)\]/i.exec(notes);
-        const totalValMatch = /\[TOTAL:([0-9]+(?:\.[0-9]+)?)\]/i.exec(notes);
-        const val = paidValMatch ? Number(paidValMatch[1]) : totalValMatch ? Number(totalValMatch[1]) : Number(op.opening_amount) || 0;
-        
-        if (val > 0) {
-          const card = rawCards.find((c: any) => c.id === op.card_id);
-          const cardLabel = card?.nickname || card?.bank ? `Fatura ${card.nickname || card.bank}` : "Fatura Cartão de Crédito";
-          personalExpenseItems.push({
-            description: cardLabel,
-            amount: round2(val),
-          });
-        }
+    if (paidDate === date || (isPaid && !paidDate && op.cycle_key && String(op.cycle_key).startsWith(date.slice(0, 7)))) {
+      const paidValMatch = /\[PAID:([0-9]+(?:\.[0-9]+)?)\]/i.exec(notes);
+      const totalValMatch = /\[TOTAL:([0-9]+(?:\.[0-9]+)?)\]/i.exec(notes);
+      const val = paidValMatch ? Number(paidValMatch[1]) : totalValMatch ? Number(totalValMatch[1]) : Number(op.opening_amount) || 0;
+
+      if (val > 0) {
+        processedCardIds.add(cardIdStr);
+        const card = rawCards.find((c: any) => String(c.id) === cardIdStr);
+        const cardLabel = card?.nickname || card?.bank ? `Fatura ${card.nickname || card.bank}` : "Fatura Cartão de Crédito";
+        personalExpenseItems.push({
+          description: cardLabel,
+          amount: round2(val),
+        });
       }
     }
   }
