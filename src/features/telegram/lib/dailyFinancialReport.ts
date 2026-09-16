@@ -80,6 +80,60 @@ export function round2(n: number): number {
   return Math.round((Number(n) || 0) * 100) / 100;
 }
 
+function addDaysToIso(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.slice(0, 10).split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  date.setDate(date.getDate() + days);
+  const yr = date.getFullYear();
+  const mo = String(date.getMonth() + 1).padStart(2, "0");
+  const dy = String(date.getDate()).padStart(2, "0");
+  return `${yr}-${mo}-${dy}`;
+}
+
+function addMonthsToIso(dateStr: string, months: number): string {
+  const [y, m, d] = dateStr.slice(0, 10).split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  date.setMonth(date.getMonth() + months);
+  const yr = date.getFullYear();
+  const mo = String(date.getMonth() + 1).padStart(2, "0");
+  const dy = String(date.getDate()).padStart(2, "0");
+  return `${yr}-${mo}-${dy}`;
+}
+
+export function getSaleInstallmentDueDate(
+  baseDate: string,
+  frequency: string | undefined | null,
+  index: number,
+  installmentDates?: (string | null)[] | null
+): string {
+  if (installmentDates && installmentDates[index]) {
+    return String(installmentDates[index]).slice(0, 10);
+  }
+  if (!baseDate) return "";
+  if (index === 0) return baseDate.slice(0, 10);
+
+  const freq = (frequency || "Mensal").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  if (freq.includes("diar") || freq.includes("daily")) {
+    return addDaysToIso(baseDate, index);
+  }
+  if (freq.includes("seman") || freq.includes("weekly")) {
+    return addDaysToIso(baseDate, index * 7);
+  }
+  if (freq.includes("quinzen")) {
+    return addDaysToIso(baseDate, index * 15);
+  }
+  return addMonthsToIso(baseDate, index);
+}
+
+export function isVehicleSale(sale: any): boolean {
+  const bType = String(sale.business_type || sale.businessType || "").toLowerCase();
+  if (bType === "aluguel_veiculo" || bType === "veiculo" || bType === "veiculos" || bType === "veículo" || bType === "veículos") {
+    return true;
+  }
+  const desc = String(sale.description || "").toLowerCase();
+  return desc.includes("aluguel de veículo") || desc.includes("aluguel veiculo") || desc.includes("locação veículo") || desc.includes("locacao veiculo");
+}
+
 /**
  * Filtra e constrói a estrutura consolidada do relatório a partir dos dados brutos dos módulos.
  */
@@ -113,18 +167,27 @@ export function buildDailyFinancialData(params: {
   const vehicleIncomeItems: MovementItem[] = [];
 
   for (const sale of sales) {
-    const isVehicle = (sale.business_type || sale.businessType) === "aluguel_veiculo";
+    const isVehicle = isVehicleSale(sale);
     const history = (Array.isArray(sale.payment_history) ? sale.payment_history : (Array.isArray(sale.paymentHistory) ? sale.paymentHistory : [])) as any[];
     const client = sale.customer_name || sale.customerName || "";
+    const saleDate = (sale.sale_date || sale.saleDate || (sale.created_at ? String(sale.created_at).slice(0, 10) : "")).slice(0, 10);
+    const instCount = Number(sale.installments) || 1;
+    const paidCount = Number(sale.paid_installments ?? sale.paidInstallments) || 0;
+    const instVal = Number(sale.installment_value || sale.installmentValue) || 0;
+    const total = Number(sale.total) || 0;
+    const down = Number(sale.down_payment || sale.downPayment) || 0;
+    const customDates = (sale.installment_dates || sale.installmentDates) as (string | null)[] | null | undefined;
+    const customAmounts = (sale.installment_amounts || sale.installmentAmounts) as (number | null)[] | null | undefined;
+    const freq = sale.frequency || "Mensal";
+    const defaultTypeDesc = isVehicle ? "Aluguel Veículo" : "Venda";
 
-    let hasHistoryPayment = false;
+    // 1. Pagamentos recebidos hoje registrados no histórico
     for (const pay of history) {
       const payDate = (pay.date || "").slice(0, 10);
       if (payDate === date) {
         const val = Number(pay.amount) || 0;
         if (val > 0) {
-          hasHistoryPayment = true;
-          const desc = client ? `${client} — ${sale.description || (isVehicle ? "Aluguel Veículo" : "Venda")}` : (sale.description || (isVehicle ? "Aluguel Veículo" : "Venda"));
+          const desc = client ? `${client} — ${sale.description || defaultTypeDesc}` : (sale.description || defaultTypeDesc);
           if (isVehicle) {
             vehicleIncomeItems.push({ description: desc, amount: round2(val) });
           } else {
@@ -134,30 +197,34 @@ export function buildDailyFinancialData(params: {
       }
     }
 
-    // Se não teve pagamento no histórico na data, verifica se a data da venda/aluguel corresponde ao dia
-    if (!hasHistoryPayment) {
-      const saleDate = (sale.sale_date || sale.saleDate || (sale.created_at ? String(sale.created_at).slice(0, 10) : "")).slice(0, 10);
-      if (saleDate === date) {
-        const instCount = Number(sale.installments) || 1;
-        const instVal = Number(sale.installment_value || sale.installmentValue) || 0;
-        const total = Number(sale.total) || 0;
-        const down = Number(sale.down_payment || sale.downPayment) || 0;
-
-        let val = 0;
-        if (instVal > 0) {
-          val = instVal;
-        } else if (instCount > 1) {
-          val = (total - down > 0 ? (total - down) / instCount : total / instCount);
-        } else {
-          val = total || Number(sale.partial_paid || sale.partialPaid) || 0;
-        }
-
-        if (val > 0) {
-          const desc = client ? `${client} — ${sale.description || (isVehicle ? "Aluguel Veículo" : "Venda")}` : (sale.description || (isVehicle ? "Aluguel Veículo" : "Venda"));
-          if (isVehicle) {
-            vehicleIncomeItems.push({ description: desc, amount: round2(val) });
+    // 2. Parcelas a receber com vencimento no dia
+    for (let i = 0; i < instCount; i++) {
+      const installmentNum = i + 1;
+      const dueDate = getSaleInstallmentDueDate(saleDate, freq, i, customDates);
+      if (dueDate === date) {
+        // Verifica se a parcela ainda está a receber/pendente
+        const isPending = installmentNum > paidCount;
+        if (isPending) {
+          let val = 0;
+          if (customAmounts && customAmounts[i] != null && Number(customAmounts[i]) > 0) {
+            val = Number(customAmounts[i]);
+          } else if (instVal > 0) {
+            val = instVal;
+          } else if (instCount > 1) {
+            val = (total - down > 0 ? (total - down) / instCount : total / instCount);
           } else {
-            salesItems.push({ description: desc, amount: round2(val) });
+            val = total || Number(sale.partial_paid || sale.partialPaid) || 0;
+          }
+
+          if (val > 0) {
+            const baseDesc = sale.description || defaultTypeDesc;
+            const installmentLabel = instCount > 1 ? ` — Parcela ${installmentNum}/${instCount}` : "";
+            const desc = client ? `${client} — ${baseDesc}${installmentLabel}` : `${baseDesc}${installmentLabel}`;
+            if (isVehicle) {
+              vehicleIncomeItems.push({ description: desc, amount: round2(val) });
+            } else {
+              salesItems.push({ description: desc, amount: round2(val) });
+            }
           }
         }
       }
@@ -394,7 +461,7 @@ export async function buildDailyFinancialReport(opts?: { ownerId?: string; date?
     .select("description, amount, category, source, status, received_date, actual_received_date, created_at, recurrence, parent_id");
   let salesQuery = supabase
     .from("sales")
-    .select("customer_name, description, total, sale_date, created_at, business_type, payment_history, paid_installments, partial_paid, installments, installment_value, down_payment");
+    .select("customer_name, description, total, sale_date, created_at, business_type, payment_history, paid_installments, partial_paid, installments, installment_value, down_payment, frequency, installment_dates, installment_amounts");
   let expensesQuery = supabase
     .from("expenses")
     .select("description, amount, scope, category, notes, paid, paid_date, due_date, created_at, installments, type, parent_expense_id");

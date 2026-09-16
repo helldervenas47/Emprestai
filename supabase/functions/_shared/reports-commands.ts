@@ -1383,7 +1383,7 @@ export async function generateOperationalSummaryReport(admin: any, userId: strin
 export async function generateDailyFinancialReport(supabase: any, userId: string, date: string): Promise<string> {
   const [incomesRes, salesRes, expensesRes, ledgerRes, cardsRes, openingsRes] = await Promise.all([
     supabase.from("incomes").select("description, amount, category, source, status, received_date, actual_received_date, created_at, recurrence, parent_id").eq("user_id", userId),
-    supabase.from("sales").select("customer_name, description, total, sale_date, created_at, business_type, payment_history, paid_installments, partial_paid, installments, installment_value, down_payment").eq("user_id", userId),
+    supabase.from("sales").select("customer_name, description, total, sale_date, created_at, business_type, payment_history, paid_installments, partial_paid, installments, installment_value, down_payment, frequency, installment_dates, installment_amounts").eq("user_id", userId),
     supabase.from("expenses").select("id, description, amount, scope, category, notes, paid, paid_date, due_date, created_at, installments, paid_installments, type, recurrence_type, parent_expense_id, payment_method_id").eq("user_id", userId),
     supabase.from("account_ledger").select("amount, occurred_on, description, metadata, category").eq("user_id", userId).eq("category", "expense"),
     supabase.from("credit_cards").select("id, nickname, bank, last_four, closing_day, due_day, active").eq("user_id", userId),
@@ -1425,6 +1425,60 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
     return isVehicleExpenseCategory(exp.category);
   };
 
+  const addDaysToIso = (dateStr: string, days: number): string => {
+    const [y, m, d] = dateStr.slice(0, 10).split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setDate(dt.getDate() + days);
+    const yr = dt.getFullYear();
+    const mo = String(dt.getMonth() + 1).padStart(2, "0");
+    const dy = String(dt.getDate()).padStart(2, "0");
+    return `${yr}-${mo}-${dy}`;
+  };
+
+  const addMonthsToIso = (dateStr: string, months: number): string => {
+    const [y, m, d] = dateStr.slice(0, 10).split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setMonth(dt.getMonth() + months);
+    const yr = dt.getFullYear();
+    const mo = String(dt.getMonth() + 1).padStart(2, "0");
+    const dy = String(dt.getDate()).padStart(2, "0");
+    return `${yr}-${mo}-${dy}`;
+  };
+
+  const getSaleDueDate = (
+    baseDate: string,
+    frequency: string | undefined | null,
+    index: number,
+    installmentDates?: (string | null)[] | null
+  ): string => {
+    if (installmentDates && installmentDates[index]) {
+      return String(installmentDates[index]).slice(0, 10);
+    }
+    if (!baseDate) return "";
+    if (index === 0) return baseDate.slice(0, 10);
+
+    const freq = (frequency || "Mensal").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+    if (freq.includes("diar") || freq.includes("daily")) {
+      return addDaysToIso(baseDate, index);
+    }
+    if (freq.includes("seman") || freq.includes("weekly")) {
+      return addDaysToIso(baseDate, index * 7);
+    }
+    if (freq.includes("quinzen")) {
+      return addDaysToIso(baseDate, index * 15);
+    }
+    return addMonthsToIso(baseDate, index);
+  };
+
+  const isVehicleSale = (sale: any): boolean => {
+    const bType = String(sale.business_type || "").toLowerCase();
+    if (bType === "aluguel_veiculo" || bType === "veiculo" || bType === "veiculos" || bType === "veículo" || bType === "veículos") {
+      return true;
+    }
+    const desc = String(sale.description || "").toLowerCase();
+    return desc.includes("aluguel de veículo") || desc.includes("aluguel veiculo") || desc.includes("locação veículo") || desc.includes("locacao veiculo");
+  };
+
   // 1. Receitas do Módulo Financeiro (incomes)
   const financialItems: { description: string; amount: number }[] = [];
   for (const inc of rawIncomes) {
@@ -1437,7 +1491,7 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
       if (val > 0) {
         financialItems.push({
           description: inc.description || "Receita Financeira",
-          amount: val,
+          amount: Math.round(val * 100) / 100,
         });
       }
     }
@@ -1448,52 +1502,63 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
   const vehicleIncomeItems: { description: string; amount: number }[] = [];
 
   for (const sale of rawSales) {
-    const saleDate = sale.sale_date ? String(sale.sale_date).slice(0, 10) : "";
-    const createdAt = sale.created_at ? String(sale.created_at).slice(0, 10) : "";
-    const isVehicle = (sale.business_type || "").toLowerCase() === "veiculo" ||
-      (sale.business_type || "").toLowerCase() === "veículos" ||
-      (sale.description || "").toLowerCase().includes("veículo") ||
-      (sale.description || "").toLowerCase().includes("veiculo");
-
+    const isVehicle = isVehicleSale(sale);
     const history = Array.isArray(sale.payment_history) ? sale.payment_history : [];
-    const paymentsToday = history.filter((p: any) => p && String(p.date || "").slice(0, 10) === date);
+    const client = sale.customer_name || "";
+    const saleDate = (sale.sale_date || (sale.created_at ? String(sale.created_at).slice(0, 10) : "")).slice(0, 10);
+    const instCount = Number(sale.installments) || 1;
+    const paidCount = Number(sale.paid_installments) || 0;
+    const instVal = Number(sale.installment_value) || 0;
+    const total = Number(sale.total) || 0;
+    const down = Number(sale.down_payment) || 0;
+    const customDates = sale.installment_dates as (string | null)[] | null | undefined;
+    const customAmounts = sale.installment_amounts as (number | null)[] | null | undefined;
+    const freq = sale.frequency || "Mensal";
+    const defaultTypeDesc = isVehicle ? "Aluguel Veículo" : "Venda";
 
-    if (paymentsToday.length > 0) {
-      for (const p of paymentsToday) {
-        const val = Number(p.amount) || 0;
+    // 1. Pagamentos recebidos hoje registrados no histórico
+    for (const pay of history) {
+      const payDate = (pay.date || "").slice(0, 10);
+      if (payDate === date) {
+        const val = Number(pay.amount) || 0;
         if (val > 0) {
-          const client = sale.customer_name ? `${sale.customer_name} — ` : "";
-          const desc = `${client}${sale.description || (isVehicle ? "Aluguel Veículo" : "Venda")}`;
+          const desc = client ? `${client} — ${sale.description || defaultTypeDesc}` : (sale.description || defaultTypeDesc);
           if (isVehicle) {
-            vehicleIncomeItems.push({ description: desc, amount: val });
+            vehicleIncomeItems.push({ description: desc, amount: Math.round(val * 100) / 100 });
           } else {
-            salesItems.push({ description: desc, amount: val });
+            salesItems.push({ description: desc, amount: Math.round(val * 100) / 100 });
           }
         }
       }
-    } else {
-      const matchesDate = (saleDate && saleDate === date) || (!saleDate && createdAt === date);
-      if (matchesDate) {
-        const total = Number(sale.total) || 0;
-        const installments = Number(sale.installments) || 1;
-        const instVal = Number(sale.installment_value) || 0;
+    }
 
-        let val = 0;
-        if (instVal > 0) {
-          val = instVal;
-        } else if (installments > 1 && total > 0) {
-          val = total / installments;
-        } else {
-          val = total || Number(sale.partial_paid) || 0;
-        }
-
-        if (val > 0) {
-          const client = sale.customer_name ? `${sale.customer_name} — ` : "";
-          const desc = `${client}${sale.description || (isVehicle ? "Aluguel Veículo" : "Venda")}`;
-          if (isVehicle) {
-            vehicleIncomeItems.push({ description: desc, amount: val });
+    // 2. Parcelas a receber com vencimento no dia
+    for (let i = 0; i < instCount; i++) {
+      const installmentNum = i + 1;
+      const dueDate = getSaleDueDate(saleDate, freq, i, customDates);
+      if (dueDate === date) {
+        const isPending = installmentNum > paidCount;
+        if (isPending) {
+          let val = 0;
+          if (customAmounts && customAmounts[i] != null && Number(customAmounts[i]) > 0) {
+            val = Number(customAmounts[i]);
+          } else if (instVal > 0) {
+            val = instVal;
+          } else if (instCount > 1) {
+            val = (total - down > 0 ? (total - down) / instCount : total / instCount);
           } else {
-            salesItems.push({ description: desc, amount: val });
+            val = total || Number(sale.partial_paid) || 0;
+          }
+
+          if (val > 0) {
+            const baseDesc = sale.description || defaultTypeDesc;
+            const installmentLabel = instCount > 1 ? ` — Parcela ${installmentNum}/${instCount}` : "";
+            const desc = client ? `${client} — ${baseDesc}${installmentLabel}` : `${baseDesc}${installmentLabel}`;
+            if (isVehicle) {
+              vehicleIncomeItems.push({ description: desc, amount: Math.round(val * 100) / 100 });
+            } else {
+              salesItems.push({ description: desc, amount: Math.round(val * 100) / 100 });
+            }
           }
         }
       }

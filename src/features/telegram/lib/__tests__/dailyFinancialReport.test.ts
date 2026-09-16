@@ -490,5 +490,109 @@ describe("Relatório Financeiro Diário — Telegram", () => {
     expect(data.expenses.personal.items[0].amount).toBe(400);
     expect(data.expenses.personal.subtotal).toBe(400);
   });
+
+  // Cenário 14: Receitas a receber de Vendas parceladas que vencem na data (ex: parcela 2/3)
+  it("Cenário 14: vendas com parcelas a receber que vencem no dia aparecem na seção Vendas", () => {
+    const sales = [
+      // Venda em 3x com primeira parcela em 2026-08-15, segunda parcela vence em 2026-09-15
+      {
+        id: "sale-installment-2",
+        customer_name: "Mariana Souza",
+        description: "iPhone 15",
+        business_type: "venda",
+        sale_date: "2026-08-15",
+        installments: 3,
+        paid_installments: 1, // Parcela 1 paga no mês passado, parcela 2 pendente hoje
+        total: 3000,
+        installment_value: 1000,
+        frequency: "Mensal",
+      },
+      // Venda com installment_dates customizado para hoje
+      {
+        id: "sale-custom-dates",
+        customer_name: "Roberto Dias",
+        description: "MacBook Air",
+        business_type: "venda",
+        sale_date: "2026-07-01",
+        installments: 2,
+        paid_installments: 0,
+        installment_dates: ["2026-08-01", TEST_DATE],
+        installment_amounts: [2500, 2500],
+        total: 5000,
+      },
+    ];
+
+    const data = buildDailyFinancialData({
+      date: TEST_DATE, // 2026-09-15
+      incomes: [],
+      sales,
+      expenses: [],
+    });
+
+    expect(data.incomes.sales.items.length).toBe(2);
+    expect(data.incomes.sales.items[0].description).toBe("Mariana Souza — iPhone 15 — Parcela 2/3");
+    expect(data.incomes.sales.items[0].amount).toBe(1000);
+    expect(data.incomes.sales.items[1].description).toBe("Roberto Dias — MacBook Air — Parcela 2/2");
+    expect(data.incomes.sales.items[1].amount).toBe(2500);
+    expect(data.incomes.sales.subtotal).toBe(3500);
+  });
+
+  // Cenário 15: Receitas a receber da aba Veículos (aluguel de veículos) que vencem no dia
+  it("Cenário 15: aluguéis de veículos a receber que vencem no dia aparecem na seção Veículos", () => {
+    const sales = [
+      // Aluguel semanal de veículo: parcela 2 vence hoje (2026-09-08 + 7 dias = 2026-09-15)
+      {
+        id: "vehicle-rental-weekly",
+        customer_name: "Marcos Motorista",
+        description: "HB20 1.0 Aluguel",
+        business_type: "aluguel_veiculo",
+        sale_date: "2026-09-08",
+        frequency: "Semanal",
+        installments: 4,
+        paid_installments: 1, // Parcela 1 paga semana passada, parcela 2 a receber hoje
+        total: 2400,
+        installment_value: 600,
+      },
+    ];
+
+    const data = buildDailyFinancialData({
+      date: TEST_DATE, // 2026-09-15
+      incomes: [],
+      sales,
+      expenses: [],
+    });
+
+    expect(data.incomes.vehicles.items.length).toBe(1);
+    expect(data.incomes.vehicles.items[0].description).toBe("Marcos Motorista — HB20 1.0 Aluguel — Parcela 2/4");
+    expect(data.incomes.vehicles.items[0].amount).toBe(600);
+    expect(data.incomes.vehicles.subtotal).toBe(600);
+  });
+
+  // Cenário 16: Vendas já quitadas não geram parcelas pendentes
+  it("Cenário 16: vendas já quitadas não geram parcelas pendentes no relatório", () => {
+    const sales = [
+      {
+        id: "sale-paid-off",
+        customer_name: "Cliente Quitado",
+        description: "Serviço Fechado",
+        business_type: "venda",
+        sale_date: "2026-08-15",
+        installments: 2,
+        paid_installments: 2, // Totalmente pago
+        total: 1000,
+        installment_value: 500,
+      },
+    ];
+
+    const data = buildDailyFinancialData({
+      date: TEST_DATE,
+      incomes: [],
+      sales,
+      expenses: [],
+    });
+
+    expect(data.incomes.sales.items.length).toBe(0);
+    expect(data.incomes.sales.subtotal).toBe(0);
+  });
 });
 

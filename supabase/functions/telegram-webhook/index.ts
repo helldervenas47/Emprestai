@@ -1554,7 +1554,7 @@ async function generateOperationalSummaryReport(admin: any, userId: string, date
 async function generateDailyFinancialReportInWebhook(supabase: any, userId: string, date: string): Promise<string> {
   const [incomesRes, salesRes, expensesRes] = await Promise.all([
     supabase.from("incomes").select("description, amount, category, source, status, received_date, actual_received_date, created_at, recurrence, parent_id").eq("user_id", userId),
-    supabase.from("sales").select("customer_name, description, total, sale_date, created_at, business_type, payment_history, paid_installments, partial_paid, installments, installment_value, down_payment").eq("user_id", userId),
+    supabase.from("sales").select("customer_name, description, total, sale_date, created_at, business_type, payment_history, paid_installments, partial_paid, installments, installment_value, down_payment, frequency, installment_dates, installment_amounts").eq("user_id", userId),
     supabase.from("expenses").select("description, amount, scope, category, notes, paid, paid_date, due_date, created_at, installments, type, parent_expense_id").eq("user_id", userId),
   ]);
 
@@ -1586,6 +1586,60 @@ async function generateDailyFinancialReportInWebhook(supabase: any, userId: stri
 
   const isVehicleExp = (expense: any) => isVehicleExpenseCategory(expense.category) && !isFuel(expense);
 
+  const addDaysToIso = (dateStr: string, days: number): string => {
+    const [y, m, d] = dateStr.slice(0, 10).split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setDate(dt.getDate() + days);
+    const yr = dt.getFullYear();
+    const mo = String(dt.getMonth() + 1).padStart(2, "0");
+    const dy = String(dt.getDate()).padStart(2, "0");
+    return `${yr}-${mo}-${dy}`;
+  };
+
+  const addMonthsToIso = (dateStr: string, months: number): string => {
+    const [y, m, d] = dateStr.slice(0, 10).split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setMonth(dt.getMonth() + months);
+    const yr = dt.getFullYear();
+    const mo = String(dt.getMonth() + 1).padStart(2, "0");
+    const dy = String(dt.getDate()).padStart(2, "0");
+    return `${yr}-${mo}-${dy}`;
+  };
+
+  const getSaleDueDate = (
+    baseDate: string,
+    frequency: string | undefined | null,
+    index: number,
+    installmentDates?: (string | null)[] | null
+  ): string => {
+    if (installmentDates && installmentDates[index]) {
+      return String(installmentDates[index]).slice(0, 10);
+    }
+    if (!baseDate) return "";
+    if (index === 0) return baseDate.slice(0, 10);
+
+    const freq = (frequency || "Mensal").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+    if (freq.includes("diar") || freq.includes("daily")) {
+      return addDaysToIso(baseDate, index);
+    }
+    if (freq.includes("seman") || freq.includes("weekly")) {
+      return addDaysToIso(baseDate, index * 7);
+    }
+    if (freq.includes("quinzen")) {
+      return addDaysToIso(baseDate, index * 15);
+    }
+    return addMonthsToIso(baseDate, index);
+  };
+
+  const isVehicleSale = (sale: any): boolean => {
+    const bType = String(sale.business_type || "").toLowerCase();
+    if (bType === "aluguel_veiculo" || bType === "veiculo" || bType === "veiculos" || bType === "veículo" || bType === "veículos") {
+      return true;
+    }
+    const desc = String(sale.description || "").toLowerCase();
+    return desc.includes("aluguel de veículo") || desc.includes("aluguel veiculo") || desc.includes("locação veículo") || desc.includes("locacao veiculo");
+  };
+
   // 1. Receitas - Financeiro
   const financialItems: { description: string; amount: number }[] = [];
   for (const inc of rawIncomes) {
@@ -1606,18 +1660,27 @@ async function generateDailyFinancialReportInWebhook(supabase: any, userId: stri
   const vehicleIncomeItems: { description: string; amount: number }[] = [];
 
   for (const sale of rawSales) {
-    const isVehicle = sale.business_type === "aluguel_veiculo";
+    const isVehicle = isVehicleSale(sale);
     const history = (Array.isArray(sale.payment_history) ? sale.payment_history : []) as any[];
     const client = sale.customer_name || "";
+    const saleDate = (sale.sale_date || (sale.created_at ? String(sale.created_at).slice(0, 10) : "")).slice(0, 10);
+    const instCount = Number(sale.installments) || 1;
+    const paidCount = Number(sale.paid_installments) || 0;
+    const instVal = Number(sale.installment_value || sale.installmentValue) || 0;
+    const total = Number(sale.total) || 0;
+    const down = Number(sale.down_payment || sale.downPayment) || 0;
+    const customDates = sale.installment_dates as (string | null)[] | null | undefined;
+    const customAmounts = sale.installment_amounts as (number | null)[] | null | undefined;
+    const freq = sale.frequency || "Mensal";
+    const defaultTypeDesc = isVehicle ? "Aluguel Veículo" : "Venda";
 
-    let hasHistoryPayment = false;
+    // 1. Pagamentos recebidos hoje registrados no histórico
     for (const pay of history) {
       const payDate = (pay.date || "").slice(0, 10);
       if (payDate === date) {
         const val = Math.round((Number(pay.amount) || 0) * 100) / 100;
         if (val > 0) {
-          hasHistoryPayment = true;
-          const desc = client ? `${client} — ${sale.description || (isVehicle ? "Aluguel Veículo" : "Venda")}` : (sale.description || (isVehicle ? "Aluguel Veículo" : "Venda"));
+          const desc = client ? `${client} — ${sale.description || defaultTypeDesc}` : (sale.description || defaultTypeDesc);
           if (isVehicle) {
             vehicleIncomeItems.push({ description: desc, amount: val });
           } else {
@@ -1627,30 +1690,34 @@ async function generateDailyFinancialReportInWebhook(supabase: any, userId: stri
       }
     }
 
-    if (!hasHistoryPayment) {
-      const saleDate = String(sale.sale_date || sale.created_at || "").slice(0, 10);
-      if (saleDate === date) {
-        const instCount = Number(sale.installments) || 1;
-        const instVal = Number(sale.installment_value || sale.installmentValue) || 0;
-        const total = Number(sale.total) || 0;
-        const down = Number(sale.down_payment || sale.downPayment) || 0;
-
-        let rawVal = 0;
-        if (instVal > 0) {
-          rawVal = instVal;
-        } else if (instCount > 1) {
-          rawVal = (total - down > 0 ? (total - down) / instCount : total / instCount);
-        } else {
-          rawVal = total || Number(sale.partial_paid) || 0;
-        }
-
-        const val = Math.round(rawVal * 100) / 100;
-        if (val > 0) {
-          const desc = client ? `${client} — ${sale.description || (isVehicle ? "Aluguel Veículo" : "Venda")}` : (sale.description || (isVehicle ? "Aluguel Veículo" : "Venda"));
-          if (isVehicle) {
-            vehicleIncomeItems.push({ description: desc, amount: val });
+    // 2. Parcelas a receber com vencimento no dia
+    for (let i = 0; i < instCount; i++) {
+      const installmentNum = i + 1;
+      const dueDate = getSaleDueDate(saleDate, freq, i, customDates);
+      if (dueDate === date) {
+        const isPending = installmentNum > paidCount;
+        if (isPending) {
+          let rawVal = 0;
+          if (customAmounts && customAmounts[i] != null && Number(customAmounts[i]) > 0) {
+            rawVal = Number(customAmounts[i]);
+          } else if (instVal > 0) {
+            rawVal = instVal;
+          } else if (instCount > 1) {
+            rawVal = (total - down > 0 ? (total - down) / instCount : total / instCount);
           } else {
-            salesItems.push({ description: desc, amount: val });
+            rawVal = total || Number(sale.partial_paid) || 0;
+          }
+
+          const val = Math.round(rawVal * 100) / 100;
+          if (val > 0) {
+            const baseDesc = sale.description || defaultTypeDesc;
+            const installmentLabel = instCount > 1 ? ` — Parcela ${installmentNum}/${instCount}` : "";
+            const desc = client ? `${client} — ${baseDesc}${installmentLabel}` : `${baseDesc}${installmentLabel}`;
+            if (isVehicle) {
+              vehicleIncomeItems.push({ description: desc, amount: val });
+            } else {
+              salesItems.push({ description: desc, amount: val });
+            }
           }
         }
       }
