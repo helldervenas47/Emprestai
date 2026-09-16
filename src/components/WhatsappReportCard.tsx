@@ -671,6 +671,14 @@ export function WhatsappReportCard() {
     if (!ownerId) return;
     setSendingDailyFin(true);
     try {
+      const destPhone = (whatsappPhone.trim() || profilePhone || "").trim();
+      if (!destPhone) {
+        toast.error("Nenhum telefone configurado", {
+          description: "Informe o telefone WhatsApp de destino no primeiro card da página.",
+        });
+        return;
+      }
+
       let reportText = "";
       try {
         const { data, error } = await supabase.functions.invoke("telegram-daily-financial-summary", {
@@ -692,18 +700,53 @@ export function WhatsappReportCard() {
         reportText = await buildDailyFinancialReport({ ownerId, date: selectedDate });
       }
 
-      const destPhone = (whatsappPhone.trim() || profilePhone || "").trim();
-      if (isWhatsappConfigured && destPhone && reportText) {
-        const res = await sendWhatsappDirectly(schedule, destPhone, reportText);
-        if (res.ok) {
-          toast.success(`Relatório Financeiro de ${formatDateBRDisplay(selectedDate)} enviado para o WhatsApp!`);
-        } else {
-          toast.error("Falha ao enviar pelo WhatsApp", { description: res.error });
-        }
-      } else if (!isWhatsappConfigured) {
-        toast.info("WhatsApp não configurado. Use 'Ver Espelho' para copiar o texto.");
+      if (!reportText) {
+        toast.error("Erro ao gerar conteúdo do relatório.");
+        return;
+      }
+
+      // 1. Tenta envio direto se a API estiver configurada
+      const directRes = await sendWhatsappDirectly(schedule, destPhone, reportText);
+      if (directRes.ok) {
+        toast.success(`Relatório Financeiro de ${formatDateBRDisplay(selectedDate)} enviado para o WhatsApp!`);
+        return;
+      }
+
+      // 2. Se o envio direto falhar (ex: CORS no browser), utiliza a Edge Function send-whatsapp-report
+      const { data: edgeRes, error: edgeErr } = await supabase.functions.invoke("send-whatsapp-report", {
+        body: {
+          owner_id: ownerId,
+          phone: destPhone,
+          custom_text: reportText,
+          whatsapp_config: {
+            provider: schedule.provider || "evolution",
+            base_url: schedule.base_url || "",
+            instance_id: schedule.instance_id || "",
+            api_key: schedule.api_key || "",
+          },
+        },
+      });
+
+      if (!edgeErr && edgeRes?.ok) {
+        toast.success(`Relatório Financeiro de ${formatDateBRDisplay(selectedDate)} enviado para o seu WhatsApp!`);
       } else {
-        toast.success(`Relatório Financeiro de ${formatDateBRDisplay(selectedDate)} gerado com sucesso!`);
+        let errorDesc = edgeRes?.error;
+        if (edgeErr) {
+          try {
+            if ((edgeErr as any).context && typeof (edgeErr as any).context.json === "function") {
+              const errJson = await (edgeErr as any).context.json();
+              if (errJson?.error) errorDesc = errJson.error;
+            }
+          } catch {
+            // ignore
+          }
+          if (!errorDesc) errorDesc = edgeErr.message;
+        }
+        if (!errorDesc) errorDesc = directRes.error || "O servidor de WhatsApp não autorizou o envio.";
+
+        toast.error("Falha ao enviar pelo WhatsApp", {
+          description: errorDesc,
+        });
       }
     } catch (e: any) {
       console.error("[WhatsappReportCard] Erro ao enviar relatório financeiro:", e);
