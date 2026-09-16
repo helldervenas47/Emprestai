@@ -748,39 +748,40 @@ export function WhatsappReportCard() {
       {/* 📅 Seletor de Data Dinâmico dos Relatórios */}
       <Card no3d className="border-border/60 shadow-xs rounded-2xl overflow-hidden bg-gradient-to-r from-card via-card to-muted/20">
         <CardContent className="p-4 sm:p-5">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 sm:gap-4">
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                  <Calendar className="h-4 w-4" />
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 ring-1 ring-primary/20">
+                  <Calendar className="h-4 w-4 text-primary" />
                 </div>
-                <h3 className="text-sm font-bold text-foreground">
+                <h3 className="text-sm sm:text-base font-bold text-foreground tracking-tight">
                   Data de Referência dos Relatórios
                 </h3>
                 <Badge
                   variant="outline"
-                  className={`text-[10px] font-semibold py-0.5 px-2 rounded-md ${
+                  className={`text-[10px] font-bold uppercase tracking-wider py-0.5 px-2 rounded-md ${
                     isToday
-                      ? "bg-primary/10 text-primary border-primary/20"
+                      ? "bg-primary/10 text-primary border-primary/25"
                       : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
                   }`}
                 >
                   {isToday ? "Hoje" : isYesterday ? "Ontem" : formatDateBRDisplay(selectedDate)}
                 </Badge>
               </div>
-              <p className="text-xs text-muted-foreground leading-snug pl-10">
-                Selecione uma data para visualizar, copiar ou disparar os relatórios de cobranças e operacionais retroativos.
+              <p className="text-xs text-muted-foreground leading-snug pl-0 sm:pl-11">
+                Selecione uma data para visualizar, copiar ou disparar os relatórios retroativos.
               </p>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap pl-10 md:pl-0">
-              <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-xl border border-border/50">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5 w-full lg:w-auto pt-1 sm:pt-0">
+              {/* Botões de Atalho: no mobile divide a largura igualmente (grid-cols-3) */}
+              <div className="grid grid-cols-3 sm:flex items-center gap-1 bg-muted/50 p-1 rounded-xl border border-border/60">
                 <Button
                   type="button"
                   variant={isToday ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setSelectedDate(todayStr)}
-                  className="h-8 text-xs font-semibold rounded-lg px-2.5"
+                  className="h-8 text-xs font-semibold rounded-lg px-2.5 w-full sm:w-auto justify-center"
                 >
                   Hoje
                 </Button>
@@ -789,7 +790,7 @@ export function WhatsappReportCard() {
                   variant={isYesterday ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setSelectedDate(getRelativeDate(-1))}
-                  className="h-8 text-xs font-semibold rounded-lg px-2.5"
+                  className="h-8 text-xs font-semibold rounded-lg px-2.5 w-full sm:w-auto justify-center"
                 >
                   Ontem
                 </Button>
@@ -798,13 +799,14 @@ export function WhatsappReportCard() {
                   variant={selectedDate === getRelativeDate(-2) ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setSelectedDate(getRelativeDate(-2))}
-                  className="h-8 text-xs font-semibold rounded-lg px-2.5"
+                  className="h-8 text-xs font-semibold rounded-lg px-2.5 w-full sm:w-auto justify-center"
                 >
                   Anteontem
                 </Button>
               </div>
 
-              <div className="flex items-center bg-background rounded-xl border border-border/70 shadow-xs p-0.5">
+              {/* Seletor com setas: no mobile ocupa largura total harmoniosa com a data centralizada */}
+              <div className="flex items-center justify-between bg-background rounded-xl border border-border/70 shadow-xs p-1 sm:p-0.5 w-full sm:w-auto">
                 <Button
                   type="button"
                   variant="ghost"
@@ -816,8 +818,8 @@ export function WhatsappReportCard() {
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
 
-                <div className="relative flex items-center justify-center px-2 py-1 min-w-[95px] select-none">
-                  <span className="text-xs font-semibold text-foreground tracking-tight tabular-nums pointer-events-none">
+                <div className="relative flex-1 sm:flex-none flex items-center justify-center px-3 py-1 min-w-[100px] select-none text-center">
+                  <span className="text-xs sm:text-sm font-semibold text-foreground tracking-tight tabular-nums pointer-events-none">
                     {formatDateBRDisplay(selectedDate)}
                   </span>
                   <Input
