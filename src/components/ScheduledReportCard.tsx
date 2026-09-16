@@ -17,6 +17,7 @@ import type { LucideIcon } from "lucide-react";
 import { useScheduledReportPrefs } from "@/hooks/useScheduledReportPrefs";
 import { useTelegramReportsLink } from "@/features/telegram/hooks/useTelegramReportsLink";
 import { supabase } from "@/integrations/supabase/userClient";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 type SlotKey = "send_time_1" | "send_time_2" | "send_time_3";
@@ -31,6 +32,8 @@ interface Props {
 }
 
 export function ScheduledReportCard({ title, description, Icon, prefsTable, functionName, defaultTime }: Props) {
+  const { user, dataOwnerId } = useAuth();
+  const ownerId = dataOwnerId || user?.id;
   const { prefs, loading, save } = useScheduledReportPrefs(prefsTable, defaultTime);
   const { linked } = useTelegramReportsLink();
   const [sending, setSending] = useState(false);
@@ -47,11 +50,24 @@ export function ScheduledReportCard({ title, description, Icon, prefsTable, func
     setPreviewOpen(true);
     setPreviewLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke(functionName, {
-        body: { return_text: true },
-      });
-      if (error) throw error;
-      setPreviewText(data?.text || "Nenhum dado retornado.");
+      let reportText = "";
+      try {
+        const { data, error } = await supabase.functions.invoke(functionName, {
+          body: { return_text: true, owner_id: ownerId },
+        });
+        if (!error && data?.text) {
+          reportText = data.text;
+        }
+      } catch {
+        // Fallback local
+      }
+
+      if (!reportText && functionName === "telegram-daily-financial-summary" && ownerId) {
+        const { buildDailyFinancialReport } = await import("@/features/telegram/lib/dailyFinancialReport");
+        reportText = await buildDailyFinancialReport({ ownerId });
+      }
+
+      setPreviewText(reportText || "Nenhum dado retornado.");
     } catch (e: any) {
       setPreviewText(`Erro ao gerar espelho: ${e?.message || "Falha na comunicação."}`);
     } finally {

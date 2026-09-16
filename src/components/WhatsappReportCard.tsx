@@ -503,14 +503,28 @@ export function WhatsappReportCard() {
 
   // Pré-visualização do Relatório Financeiro Diário
   const handlePreviewDailyFinancial = async () => {
+    if (!ownerId) return;
     setLoadingPreview(true);
     try {
-      const { data, error } = await supabase.functions.invoke("telegram-daily-financial-summary", {
-        body: { return_text: true, date: selectedDate },
-      });
-      if (error) throw error;
+      let reportText = "";
+      try {
+        const { data, error } = await supabase.functions.invoke("telegram-daily-financial-summary", {
+          body: { return_text: true, date: selectedDate, owner_id: ownerId },
+        });
+        if (!error && data?.text) {
+          reportText = data.text;
+        }
+      } catch {
+        // Fallback local se a Edge Function falhar
+      }
+
+      if (!reportText) {
+        const { buildDailyFinancialReport } = await import("@/features/telegram/lib/dailyFinancialReport");
+        reportText = await buildDailyFinancialReport({ ownerId, date: selectedDate });
+      }
+
       setPreviewTitle(`Espelho do Relatório Financeiro — ${formatDateBRDisplay(selectedDate)}`);
-      setPreviewText(data?.text || "Nenhum dado retornado.");
+      setPreviewText(reportText || "Nenhum dado retornado.");
       setPreviewType("daily_financial");
       setPreviewOpen(true);
     } catch (e: any) {
@@ -657,19 +671,37 @@ export function WhatsappReportCard() {
     if (!ownerId) return;
     setSendingDailyFin(true);
     try {
-      const destPhone = (whatsappPhone.trim() || profilePhone || "").trim();
-      const { data, error } = await supabase.functions.invoke("telegram-daily-financial-summary", {
-        body: {
-          date: selectedDate,
-          return_text: true,
-        },
-      });
-      if (error) throw error;
-      const reportText = data?.text;
+      let reportText = "";
+      try {
+        const { data, error } = await supabase.functions.invoke("telegram-daily-financial-summary", {
+          body: {
+            date: selectedDate,
+            return_text: true,
+            owner_id: ownerId,
+          },
+        });
+        if (!error && data?.text) {
+          reportText = data.text;
+        }
+      } catch {
+        // Fallback local se a Edge Function falhar
+      }
 
+      if (!reportText) {
+        const { buildDailyFinancialReport } = await import("@/features/telegram/lib/dailyFinancialReport");
+        reportText = await buildDailyFinancialReport({ ownerId, date: selectedDate });
+      }
+
+      const destPhone = (whatsappPhone.trim() || profilePhone || "").trim();
       if (isWhatsappConfigured && destPhone && reportText) {
-        await sendWhatsappDirectly(schedule, destPhone, reportText);
-        toast.success(`Relatório Financeiro de ${formatDateBRDisplay(selectedDate)} enviado para o WhatsApp!`);
+        const res = await sendWhatsappDirectly(schedule, destPhone, reportText);
+        if (res.ok) {
+          toast.success(`Relatório Financeiro de ${formatDateBRDisplay(selectedDate)} enviado para o WhatsApp!`);
+        } else {
+          toast.error("Falha ao enviar pelo WhatsApp", { description: res.error });
+        }
+      } else if (!isWhatsappConfigured) {
+        toast.info("WhatsApp não configurado. Use 'Ver Espelho' para copiar o texto.");
       } else {
         toast.success(`Relatório Financeiro de ${formatDateBRDisplay(selectedDate)} gerado com sucesso!`);
       }

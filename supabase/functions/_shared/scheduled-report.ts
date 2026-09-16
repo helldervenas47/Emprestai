@@ -40,26 +40,47 @@ export function buildScheduledReportHandler(opts: {
     const admin = getExternalAdmin();
 
     try {
-      // Manual call (with auth) → run for that user only and send/return text.
+      let body: any = {};
+      try {
+        if (req.method === "POST") {
+          body = await req.json();
+        }
+      } catch {
+        // ignore
+      }
+
+      // Manual call (with auth or return_text) → run for that user only and send/return text.
       const authHeader = req.headers.get("Authorization") ?? "";
       const token = authHeader.replace(/^Bearer\s+/i, "");
 
-      if (token && req.method === "POST") {
-        const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-          global: { headers: { Authorization: `Bearer ${token}` } },
-        });
-        const { data: { user } } = await userClient.auth.getUser();
-        if (user) {
-          const { data: ownerId } = await admin.rpc("get_data_owner_id", { _user_id: user.id });
-          const resolvedOwnerId = (ownerId as string) ?? user.id;
+      if (req.method === "POST") {
+        let targetUserId: string | null = body?.owner_id || null;
+        if (token) {
+          const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            global: { headers: { Authorization: `Bearer ${token}` } },
+          });
+          const { data: { user } } = await userClient.auth.getUser();
+          if (user) targetUserId = user.id;
+        }
+
+        if (targetUserId) {
+          const { data: ownerId } = await admin.rpc("get_data_owner_id", { _user_id: targetUserId });
+          const resolvedOwnerId = (ownerId as string) ?? targetUserId;
           const text = await runReportCommand(admin, resolvedOwnerId, opts.command);
-          const link = await getReportsLinkForUser(admin, user.id);
+
+          if (body?.return_text) {
+            return new Response(JSON.stringify({ ok: true, sent: false, text }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+
+          const link = await getReportsLinkForUser(admin, targetUserId);
           if (!link) {
             return new Response(JSON.stringify({ ok: true, sent: false, reason: "no_reports_link", text }), {
               headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
           }
-          const send = await sendReportsMessage(admin, user.id, Number(link.chat_id), text);
+          const send = await sendReportsMessage(admin, targetUserId, Number(link.chat_id), text);
           return new Response(JSON.stringify({ ok: true, sent: send.sent, reason: send.reason, text }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -71,7 +92,12 @@ export function buildScheduledReportHandler(opts: {
         .from(opts.prefsTable)
         .select("user_id, enabled, send_time_1, send_time_2, send_time_3, last_sent")
         .eq("enabled", true);
-      if (error) throw error;
+      if (error) {
+        console.warn(`[${opts.command}] prefs table read failed or not created yet:`, error.message);
+        return new Response(JSON.stringify({ ok: true, sent: 0, checked: 0, warning: error.message }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
       let sent = 0;
       for (const pref of (prefs ?? [])) {
