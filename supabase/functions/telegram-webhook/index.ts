@@ -1553,9 +1553,9 @@ async function generateOperationalSummaryReport(admin: any, userId: string, date
 
 async function generateDailyFinancialReportInWebhook(supabase: any, userId: string, date: string): Promise<string> {
   const [incomesRes, salesRes, expensesRes] = await Promise.all([
-    supabase.from("incomes").select("description, amount, category, source, status, received_date, actual_received_date").eq("user_id", userId),
-    supabase.from("sales").select("customer_name, description, total, sale_date, business_type, payment_history, paid_installments, partial_paid").eq("user_id", userId),
-    supabase.from("expenses").select("description, amount, scope, category, notes, paid, paid_date, due_date").eq("user_id", userId),
+    supabase.from("incomes").select("description, amount, category, source, status, received_date, actual_received_date, created_at").eq("user_id", userId),
+    supabase.from("sales").select("customer_name, description, total, sale_date, created_at, business_type, payment_history, paid_installments, partial_paid").eq("user_id", userId),
+    supabase.from("expenses").select("description, amount, scope, category, notes, paid, paid_date, due_date, created_at").eq("user_id", userId),
   ]);
 
   const rawIncomes = incomesRes.data ?? [];
@@ -1589,9 +1589,8 @@ async function generateDailyFinancialReportInWebhook(supabase: any, userId: stri
   // 1. Receitas - Financeiro
   const financialItems: { description: string; amount: number }[] = [];
   for (const inc of rawIncomes) {
-    const recDate = inc.actual_received_date || inc.received_date;
-    const isReceived = (inc.status === "received" || inc.status === "pago" || Boolean(inc.actual_received_date));
-    if (isReceived && recDate === date) {
+    const recDate = String(inc.actual_received_date || inc.received_date || inc.created_at || "").slice(0, 10);
+    if (recDate === date) {
       const val = Number(inc.amount) || 0;
       if (val > 0) {
         financialItems.push({ description: inc.description || "Receita Financeiro", amount: val });
@@ -1625,10 +1624,9 @@ async function generateDailyFinancialReportInWebhook(supabase: any, userId: stri
       }
     }
 
-    if (!hasHistoryPayment && history.length === 0) {
-      const saleDate = (sale.sale_date || "").slice(0, 10);
-      const isPaid = (Number(sale.paid_installments || 0) > 0 || Number(sale.partial_paid || 0) > 0);
-      if (saleDate === date && isPaid) {
+    if (!hasHistoryPayment) {
+      const saleDate = String(sale.sale_date || sale.created_at || "").slice(0, 10);
+      if (saleDate === date) {
         const val = Number(sale.total) || Number(sale.partial_paid) || 0;
         if (val > 0) {
           const desc = client ? `${client} — ${sale.description || (isVehicle ? "Aluguel Veículo" : "Venda")}` : (sale.description || (isVehicle ? "Aluguel Veículo" : "Venda"));
@@ -1648,9 +1646,15 @@ async function generateDailyFinancialReportInWebhook(supabase: any, userId: stri
   const vehicleExpenseItems: { description: string; amount: number }[] = [];
 
   for (const exp of rawExpenses) {
-    const isPaid = Boolean(exp.paid);
-    const payDate = exp.paid_date || exp.due_date;
-    if (isPaid && payDate === date) {
+    const paidDate = exp.paid_date ? String(exp.paid_date).slice(0, 10) : "";
+    const dueDate = exp.due_date ? String(exp.due_date).slice(0, 10) : "";
+    const createdAt = exp.created_at ? String(exp.created_at).slice(0, 10) : "";
+
+    const matchesDate = (paidDate && paidDate === date) ||
+      (dueDate && dueDate === date) ||
+      (!paidDate && !dueDate && createdAt === date);
+
+    if (matchesDate) {
       const val = Number(exp.amount) || 0;
       if (val > 0) {
         const desc = exp.description || "Despesa";
