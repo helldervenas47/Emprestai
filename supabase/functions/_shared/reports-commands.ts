@@ -1538,98 +1538,126 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
     }
   }
 
-  // 7. Faturas dos Cartões de Crédito (apenas valor pendente / restante da fatura)
+  // 7. Faturas dos Cartões de Crédito (apenas no dia do vencimento e com saldo pendente)
   const targetDay = Number(date.split("-")[2]) || 0;
   const targetMonth = date.slice(0, 7);
-  const processedCardIds = new Set<string>();
+
+  function getCycleForRef(ref: Date, closingDay: number, dueDay: number) {
+    const y = ref.getFullYear();
+    const m = ref.getMonth();
+    const day = ref.getDate();
+    const closingThis = new Date(y, m, Math.min(closingDay, new Date(y, m + 1, 0).getDate()));
+    const closingNext =
+      day >= closingDay
+        ? new Date(y, m + 1, Math.min(closingDay, new Date(y, m + 2, 0).getDate()))
+        : closingThis;
+    const closingPrev =
+      day >= closingDay
+        ? closingThis
+        : new Date(y, m - 1, Math.min(closingDay, new Date(y, m, 0).getDate()));
+    const dueMonth = dueDay > closingDay ? closingNext.getMonth() : closingNext.getMonth() + 1;
+    const dueYear = closingNext.getFullYear();
+    const dueDate = new Date(
+      dueYear,
+      dueMonth,
+      Math.min(dueDay, new Date(dueYear, dueMonth + 1, 0).getDate())
+    );
+    return { from: closingPrev, to: closingNext, dueDate };
+  }
+
+  function getCycleForDueMonth(yyyymm: string, closingDay: number, dueDay: number) {
+    const [ty, tm] = yyyymm.split("-").map(Number);
+    for (let off = -36; off <= 36; off++) {
+      const d = new Date(ty, tm - 1 + off, 1);
+      const c = getCycleForRef(d, closingDay, dueDay);
+      if (c.dueDate.getFullYear() === ty && c.dueDate.getMonth() + 1 === tm) {
+        return c;
+      }
+    }
+    return null;
+  }
 
   for (const card of rawCards) {
     if (card.active === false) continue;
-    if (processedCardIds.has(String(card.id))) continue;
 
     const dueDay = Number(card.due_day || card.dueDay) || 0;
-    const isDueToday = dueDay === targetDay;
+    const closingDay = Number(card.closing_day || card.closingDay) || 1;
 
-    // Busca opening do ciclo do mês
+    // REGRA: Faturas de cartão só aparecem no relatório na data exata de seu vencimento
+    if (dueDay !== targetDay) {
+      continue;
+    }
+
+    const bounds = getCycleForDueMonth(targetMonth, closingDay, dueDay);
+    const cycleFrom = bounds?.from ?? new Date(date.slice(0, 4) + "-01-01T00:00:00");
+    const cycleTo = bounds?.to ?? new Date(date.slice(0, 4) + "-12-31T23:59:59");
+    const targetCycleKey = bounds ? `${bounds.to.getFullYear()}-${String(bounds.to.getMonth() + 1).padStart(2, "0")}` : targetMonth;
+
     const op = rawOpenings.find((o: any) => {
-      const cId = o.card_id || o.cardId;
-      const cKey = o.cycle_key || o.cycleKey || "";
-      return String(cId) === String(card.id) && String(cKey).startsWith(targetMonth);
-    }) || rawOpenings.find((o: any) => String(o.card_id || o.cardId) === String(card.id));
+      const cId = String(o.card_id || o.cardId || "");
+      const cKey = String(o.cycle_key || o.cycleKey || "");
+      return cId === String(card.id) && cKey === targetCycleKey;
+    }) || rawOpenings.find((o: any) => String(o.card_id || o.cardId) === String(card.id) && String(o.cycle_key || o.cycleKey || "").startsWith(targetMonth))
+       || rawOpenings.find((o: any) => String(o.card_id || o.cardId) === String(card.id));
 
-    const notes = op?.notes || "";
-    const paidMatch = /\[PAID_DATE:(\d{4}-\d{2}-\d{2})\]/i.exec(notes);
-    const isOpeningPaid = /\[PAGA\]/i.test(notes) || !!paidMatch;
+    const opNotes = op?.notes || "";
+    const isOpeningPaid = /\[PAGA\]/i.test(opNotes);
+    const paidValMatch = /\[PAID:([0-9]+(?:\.[0-9]+)?)\]/i.exec(opNotes);
+    const totalValMatch = /\[TOTAL:([0-9]+(?:\.[0-9]+)?)\]/i.exec(opNotes);
 
-    if (isDueToday) {
-      const paidValMatch = /\[PAID:([0-9]+(?:\.[0-9]+)?)\]/i.exec(notes);
-      const totalValMatch = /\[TOTAL:([0-9]+(?:\.[0-9]+)?)\]/i.exec(notes);
+    const cardTag = (card.nickname || card.bank || "").trim().toLowerCase();
+    const lastFour = String(card.last_four || "").trim().toLowerCase();
 
-      const cardTag = (card.nickname || card.bank || "").trim().toLowerCase();
-      const lastFour = String(card.last_four || "").trim().toLowerCase();
+    let itemsTotal = 0;
+    let itemsPaidTotal = 0;
 
-      const cardExpenses = rawExpenses.filter((e: any) => {
-        const eNotes = (e.notes || "").toLowerCase();
-        const eCat = (e.category || "").toLowerCase();
-        const isCard = eNotes.includes("[crédito]") || eNotes.includes("[credito]") || eCat.includes("cartão") || eCat.includes("cartao");
-        if (!isCard) return false;
+    for (const exp of rawExpenses) {
+      const eNotes = (exp.notes || "").toLowerCase();
+      const eCat = (exp.category || "").toLowerCase();
+      const isCard = eNotes.includes("[crédito]") || eNotes.includes("[credito]") || eCat.includes("cartão") || eCat.includes("cartao");
+      if (!isCard) continue;
 
-        if (rawCards.length === 1) return true;
-        const matchesTag = cardTag.length > 0 && eNotes.includes(cardTag);
-        const matchesLastFour = lastFour.length > 0 && eNotes.includes(lastFour);
-        return matchesTag || matchesLastFour;
-      });
+      const pMethodId = String(exp.payment_method_id || "");
+      const matchesCard = (pMethodId && pMethodId === String(card.id)) ||
+        (cardTag.length > 0 && eNotes.includes(cardTag)) ||
+        (lastFour.length > 0 && eNotes.includes(lastFour)) ||
+        (rawCards.length === 1);
 
-      const cardItemsTotal = cardExpenses.reduce((s: number, e: any) => {
-        const inst = Number(e.installments) || 1;
-        const val = inst > 1 && !e.parent_expense_id ? (Number(e.amount) || 0) / inst : (Number(e.amount) || 0);
-        return s + val;
-      }, 0);
+      if (!matchesCard) continue;
 
-      const cardItemsPaid = cardExpenses
-        .filter((e: any) => e.paid)
-        .reduce((s: number, e: any) => {
-          const inst = Number(e.installments) || 1;
-          const val = inst > 1 && !e.parent_expense_id ? (Number(e.amount) || 0) / inst : (Number(e.amount) || 0);
-          return s + val;
-        }, 0);
+      const installments = Number(exp.installments) || 1;
+      const rawAmount = Number(exp.amount) || 0;
+      const isParentParcelado = installments > 1 && !exp.parent_expense_id;
+      const installmentVal = isParentParcelado ? rawAmount / installments : rawAmount;
+      const baseDueDateStr = String(exp.due_date || exp.paid_date || exp.created_at || date).slice(0, 10);
 
-      const opAmount = Number(op?.opening_amount) || 0;
-      const totalInvoice = totalValMatch ? Number(totalValMatch[1]) : (cardItemsTotal + opAmount);
-      const paidInvoice = paidValMatch ? Number(paidValMatch[1]) : (cardItemsPaid + (isOpeningPaid ? opAmount : 0));
-      const pendingInvoice = round2(Math.max(0, totalInvoice - paidInvoice));
-
-      processedCardIds.add(String(card.id));
-
-      if (pendingInvoice > 0) {
-        const cardLabel = card.nickname || card.bank ? `Fatura ${card.nickname || card.bank}` : "Fatura Cartão de Crédito";
-        personalExpenseItems.push({
-          description: cardLabel,
-          amount: pendingInvoice,
-        });
+      if (isParentParcelado) {
+        const paidInst = Number(exp.paid_installments) || 0;
+        for (let i = paidInst + 1; i <= installments; i++) {
+          const d = new Date(baseDueDateStr + "T00:00:00");
+          d.setMonth(d.getMonth() + (i - 1));
+          if (d >= cycleFrom && d < cycleTo) {
+            itemsTotal += installmentVal;
+          }
+        }
+      } else {
+        const d = new Date(baseDueDateStr + "T00:00:00");
+        if (bounds ? (d >= cycleFrom && d < cycleTo) : true) {
+          itemsTotal += installmentVal;
+          if (exp.paid) {
+            itemsPaidTotal += installmentVal;
+          }
+        }
       }
     }
-  }
 
-  // 8. Faturas órfãs em credit_card_invoice_openings com valor pendente
-  for (const op of rawOpenings) {
-    const cardIdStr = String(op.card_id || "");
-    if (processedCardIds.has(cardIdStr)) continue;
-
-    const notes = op.notes || "";
-    const isOpeningPaid = /\[PAGA\]/i.test(notes);
-    const paidValMatch = /\[PAID:([0-9]+(?:\.[0-9]+)?)\]/i.exec(notes);
-    const totalValMatch = /\[TOTAL:([0-9]+(?:\.[0-9]+)?)\]/i.exec(notes);
-    
-    const opAmount = Number(op.opening_amount) || 0;
-    const totalInvoice = totalValMatch ? Number(totalValMatch[1]) : opAmount;
-    const paidInvoice = paidValMatch ? Number(paidValMatch[1]) : (isOpeningPaid ? opAmount : 0);
+    const opAmount = Number(op?.opening_amount) || 0;
+    const totalInvoice = totalValMatch ? Number(totalValMatch[1]) : (itemsTotal + opAmount);
+    const paidInvoice = paidValMatch ? Number(paidValMatch[1]) : (itemsPaidTotal + (isOpeningPaid ? opAmount : 0));
     const pendingInvoice = round2(Math.max(0, totalInvoice - paidInvoice));
 
-    if (pendingInvoice > 0 && op.cycle_key && String(op.cycle_key).startsWith(targetMonth)) {
-      processedCardIds.add(cardIdStr);
-      const card = rawCards.find((c: any) => String(c.id) === cardIdStr);
-      const cardLabel = card?.nickname || card?.bank ? `Fatura ${card.nickname || card.bank}` : "Fatura Cartão de Crédito";
+    if (pendingInvoice > 0) {
+      const cardLabel = card.nickname || card.bank ? `Fatura ${card.nickname || card.bank}` : "Fatura Cartão de Crédito";
       personalExpenseItems.push({
         description: cardLabel,
         amount: pendingInvoice,

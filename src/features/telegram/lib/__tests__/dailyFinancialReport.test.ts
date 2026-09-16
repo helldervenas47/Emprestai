@@ -346,23 +346,24 @@ describe("Relatório Financeiro Diário — Telegram", () => {
   // Cenário 11: Faturas de cartão de crédito trazem apenas o valor pendente no dia
   it("Cenário 11: faturas de cartão de crédito trazem apenas o valor pendente", () => {
     const expenses = [
-      // Compra no Nubank de R$ 1.000 (aberta)
+      // Compra no Nubank de R$ 1.000 dentro do ciclo (aberta)
       {
         description: "Compra TV",
         amount: 1000,
         notes: "[crédito] Nubank",
         scope: "personal",
         paid: false,
-        due_date: TEST_DATE,
+        due_date: "2026-09-01",
       },
-      // Compra no Itaú de R$ 500 (já paga)
+      // Compra no Itaú de R$ 500 dentro do ciclo (já paga)
       {
         description: "Restaurante",
         amount: 500,
         notes: "[crédito] Itaú Black",
         scope: "personal",
         paid: true,
-        paid_date: TEST_DATE,
+        paid_date: "2026-09-02",
+        due_date: "2026-09-02",
       },
     ];
 
@@ -391,9 +392,9 @@ describe("Relatório Financeiro Diário — Telegram", () => {
     ];
 
     const creditCards = [
-      { id: "card-1", nickname: "Nubank", bank: "Nubank", due_day: 15 },
-      { id: "card-2", nickname: "Itaú Black", bank: "Itaú", due_day: 15 },
-      { id: "card-3", nickname: "C6 Bank", bank: "C6", due_day: 15 },
+      { id: "card-1", nickname: "Nubank", bank: "Nubank", due_day: 15, closing_day: 8 },
+      { id: "card-2", nickname: "Itaú Black", bank: "Itaú", due_day: 15, closing_day: 8 },
+      { id: "card-3", nickname: "C6 Bank", bank: "C6", due_day: 15, closing_day: 8 },
     ];
 
     const data = buildDailyFinancialData({
@@ -412,6 +413,81 @@ describe("Relatório Financeiro Diário — Telegram", () => {
     expect(data.expenses.personal.items.find((i) => i.description === "Fatura Itaú Black")).toBeUndefined();
     expect(data.expenses.personal.subtotal).toBe(950);
     expect(data.expenses.total).toBe(950);
+  });
+
+  // Cenário 12: Faturas de cartão só aparecem no relatório na data exata do vencimento
+  it("Cenário 12: faturas com vencimento em outro dia não aparecem no relatório de hoje", () => {
+    const expenses = [
+      {
+        description: "Compra Supermercado",
+        amount: 800,
+        notes: "[crédito] Nubank",
+        scope: "personal",
+        paid: false,
+        due_date: "2026-09-02",
+      },
+    ];
+
+    const creditCards = [
+      // Vencimento dia 20 (data de hoje é dia 15)
+      { id: "card-1", nickname: "Nubank", bank: "Nubank", due_day: 20 },
+    ];
+
+    const data = buildDailyFinancialData({
+      date: TEST_DATE, // 2026-09-15
+      incomes: [],
+      sales: [],
+      expenses,
+      creditCards,
+    } as any);
+
+    // Como hoje não é dia 20 (vencimento do Nubank), não deve constar fatura nem despesa avulsa no relatório de hoje
+    expect(data.expenses.personal.items.length).toBe(0);
+    expect(data.expenses.total).toBe(0);
+  });
+
+  // Cenário 13: Compras parceladas no cartão compõem a fatura pelo valor da parcela mensal
+  it("Cenário 13: compras parceladas compõem a fatura pelo valor da parcela e trazem total pendente", () => {
+    const expenses = [
+      // Compra parcelada em 10x de R$ 150 (amount = 1500)
+      {
+        description: "Notebook (10x)",
+        amount: 1500,
+        installments: 10,
+        notes: "[crédito] Nubank",
+        scope: "personal",
+        paid: false,
+        due_date: "2026-09-01",
+      },
+      // Compra avulsa de R$ 250 dentro do ciclo (antes do fechamento em 05/09)
+      {
+        description: "Uber e Almoço",
+        amount: 250,
+        installments: 1,
+        notes: "[crédito] Nubank",
+        scope: "personal",
+        paid: false,
+        due_date: "2026-09-02",
+      },
+    ];
+
+    const creditCards = [
+      { id: "card-1", nickname: "Nubank", bank: "Nubank", due_day: 15, closing_day: 5 },
+    ];
+
+    const data = buildDailyFinancialData({
+      date: TEST_DATE, // 2026-09-15
+      incomes: [],
+      sales: [],
+      expenses,
+      creditCards,
+    } as any);
+
+    // Total pendente: R$ 150 (1 parcela) + R$ 250 = R$ 400
+    expect(data.expenses.personal.items.length).toBe(1);
+    expect(data.expenses.personal.items[0].description).toBe("Fatura Nubank");
+    expect(data.expenses.personal.items[0].amount).toBe(400);
+    expect(data.expenses.personal.subtotal).toBe(400);
   });
 });
 
