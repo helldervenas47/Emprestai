@@ -819,10 +819,11 @@ export function WhatsappReportCard() {
                 <Input
                   type="date"
                   value={selectedDate}
+                  onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
                   onChange={(e) => {
                     if (e.target.value) setSelectedDate(e.target.value);
                   }}
-                  className="h-8 text-xs font-semibold bg-transparent border-0 w-[130px] cursor-pointer text-center px-1 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="h-8 text-xs font-semibold bg-transparent border-0 w-[96px] cursor-pointer text-center px-0 focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:w-0 [&::-webkit-calendar-picker-indicator]:p-0 [&::-webkit-calendar-picker-indicator]:m-0"
                 />
 
                 <Button
