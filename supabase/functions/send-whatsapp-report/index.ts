@@ -194,24 +194,24 @@ Deno.serve(async (req: Request) => {
       provider = body.whatsapp_config.provider || "evolution";
     }
 
-    // 2. Busca por owner_id na tabela whatsapp_billing_schedule
-    if (!baseUrl || !instanceId) {
+    // 2. Busca por owner_id na tabela whatsapp_billing_schedule (preenche apiKey ou baseUrl/instanceId)
+    if (!baseUrl || !instanceId || !apiKey) {
       const { data: directSched } = await admin
         .from("whatsapp_billing_schedule")
         .select("*")
         .eq("owner_id", ownerId)
         .maybeSingle();
 
-      if (directSched?.base_url?.trim() && directSched?.instance_id?.trim()) {
-        baseUrl = directSched.base_url.trim();
-        instanceId = directSched.instance_id.trim();
-        apiKey = directSched.api_key || apiKey;
-        provider = directSched.provider || provider;
+      if (directSched) {
+        if (!baseUrl && directSched.base_url?.trim()) baseUrl = directSched.base_url.trim();
+        if (!instanceId && directSched.instance_id?.trim()) instanceId = directSched.instance_id.trim();
+        if (!apiKey && directSched.api_key) apiKey = directSched.api_key;
+        if (directSched.provider) provider = directSched.provider;
       }
     }
 
     // 3. Fallback: busca qualquer registro com credenciais válidas na tabela whatsapp_billing_schedule
-    if (!baseUrl || !instanceId) {
+    if (!baseUrl || !instanceId || !apiKey) {
       const { data: allSchedRows } = await admin
         .from("whatsapp_billing_schedule")
         .select("*")
@@ -223,10 +223,10 @@ Deno.serve(async (req: Request) => {
         (r: any) => Boolean(r.base_url?.trim() && r.instance_id?.trim())
       );
       if (found) {
-        baseUrl = found.base_url.trim();
-        instanceId = found.instance_id.trim();
-        apiKey = found.api_key || apiKey;
-        provider = found.provider || provider;
+        if (!baseUrl) baseUrl = found.base_url.trim();
+        if (!instanceId) instanceId = found.instance_id.trim();
+        if (!apiKey && found.api_key) apiKey = found.api_key;
+        if (found.provider) provider = found.provider;
       }
     }
 
