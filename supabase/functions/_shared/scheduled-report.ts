@@ -22,14 +22,150 @@ function nowParts(tz = "America/Sao_Paulo") {
   };
 }
 
+function normalizePhoneBR(raw: string): string {
+  const digits = (raw || "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("55") && digits.length >= 12) return digits;
+  return `55${digits}`;
+}
+
+async function sendWhatsappText(
+  config: { provider: string; baseUrl: string; instanceId: string; apiKey: string },
+  phone: string,
+  message: string,
+) {
+  const base = config.baseUrl.replace(/\/+$/, "");
+  const formattedPhone = normalizePhoneBR(phone);
+
+  if (config.provider === "wppconnect") {
+    const response = await fetch(`${base}/api/${encodeURIComponent(config.instanceId)}/send-message`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}) },
+      body: JSON.stringify({ phone: formattedPhone, message }),
+    });
+    return { ok: response.ok, status: response.status, body: await response.text() };
+  }
+  const response = await fetch(`${base}/message/sendText/${encodeURIComponent(config.instanceId)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(config.apiKey ? { apikey: config.apiKey } : {}) },
+    body: JSON.stringify({ number: formattedPhone, text: message, textMessage: { text: message } }),
+  });
+  return { ok: response.ok, status: response.status, body: await response.text() };
+}
+
+async function sendReportToWhatsapp(
+  admin: any,
+  ownerId: string,
+  text: string,
+  customPhone?: string | null,
+  passedConfig?: { provider?: string; base_url?: string; instance_id?: string; api_key?: string } | null,
+): Promise<{ sent: boolean; reason?: string }> {
+  try {
+    let phone = customPhone ? normalizePhoneBR(customPhone) : "";
+    if (!phone) {
+      const { data: auth } = await admin
+        .from("whatsapp_assistant_authorized")
+        .select("phone")
+        .eq("owner_id", ownerId)
+        .eq("enabled", true)
+        .limit(1)
+        .maybeSingle();
+      if (auth?.phone) phone = normalizePhoneBR(auth.phone);
+    }
+    if (!phone) {
+      const { data: prof } = await admin
+        .from("profiles")
+        .select("phone")
+        .eq("user_id", ownerId)
+        .maybeSingle();
+      if (prof?.phone) phone = normalizePhoneBR(prof.phone);
+    }
+    if (!phone) {
+      return { sent: false, reason: "no_phone_configured" };
+    }
+
+    let sched: any = null;
+    if (passedConfig?.base_url?.trim() && passedConfig?.instance_id?.trim()) {
+      sched = {
+        provider: passedConfig.provider || "evolution",
+        base_url: passedConfig.base_url.trim(),
+        instance_id: passedConfig.instance_id.trim(),
+        api_key: passedConfig.api_key || "",
+      };
+    }
+
+    if (!sched) {
+      const { data: directSched } = await admin
+        .from("whatsapp_billing_schedule")
+        .select("*")
+        .eq("owner_id", ownerId)
+        .maybeSingle();
+
+      if (directSched?.base_url?.trim() && directSched?.instance_id?.trim()) {
+        sched = directSched;
+      }
+    }
+
+    if (!sched) {
+      const { data: allSchedRows } = await admin
+        .from("whatsapp_billing_schedule")
+        .select("*")
+        .not("base_url", "is", null)
+        .neq("base_url", "")
+        .limit(10);
+
+      if (allSchedRows && allSchedRows.length > 0) {
+        const found = allSchedRows.find((r: any) => Boolean(r.base_url?.trim() && r.instance_id?.trim()));
+        if (found) sched = found;
+      }
+    }
+
+    if (!sched?.base_url || !sched?.instance_id) {
+      return { sent: false, reason: "whatsapp_not_configured" };
+    }
+
+    const globalApiKey = Deno.env.get("EVOLUTION_API_KEY") || Deno.env.get("WHATSMIAU_API_KEY") || "";
+    let apiKey = sched.api_key || globalApiKey;
+    if (!apiKey) {
+      try {
+        const { data: cfgKey } = await admin
+          .from("app_internal_config")
+          .select("value")
+          .in("key", ["evolution_api_key", "whatsapp_api_key", "whatsmiau_api_key"])
+          .limit(1)
+          .maybeSingle();
+        if (cfgKey?.value) apiKey = String(cfgKey.value);
+      } catch (_) {}
+    }
+
+    const result = await sendWhatsappText(
+      {
+        provider: sched.provider || "evolution",
+        baseUrl: sched.base_url,
+        instanceId: sched.instance_id,
+        apiKey,
+      },
+      phone,
+      text,
+    );
+
+    return {
+      sent: result.ok,
+      reason: result.ok ? undefined : `HTTP ${result.status}: ${result.body}`,
+    };
+  } catch (err: any) {
+    return { sent: false, reason: err?.message || String(err) };
+  }
+}
+
 /**
  * Generic handler for "scheduled report bot" functions.
  * Reads prefs from the external Supabase, fires the given report command,
- * and sends the resulting text via the reports bot.
+ * and sends the resulting text via Telegram and/or WhatsApp.
  */
 export function buildScheduledReportHandler(opts: {
   prefsTable: string;
-  command: string; // e.g. "emprestimos_atrasados" | "vencimentos_hoje"
+  command: string; // e.g. "relatorio_financeiro" | "emprestimos_atrasados"
   trackSendTimeInLastSent?: boolean;
 }) {
   return async (req: Request): Promise<Response> => {
@@ -74,6 +210,21 @@ export function buildScheduledReportHandler(opts: {
             });
           }
 
+          const isWhatsapp = body?.channel === "whatsapp" || body?.send_whatsapp === true;
+          if (isWhatsapp) {
+            const wppRes = await sendReportToWhatsapp(
+              admin,
+              resolvedOwnerId,
+              text,
+              body?.phone,
+              body?.whatsapp_config,
+            );
+            return new Response(JSON.stringify({ ok: true, sent: wppRes.sent, reason: wppRes.reason, text }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+
+          // Default: Telegram Bot
           const link = await getReportsLinkForUser(admin, targetUserId);
           if (!link) {
             return new Response(JSON.stringify({ ok: true, sent: false, reason: "no_reports_link", text }), {
@@ -90,8 +241,8 @@ export function buildScheduledReportHandler(opts: {
       // Cron mode — iterate enabled prefs.
       const { data: prefs, error } = await admin
         .from(opts.prefsTable)
-        .select("user_id, enabled, send_time_1, send_time_2, send_time_3, last_sent")
-        .eq("enabled", true);
+        .select("*");
+
       if (error) {
         console.warn(`[${opts.command}] prefs table read failed or not created yet:`, error.message);
         return new Response(JSON.stringify({ ok: true, sent: 0, checked: 0, warning: error.message }), {
@@ -99,8 +250,10 @@ export function buildScheduledReportHandler(opts: {
         });
       }
 
+      const activePrefs = (prefs ?? []).filter((p: any) => Boolean(p.enabled) || Boolean(p.send_whatsapp));
       let sent = 0;
-      for (const pref of (prefs ?? [])) {
+
+      for (const pref of activePrefs) {
         try {
           const { data: ownerId } = await admin.rpc("get_data_owner_id", { _user_id: (pref as any).user_id });
           const resolvedOwnerId = (ownerId as string) ?? (pref as any).user_id;
@@ -127,11 +280,30 @@ export function buildScheduledReportHandler(opts: {
             : fired.map((key) => ({ key, marker: today }));
           if (firedWithMarkers.length === 0) continue;
 
-          const link = await getReportsLinkForUser(admin, (pref as any).user_id);
-          if (!link) continue;
+          let anySent = false;
           const text = await runReportCommand(admin, resolvedOwnerId, opts.command);
-          const send = await sendReportsMessage(admin, (pref as any).user_id, Number(link.chat_id), text);
-          if (!send.sent) continue;
+
+          // Disparo Telegram
+          if ((pref as any).enabled === true) {
+            const link = await getReportsLinkForUser(admin, (pref as any).user_id);
+            if (link) {
+              const sendTg = await sendReportsMessage(admin, (pref as any).user_id, Number(link.chat_id), text);
+              if (sendTg.sent) anySent = true;
+            }
+          }
+
+          // Disparo WhatsApp
+          if ((pref as any).send_whatsapp === true) {
+            const sendWpp = await sendReportToWhatsapp(
+              admin,
+              resolvedOwnerId,
+              text,
+              (pref as any).whatsapp_phone,
+            );
+            if (sendWpp.sent) anySent = true;
+          }
+
+          if (!anySent) continue;
 
           const merged = { ...lastSent };
           for (const slot of firedWithMarkers) merged[slot.key] = slot.marker;
@@ -142,7 +314,7 @@ export function buildScheduledReportHandler(opts: {
         }
       }
 
-      return new Response(JSON.stringify({ ok: true, sent, checked: prefs?.length ?? 0 }), {
+      return new Response(JSON.stringify({ ok: true, sent, checked: activePrefs.length }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch (e) {
@@ -152,3 +324,4 @@ export function buildScheduledReportHandler(opts: {
     }
   };
 }
+

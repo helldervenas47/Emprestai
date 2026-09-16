@@ -1,7 +1,5 @@
 // Envia um relatório financeiro resumido pelo WhatsApp (Evolution API / WppConnect / Whatsmiau).
-// Pensado para ser colado no Dashboard do Supabase EXTERNO ou nativo (Edge Functions → New).
-// Body: { owner_id: string, phone?: string, report_type?: "daily"|"weekly"|"monthly"|"accountant", custom_text?: string, message?: string }
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+import { getExternalAdmin } from "../_shared/external-supabase.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,8 +27,10 @@ function fmtBR(d: string) {
   return `${day}/${m}/${y}`;
 }
 function normalizePhone(raw: string) {
-  const v = (raw || "").replace(/\D/g, "");
-  return v.startsWith("55") ? v : (v.length >= 10 ? "55" + v : v);
+  const digits = (raw || "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("55") && digits.length >= 12) return digits;
+  return `55${digits}`;
 }
 
 async function sendWhatsapp(
@@ -135,25 +135,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const SUPABASE_URL =
-      Deno.env.get("EXTERNAL_SUPABASE_URL") ||
-      Deno.env.get("SUPABASE_URL") ||
-      "";
-    const SERVICE_KEY =
-      Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY") ||
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ||
-      "";
-
-    if (!SUPABASE_URL || !SERVICE_KEY) {
-      return new Response(
-        JSON.stringify({ error: "Credenciais do Supabase não configuradas no ambiente da Edge Function." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
-      auth: { persistSession: false },
-    });
+    const admin = getExternalAdmin();
 
     const body = await req.json().catch(() => ({}));
     const ownerId: string = body.owner_id;
