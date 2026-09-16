@@ -178,12 +178,13 @@ export function matchCardLink(
   const idMatch = /\{id:([a-f0-9-]{36})\}/i.exec(n);
   if (idMatch) return idMatch[1] === String(card.id).toLowerCase() ? "match" : "other";
   if (e.paymentMethodId && e.paymentMethodId === card.id) return "match";
-  const cardTag = (card.nickname || card.lastFour || "").toLowerCase();
+  const cardTag = (card.nickname || card.lastFour || "").trim().toLowerCase();
   if (cardTag) {
     const pattern = new RegExp(`cart[a\u00e3]o:\\s*${cardTag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i");
-    if (pattern.test(n)) return "match";
+    const credPattern = new RegExp(`\\[\\s*cr[eé]dito\\s*\\]\\s*${cardTag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i");
+    if (pattern.test(n) || credPattern.test(n) || n.includes(cardTag)) return "match";
   }
-  if (/cart[a\u00e3]o[:\s]/i.test(n)) return "other";
+  if (/cart[a\u00e3]o[:\s]/i.test(n) || /\[\s*cr[eé]dito\s*\]\s*[a-z0-9]/i.test(n)) return "other";
   return "unknown";
 }
 

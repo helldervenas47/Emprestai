@@ -454,6 +454,7 @@ describe("Relatório Financeiro Diário — Telegram", () => {
         description: "Notebook (10x)",
         amount: 1500,
         installments: 10,
+        type: "recorrente",
         notes: "[crédito] Nubank",
         scope: "personal",
         paid: false,
