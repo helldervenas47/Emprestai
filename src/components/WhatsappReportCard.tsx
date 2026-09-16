@@ -38,6 +38,7 @@ import {
   Eye,
   Copy,
   Check,
+  DollarSign,
 } from "lucide-react";
 
 type SlotKey = "send_time_1" | "send_time_2" | "send_time_3";
@@ -254,6 +255,13 @@ export function WhatsappReportCard() {
     save: saveBillPrefs,
   } = useScheduledReportPrefs("telegram_billing_prefs");
 
+  // Prefs do Relatório Financeiro Diário
+  const {
+    prefs: dailyFinPrefs,
+    loading: loadingDailyFinPrefs,
+    save: saveDailyFinPrefs,
+  } = useScheduledReportPrefs("telegram_daily_financial_summary_prefs", "19:00");
+
   const todayInBahia = useCallback(
     () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bahia" }).format(new Date()),
     [],
@@ -271,12 +279,13 @@ export function WhatsappReportCard() {
   const [whatsappPhone, setWhatsappPhone] = useState("");
   const [sendingOpSummary, setSendingOpSummary] = useState(false);
   const [sendingBillingReport, setSendingBillingReport] = useState(false);
+  const [sendingDailyFin, setSendingDailyFin] = useState(false);
 
   // Estados de pré-visualização
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewTitle, setPreviewTitle] = useState("");
   const [previewText, setPreviewText] = useState("");
-  const [previewType, setPreviewType] = useState<"billing" | "operational">("billing");
+  const [previewType, setPreviewType] = useState<"billing" | "operational" | "daily_financial">("billing");
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -492,6 +501,26 @@ export function WhatsappReportCard() {
     }
   };
 
+  // Pré-visualização do Relatório Financeiro Diário
+  const handlePreviewDailyFinancial = async () => {
+    setLoadingPreview(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("telegram-daily-financial-summary", {
+        body: { return_text: true, date: selectedDate },
+      });
+      if (error) throw error;
+      setPreviewTitle(`Espelho do Relatório Financeiro — ${formatDateBRDisplay(selectedDate)}`);
+      setPreviewText(data?.text || "Nenhum dado retornado.");
+      setPreviewType("daily_financial");
+      setPreviewOpen(true);
+    } catch (e: any) {
+      console.error("Erro ao gerar espelho do relatório financeiro:", e);
+      toast.error("Erro ao carregar espelho.", { description: e?.message });
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
   // Cópia para a área de transferência
   const handleCopyText = async (textToCopy: string) => {
     if (!textToCopy) return;
@@ -620,6 +649,37 @@ export function WhatsappReportCard() {
       });
     } finally {
       setSendingBillingReport(false);
+    }
+  };
+
+  // Disparo do Relatório Financeiro Diário para a data selecionada
+  const sendDailyFinancialNow = async () => {
+    if (!ownerId) return;
+    setSendingDailyFin(true);
+    try {
+      const destPhone = (whatsappPhone.trim() || profilePhone || "").trim();
+      const { data, error } = await supabase.functions.invoke("telegram-daily-financial-summary", {
+        body: {
+          date: selectedDate,
+          return_text: true,
+        },
+      });
+      if (error) throw error;
+      const reportText = data?.text;
+
+      if (isWhatsappConfigured && destPhone && reportText) {
+        await sendWhatsappDirectly(schedule, destPhone, reportText);
+        toast.success(`Relatório Financeiro de ${formatDateBRDisplay(selectedDate)} enviado para o WhatsApp!`);
+      } else {
+        toast.success(`Relatório Financeiro de ${formatDateBRDisplay(selectedDate)} gerado com sucesso!`);
+      }
+    } catch (e: any) {
+      console.error("[WhatsappReportCard] Erro ao enviar relatório financeiro:", e);
+      toast.error("Erro ao enviar relatório", {
+        description: e?.message || "Ocorreu um problema de comunicação com a API.",
+      });
+    } finally {
+      setSendingDailyFin(false);
     }
   };
 
@@ -983,6 +1043,159 @@ export function WhatsappReportCard() {
         </CardContent>
       </Card>
 
+      {/* Card: Relatório Financeiro Diário (Receitas e Despesas) */}
+      <Card no3d className="border-border/60 shadow-xs rounded-2xl overflow-hidden">
+        <CardHeader className="p-4 sm:p-5 pb-3">
+          <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold shadow-xs shrink-0 ring-1 ring-amber-500/20">
+                <DollarSign className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  Relatório Financeiro do Dia (Receitas e Despesas)
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                  Consolidação detalhada de receitas e despesas registradas no dia (Financeiro, Vendas, Veículos, Pessoais e Empresariais) referente a <strong>{formatDateBRDisplay(selectedDate)}</strong>.
+                </CardDescription>
+              </div>
+            </div>
+
+            <Badge variant="outline" className="text-xs font-semibold py-1 px-2.5 bg-muted/30">
+              📅 Referência: {formatDateBRDisplay(selectedDate)}
+            </Badge>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-4 sm:p-5 pt-2 space-y-5">
+          {/* Horários de Envio */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-primary" />
+                <span>Horários Programados de Envio Automático</span>
+              </Label>
+              <Badge variant="outline" className="text-[10px] font-medium text-muted-foreground py-0.5 px-2 bg-muted/30">
+                {slots.filter((s) => !!dailyFinPrefs[s]).length}/3 horários
+              </Badge>
+            </div>
+
+            {slots.filter((s) => !!dailyFinPrefs[s]).length === 0 ? (
+              <div className="flex flex-col sm:flex-row items-center justify-between p-3.5 rounded-xl border border-dashed border-border/80 bg-muted/20 gap-3">
+                <p className="text-xs text-muted-foreground">
+                  Nenhum horário programado para o relatório financeiro diário.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs rounded-lg gap-1.5 font-medium"
+                  onClick={() => saveDailyFinPrefs({ [slots[0]]: "19:00" } as any)}
+                >
+                  <Plus className="h-3.5 w-3.5" /> Adicionar Primeiro Horário
+                </Button>
+              </div>
+            ) : (
+              <div className="grid gap-2.5 sm:grid-cols-3">
+                {slots.filter((s) => !!dailyFinPrefs[s]).map((key) => (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-border/70 bg-card hover:border-primary/40 transition-colors shadow-2xs group"
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="h-7 w-7 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                        <Clock className="h-3.5 w-3.5" />
+                      </div>
+                      <input
+                        type="time"
+                        value={dailyFinPrefs[key] ?? ""}
+                        onChange={(e) => saveDailyFinPrefs({ [key]: e.target.value || null } as any)}
+                        className="bg-transparent text-sm font-semibold text-foreground focus:outline-none cursor-pointer w-full tracking-wide"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => saveDailyFinPrefs({ [key]: null } as any)}
+                      title="Remover horário"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg shrink-0 transition-colors"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+
+                {slots.filter((s) => !!dailyFinPrefs[s]).length < 3 && (
+                  <button
+                    type="button"
+                    onClick={() => saveDailyFinPrefs({ [slots.find((s) => !dailyFinPrefs[s])!]: "19:00" } as any)}
+                    className="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-dashed border-border hover:border-primary/60 bg-muted/10 hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all text-xs font-semibold h-full min-h-[46px]"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>Adicionar Horário</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Módulos consolidados */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <span>Módulos consolidados na data {formatDateBRDisplay(selectedDate)}:</span>
+            </Label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] text-muted-foreground">
+              <div className="p-3 bg-muted/30 rounded-xl border border-border/40">
+                <span className="font-semibold text-foreground text-xs">Receitas</span>
+                <p className="text-[10px] text-muted-foreground mt-1 leading-snug">Financeiro, Vendas e Veículos</p>
+              </div>
+              <div className="p-3 bg-muted/30 rounded-xl border border-border/40">
+                <span className="font-semibold text-foreground text-xs">Despesas</span>
+                <p className="text-[10px] text-muted-foreground mt-1 leading-snug">Pessoais, Empresariais e Veículos</p>
+              </div>
+              <div className="p-3 bg-muted/30 rounded-xl border border-border/40">
+                <span className="font-semibold text-foreground text-xs">Resumo do Dia</span>
+                <p className="text-[10px] text-muted-foreground mt-1 leading-snug">Total Receitas - Despesas = Saldo</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Ações: Ver Espelho e Enviar */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-border/40">
+            <p className="text-[11px] text-muted-foreground">
+              Clique em <strong>Ver Espelho</strong> para conferir o formato idêntico ou enviar direto.
+            </p>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handlePreviewDailyFinancial}
+                disabled={loadingPreview}
+                className="flex-1 sm:flex-initial h-9 text-xs font-semibold rounded-xl gap-2 shadow-2xs"
+              >
+                {loadingPreview ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+                Ver Espelho
+              </Button>
+
+              <Button
+                onClick={sendDailyFinancialNow}
+                disabled={sendingDailyFin}
+                className="flex-1 sm:flex-initial h-9 text-xs font-semibold rounded-xl bg-amber-600 hover:bg-amber-700 text-white gap-2 shadow-xs"
+              >
+                {sendingDailyFin ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                Enviar Relatório
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Card 3: Relatório de Cobranças pelo WhatsApp */}
       <Card no3d className="border-border/60 shadow-xs rounded-2xl overflow-hidden">
         <CardHeader className="p-4 sm:p-5 pb-3">
@@ -1224,13 +1437,19 @@ export function WhatsappReportCard() {
                   setPreviewOpen(false);
                   if (previewType === "billing") {
                     sendBillingReportNow();
-                  } else {
+                  } else if (previewType === "operational") {
                     sendOperationalSummaryNow();
+                  } else {
+                    sendDailyFinancialNow();
                   }
                 }}
                 disabled={!isWhatsappConfigured}
                 className={`h-9 text-xs font-semibold rounded-xl gap-1.5 text-white ${
-                  previewType === "billing" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-primary hover:bg-primary/90"
+                  previewType === "billing"
+                    ? "bg-emerald-600 hover:bg-emerald-700"
+                    : previewType === "daily_financial"
+                    ? "bg-amber-600 hover:bg-amber-700"
+                    : "bg-primary hover:bg-primary/90"
                 }`}
               >
                 <Send className="h-3.5 w-3.5" />
