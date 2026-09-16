@@ -45,10 +45,18 @@ async function sendWhatsappText(
     });
     return { ok: response.ok, status: response.status, body: await response.text() };
   }
+  if (config.provider === "evolution") {
+    const response = await fetch(`${base}/message/sendText/${encodeURIComponent(config.instanceId)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(config.apiKey ? { apikey: config.apiKey } : {}) },
+      body: JSON.stringify({ number: formattedPhone, text: message }),
+    });
+    return { ok: response.ok, status: response.status, body: await response.text() };
+  }
   const response = await fetch(`${base}/message/sendText/${encodeURIComponent(config.instanceId)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(config.apiKey ? { apikey: config.apiKey } : {}) },
-    body: JSON.stringify({ number: formattedPhone, text: message, textMessage: { text: message } }),
+    body: JSON.stringify({ number: formattedPhone, text: message }),
   });
   return { ok: response.ok, status: response.status, body: await response.text() };
 }
@@ -202,7 +210,7 @@ export function buildScheduledReportHandler(opts: {
         if (targetUserId) {
           const { data: ownerId } = await admin.rpc("get_data_owner_id", { _user_id: targetUserId });
           const resolvedOwnerId = (ownerId as string) ?? targetUserId;
-          const text = await runReportCommand(admin, resolvedOwnerId, opts.command);
+          const text = body?.custom_text || body?.text || await runReportCommand(admin, resolvedOwnerId, opts.command, body?.date);
 
           if (body?.return_text) {
             return new Response(JSON.stringify({ ok: true, sent: false, text }), {

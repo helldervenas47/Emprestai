@@ -672,67 +672,41 @@ export function WhatsappReportCard() {
         return;
       }
 
-      let reportText = "";
-      try {
-        const { data, error } = await supabase.functions.invoke("telegram-daily-financial-summary", {
-          body: {
-            date: selectedDate,
-            return_text: true,
-            owner_id: ownerId,
-          },
-        });
-        if (!error && data?.text) {
-          reportText = data.text;
-        }
-      } catch {
-        // Fallback local se a Edge Function falhar
-      }
-
-      if (!reportText) {
-        const { buildDailyFinancialReport } = await import("@/features/telegram/lib/dailyFinancialReport");
-        reportText = await buildDailyFinancialReport({ ownerId, date: selectedDate });
-      }
-
-      if (!reportText) {
-        toast.error("Erro ao gerar conteúdo do relatório.");
-        return;
-      }
-
-      // Envia através da Edge Function dedicada de relatórios WhatsApp (com acesso seguro às credenciais e API Keys)
-      const { data: edgeRes, error: edgeErr } = await supabase.functions.invoke("send-whatsapp-report", {
+      const { data, error } = await supabase.functions.invoke("telegram-daily-financial-summary", {
         body: {
           owner_id: ownerId,
+          date: selectedDate,
+          channel: "whatsapp",
+          send_whatsapp: true,
           phone: destPhone,
-          custom_text: reportText,
           whatsapp_config: {
             provider: schedule.provider || "evolution",
             base_url: schedule.base_url || "",
             instance_id: schedule.instance_id || "",
-            api_key: schedule.api_key || "",
+            api_key: (schedule as any).api_key || "",
           },
         },
       });
 
-      if (!edgeErr && edgeRes?.ok) {
+      if (error) throw error;
+
+      if (data?.sent) {
         toast.success(`Relatório Financeiro de ${formatDateBRDisplay(selectedDate)} enviado para o seu WhatsApp!`);
       } else {
-        let errorDesc = edgeRes?.error || edgeRes?.message;
-        if (edgeErr) {
-          try {
-            if ((edgeErr as any).context && typeof (edgeErr as any).context.json === "function") {
-              const errJson = await (edgeErr as any).context.json();
-              if (errJson?.error) errorDesc = errJson.error;
-            }
-          } catch {
-            // ignore
-          }
-          if (!errorDesc) errorDesc = edgeErr.message;
+        const reason = data?.reason;
+        if (reason === "whatsapp_not_configured") {
+          toast.error("WhatsApp não configurado", {
+            description: "Configure sua API do WhatsApp na aba 'Disparos & Automação'.",
+          });
+        } else if (reason === "no_phone_configured") {
+          toast.error("Nenhum telefone configurado", {
+            description: "Informe o telefone de destino para o envio.",
+          });
+        } else {
+          toast.error("Falha no envio do relatório", {
+            description: reason || "O provedor de WhatsApp não confirmou o envio.",
+          });
         }
-        if (!errorDesc) errorDesc = "O servidor de WhatsApp não confirmou o envio.";
-
-        toast.error("Falha ao enviar pelo WhatsApp", {
-          description: errorDesc,
-        });
       }
     } catch (e: any) {
       console.error("[WhatsappReportCard] Erro ao enviar relatório financeiro:", e);

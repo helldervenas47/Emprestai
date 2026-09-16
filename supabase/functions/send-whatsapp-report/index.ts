@@ -69,7 +69,6 @@ async function sendWhatsapp(
     body: JSON.stringify({
       number: formattedPhone,
       text: text,
-      textMessage: { text: text },
     }),
   });
   return { ok: resp.ok, status: resp.status, body: await resp.text() };

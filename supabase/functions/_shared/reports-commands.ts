@@ -1595,11 +1595,12 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
   return lines.join("\n");
 }
 
-export async function runReportCommand(supabase: any, userId: string, command: string): Promise<string> {
+export async function runReportCommand(supabase: any, userId: string, command: string, customDate?: string): Promise<string> {
   if (command === "relatorios") return renderMenu();
   const [base, ...rest] = command.split("|");
   const arg = rest.join("|");
-  const ctx: Ctx = { supabase, userId, today: todayInTZ() };
+  const targetDate = customDate || todayInTZ();
+  const ctx: Ctx = { supabase, userId, today: targetDate };
   if (base === "resumo_operacional" || base === "resumooperacional" || base === "operacional") {
     return generateOperationalSummaryReport(ctx.supabase, ctx.userId, ctx.today);
   }
