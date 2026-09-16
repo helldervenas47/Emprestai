@@ -80,23 +80,46 @@ export function round2(n: number): number {
   return Math.round((Number(n) || 0) * 100) / 100;
 }
 
-function addDaysToIso(dateStr: string, days: number): string {
-  const [y, m, d] = dateStr.slice(0, 10).split("-").map(Number);
-  const date = new Date(y, m - 1, d);
-  date.setDate(date.getDate() + days);
-  const yr = date.getFullYear();
-  const mo = String(date.getMonth() + 1).padStart(2, "0");
-  const dy = String(date.getDate()).padStart(2, "0");
-  return `${yr}-${mo}-${dy}`;
+export function parseArrayField<T = any>(val: any): T[] {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        return [];
+      }
+    }
+  }
+  return [];
 }
 
-function addMonthsToIso(dateStr: string, months: number): string {
+function addByFrequencyDate(dateStr: string, frequency: string | undefined | null, n: number): string {
+  if (!dateStr) return "";
+  if (n === 0) return dateStr.slice(0, 10);
+
   const [y, m, d] = dateStr.slice(0, 10).split("-").map(Number);
-  const date = new Date(y, m - 1, d);
-  date.setMonth(date.getMonth() + months);
-  const yr = date.getFullYear();
-  const mo = String(date.getMonth() + 1).padStart(2, "0");
-  const dy = String(date.getDate()).padStart(2, "0");
+  if (!y || !m || !d) return "";
+  const dt = new Date(y, m - 1, d);
+
+  const freq = (frequency || "Mensal").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  if (freq.includes("diar") || freq.includes("daily")) {
+    dt.setDate(dt.getDate() + n);
+  } else if (freq.includes("seman") || freq.includes("weekly")) {
+    dt.setDate(dt.getDate() + n * 7);
+  } else if (freq.includes("quinzen")) {
+    dt.setDate(dt.getDate() + n * 15);
+  } else {
+    // Mensal
+    dt.setMonth(dt.getMonth() + n);
+  }
+
+  const yr = dt.getFullYear();
+  const mo = String(dt.getMonth() + 1).padStart(2, "0");
+  const dy = String(dt.getDate()).padStart(2, "0");
   return `${yr}-${mo}-${dy}`;
 }
 
@@ -104,25 +127,13 @@ export function getSaleInstallmentDueDate(
   baseDate: string,
   frequency: string | undefined | null,
   index: number,
-  installmentDates?: (string | null)[] | null
+  installmentDates?: any
 ): string {
-  if (installmentDates && installmentDates[index]) {
-    return String(installmentDates[index]).slice(0, 10);
+  const dates = parseArrayField<string>(installmentDates);
+  if (dates && dates[index]) {
+    return String(dates[index]).slice(0, 10);
   }
-  if (!baseDate) return "";
-  if (index === 0) return baseDate.slice(0, 10);
-
-  const freq = (frequency || "Mensal").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
-  if (freq.includes("diar") || freq.includes("daily")) {
-    return addDaysToIso(baseDate, index);
-  }
-  if (freq.includes("seman") || freq.includes("weekly")) {
-    return addDaysToIso(baseDate, index * 7);
-  }
-  if (freq.includes("quinzen")) {
-    return addDaysToIso(baseDate, index * 15);
-  }
-  return addMonthsToIso(baseDate, index);
+  return addByFrequencyDate(baseDate, frequency, index);
 }
 
 export function isVehicleSale(sale: any): boolean {
@@ -175,25 +186,25 @@ export function buildDailyFinancialData(params: {
 
   for (const sale of sales) {
     const isVehicle = isVehicleSale(sale);
-    const history = (Array.isArray(sale.payment_history) ? sale.payment_history : (Array.isArray(sale.paymentHistory) ? sale.paymentHistory : [])) as any[];
+    const history = parseArrayField<any>(sale.payment_history || sale.paymentHistory);
     const client = sale.customer_name || sale.customerName || sale.customer || "";
-    const saleDate = (sale.sale_date || sale.saleDate || sale.date || (sale.created_at ? String(sale.created_at).slice(0, 10) : "")).slice(0, 10);
-    const instCount = Number(sale.installments) || 1;
-    const paidCount = Number(sale.paid_installments ?? sale.paidInstallments) || 0;
+    const saleDate = String(sale.sale_date || sale.saleDate || sale.date || (sale.created_at ? String(sale.created_at).slice(0, 10) : "")).slice(0, 10);
+    const instCount = Math.max(1, Number(sale.installments) || 1);
+    const paidCount = Math.max(0, Number(sale.paid_installments ?? sale.paidInstallments) || 0);
     const instVal = Number(sale.installment_value || sale.installmentValue) || 0;
     const total = Number(sale.total) || 0;
     const down = Number(sale.down_payment || sale.downPayment) || 0;
     const partialPaid = Number(sale.partial_paid ?? sale.partialPaid) || 0;
-    const customDates = (sale.installment_dates || sale.installmentDates) as (string | null)[] | null | undefined;
-    const customAmounts = (sale.installment_amounts || sale.installmentAmounts) as (number | null)[] | null | undefined;
+    const customDates = sale.installment_dates || sale.installmentDates;
+    const customAmounts = parseArrayField<number>(sale.installment_amounts || sale.installmentAmounts);
     const freq = sale.frequency || "Mensal";
     const defaultTypeDesc = isVehicle ? "Aluguel Veículo" : "Venda";
 
     // 1. Pagamentos recebidos hoje registrados no histórico
     for (const pay of history) {
-      const payDate = (pay.date || "").slice(0, 10);
+      const payDate = String(pay?.date || "").slice(0, 10);
       if (payDate === date) {
-        const val = Number(pay.amount) || 0;
+        const val = Number(pay?.amount) || 0;
         if (val > 0) {
           const desc = client ? `${client} — ${sale.description || defaultTypeDesc}` : (sale.description || defaultTypeDesc);
           if (isVehicle) {

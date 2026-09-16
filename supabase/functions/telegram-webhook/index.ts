@@ -1586,20 +1586,43 @@ async function generateDailyFinancialReportInWebhook(supabase: any, userId: stri
 
   const isVehicleExp = (expense: any) => isVehicleExpenseCategory(expense.category) && !isFuel(expense);
 
-  const addDaysToIso = (dateStr: string, days: number): string => {
-    const [y, m, d] = dateStr.slice(0, 10).split("-").map(Number);
-    const dt = new Date(y, m - 1, d);
-    dt.setDate(dt.getDate() + days);
-    const yr = dt.getFullYear();
-    const mo = String(dt.getMonth() + 1).padStart(2, "0");
-    const dy = String(dt.getDate()).padStart(2, "0");
-    return `${yr}-${mo}-${dy}`;
+  const parseArrayField = <T = any>(val: any): T[] => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    if (typeof val === "string") {
+      const trimmed = val.trim();
+      if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) return parsed;
+        } catch {
+          return [];
+        }
+      }
+    }
+    return [];
   };
 
-  const addMonthsToIso = (dateStr: string, months: number): string => {
+  const addByFrequencyDate = (dateStr: string, frequency: string | undefined | null, n: number): string => {
+    if (!dateStr) return "";
+    if (n === 0) return dateStr.slice(0, 10);
+
     const [y, m, d] = dateStr.slice(0, 10).split("-").map(Number);
+    if (!y || !m || !d) return "";
     const dt = new Date(y, m - 1, d);
-    dt.setMonth(dt.getMonth() + months);
+
+    const freq = (frequency || "Mensal").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+    if (freq.includes("diar") || freq.includes("daily")) {
+      dt.setDate(dt.getDate() + n);
+    } else if (freq.includes("seman") || freq.includes("weekly")) {
+      dt.setDate(dt.getDate() + n * 7);
+    } else if (freq.includes("quinzen")) {
+      dt.setDate(dt.getDate() + n * 15);
+    } else {
+      // Mensal
+      dt.setMonth(dt.getMonth() + n);
+    }
+
     const yr = dt.getFullYear();
     const mo = String(dt.getMonth() + 1).padStart(2, "0");
     const dy = String(dt.getDate()).padStart(2, "0");
@@ -1610,25 +1633,13 @@ async function generateDailyFinancialReportInWebhook(supabase: any, userId: stri
     baseDate: string,
     frequency: string | undefined | null,
     index: number,
-    installmentDates?: (string | null)[] | null
+    installmentDates?: any
   ): string => {
-    if (installmentDates && installmentDates[index]) {
-      return String(installmentDates[index]).slice(0, 10);
+    const dates = parseArrayField<string>(installmentDates);
+    if (dates && dates[index]) {
+      return String(dates[index]).slice(0, 10);
     }
-    if (!baseDate) return "";
-    if (index === 0) return baseDate.slice(0, 10);
-
-    const freq = (frequency || "Mensal").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
-    if (freq.includes("diar") || freq.includes("daily")) {
-      return addDaysToIso(baseDate, index);
-    }
-    if (freq.includes("seman") || freq.includes("weekly")) {
-      return addDaysToIso(baseDate, index * 7);
-    }
-    if (freq.includes("quinzen")) {
-      return addDaysToIso(baseDate, index * 15);
-    }
-    return addMonthsToIso(baseDate, index);
+    return addByFrequencyDate(baseDate, frequency, index);
   };
 
   const isVehicleSale = (sale: any): boolean => {
@@ -1668,25 +1679,25 @@ async function generateDailyFinancialReportInWebhook(supabase: any, userId: stri
 
   for (const sale of rawSales) {
     const isVehicle = isVehicleSale(sale);
-    const history = (Array.isArray(sale.payment_history) ? sale.payment_history : []) as any[];
+    const history = parseArrayField<any>(sale.payment_history);
     const client = sale.customer_name || "";
-    const saleDate = (sale.sale_date || (sale.created_at ? String(sale.created_at).slice(0, 10) : "")).slice(0, 10);
-    const instCount = Number(sale.installments) || 1;
-    const paidCount = Number(sale.paid_installments) || 0;
+    const saleDate = String(sale.sale_date || (sale.created_at ? String(sale.created_at).slice(0, 10) : "")).slice(0, 10);
+    const instCount = Math.max(1, Number(sale.installments) || 1);
+    const paidCount = Math.max(0, Number(sale.paid_installments) || 0);
     const instVal = Number(sale.installment_value || sale.installmentValue) || 0;
     const total = Number(sale.total) || 0;
     const down = Number(sale.down_payment || sale.downPayment) || 0;
     const partialPaid = Number(sale.partial_paid) || 0;
-    const customDates = sale.installment_dates as (string | null)[] | null | undefined;
-    const customAmounts = sale.installment_amounts as (number | null)[] | null | undefined;
+    const customDates = sale.installment_dates;
+    const customAmounts = parseArrayField<number>(sale.installment_amounts);
     const freq = sale.frequency || "Mensal";
     const defaultTypeDesc = isVehicle ? "Aluguel Veículo" : "Venda";
 
     // 1. Pagamentos recebidos hoje registrados no histórico
     for (const pay of history) {
-      const payDate = (pay.date || "").slice(0, 10);
+      const payDate = String(pay?.date || "").slice(0, 10);
       if (payDate === date) {
-        const val = Math.round((Number(pay.amount) || 0) * 100) / 100;
+        const val = Math.round((Number(pay?.amount) || 0) * 100) / 100;
         if (val > 0) {
           const desc = client ? `${client} — ${sale.description || defaultTypeDesc}` : (sale.description || defaultTypeDesc);
           if (isVehicle) {
