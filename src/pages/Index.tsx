@@ -490,6 +490,7 @@ import { useExpenses } from "@/features/financial/hooks/useExpenses";
 import { useIncomes } from "@/features/financial/hooks/useIncomes";
 import { useVehicleRegistry } from "@/features/vehicles/hooks/useVehicleRegistry";
 import { useLocadorInfo } from "@/features/vehicles/hooks/useLocadorInfo";
+import { useAppIcons } from "@/hooks/useAppIcons";
 
 type Tab =
   | "overview"
@@ -1178,7 +1179,16 @@ const Index = () => {
   }, [isMobileOrTablet]);
 
   const { allowedTabs: planAllowedTabs, loading: planAccessLoading } = usePlanEntitlements();
-  const visibleTabs = React.useMemo(() => tabConfig.filter((t) => {
+  const { getTabIcon } = useAppIcons();
+
+  const dynamicTabConfig = React.useMemo(() => {
+    return tabConfig.map((t) => ({
+      ...t,
+      icon: getTabIcon(t.id as any),
+    }));
+  }, [getTabIcon]);
+
+  const visibleTabs = React.useMemo(() => dynamicTabConfig.filter((t) => {
     if (loading) return false;
     // Admin sempre vê todas as abas (ignora plano e demais restrições).
     if (role === "admin") return true;
@@ -1224,7 +1234,7 @@ const Index = () => {
       return allowedTabs.includes(t.id);
     }
     return true;
-  }), [loading, user, role, roleAllowedTabs, allowedTabs, planAllowedTabs, planAccessLoading, canRoleAction]);
+  }), [dynamicTabConfig, loading, user, role, roleAllowedTabs, allowedTabs, planAllowedTabs, planAccessLoading, canRoleAction]);
 
   const visibleTabsSignature = React.useMemo(
     () => visibleTabs.map((t) => t.id).join(","),
@@ -1236,14 +1246,14 @@ const Index = () => {
   const canAccessTab = (id: Tab) => visibleTabs.some((t) => t.id === id);
   // Tab existe na configuração geral mas o usuário não tem permissão →
   // exibimos página de "acesso negado" em vez de redirecionar silenciosamente.
-  const tabAccessDenied = !loading && !planAccessLoading && tabConfig.some((t) => t.id === tab) && !visibleTabs.some((t) => t.id === tab);
+  const tabAccessDenied = !loading && !planAccessLoading && dynamicTabConfig.some((t) => t.id === tab) && !visibleTabs.some((t) => t.id === tab);
 
   // Itens da barra inferior mobile: prioriza pinnedTabs (ordem do usuário),
   // completa com as demais abas visíveis e limita a 4 (o 5º slot é "Mais").
   const bottomItems = (() => {
     const pinnedVisible = pinnedTabs
-      .map((id) => tabConfig.find((t) => t.id === id))
-      .filter((t): t is (typeof tabConfig)[number] => !!t && visibleTabs.some((v) => v.id === t.id));
+      .map((id) => dynamicTabConfig.find((t) => t.id === id))
+      .filter((t): t is (typeof dynamicTabConfig)[number] => !!t && visibleTabs.some((v) => v.id === t.id));
     const remaining = visibleTabs.filter((v) => !pinnedVisible.some((p) => p.id === v.id));
     return [...pinnedVisible, ...remaining].slice(0, 4);
   })();
@@ -1427,7 +1437,7 @@ const Index = () => {
           }}
         >
           {(() => {
-            const current = tabConfig.find((t) => t.id === tab);
+            const current = dynamicTabConfig.find((t) => t.id === tab);
             if (!current) return null;
             const Icon = current.icon;
             return (

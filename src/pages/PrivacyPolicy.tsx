@@ -1,10 +1,12 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
-import logoIcon from "@/assets/logo-icon.png";
 import { Button } from "@/components/ui/button";
+import { AppLogo } from "@/components/AppLogo";
+import { useAppBranding } from "@/hooks/useAppBranding";
 
 const PrivacyPolicy = () => {
   const navigate = useNavigate();
+  const { branding } = useAppBranding();
 
   return (
     <div className="min-h-screen bg-background">
@@ -13,9 +15,9 @@ const PrivacyPolicy = () => {
           <Button variant="ghost" size="icon" onClick={() => navigate("/planos")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="flex items-center gap-2">
-            <img src={logoIcon} alt="EmprestAI" className="h-8 w-8 rounded-xl" width={32} height={32} />
-            <span className="text-lg font-bold text-foreground">EmprestAI</span>
+          <div className="flex items-center gap-2.5">
+            <AppLogo area="header" alt={branding.brand_name} className="h-8 w-auto max-w-[32px] object-contain" />
+            <span className="text-lg font-bold text-foreground">{branding.brand_name}</span>
           </div>
         </div>
       </header>

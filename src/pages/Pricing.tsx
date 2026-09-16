@@ -32,7 +32,8 @@ import { PixPaymentView } from "@/components/billing/PixPaymentView";
 import { syncSubscriptionState } from "@/lib/billing/subscriptionSync";
 import { CouponInputSection } from "@/components/billing/CouponInputSection";
 import type { CouponValidationResult } from "@/hooks/useCouponValidation";
-import logoIcon from "@/assets/logo-icon.png";
+import { AppLogo } from "@/components/AppLogo";
+import { useAppBranding } from "@/hooks/useAppBranding";
 
 interface Plan {
   id: string;
@@ -126,6 +127,7 @@ const Pricing = () => {
   const [cycle, setCycle] = useState<Cycle>("monthly");
   const { mutate, isPending, data: checkoutData, reset } = useAsaasCheckout();
   const { user } = useAuth();
+  const { branding } = useAppBranding();
   const { profile, refetch } = useAccountProfile();
   const [checkoutPlan, setCheckoutPlan] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -277,9 +279,9 @@ const Pricing = () => {
       {/* Header */}
       <header className="border-b border-border/30 backdrop-blur-sm bg-background/80 sticky top-0 z-50 pt-safe">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="flex items-center gap-2">
-            <img src={logoIcon} alt="EmprestAI" className="h-9 w-9 rounded-xl" width={36} height={36} />
-            <span className="text-lg font-bold text-foreground">EmprestAI</span>
+          <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="flex items-center gap-2.5">
+            <AppLogo area="header" alt={branding.brand_name} className="h-8 w-auto max-w-[36px] object-contain" />
+            <span className="text-lg font-bold text-foreground">{branding.brand_name}</span>
           </button>
           <div className="flex items-center gap-3">
             <Button variant="ghost" onClick={() => scrollToPlans()} className="hidden sm:inline-flex">
@@ -623,8 +625,8 @@ const Pricing = () => {
       <footer className="border-t border-border/30 bg-muted/20">
         <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
-            <img src={logoIcon} alt="EmprestAI" className="h-4 w-4 rounded" width={16} height={16} />
-            <span>EmprestAI © {new Date().getFullYear()}</span>
+            <AppLogo area="header" alt={branding.brand_name} className="h-4 w-auto max-w-[20px] object-contain" />
+            <span>{branding.brand_name} © {new Date().getFullYear()}</span>
           </div>
           <div className="flex flex-wrap gap-6">
             <button onClick={() => navigate("/auth")} className="hover:text-foreground transition-colors">

@@ -9,26 +9,27 @@ export function BrandFaviconSync() {
   const { branding } = useAppBranding();
 
   useEffect(() => {
-    const logoUrl = branding.logo_url || FALLBACK_LOGO;
+    const headerLogoUrl = branding.logo_url || FALLBACK_LOGO;
+    const pwaIconUrl = branding.pwa_icon_url || branding.logo_url || FALLBACK_LOGO;
     const brandName = branding.brand_name || "App";
 
-    // 1) Favicon: update existing <link rel="icon"> tags (and apple-touch-icon)
-    const setLinkHref = (rel: string) => {
+    // 1) Favicon da aba do navegador: usa exatamente o mesmo do menu lateral (logo_url)
+    const setLinkHref = (rel: string, href: string) => {
       const links = document.querySelectorAll<HTMLLinkElement>(`link[rel="${rel}"]`);
       if (links.length === 0) {
         const link = document.createElement("link");
         link.rel = rel;
-        link.href = logoUrl;
+        link.href = href;
         document.head.appendChild(link);
       } else {
         links.forEach((l) => {
-          l.href = logoUrl;
+          l.href = href;
         });
       }
     };
-    setLinkHref("icon");
-    setLinkHref("shortcut icon");
-    setLinkHref("apple-touch-icon");
+    setLinkHref("icon", headerLogoUrl);
+    setLinkHref("shortcut icon", headerLogoUrl);
+    setLinkHref("apple-touch-icon", pwaIconUrl);
 
     // 2) PWA Manifest: build a dynamic manifest blob with the logo as icon
     try {
@@ -39,12 +40,12 @@ export function BrandFaviconSync() {
         description: brandName,
         start_url: "/",
         display: "standalone",
-        background_color: "#ffffff",
-        theme_color: "#000000",
+        background_color: "#15181D",
+        theme_color: "#15181D",
         icons: [
-          { src: logoUrl, sizes: `${faviconSize}x${faviconSize}`, type: "image/png", purpose: "any" },
-          { src: logoUrl, sizes: "192x192", type: "image/png", purpose: "any maskable" },
-          { src: logoUrl, sizes: "512x512", type: "image/png", purpose: "any maskable" },
+          { src: pwaIconUrl, sizes: `${faviconSize}x${faviconSize}`, type: "image/png", purpose: "any" },
+          { src: pwaIconUrl, sizes: "192x192", type: "image/png", purpose: "any maskable" },
+          { src: pwaIconUrl, sizes: "512x512", type: "image/png", purpose: "any maskable" },
         ],
       };
       const blob = new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" });
@@ -64,7 +65,7 @@ export function BrandFaviconSync() {
     } catch {
       // ignore manifest errors
     }
-  }, [branding.logo_url, branding.brand_name, branding.sizes]);
+  }, [branding.pwa_icon_url, branding.logo_url, branding.brand_name, branding.sizes]);
 
   return null;
 }

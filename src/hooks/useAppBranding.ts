@@ -6,11 +6,14 @@ import { clearPdfBrandingCache } from "@/lib/pdfBranding";
 export type LogoArea = "header" | "auth" | "favicon" | "report";
 export type LogoDevice = "desktop" | "tablet" | "mobile";
 
-export type LogoSizes = Record<LogoArea, Record<LogoDevice, number>>;
+export type LogoSizes = Record<LogoArea, Record<LogoDevice, number>> & {
+  pwa_icon_url?: string | null;
+};
 
 export interface AppBranding {
   id: string;
   logo_url: string | null;
+  pwa_icon_url: string | null;
   brand_name: string;
   sizes: LogoSizes;
   updated_at: string;
@@ -29,11 +32,15 @@ export const DEFAULT_BRAND_NAME = "EmprestAI";
 const SELECT_COLS = "id, logo_url, brand_name, sizes, updated_at";
 
 function mapRow(row: any): AppBranding {
+  const sizes = (row.sizes ?? {}) as LogoSizes;
+  const pwaIconUrl = row.pwa_icon_url ?? sizes.pwa_icon_url ?? null;
+
   return {
     id: row.id,
     logo_url: row.logo_url ?? null,
+    pwa_icon_url: pwaIconUrl,
     brand_name: row.brand_name || DEFAULT_BRAND_NAME,
-    sizes: { ...DEFAULT_SIZES, ...(row.sizes ?? {}) } as LogoSizes,
+    sizes: { ...DEFAULT_SIZES, ...sizes, pwa_icon_url: pwaIconUrl },
     updated_at: row.updated_at,
   };
 }
@@ -41,6 +48,7 @@ function mapRow(row: any): AppBranding {
 const DEFAULT_BRANDING: AppBranding = {
   id: "default",
   logo_url: null,
+  pwa_icon_url: null,
   brand_name: DEFAULT_BRAND_NAME,
   sizes: DEFAULT_SIZES,
   updated_at: "",
@@ -122,6 +130,7 @@ export function useAppBranding() {
     await updateAndNotify({ brand_name: trimmed });
   }, []);
 
+  // Upload da Logo / Símbolo do Menu (apenas o "E" sem borda)
   const uploadLogo = useCallback(async (file: File) => {
     const ext = file.name.split(".").pop()?.toLowerCase() || "png";
     const path = `logo-${Date.now()}.${ext}`;
@@ -134,9 +143,42 @@ export function useAppBranding() {
     await updateAndNotify({ logo_url: url });
   }, []);
 
+  // Upload do Ícone PWA / Favicon (ícone do app com fundo para tela inicial e aba)
+  const uploadPwaIcon = useCallback(async (file: File) => {
+    const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+    const path = `pwa-icon-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from("branding")
+      .upload(path, file, { upsert: true, contentType: file.type });
+    if (upErr) throw upErr;
+    const { data: pub } = supabase.storage.from("branding").getPublicUrl(path);
+    const url = `${pub.publicUrl}?v=${Date.now()}`;
+
+    // Armazena no campo sizes.pwa_icon_url para total retrocompatibilidade
+    const currentSizes = cache?.sizes ?? DEFAULT_SIZES;
+    const nextSizes: LogoSizes = { ...currentSizes, pwa_icon_url: url };
+    await updateAndNotify({ sizes: nextSizes });
+  }, []);
+
   const removeLogo = useCallback(() => updateAndNotify({ logo_url: null }), []);
 
-  return { branding, loading, refresh, saveSizes, saveBrandName, uploadLogo, removeLogo };
+  const removePwaIcon = useCallback(async () => {
+    const currentSizes = cache?.sizes ?? DEFAULT_SIZES;
+    const nextSizes: LogoSizes = { ...currentSizes, pwa_icon_url: null };
+    await updateAndNotify({ sizes: nextSizes });
+  }, []);
+
+  return {
+    branding,
+    loading,
+    refresh,
+    saveSizes,
+    saveBrandName,
+    uploadLogo,
+    uploadPwaIcon,
+    removeLogo,
+    removePwaIcon,
+  };
 }
 
 export { DEFAULT_SIZES };

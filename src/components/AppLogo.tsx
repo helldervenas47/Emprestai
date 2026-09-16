@@ -19,7 +19,9 @@ export function AppLogo({ area, device, className, alt = "Logo", rounded = false
 
   const detected: LogoDevice = device ?? (isMobile ? "mobile" : isSmall ? "tablet" : "desktop");
   const size = branding.sizes[area]?.[detected] ?? 40;
-  const src = branding.logo_url || FALLBACK_LOGO;
+  const src = area === "favicon"
+    ? (branding.pwa_icon_url || branding.logo_url || FALLBACK_LOGO)
+    : (branding.logo_url || FALLBACK_LOGO);
 
   const style = useMemo(() => ({ width: `${size}px`, height: `${size}px` }), [size]);
 

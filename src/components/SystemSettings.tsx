@@ -19,17 +19,17 @@ import {
   KeyRound,
   Package,
   BadgeCheck,
-  Sparkles,
-  TrendingUp,
+  Type,
+  Layers,
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useSubscription } from "@/hooks/useSubscription";
-import { toast } from "sonner";
 import { ThemeSettingsCard } from "@/components/ThemeSettingsCard";
 import { AppFontSelector } from "@/components/AppFontSelector";
+import { AppIconsSettingsCard } from "@/components/AppIconsSettingsCard";
 
 const UserManagement = lazy(() => import("@/features/admin/components/UserManagement").then(m => ({ default: m.UserManagement })));
 const BrandingSettings = lazy(() => import("@/components/BrandingSettings").then(m => ({ default: m.BrandingSettings })));
@@ -40,10 +40,71 @@ const RolePermissionsMatrix = lazy(() => import("@/features/admin/components/adm
 const PlanManagement = lazy(() => import("@/features/admin/components/admin/PlanManagement").then(m => ({ default: m.PlanManagement })));
 const SubscriptionManagement = lazy(() => import("@/features/admin/components/admin/SubscriptionManagement").then(m => ({ default: m.SubscriptionManagement })));
 
-
 const SectionLoader = () => (
   <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
 );
+
+interface CollapsibleSettingsCardProps {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: React.ReactNode;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: React.ReactNode;
+}
+
+function CollapsibleSettingsCard({
+  icon: Icon,
+  title,
+  description,
+  open,
+  onOpenChange,
+  children,
+}: CollapsibleSettingsCardProps) {
+  return (
+    <Card className="w-full">
+      <Collapsible open={open} onOpenChange={onOpenChange}>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 rounded-xl"
+          >
+            <CardHeader className="flex-row items-center justify-between space-y-0 p-4 sm:p-6 cursor-pointer hover:bg-muted/30 transition-colors rounded-xl">
+              <div className="space-y-1 pr-2">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                  <Icon className="h-4 w-4 text-primary shrink-0" /> {title}
+                </CardTitle>
+                {typeof description === "string" ? (
+                  <CardDescription className="text-xs sm:text-sm">{description}</CardDescription>
+                ) : (
+                  description
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs text-muted-foreground hidden sm:inline font-medium">
+                  {open ? "Recolher" : "Expandir"}
+                </span>
+                <div className="h-8 w-8 rounded-lg bg-muted/60 flex items-center justify-center border border-border/50">
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 text-muted-foreground transition-transform duration-300",
+                      open && "rotate-180"
+                    )}
+                  />
+                </div>
+              </div>
+            </CardHeader>
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <CardContent className="pt-0 sm:pt-0">
+            {children}
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
+  );
+}
 
 export function SystemSettings() {
   const { role } = useAuth();
@@ -51,7 +112,18 @@ export function SystemSettings() {
   const { subscription, isActive } = useSubscription();
   const isAdmin = role === "admin";
   const [subTab, setSubTab] = useState<string>(isAdmin ? "admin" : "billing");
+
+  // Admin tab collapsibles
   const [usersExpanded, setUsersExpanded] = useState(false);
+
+  // Billing (Conta) tab collapsibles — todos recolhidos por padrão
+  const [planExpanded, setPlanExpanded] = useState(false);
+  const [brandingExpanded, setBrandingExpanded] = useState(false);
+  const [fontExpanded, setFontExpanded] = useState(false);
+  const [iconsExpanded, setIconsExpanded] = useState(false);
+  const [themeExpanded, setThemeExpanded] = useState(false);
+  const [apiKeysExpanded, setApiKeysExpanded] = useState(false);
+  const [healthExpanded, setHealthExpanded] = useState(false);
 
   const planLabel = isActive && subscription
     ? subscription.product_id === "basico_plan" ? "Básico"
@@ -156,78 +228,101 @@ export function SystemSettings() {
         )}
 
         <TabsContent value="billing" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <CreditCard className="h-4 w-4 text-primary" /> Plano e assinatura
-              </CardTitle>
+          {/* Plano e Assinatura */}
+          <CollapsibleSettingsCard
+            icon={CreditCard}
+            title="Plano e assinatura"
+            description={
               <CardDescription>
                 Plano atual: <span className="font-semibold text-foreground">{planLabel}</span>
               </CardDescription>
-            </CardHeader>
-            <CardContent>
+            }
+            open={planExpanded}
+            onOpenChange={setPlanExpanded}
+          >
+            <div className="pt-2">
               <Button onClick={() => navigate("/planos")} variant="outline" size="sm">
                 Gerenciar plano
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </CollapsibleSettingsCard>
 
+          {/* Identidade Visual & Ícones */}
           {isAdmin && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <ImageIcon className="h-4 w-4 text-primary" /> Identidade visual
-                </CardTitle>
-                <CardDescription>
-                  Defina a logo oficial do sistema e personalize o tamanho em pixels para cada área e dispositivo.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Suspense fallback={<SectionLoader />}>
-                  <BrandingSettings />
-                </Suspense>
-              </CardContent>
-            </Card>
+            <CollapsibleSettingsCard
+              icon={ImageIcon}
+              title="Identidade visual, Logo da Marca & Ícone PWA"
+              description="Defina o ícone oficial do aplicativo (PWA na tela inicial do celular), favicon da aba do navegador, logo do cabeçalho e relatórios em PDF."
+              open={brandingExpanded}
+              onOpenChange={setBrandingExpanded}
+            >
+              <Suspense fallback={<SectionLoader />}>
+                {brandingExpanded && <BrandingSettings />}
+              </Suspense>
+            </CollapsibleSettingsCard>
           )}
 
-          <AppFontSelector />
+          {/* Fonte do Aplicativo */}
+          <CollapsibleSettingsCard
+            icon={Type}
+            title="Fonte do aplicativo"
+            description="Escolha a tipografia usada em toda a interface. A mudança é aplicada instantaneamente e sincronizada em todos os seus dispositivos."
+            open={fontExpanded}
+            onOpenChange={setFontExpanded}
+          >
+            <AppFontSelector embedded />
+          </CollapsibleSettingsCard>
 
-          <ThemeSettingsCard />
+          {/* Ícones do Aplicativo */}
+          <CollapsibleSettingsCard
+            icon={Layers}
+            title="Ícones do aplicativo"
+            description="Personalize os ícones de navegação e módulos do sistema. Escolha um pacote pronto com um clique ou defina ícones personalizados para cada aba."
+            open={iconsExpanded}
+            onOpenChange={setIconsExpanded}
+          >
+            <AppIconsSettingsCard embedded />
+          </CollapsibleSettingsCard>
 
+          {/* Aparência e Tema */}
+          <CollapsibleSettingsCard
+            icon={Palette}
+            title="Personalização visual e Tema"
+            description="Escolha um tema para o aplicativo. Pré-visualização instantânea, alternância sem reiniciar e salvamento automático das suas preferências."
+            open={themeExpanded}
+            onOpenChange={setThemeExpanded}
+          >
+            <ThemeSettingsCard embedded />
+          </CollapsibleSettingsCard>
+
+          {/* Chaves APIs */}
           {isAdmin && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <KeyRound className="h-4 w-4 text-primary" /> Chaves APIs
-                </CardTitle>
-                <CardDescription>
-                  Liste, edite, ative/desative e remova as chaves de API utilizadas pelas integrações do aplicativo.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Suspense fallback={<SectionLoader />}>
-                  <ApiKeysManager />
-                </Suspense>
-              </CardContent>
-            </Card>
+            <CollapsibleSettingsCard
+              icon={KeyRound}
+              title="Chaves APIs"
+              description="Liste, edite, ative/desative e remova as chaves de API utilizadas pelas integrações do aplicativo."
+              open={apiKeysExpanded}
+              onOpenChange={setApiKeysExpanded}
+            >
+              <Suspense fallback={<SectionLoader />}>
+                {apiKeysExpanded && <ApiKeysManager />}
+              </Suspense>
+            </CollapsibleSettingsCard>
           )}
 
+          {/* Saúde do Sistema */}
           {isAdmin && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Activity className="h-4 w-4 text-primary" /> Saúde do sistema
-                </CardTitle>
-                <CardDescription>
-                  Painel administrativo com indicadores em tempo real: latência do banco, sessões ativas, contagens e status online.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Suspense fallback={<SectionLoader />}>
-                  <SystemHealth />
-                </Suspense>
-              </CardContent>
-            </Card>
+            <CollapsibleSettingsCard
+              icon={Activity}
+              title="Saúde do sistema"
+              description="Painel administrativo com indicadores em tempo real: latência do banco, sessões ativas, contagens e status online."
+              open={healthExpanded}
+              onOpenChange={setHealthExpanded}
+            >
+              <Suspense fallback={<SectionLoader />}>
+                {healthExpanded && <SystemHealth />}
+              </Suspense>
+            </CollapsibleSettingsCard>
           )}
         </TabsContent>
       </Tabs>

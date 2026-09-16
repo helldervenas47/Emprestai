@@ -461,7 +461,7 @@ export function SystemHealth() {
         </CardContent>
       </Card>
 
-      {/* Grid de seções */}
+      {/* Grid de seções: Performance, Banco de Dados, Segurança */}
       <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
         {/* Performance */}
         <SectionCard
@@ -523,7 +523,10 @@ export function SystemHealth() {
             },
           ]}
         />
+      </div>
 
+      {/* Grid: Uso do Sistema e Logs e Erros lado a lado */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
         {/* Uso do Sistema */}
         <SectionCard
           icon={Users2}
@@ -545,13 +548,13 @@ export function SystemHealth() {
         />
 
         {/* Logs e Erros */}
-        <Card no3d className="md:col-span-2">
+        <Card no3d className="flex flex-col h-full">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-500" /> Logs e Erros · {periodLabel(period)}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 flex-1 flex flex-col">
             <div className="flex flex-wrap gap-2 text-xs">
               <Badge variant="outline" className="border-destructive/40 text-destructive">
                 Críticos: {errorsByType.error}
@@ -566,7 +569,7 @@ export function SystemHealth() {
                 Nenhum erro registrado no período 🎉
               </div>
             ) : (
-              <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+              <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1 flex-1">
                 {recentErrors.map((e, i) => (
                   <div
                     key={i}
@@ -593,16 +596,18 @@ export function SystemHealth() {
             )}
           </CardContent>
         </Card>
+      </div>
 
-
-        {/* Alertas */}
-        <Card no3d className="md:col-span-2 xl:col-span-1">
+      {/* Alertas Inteligentes e Recursos do Cliente lado a lado */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+        {/* Alertas Inteligentes */}
+        <Card no3d className="flex flex-col h-full">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-primary" /> Alertas Inteligentes
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1">
             {alerts.length === 0 ? (
               <div className="text-sm text-muted-foreground py-4 text-center">
                 Tudo sob controle ✔
@@ -622,43 +627,43 @@ export function SystemHealth() {
             )}
           </CardContent>
         </Card>
-      </div>
 
-      {/* Gráfico simples: memória vs cpu (barras) */}
-      {(memPercent !== null || cpuLoad > 0) && (
-        <Card no3d>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Cpu className="h-4 w-4 text-primary" /> Recursos do cliente
-              <Badge variant="outline" className="ml-2 text-[10px] font-normal">
-                Estimado
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {memPercent !== null && (
+        {/* Recursos do cliente */}
+        {(memPercent !== null || cpuLoad > 0) && (
+          <Card no3d className="flex flex-col h-full">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Cpu className="h-4 w-4 text-primary" /> Recursos do cliente
+                <Badge variant="outline" className="ml-2 text-[10px] font-normal">
+                  Estimado
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3.5 flex-1 flex flex-col justify-center">
+              {memPercent !== null && (
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <HardDrive className="h-3 w-3" /> Memória JS
+                    </span>
+                    <span className="font-medium">{memPercent.toFixed(0)}%</span>
+                  </div>
+                  <Progress value={memPercent} className="h-2" />
+                </div>
+              )}
               <div>
                 <div className="flex justify-between text-xs mb-1">
                   <span className="text-muted-foreground flex items-center gap-1">
-                    <HardDrive className="h-3 w-3" /> Memória JS
+                    <Cpu className="h-3 w-3" /> Carga de processamento
                   </span>
-                  <span className="font-medium">{memPercent.toFixed(0)}%</span>
+                  <span className="font-medium">{cpuLoad.toFixed(0)}%</span>
                 </div>
-                <Progress value={memPercent} className="h-2" />
+                <Progress value={cpuLoad} className="h-2" />
               </div>
-            )}
-            <div>
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-muted-foreground flex items-center gap-1">
-                  <Cpu className="h-3 w-3" /> Carga de processamento
-                </span>
-                <span className="font-medium">{cpuLoad.toFixed(0)}%</span>
-              </div>
-              <Progress value={cpuLoad} className="h-2" />
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       <p className="text-[11px] text-muted-foreground flex items-start gap-1.5 px-1">
         <Info className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
