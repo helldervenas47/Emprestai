@@ -343,48 +343,75 @@ describe("Relatório Financeiro Diário — Telegram", () => {
     expect(data.incomes.total).toBe(200);
   });
 
-  // Cenário 11: Faturas de cartão de crédito aparecem nas despesas pessoais
-  it("Cenário 11: faturas de cartão de crédito aparecem nas despesas pessoais", () => {
-    const ledgerRows = [
+  // Cenário 11: Faturas de cartão de crédito trazem apenas o valor pendente no dia
+  it("Cenário 11: faturas de cartão de crédito trazem apenas o valor pendente", () => {
+    const expenses = [
+      // Compra no Nubank de R$ 1.000 (aberta)
       {
-        description: "Pagamento fatura Nubank",
-        amount: 850.50,
-        direction: "out",
-        category: "expense",
-        occurred_on: TEST_DATE,
-        metadata: { kind: "credit_card_invoice_payment", credit_card_id: "card-1" },
+        description: "Compra TV",
+        amount: 1000,
+        notes: "[crédito] Nubank",
+        scope: "personal",
+        paid: false,
+        due_date: TEST_DATE,
+      },
+      // Compra no Itaú de R$ 500 (já paga)
+      {
+        description: "Restaurante",
+        amount: 500,
+        notes: "[crédito] Itaú Black",
+        scope: "personal",
+        paid: true,
+        paid_date: TEST_DATE,
       },
     ];
 
     const openings = [
+      // Nubank: Total 1000, Pago parcial 400 -> Pendente 600
+      {
+        card_id: "card-1",
+        cycle_key: "2026-09",
+        opening_amount: 0,
+        notes: `[PAID:400.00]`,
+      },
+      // Itaú Black: Total 500, 100% pago -> Pendente 0 (não entra)
       {
         card_id: "card-2",
         cycle_key: "2026-09",
-        opening_amount: 420.00,
-        notes: `[PAGA] [PAID_DATE:${TEST_DATE}] [PAID:420.00]`,
+        opening_amount: 0,
+        notes: `[PAGA] [PAID_DATE:${TEST_DATE}] [PAID:500.00]`,
+      },
+      // C6 Bank: Total 350 sem pagamentos -> Pendente 350
+      {
+        card_id: "card-3",
+        cycle_key: "2026-09",
+        opening_amount: 350.00,
+        notes: ``,
       },
     ];
 
     const creditCards = [
-      { id: "card-1", nickname: "Nubank", bank: "Nubank" },
-      { id: "card-2", nickname: "Itaú Black", bank: "Itaú" },
+      { id: "card-1", nickname: "Nubank", bank: "Nubank", due_day: 15 },
+      { id: "card-2", nickname: "Itaú Black", bank: "Itaú", due_day: 15 },
+      { id: "card-3", nickname: "C6 Bank", bank: "C6", due_day: 15 },
     ];
 
     const data = buildDailyFinancialData({
       date: TEST_DATE,
       incomes: [],
       sales: [],
-      expenses: [],
-      ledgerRows,
+      expenses,
       openings,
       creditCards,
     } as any);
 
+    // Deve conter apenas as faturas com valor pendente (Nubank R$ 600 e C6 R$ 350)
     expect(data.expenses.personal.items.length).toBe(2);
-    expect(data.expenses.personal.items.find((i) => i.description === "Pagamento fatura Nubank")?.amount).toBe(850.5);
-    expect(data.expenses.personal.items.find((i) => i.description === "Fatura Itaú Black")?.amount).toBe(420);
-    expect(data.expenses.personal.subtotal).toBe(1270.5);
-    expect(data.expenses.total).toBe(1270.5);
+    expect(data.expenses.personal.items.find((i) => i.description === "Fatura Nubank")?.amount).toBe(600);
+    expect(data.expenses.personal.items.find((i) => i.description === "Fatura C6 Bank")?.amount).toBe(350);
+    expect(data.expenses.personal.items.find((i) => i.description === "Fatura Itaú Black")).toBeUndefined();
+    expect(data.expenses.personal.subtotal).toBe(950);
+    expect(data.expenses.total).toBe(950);
   });
 });
 
