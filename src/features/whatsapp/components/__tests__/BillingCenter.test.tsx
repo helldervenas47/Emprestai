@@ -220,13 +220,13 @@ describe("BillingCenter — Filtro de Futuras com separação por faixa de dias"
 
     // Por padrão (flag desativado), o cliente vencido há 2 dias não aparece na aba Dia (data = hoje)
     await waitFor(() => {
-      expect(screen.getByText("Incluir anteriores")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Incluir anteriores/i })).toBeInTheDocument();
     });
     expect(screen.queryByText("Cliente Atrasado")).not.toBeInTheDocument();
 
-    // Ativar o flag "Incluir anteriores"
-    const checkbox = screen.getByLabelText("Incluir anteriores");
-    fireEvent.click(checkbox);
+    // Ativar o botão "Incluir anteriores"
+    const incluirBtn = screen.getByRole("button", { name: /Incluir anteriores/i });
+    fireEvent.click(incluirBtn);
 
     // Agora o cliente vencido antes de hoje deve aparecer na lista
     await waitFor(() => {

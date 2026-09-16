@@ -399,63 +399,46 @@ export function BillingCenter() {
         {/* PC e Tablet: Filtro diário ao lado do botão Clientes */}
         <div className="hidden sm:flex sm:items-center sm:gap-2 shrink-0">
           {filter === "today" && (
-            <>
-              <div className="inline-flex items-center gap-0.5 rounded-lg border border-border/60 bg-muted/20 px-1 py-0.5">
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  className="h-7 w-7 shrink-0 rounded-md text-muted-foreground hover:text-foreground active:scale-95"
-                  aria-label="Dia anterior"
-                  title="Dia anterior"
-                  onClick={() => setSelectedDate((curr) => shiftDay(curr, -1))}
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                </Button>
+            <div className="inline-flex items-center gap-0.5 rounded-lg border border-border/60 bg-muted/20 px-1 py-0.5">
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 shrink-0 rounded-md text-muted-foreground hover:text-foreground active:scale-95"
+                aria-label="Dia anterior"
+                title="Dia anterior"
+                onClick={() => setSelectedDate((curr) => shiftDay(curr, -1))}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
 
-                <button
-                  type="button"
-                  onClick={() => setSelectedDate(todayInBahia)}
-                  title={selectedDate === todayInBahia ? "Dia atual" : "Clique para voltar ao dia atual"}
-                  className={cn(
-                    "group flex items-center justify-center gap-1.5 rounded px-2 py-1 text-xs font-semibold whitespace-nowrap transition-all hover:bg-background/80 active:scale-95",
-                    selectedDate === todayInBahia
-                      ? "text-primary font-bold"
-                      : "text-foreground hover:text-primary"
-                  )}
-                >
-                  <Calendar className="h-3.5 w-3.5 shrink-0 text-primary" />
-                  <span className="whitespace-nowrap">{formatDayLabel(selectedDate, todayInBahia).label}</span>
-                </button>
+              <button
+                type="button"
+                onClick={() => setSelectedDate(todayInBahia)}
+                title={selectedDate === todayInBahia ? "Dia atual" : "Clique para voltar ao dia atual"}
+                className={cn(
+                  "group flex items-center justify-center gap-1.5 rounded px-2 py-1 text-xs font-semibold whitespace-nowrap transition-all hover:bg-background/80 active:scale-95",
+                  selectedDate === todayInBahia
+                    ? "text-primary font-bold"
+                    : "text-foreground hover:text-primary"
+                )}
+              >
+                <Calendar className="h-3.5 w-3.5 shrink-0 text-primary" />
+                <span className="whitespace-nowrap">{formatDayLabel(selectedDate, todayInBahia).label}</span>
+              </button>
 
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  className="h-7 w-7 shrink-0 rounded-md text-muted-foreground hover:text-foreground active:scale-95"
-                  aria-label="Próximo dia"
-                  title="Próximo dia"
-                  onClick={() => setSelectedDate((curr) => shiftDay(curr, 1))}
-                >
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-
-              <div className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/20 px-2.5 py-1 text-xs select-none">
-                <Checkbox
-                  id="include-previous-desktop"
-                  checked={includePrevious}
-                  onCheckedChange={(checked) => setIncludePrevious(Boolean(checked))}
-                  className="h-3.5 w-3.5"
-                />
-                <Label
-                  htmlFor="include-previous-desktop"
-                  className="text-xs font-medium cursor-pointer text-muted-foreground hover:text-foreground"
-                >
-                  Incluir anteriores
-                </Label>
-              </div>
-            </>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 shrink-0 rounded-md text-muted-foreground hover:text-foreground active:scale-95"
+                aria-label="Próximo dia"
+                title="Próximo dia"
+                onClick={() => setSelectedDate((curr) => shiftDay(curr, 1))}
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           )}
 
           <Button
@@ -472,7 +455,7 @@ export function BillingCenter() {
 
       {/* Mobile: Filtro diário em linha própria ocupando 100% da largura */}
       {filter === "today" && (
-        <div className="mt-3 flex flex-col gap-1.5 sm:hidden">
+        <div className="mt-3 flex flex-col gap-2 sm:hidden">
           <div className="flex w-full items-center justify-between gap-1 rounded-xl border border-border/60 bg-muted/20 p-1">
             <Button
               type="button"
@@ -514,20 +497,44 @@ export function BillingCenter() {
             </Button>
           </div>
 
-          <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/20 px-3 py-2 select-none">
-            <Label
-              htmlFor="include-previous-mobile"
-              className="text-xs font-medium cursor-pointer text-foreground flex items-center gap-1.5"
+          {/* Mobile: Flag de inclusão de cobranças anteriores */}
+          <button
+            type="button"
+            onClick={() => setIncludePrevious((prev) => !prev)}
+            className={cn(
+              "flex w-full items-center justify-between gap-3 rounded-xl border p-2.5 text-xs transition-colors select-none text-left",
+              includePrevious
+                ? "border-primary/40 bg-primary/10 text-primary"
+                : "border-border/60 bg-muted/20 text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span
+                className={cn(
+                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors",
+                  includePrevious
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border/80 bg-background text-muted-foreground"
+                )}
+              >
+                <Flag className={cn("h-3.5 w-3.5", includePrevious && "fill-current")} />
+              </span>
+              <span className="font-semibold text-foreground text-xs leading-tight truncate">
+                Incluir cobranças anteriores ao dia
+              </span>
+            </div>
+
+            <div
+              className={cn(
+                "h-5 w-5 shrink-0 rounded-md border flex items-center justify-center transition-colors",
+                includePrevious
+                  ? "bg-primary border-primary text-primary-foreground"
+                  : "border-border/80 bg-background text-transparent"
+              )}
             >
-              <CalendarClock className="h-3.5 w-3.5 text-primary" />
-              <span>Incluir cobranças anteriores ao dia</span>
-            </Label>
-            <Checkbox
-              id="include-previous-mobile"
-              checked={includePrevious}
-              onCheckedChange={(checked) => setIncludePrevious(Boolean(checked))}
-            />
-          </div>
+              <CheckCheck className="h-3.5 w-3.5" />
+            </div>
+          </button>
         </div>
       )}
 
@@ -546,6 +553,22 @@ export function BillingCenter() {
     <div className="sticky top-2 z-20 flex w-full items-center gap-1.5 rounded-xl border bg-background/95 p-2 shadow-sm backdrop-blur sm:gap-2">
       <Button size="sm" variant="ghost" className="min-w-0 flex-1 px-1 text-xs sm:flex-none sm:px-3 sm:text-sm" onClick={() => setSelected(new Set(visible.filter((i) => i.validPhone && !clientsSentToday.has(i.clientId)).map((i) => i.key)))}>Selecionar todos</Button>
       <Button size="sm" variant="ghost" className="min-w-0 flex-1 px-1 text-xs sm:flex-none sm:px-3 sm:text-sm" onClick={() => setSelected(new Set())}>Desmarcar</Button>
+      {filter === "today" && (
+        <Button
+          size="sm"
+          variant={includePrevious ? "secondary" : "outline"}
+          className={cn(
+            "hidden sm:inline-flex items-center gap-1.5 rounded-lg h-8 px-2.5 text-xs font-semibold select-none transition-all",
+            includePrevious
+              ? "bg-primary/15 text-primary border-primary/30 hover:bg-primary/20"
+              : "text-muted-foreground hover:text-foreground border-border/60"
+          )}
+          onClick={() => setIncludePrevious((prev) => !prev)}
+        >
+          <Flag className={cn("h-3.5 w-3.5 shrink-0", includePrevious ? "fill-primary text-primary" : "text-muted-foreground")} />
+          <span>Incluir anteriores</span>
+        </Button>
+      )}
       <Button size="sm" className="shrink-0 bg-emerald-600 px-3 hover:bg-emerald-700 sm:ml-auto" disabled={!selectedItems.length} onClick={() => setConfirm(selectedItems)}><Send className="mr-1.5 h-4 w-4"/>Cobrar</Button>
     </div>
 
