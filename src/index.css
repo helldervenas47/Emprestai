@@ -80,77 +80,73 @@
 
   .dark {
     /* ─────────────────────────────────────────
-       Midnight Navy — Dark theme (premium, v2)
-       Layered blue-slate surfaces (never pure black):
-         bg → surface-1 → card → elevated → modal → dropdown
-         #0F172A → #111827 → #1E293B → #273449 → #233247 → #26354B
-       Depth is built by surface contrast, not heavy borders/shadows.
-       Primary blue drives all emphasis. Green reserved for success.
+       Obsidian Zinc & Fintech Navy — Dark theme (Ultra Premium v3)
+       Layered neutral-obsidian surfaces com profundidade óptica:
+         bg → surface-1 → card → elevated → modal → popover
+         #0A0A0C → #101014 → #151518 → #1B1B20 → #1F2026 → #24252E
+       Contraste aprimorado, conforto visual para leitura longa e
+       acentos financeiros luminosos (esmeralda, coral e azul elétrico).
        ───────────────────────────────────────── */
-    --background: 222 47% 11%;        /* #0F172A */
-    --foreground: 210 40% 98%;        /* #F8FAFC */
+    --background: 240 10% 4%;         /* #0A0A0C — Preto obsidian profundo */
+    --foreground: 0 0% 98%;           /* #FAFAFA — Branco puro de alta nitidez */
 
-    --surface-1: 220 39% 11%;         /* #111827 */
-    --surface-2: 217 33% 21%;         /* #1E293B */
-    --surface-3: 217 30% 28%;         /* #273449 */
+    --surface-1: 240 7% 7%;           /* #101014 */
+    --surface-2: 240 6% 10%;          /* #16161B */
+    --surface-3: 240 5% 15%;          /* #222229 */
 
-    --card: 217 33% 21%;              /* #1E293B */
-    --card-foreground: 210 40% 98%;
+    --card: 240 6% 9%;                /* #141418 — Superfície elegante para cards */
+    --card-foreground: 0 0% 98%;
 
-    /* Dropdowns/menus sit above cards — slightly lighter for depth */
-    --popover: 217 32% 23%;           /* ~#26354B */
-    --popover-foreground: 210 40% 98%;
+    /* Dropdowns/menus/modais flutuantes com contraste claro de elevação */
+    --popover: 240 6% 12%;            /* #1C1C22 */
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 217 91% 60%;           /* EmprestAI blue */
-    --primary-foreground: 222 47% 11%;
+    --primary: 226 100% 64%;          /* #4F75FF — Azul Fintech Elétrico vibrante */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 217 30% 24%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 240 5% 15%;          /* #23232A */
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 220 30% 17%;
-    --muted-foreground: 215 20% 78%;  /* comfortable long-read gray-blue */
+    --muted: 240 5% 12%;              /* #1C1C20 */
+    --muted-foreground: 240 5% 70%;   /* #A8A8B3 — Cinza neutro com leitura relaxante */
 
-    --accent: 217 91% 60%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 226 100% 64%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 74% 62%;
+    --destructive: 0 80% 62%;         /* Coral suave luminoso (evita ofuscamento) */
     --destructive-foreground: 0 0% 100%;
 
-    /* Bordas discretas — separação vem principalmente do contraste
-       entre superfícies, não de linhas fortes. */
-    --border: 217 22% 30%;
-    --input: 217 22% 30%;
-    --ring: 217 91% 60%;
+    /* Separação refinada de bordas */
+    --border: 240 5% 17%;             /* #282830 */
+    --input: 240 5% 17%;
+    --ring: 226 100% 64%;
 
     --radius: 1rem;
 
-    --warning: 38 92% 62%;
-    --warning-foreground: 222 47% 11%;
+    --warning: 38 96% 56%;            /* Âmbar dourado vibrante */
+    --warning-foreground: 240 10% 4%;
 
-    --success: 152 60% 50%;
-    --success-foreground: 222 47% 11%;
+    --success: 154 68% 46%;           /* Verde Esmeralda financeiro luminoso */
+    --success-foreground: 0 0% 100%;
 
-    --purple: 262 83% 74%;
-    --purple-foreground: 222 47% 11%;
+    --purple: 265 85% 72%;
+    --purple-foreground: 0 0% 100%;
 
-    --sidebar-background: 220 39% 10%;
-    --sidebar-foreground: 215 20% 82%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 222 47% 11%;
-    --sidebar-accent: 217 33% 18%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 22% 22%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-background: 240 8% 6%;  /* #0E0E12 */
+    --sidebar-foreground: 240 5% 82%;
+    --sidebar-primary: 226 100% 64%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 6% 12%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 5% 13%;
+    --sidebar-ring: 226 100% 64%;
   }
 
-  /* Bordas ultra-discretas no dark — sobrepõe o border-color padrão
-     (`* { @apply border-border }`) por uma linha branca de baixíssima
-     opacidade, dando a separação sutil solicitada sem alterar os
-     componentes individualmente. */
+  /* Bordas ultra-discretas no dark com transparência suave */
   .dark * {
-    border-color: hsl(0 0% 100% / 0.06);
+    border-color: hsl(0 0% 100% / 0.07);
   }
-  .dark hr { border-color: hsl(0 0% 100% / 0.06); }
+  .dark hr { border-color: hsl(0 0% 100% / 0.07); }
 }
 
 @layer base {
@@ -409,13 +405,23 @@
 
   .dark body {
     /* Mesma cor de --background para não criar faixa visível entre body e
-       barras do sistema (status/nav) no Android/iOS. Gradientes bem sutis
+       barras do sistema (status/nav) no Android/iOS. Gradientes sutis obsidian-fintech
        para dar profundidade sem poluir a tela. */
     background-color: hsl(var(--background));
     background-image:
-      radial-gradient(1200px 600px at 10% -10%, hsl(217 91% 60% / 0.07), transparent 60%),
-      radial-gradient(900px 500px at 110% 5%, hsl(217 91% 60% / 0.04), transparent 60%),
-      radial-gradient(900px 700px at 50% 115%, hsl(222 47% 8% / 0.5), transparent 65%);
+      radial-gradient(1100px 500px at 15% -10%, hsl(226 100% 64% / 0.05), transparent 60%),
+      radial-gradient(900px 500px at 105% 10%, hsl(265 85% 72% / 0.03), transparent 60%),
+      radial-gradient(800px 600px at 50% 115%, hsl(154 68% 46% / 0.015), transparent 65%);
+  }
+
+  /* Realce sutil de borda superior nos cards em modo escuro para acabamento tátil */
+  .dark .card-3d-inner,
+  .dark .card,
+  .dark [class*="rounded-2xl border"] {
+    box-shadow:
+      0 1px 2px hsl(0 0% 0% / 0.4),
+      0 12px 32px -16px hsl(0 0% 0% / 0.55),
+      inset 0 1px 0 0 hsl(0 0% 100% / 0.05);
   }
 
   /* Imersivo: quando rodando como PWA instalado, ocupa tela inteira sem chrome do browser */
