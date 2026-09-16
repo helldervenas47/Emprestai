@@ -613,14 +613,7 @@ export function WhatsappReportCard() {
         return;
       }
 
-      // 1. Tenta envio direto se a API estiver configurada
-      const directRes = await sendWhatsappDirectly(schedule, destPhone, reportMessage);
-      if (directRes.ok) {
-        toast.success(`Relatório de Cobranças de ${formatDateBRDisplay(selectedDate)} enviado para o seu WhatsApp!`);
-        return;
-      }
-
-      // 2. Se o envio direto falhar, utiliza a Edge Function
+      // Envia através da Edge Function dedicada de relatórios WhatsApp
       const { data: edgeRes, error: edgeErr } = await supabase.functions.invoke("send-whatsapp-report", {
         body: {
           owner_id: ownerId,
@@ -638,7 +631,7 @@ export function WhatsappReportCard() {
       if (!edgeErr && edgeRes?.ok) {
         toast.success(`Relatório de Cobranças de ${formatDateBRDisplay(selectedDate)} enviado para o seu WhatsApp!`);
       } else {
-        let errorDesc = edgeRes?.error;
+        let errorDesc = edgeRes?.error || edgeRes?.message;
         if (edgeErr) {
           try {
             if ((edgeErr as any).context && typeof (edgeErr as any).context.json === "function") {
@@ -650,7 +643,7 @@ export function WhatsappReportCard() {
           }
           if (!errorDesc) errorDesc = edgeErr.message;
         }
-        if (!errorDesc) errorDesc = directRes.error || "O servidor de WhatsApp não autorizou o envio.";
+        if (!errorDesc) errorDesc = "O servidor de WhatsApp não confirmou o envio.";
 
         toast.error("Falha ao enviar pelo WhatsApp", {
           description: errorDesc,
@@ -705,14 +698,7 @@ export function WhatsappReportCard() {
         return;
       }
 
-      // 1. Tenta envio direto se a API estiver configurada
-      const directRes = await sendWhatsappDirectly(schedule, destPhone, reportText);
-      if (directRes.ok) {
-        toast.success(`Relatório Financeiro de ${formatDateBRDisplay(selectedDate)} enviado para o WhatsApp!`);
-        return;
-      }
-
-      // 2. Se o envio direto falhar (ex: CORS no browser), utiliza a Edge Function send-whatsapp-report
+      // Envia através da Edge Function dedicada de relatórios WhatsApp (com acesso seguro às credenciais e API Keys)
       const { data: edgeRes, error: edgeErr } = await supabase.functions.invoke("send-whatsapp-report", {
         body: {
           owner_id: ownerId,
@@ -730,7 +716,7 @@ export function WhatsappReportCard() {
       if (!edgeErr && edgeRes?.ok) {
         toast.success(`Relatório Financeiro de ${formatDateBRDisplay(selectedDate)} enviado para o seu WhatsApp!`);
       } else {
-        let errorDesc = edgeRes?.error;
+        let errorDesc = edgeRes?.error || edgeRes?.message;
         if (edgeErr) {
           try {
             if ((edgeErr as any).context && typeof (edgeErr as any).context.json === "function") {
@@ -742,7 +728,7 @@ export function WhatsappReportCard() {
           }
           if (!errorDesc) errorDesc = edgeErr.message;
         }
-        if (!errorDesc) errorDesc = directRes.error || "O servidor de WhatsApp não autorizou o envio.";
+        if (!errorDesc) errorDesc = "O servidor de WhatsApp não confirmou o envio.";
 
         toast.error("Falha ao enviar pelo WhatsApp", {
           description: errorDesc,
