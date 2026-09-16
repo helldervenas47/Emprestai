@@ -816,15 +816,19 @@ export function WhatsappReportCard() {
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
 
-                <Input
-                  type="date"
-                  value={selectedDate}
-                  onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
-                  onChange={(e) => {
-                    if (e.target.value) setSelectedDate(e.target.value);
-                  }}
-                  className="h-8 text-xs font-semibold bg-transparent border-0 w-[96px] cursor-pointer text-center px-0 focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:w-0 [&::-webkit-calendar-picker-indicator]:p-0 [&::-webkit-calendar-picker-indicator]:m-0"
-                />
+                <div className="relative flex items-center justify-center px-2 py-1 min-w-[95px] select-none">
+                  <span className="text-xs font-semibold text-foreground tracking-tight tabular-nums pointer-events-none">
+                    {formatDateBRDisplay(selectedDate)}
+                  </span>
+                  <Input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => {
+                      if (e.target.value) setSelectedDate(e.target.value);
+                    }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer p-0 m-0 border-0"
+                  />
+                </div>
 
                 <Button
                   type="button"
