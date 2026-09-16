@@ -594,5 +594,63 @@ describe("Relatório Financeiro Diário — Telegram", () => {
     expect(data.incomes.sales.items.length).toBe(0);
     expect(data.incomes.sales.subtotal).toBe(0);
   });
+
+  // Cenário 17: Objeto no formato camelCase vindo de useProducts / UI (date, customerName, etc.)
+  it("Cenário 17: suporta objetos com camelCase vindos do frontend (date, customerName, locadorId)", () => {
+    const sales = [
+      {
+        id: "sale-frontend-format",
+        customerName: "Lucas Front",
+        description: "Aluguel Sedan Mensal",
+        businessType: "aluguel_veiculo",
+        date: "2026-08-15",
+        installments: 3,
+        paidInstallments: 1, // Parcela 2 vence hoje em 2026-09-15
+        installmentValue: 800,
+        frequency: "Mensal",
+      },
+    ];
+
+    const data = buildDailyFinancialData({
+      date: TEST_DATE, // 2026-09-15
+      incomes: [],
+      sales,
+      expenses: [],
+    });
+
+    expect(data.incomes.vehicles.items.length).toBe(1);
+    expect(data.incomes.vehicles.items[0].description).toBe("Lucas Front — Aluguel Sedan Mensal — Parcela 2/3");
+    expect(data.incomes.vehicles.items[0].amount).toBe(800);
+    expect(data.incomes.vehicles.subtotal).toBe(800);
+  });
+
+  // Cenário 18: Parcela a receber com pagamento parcial já realizado abate o valor pendente
+  it("Cenário 18: parcela a receber hoje com pagamento parcial traz apenas o saldo pendente restante", () => {
+    const sales = [
+      {
+        id: "sale-partial-paid",
+        customer_name: "Ana Beatriz",
+        description: "Contrato Equipamento",
+        business_type: "venda",
+        sale_date: TEST_DATE,
+        installments: 1,
+        paid_installments: 0,
+        total: 1000,
+        partial_paid: 300, // Já pagou R$ 300, resta R$ 700 a receber hoje
+      },
+    ];
+
+    const data = buildDailyFinancialData({
+      date: TEST_DATE,
+      incomes: [],
+      sales,
+      expenses: [],
+    });
+
+    expect(data.incomes.sales.items.length).toBe(1);
+    expect(data.incomes.sales.items[0].description).toBe("Ana Beatriz — Contrato Equipamento");
+    expect(data.incomes.sales.items[0].amount).toBe(700);
+    expect(data.incomes.sales.subtotal).toBe(700);
+  });
 });
 

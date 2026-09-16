@@ -1383,7 +1383,7 @@ export async function generateOperationalSummaryReport(admin: any, userId: strin
 export async function generateDailyFinancialReport(supabase: any, userId: string, date: string): Promise<string> {
   const [incomesRes, salesRes, expensesRes, ledgerRes, cardsRes, openingsRes] = await Promise.all([
     supabase.from("incomes").select("description, amount, category, source, status, received_date, actual_received_date, created_at, recurrence, parent_id").eq("user_id", userId),
-    supabase.from("sales").select("customer_name, description, total, sale_date, created_at, business_type, payment_history, paid_installments, partial_paid, installments, installment_value, down_payment, frequency, installment_dates, installment_amounts").eq("user_id", userId),
+    supabase.from("sales").select("customer_name, description, total, sale_date, created_at, business_type, payment_history, paid_installments, partial_paid, installments, installment_value, down_payment, frequency, installment_dates, installment_amounts, locador_id, category, notes, payment_mode").eq("user_id", userId),
     supabase.from("expenses").select("id, description, amount, scope, category, notes, paid, paid_date, due_date, created_at, installments, paid_installments, type, recurrence_type, parent_expense_id, payment_method_id").eq("user_id", userId),
     supabase.from("account_ledger").select("amount, occurred_on, description, metadata, category").eq("user_id", userId).eq("category", "expense"),
     supabase.from("credit_cards").select("id, nickname, bank, last_four, closing_day, due_day, active").eq("user_id", userId),
@@ -1475,8 +1475,15 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
     if (bType === "aluguel_veiculo" || bType === "veiculo" || bType === "veiculos" || bType === "veículo" || bType === "veículos") {
       return true;
     }
+    if (sale.locador_id) {
+      return true;
+    }
+    const category = String(sale.category || "").toLowerCase();
+    if (category.includes("veículo") || category.includes("veiculo")) {
+      return true;
+    }
     const desc = String(sale.description || "").toLowerCase();
-    return desc.includes("aluguel de veículo") || desc.includes("aluguel veiculo") || desc.includes("locação veículo") || desc.includes("locacao veiculo");
+    return desc.includes("aluguel de veículo") || desc.includes("aluguel veiculo") || desc.includes("locação veículo") || desc.includes("locacao veiculo") || desc.includes("aluguel de carro") || desc.includes("locação de carro");
   };
 
   // 1. Receitas do Módulo Financeiro (incomes)
@@ -1511,6 +1518,7 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
     const instVal = Number(sale.installment_value) || 0;
     const total = Number(sale.total) || 0;
     const down = Number(sale.down_payment) || 0;
+    const partialPaid = Number(sale.partial_paid) || 0;
     const customDates = sale.installment_dates as (string | null)[] | null | undefined;
     const customAmounts = sale.installment_amounts as (number | null)[] | null | undefined;
     const freq = sale.frequency || "Mensal";
@@ -1547,7 +1555,11 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
           } else if (instCount > 1) {
             val = (total - down > 0 ? (total - down) / instCount : total / instCount);
           } else {
-            val = total || Number(sale.partial_paid) || 0;
+            val = total;
+          }
+
+          if (installmentNum === paidCount + 1 && partialPaid > 0) {
+            val = Math.max(0, val - partialPaid);
           }
 
           if (val > 0) {

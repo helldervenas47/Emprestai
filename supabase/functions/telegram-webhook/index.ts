@@ -1554,7 +1554,7 @@ async function generateOperationalSummaryReport(admin: any, userId: string, date
 async function generateDailyFinancialReportInWebhook(supabase: any, userId: string, date: string): Promise<string> {
   const [incomesRes, salesRes, expensesRes] = await Promise.all([
     supabase.from("incomes").select("description, amount, category, source, status, received_date, actual_received_date, created_at, recurrence, parent_id").eq("user_id", userId),
-    supabase.from("sales").select("customer_name, description, total, sale_date, created_at, business_type, payment_history, paid_installments, partial_paid, installments, installment_value, down_payment, frequency, installment_dates, installment_amounts").eq("user_id", userId),
+    supabase.from("sales").select("customer_name, description, total, sale_date, created_at, business_type, payment_history, paid_installments, partial_paid, installments, installment_value, down_payment, frequency, installment_dates, installment_amounts, locador_id, category, notes, payment_mode").eq("user_id", userId),
     supabase.from("expenses").select("description, amount, scope, category, notes, paid, paid_date, due_date, created_at, installments, type, parent_expense_id").eq("user_id", userId),
   ]);
 
@@ -1636,8 +1636,15 @@ async function generateDailyFinancialReportInWebhook(supabase: any, userId: stri
     if (bType === "aluguel_veiculo" || bType === "veiculo" || bType === "veiculos" || bType === "veículo" || bType === "veículos") {
       return true;
     }
+    if (sale.locador_id) {
+      return true;
+    }
+    const category = String(sale.category || "").toLowerCase();
+    if (category.includes("veículo") || category.includes("veiculo")) {
+      return true;
+    }
     const desc = String(sale.description || "").toLowerCase();
-    return desc.includes("aluguel de veículo") || desc.includes("aluguel veiculo") || desc.includes("locação veículo") || desc.includes("locacao veiculo");
+    return desc.includes("aluguel de veículo") || desc.includes("aluguel veiculo") || desc.includes("locação veículo") || desc.includes("locacao veiculo") || desc.includes("aluguel de carro") || desc.includes("locação de carro");
   };
 
   // 1. Receitas - Financeiro
@@ -1669,6 +1676,7 @@ async function generateDailyFinancialReportInWebhook(supabase: any, userId: stri
     const instVal = Number(sale.installment_value || sale.installmentValue) || 0;
     const total = Number(sale.total) || 0;
     const down = Number(sale.down_payment || sale.downPayment) || 0;
+    const partialPaid = Number(sale.partial_paid) || 0;
     const customDates = sale.installment_dates as (string | null)[] | null | undefined;
     const customAmounts = sale.installment_amounts as (number | null)[] | null | undefined;
     const freq = sale.frequency || "Mensal";
@@ -1705,7 +1713,11 @@ async function generateDailyFinancialReportInWebhook(supabase: any, userId: stri
           } else if (instCount > 1) {
             rawVal = (total - down > 0 ? (total - down) / instCount : total / instCount);
           } else {
-            rawVal = total || Number(sale.partial_paid) || 0;
+            rawVal = total;
+          }
+
+          if (installmentNum === paidCount + 1 && partialPaid > 0) {
+            rawVal = Math.max(0, rawVal - partialPaid);
           }
 
           const val = Math.round(rawVal * 100) / 100;
