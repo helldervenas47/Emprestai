@@ -1734,7 +1734,7 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
       const cardLabel = card.nickname || card.bank ? `Fatura ${card.nickname || card.bank}` : "Fatura Cartão de Crédito";
       personalExpenseItems.push({
         description: cardLabel,
-        amount: pendingInvoice,
+        amount: remaining,
       });
     }
   }
