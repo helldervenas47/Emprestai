@@ -27,6 +27,7 @@ const EXPENSES_COMMANDS = [
 const REPORTS_COMMANDS = [
   { command: 'relatorios', description: 'Menu de relatórios disponíveis' },
   { command: 'resumo_operacional', description: 'Resumo operacional do dia' },
+  { command: 'relatorio_financeiro', description: 'Relatório financeiro do dia (Receitas e Despesas)' },
   { command: 'dashboard', description: 'Visão executiva consolidada' },
   { command: 'kpi_geral', description: 'KPIs principais da operação' },
   { command: 'carteira_ativa', description: 'Saldo a receber e juros previstos' },

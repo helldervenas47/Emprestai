@@ -514,6 +514,7 @@ const REPORT_COMMANDS = new Set([
   "kpi_geral", "carteira_ativa",
   "inadimplencia",
   "resumo_operacional", "resumooperacional", "operacional",
+  "relatorio_financeiro", "relatorio_diario", "financeiro_hoje",
 ]);
 
 function parseReportCommand(text: string): string | null {
@@ -534,6 +535,7 @@ function renderMenu(brand = "Relatórios"): string {
     "",
     "*Relatórios do Negócio*",
     "/resumo\\_operacional — Resumo operacional consolidado",
+    "/relatorio\\_financeiro — Relatório financeiro do dia (Receitas e Despesas)",
     "/dashboard — Visão executiva consolidada",
     "/kpi\\_geral — Indicadores principais",
     "/carteira\\_ativa — Capital e pendências",
@@ -1549,6 +1551,195 @@ async function generateOperationalSummaryReport(admin: any, userId: string, date
   return lines.join("\n");
 }
 
+async function generateDailyFinancialReportInWebhook(supabase: any, userId: string, date: string): Promise<string> {
+  const [incomesRes, salesRes, expensesRes] = await Promise.all([
+    supabase.from("incomes").select("description, amount, category, source, status, received_date, actual_received_date").eq("user_id", userId),
+    supabase.from("sales").select("customer_name, description, total, sale_date, business_type, payment_history, paid_installments, partial_paid").eq("user_id", userId),
+    supabase.from("expenses").select("description, amount, scope, category, notes, paid, paid_date, due_date").eq("user_id", userId),
+  ]);
+
+  const rawIncomes = incomesRes.data ?? [];
+  const rawSales = salesRes.data ?? [];
+  const rawExpenses = expensesRes.data ?? [];
+
+  const isVehicleExpenseCategory = (category?: string | null) => {
+    if (!category) return false;
+    const vehicleExpenseCategories = [
+      "Manutenção", "Seguro", "IPVA", "Multas",
+      "Lavagem", "Estacionamento", "Pneus", "Documentação", "Peças",
+      "Guincho", "Financiamento", "Outros (Veículo)",
+    ];
+    const normalized = category.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+    return vehicleExpenseCategories.some(
+      (c) => c.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase() === normalized
+    );
+  };
+
+  const isFuel = (expense: any) => {
+    const text = `${expense.category ?? ""} ${expense.description ?? ""} ${expense.notes ?? ""}`
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLowerCase();
+    return /\b(combustivel|gasolina|etanol|alcool|diesel|posto|abastec)/i.test(text);
+  };
+
+  const isVehicleExp = (expense: any) => isVehicleExpenseCategory(expense.category) && !isFuel(expense);
+
+  // 1. Receitas - Financeiro
+  const financialItems: { description: string; amount: number }[] = [];
+  for (const inc of rawIncomes) {
+    const recDate = inc.actual_received_date || inc.received_date;
+    const isReceived = (inc.status === "received" || inc.status === "pago" || Boolean(inc.actual_received_date));
+    if (isReceived && recDate === date) {
+      const val = Number(inc.amount) || 0;
+      if (val > 0) {
+        financialItems.push({ description: inc.description || "Receita Financeiro", amount: val });
+      }
+    }
+  }
+
+  // 2. Receitas - Vendas & 3. Receitas - Veículos
+  const salesItems: { description: string; amount: number }[] = [];
+  const vehicleIncomeItems: { description: string; amount: number }[] = [];
+
+  for (const sale of rawSales) {
+    const isVehicle = sale.business_type === "aluguel_veiculo";
+    const history = (Array.isArray(sale.payment_history) ? sale.payment_history : []) as any[];
+    const client = sale.customer_name || "";
+
+    let hasHistoryPayment = false;
+    for (const pay of history) {
+      const payDate = (pay.date || "").slice(0, 10);
+      if (payDate === date) {
+        const val = Number(pay.amount) || 0;
+        if (val > 0) {
+          hasHistoryPayment = true;
+          const desc = client ? `${client} — ${sale.description || (isVehicle ? "Aluguel Veículo" : "Venda")}` : (sale.description || (isVehicle ? "Aluguel Veículo" : "Venda"));
+          if (isVehicle) {
+            vehicleIncomeItems.push({ description: desc, amount: val });
+          } else {
+            salesItems.push({ description: desc, amount: val });
+          }
+        }
+      }
+    }
+
+    if (!hasHistoryPayment && history.length === 0) {
+      const saleDate = (sale.sale_date || "").slice(0, 10);
+      const isPaid = (Number(sale.paid_installments || 0) > 0 || Number(sale.partial_paid || 0) > 0);
+      if (saleDate === date && isPaid) {
+        const val = Number(sale.total) || Number(sale.partial_paid) || 0;
+        if (val > 0) {
+          const desc = client ? `${client} — ${sale.description || (isVehicle ? "Aluguel Veículo" : "Venda")}` : (sale.description || (isVehicle ? "Aluguel Veículo" : "Venda"));
+          if (isVehicle) {
+            vehicleIncomeItems.push({ description: desc, amount: val });
+          } else {
+            salesItems.push({ description: desc, amount: val });
+          }
+        }
+      }
+    }
+  }
+
+  // 4. Despesas Pessoais, 5. Despesas Empresariais & 6. Despesas de Veículos
+  const personalExpenseItems: { description: string; amount: number }[] = [];
+  const businessExpenseItems: { description: string; amount: number }[] = [];
+  const vehicleExpenseItems: { description: string; amount: number }[] = [];
+
+  for (const exp of rawExpenses) {
+    const isPaid = Boolean(exp.paid);
+    const payDate = exp.paid_date || exp.due_date;
+    if (isPaid && payDate === date) {
+      const val = Number(exp.amount) || 0;
+      if (val > 0) {
+        const desc = exp.description || "Despesa";
+        const isVeh = isVehicleExp(exp);
+        if (isVeh) {
+          vehicleExpenseItems.push({ description: desc, amount: val });
+        } else {
+          const scope = exp.scope || "business";
+          if (scope === "personal") {
+            personalExpenseItems.push({ description: desc, amount: val });
+          } else {
+            businessExpenseItems.push({ description: desc, amount: val });
+          }
+        }
+      }
+    }
+  }
+
+  const sumItems = (items: { amount: number }[]) => Math.round((items.reduce((s, i) => s + i.amount, 0)) * 100) / 100;
+
+  const financialSubtotal = sumItems(financialItems);
+  const salesSubtotal = sumItems(salesItems);
+  const vehicleIncomeSubtotal = sumItems(vehicleIncomeItems);
+  const totalIncomes = Math.round((financialSubtotal + salesSubtotal + vehicleIncomeSubtotal) * 100) / 100;
+
+  const personalSubtotal = sumItems(personalExpenseItems);
+  const businessSubtotal = sumItems(businessExpenseItems);
+  const vehicleExpenseSubtotal = sumItems(vehicleExpenseItems);
+  const totalExpenses = Math.round((personalSubtotal + businessSubtotal + vehicleExpenseSubtotal) * 100) / 100;
+
+  const balance = Math.round((totalIncomes - totalExpenses) * 100) / 100;
+  const hasMovements = totalIncomes > 0 || totalExpenses > 0;
+
+  const lines: string[] = [];
+  lines.push(`📊 *RELATÓRIO FINANCEIRO DO DIA — ${fmtDateBR(date)}*`);
+
+  if (!hasMovements) {
+    lines.push("");
+    lines.push("_Nenhuma movimentação registrada no dia de hoje._");
+    return lines.join("\n");
+  }
+
+  const activeIncomeModules: { name: string; items: { description: string; amount: number }[]; subtotal: number }[] = [
+    { name: "Financeiro", items: financialItems, subtotal: financialSubtotal },
+    { name: "Vendas", items: salesItems, subtotal: salesSubtotal },
+    { name: "Veículos", items: vehicleIncomeItems, subtotal: vehicleIncomeSubtotal },
+  ].filter((m) => m.items.length > 0 && m.subtotal > 0);
+
+  if (activeIncomeModules.length > 0) {
+    lines.push("");
+    lines.push("💰 *RECEITAS*");
+    for (const mod of activeIncomeModules) {
+      lines.push("");
+      lines.push(`*${mod.name}*`);
+      for (const item of mod.items) {
+        lines.push(`• ${item.description} — ${fmtBRL(item.amount)}`);
+      }
+      lines.push(`Subtotal: *${fmtBRL(mod.subtotal)}*`);
+    }
+  }
+
+  const activeExpenseModules: { name: string; items: { description: string; amount: number }[]; subtotal: number }[] = [
+    { name: "Pessoais", items: personalExpenseItems, subtotal: personalSubtotal },
+    { name: "Empresariais", items: businessExpenseItems, subtotal: businessSubtotal },
+    { name: "Veículos", items: vehicleExpenseItems, subtotal: vehicleExpenseSubtotal },
+  ].filter((m) => m.items.length > 0 && m.subtotal > 0);
+
+  if (activeExpenseModules.length > 0) {
+    lines.push("");
+    lines.push("💸 *DESPESAS*");
+    for (const mod of activeExpenseModules) {
+      lines.push("");
+      lines.push(`*${mod.name}*`);
+      for (const item of mod.items) {
+        lines.push(`• ${item.description} — ${fmtBRL(item.amount)}`);
+      }
+      lines.push(`Subtotal: *${fmtBRL(mod.subtotal)}*`);
+    }
+  }
+
+  lines.push("");
+  lines.push("📌 *RESUMO DO DIA*");
+  lines.push(`Receitas: *${fmtBRL(totalIncomes)}*`);
+  lines.push(`Despesas: *${fmtBRL(totalExpenses)}*`);
+  lines.push(`Saldo: *${fmtBRL(balance)}*`);
+
+  return lines.join("\n");
+}
+
 async function runReportCommand(supabase: any, userId: string, command: string): Promise<string> {
   if (command === "relatorios") return renderMenu();
   const [base, ...rest] = command.split("|");
@@ -1556,6 +1747,9 @@ async function runReportCommand(supabase: any, userId: string, command: string):
   const ctx: Ctx = { supabase, userId, today: todayInTZ() };
   if (base === "resumo_operacional" || base === "resumooperacional" || base === "operacional") {
     return generateOperationalSummaryReport(ctx.supabase, ctx.userId, ctx.today);
+  }
+  if (base === "relatorio_financeiro" || base === "relatorio_diario" || base === "financeiro_hoje") {
+    return generateDailyFinancialReportInWebhook(ctx.supabase, ctx.userId, ctx.today);
   }
   const snap = await snapshot(ctx);
   switch (base) {
@@ -1566,6 +1760,10 @@ async function runReportCommand(supabase: any, userId: string, command: string):
     case "resumooperacional":
     case "operacional":
       return generateOperationalSummaryReport(ctx.supabase, ctx.userId, ctx.today);
+    case "relatorio_financeiro":
+    case "relatorio_diario":
+    case "financeiro_hoje":
+      return generateDailyFinancialReportInWebhook(ctx.supabase, ctx.userId, ctx.today);
     case "emprestimos_atrasados": return emprestimosAtrasados(ctx, snap);
     case "vencimentos_hoje": return vencimentosHoje(ctx, snap);
     case "inadimplencia": return inadimplencia(ctx, snap);

@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, BarChart3, CalendarCheck, FileSpreadsheet, Sun, RefreshCw, Send, Loader2, Clock } from "lucide-react";
+import { AlertTriangle, BarChart3, CalendarCheck, FileSpreadsheet, Sun, RefreshCw, Send, Loader2, Clock, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { invokeUserFunction } from "@/features/telegram/lib/telegramLinkCode";
@@ -136,6 +136,16 @@ export function TelegramBotsHub() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Relatório Financeiro Diário */}
+        <ScheduledReportCard
+          title="Relatório Financeiro do Dia"
+          description="Consolidação diária de receitas e despesas (Financeiro, Vendas, Veículos, Pessoais e Empresariais). Até 3 horários."
+          Icon={DollarSign}
+          prefsTable="telegram_daily_financial_summary_prefs"
+          functionName="telegram-daily-financial-summary"
+          defaultTime="19:00"
+        />
+
         {/* Resumo Operacional diário */}
         <ScheduledReportCard
           title="Resumo Operacional"

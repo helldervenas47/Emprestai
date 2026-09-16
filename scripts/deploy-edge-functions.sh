@@ -64,6 +64,7 @@ FUNCTIONS=(
   sync-client-analysis
   telegram-accumulated-delinquency-summary
   telegram-billing-summary
+  telegram-daily-financial-summary
   telegram-daily-summary
   telegram-link-code
   telegram-manager-weekly-summary
