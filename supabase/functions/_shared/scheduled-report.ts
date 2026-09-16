@@ -146,9 +146,40 @@ async function sendReportToWhatsapp(
       } catch (_) {}
     }
 
+    const base = sched.base_url.replace(/\/+$/, "");
+    const provider = sched.provider || "evolution";
+    let isConnected = true;
+    let connectionState = "unknown";
+
+    if (provider === "evolution") {
+      try {
+        const stateRes = await fetch(`${base}/instance/connectionState/${encodeURIComponent(sched.instance_id.trim())}`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json", ...(apiKey ? { apikey: apiKey } : {}) },
+        });
+        if (stateRes.ok) {
+          const stateData = await stateRes.json().catch(() => ({}));
+          const stateVal = String(stateData?.instance?.state || stateData?.state || "").toLowerCase();
+          connectionState = stateVal;
+          if (stateVal && stateVal !== "open" && stateVal !== "connected") {
+            isConnected = false;
+          }
+        }
+      } catch (_) {
+        // ignore connection check network failure
+      }
+    }
+
+    if (!isConnected) {
+      return {
+        sent: false,
+        reason: `A instância "${sched.instance_id}" do WhatsApp está com status "${connectionState}". Por favor, reconecte o QR Code na aba "Disparos & Automação".`,
+      };
+    }
+
     const result = await sendWhatsappText(
       {
-        provider: sched.provider || "evolution",
+        provider,
         baseUrl: sched.base_url,
         instanceId: sched.instance_id,
         apiKey,
@@ -157,9 +188,25 @@ async function sendReportToWhatsapp(
       text,
     );
 
+    let parsedBody: any = null;
+    try {
+      parsedBody = JSON.parse(result.body);
+    } catch {
+      parsedBody = result.body;
+    }
+
     return {
       sent: result.ok,
       reason: result.ok ? undefined : `HTTP ${result.status}: ${result.body}`,
+      phone,
+      debug: {
+        status: result.status,
+        provider: sched.provider || "evolution",
+        baseUrl: sched.base_url,
+        instanceId: sched.instance_id,
+        phone,
+        response: parsedBody,
+      },
     };
   } catch (err: any) {
     return { sent: false, reason: err?.message || String(err) };
@@ -227,7 +274,7 @@ export function buildScheduledReportHandler(opts: {
               body?.phone,
               body?.whatsapp_config,
             );
-            return new Response(JSON.stringify({ ok: true, sent: wppRes.sent, reason: wppRes.reason, text }), {
+            return new Response(JSON.stringify({ ok: true, sent: wppRes.sent, reason: wppRes.reason, phone: wppRes.phone, debug: wppRes.debug, text }), {
               headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
           }

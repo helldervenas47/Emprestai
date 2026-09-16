@@ -691,7 +691,8 @@ export function WhatsappReportCard() {
       if (error) throw error;
 
       if (data?.sent) {
-        toast.success(`Relatório Financeiro de ${formatDateBRDisplay(selectedDate)} enviado para o seu WhatsApp!`);
+        const target = data?.phone || destPhone;
+        toast.success(`Relatório Financeiro de ${formatDateBRDisplay(selectedDate)} enviado para o WhatsApp (${target})!`);
       } else {
         const reason = data?.reason;
         if (reason === "whatsapp_not_configured") {
@@ -700,7 +701,7 @@ export function WhatsappReportCard() {
           });
         } else if (reason === "no_phone_configured") {
           toast.error("Nenhum telefone configurado", {
-            description: "Informe o telefone de destino para o envio.",
+            description: "Informe o telefone de destino para o envio no primeiro card.",
           });
         } else {
           toast.error("Falha no envio do relatório", {
