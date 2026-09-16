@@ -652,5 +652,34 @@ describe("Relatório Financeiro Diário — Telegram", () => {
     expect(data.incomes.sales.items[0].amount).toBe(700);
     expect(data.incomes.sales.subtotal).toBe(700);
   });
+
+  // Cenário 19: Suporte a arrays no formato nativo do PostgreSQL {2026-09-17,2026-10-17}
+  it("Cenário 19: suporte a datas e valores no formato PostgreSQL array e string", () => {
+    const sales = [
+      {
+        id: "sale-pg-array",
+        customer_name: "Marcos PostgreSQL",
+        description: "Locação Carro Flex",
+        business_type: "aluguel_veiculo",
+        sale_date: "2026-08-17",
+        installments: 2,
+        paid_installments: 0,
+        installment_dates: "{2026-09-17,2026-10-17}",
+        installment_amounts: "{450.50,450.50}",
+      },
+    ];
+
+    const data = buildDailyFinancialData({
+      date: "2026-09-17",
+      incomes: [],
+      sales,
+      expenses: [],
+    });
+
+    expect(data.incomes.vehicles.items.length).toBe(1);
+    expect(data.incomes.vehicles.items[0].description).toBe("Marcos PostgreSQL — Locação Carro Flex — Parcela 1/2");
+    expect(data.incomes.vehicles.items[0].amount).toBe(450.5);
+    expect(data.incomes.vehicles.subtotal).toBe(450.5);
+  });
 });
 

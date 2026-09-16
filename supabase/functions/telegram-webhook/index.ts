@@ -1589,16 +1589,38 @@ async function generateDailyFinancialReportInWebhook(supabase: any, userId: stri
   const parseArrayField = <T = any>(val: any): T[] => {
     if (!val) return [];
     if (Array.isArray(val)) return val;
+    if (typeof val === "object") {
+      const values = Object.values(val);
+      if (values.length > 0) return values as T[];
+    }
     if (typeof val === "string") {
       const trimmed = val.trim();
+      if (!trimmed) return [];
       if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
         try {
           const parsed = JSON.parse(trimmed);
           if (Array.isArray(parsed)) return parsed;
         } catch {
-          return [];
+          // fallback
         }
       }
+      // Suporta formato de array do PostgreSQL: {item1,item2} ou {"item1","item2"}
+      if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+        const inner = trimmed.slice(1, -1).trim();
+        if (!inner) return [];
+        return inner
+          .split(",")
+          .map((s) => s.trim().replace(/^["']|["']$/g, ""))
+          .filter(Boolean) as unknown as T[];
+      }
+      // Suporta CSV
+      if (trimmed.includes(",")) {
+        return trimmed
+          .split(",")
+          .map((s) => s.trim().replace(/^["']|["']$/g, ""))
+          .filter(Boolean) as unknown as T[];
+      }
+      return [trimmed as unknown as T];
     }
     return [];
   };
