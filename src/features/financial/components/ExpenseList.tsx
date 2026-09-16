@@ -515,7 +515,7 @@ export function ExpenseList({ expenses, onPay, onUnpay, onDelete, onUpdate, read
       })
       .sort((a, b) => {
         if (a.paid !== b.paid) return a.paid ? 1 : -1;
-        return b.dueDate.localeCompare(a.dueDate);
+        return a.dueDate.localeCompare(b.dueDate);
       });
   }, [monthFiltered, search, filter, selectedMonth]);
 

@@ -1008,7 +1008,7 @@ export function PersonalExpenseList({ expenses: expensesInput, onPay, onUnpay, o
       })
       .sort((a, b) => {
         if (a.paid !== b.paid) return a.paid ? 1 : -1;
-        return b.dueDate.localeCompare(a.dueDate);
+        return a.dueDate.localeCompare(b.dueDate);
       });
   }, [listVisibleMonth, search, filter, categoryFilter, sourceFilter, selectedMonth]);
 
@@ -1415,7 +1415,7 @@ export function PersonalExpenseList({ expenses: expensesInput, onPay, onUnpay, o
                 ].sort((a, b) => {
                   if (a.paid !== b.paid) return a.paid ? 1 : -1;
                   // Faturas de cartão seguem a mesma classificação das demais despesas: data de vencimento
-                  if (a.dueDate !== b.dueDate) return b.dueDate.localeCompare(a.dueDate);
+                  if (a.dueDate !== b.dueDate) return a.dueDate.localeCompare(b.dueDate);
                   return b.total - a.total;
                 });
 
