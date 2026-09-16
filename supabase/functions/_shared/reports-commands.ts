@@ -1418,9 +1418,8 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
   // 1. Receitas - Financeiro
   const financialItems: { description: string; amount: number }[] = [];
   for (const inc of rawIncomes) {
-    const recDate = inc.actual_received_date || inc.received_date;
-    const isReceived = (inc.status === "received" || inc.status === "pago" || Boolean(inc.actual_received_date));
-    if (isReceived && recDate === date) {
+    const recDate = String(inc.actual_received_date || inc.received_date || inc.created_at || "").slice(0, 10);
+    if (recDate === date) {
       const val = Number(inc.amount) || 0;
       if (val > 0) {
         financialItems.push({ description: inc.description || "Receita Financeiro", amount: val });
@@ -1454,10 +1453,9 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
       }
     }
 
-    if (!hasHistoryPayment && history.length === 0) {
-      const saleDate = (sale.sale_date || "").slice(0, 10);
-      const isPaid = (Number(sale.paid_installments || 0) > 0 || Number(sale.partial_paid || 0) > 0);
-      if (saleDate === date && isPaid) {
+    if (!hasHistoryPayment) {
+      const saleDate = String(sale.sale_date || sale.created_at || "").slice(0, 10);
+      if (saleDate === date) {
         const val = Number(sale.total) || Number(sale.partial_paid) || 0;
         if (val > 0) {
           const desc = client ? `${client} — ${sale.description || (isVehicle ? "Aluguel Veículo" : "Venda")}` : (sale.description || (isVehicle ? "Aluguel Veículo" : "Venda"));
@@ -1477,9 +1475,15 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
   const vehicleExpenseItems: { description: string; amount: number }[] = [];
 
   for (const exp of rawExpenses) {
-    const isPaid = Boolean(exp.paid);
-    const payDate = exp.paid_date || exp.due_date;
-    if (isPaid && payDate === date) {
+    const paidDate = exp.paid_date ? String(exp.paid_date).slice(0, 10) : "";
+    const dueDate = exp.due_date ? String(exp.due_date).slice(0, 10) : "";
+    const createdAt = exp.created_at ? String(exp.created_at).slice(0, 10) : "";
+
+    const matchesDate = (paidDate && paidDate === date) ||
+      (dueDate && dueDate === date) ||
+      (!paidDate && !dueDate && createdAt === date);
+
+    if (matchesDate) {
       const val = Number(exp.amount) || 0;
       if (val > 0) {
         const desc = exp.description || "Despesa";

@@ -92,11 +92,8 @@ export function buildDailyFinancialData(params: {
   // 1. Receitas - Financeiro
   const financialItems: MovementItem[] = [];
   for (const inc of incomes) {
-    const recDate = inc.actual_received_date || inc.actualReceivedDate || inc.received_date || inc.receivedDate;
-    const isReceived = (inc.status === "received" || inc.status === "pago" || Boolean(inc.actual_received_date || inc.actualReceivedDate));
-    
-    // Considera se foi recebido na data especificada
-    if (isReceived && recDate === date) {
+    const recDate = (inc.actual_received_date || inc.actualReceivedDate || inc.received_date || inc.receivedDate || (inc.created_at ? String(inc.created_at).slice(0, 10) : "")).slice(0, 10);
+    if (recDate === date) {
       const val = Number(inc.amount) || 0;
       if (val > 0) {
         financialItems.push({
@@ -133,11 +130,10 @@ export function buildDailyFinancialData(params: {
       }
     }
 
-    // Fallback: Se não há histórico explícito mas a venda foi cadastrada/paga no dia
-    if (!hasHistoryPayment && history.length === 0) {
-      const saleDate = (sale.sale_date || sale.saleDate || "").slice(0, 10);
-      const isPaid = (Number(sale.paid_installments || sale.paidInstallments || 0) > 0 || Number(sale.partial_paid || sale.partialPaid || 0) > 0);
-      if (saleDate === date && isPaid) {
+    // Se não teve pagamento no histórico na data, verifica se a data da venda/aluguel corresponde ao dia
+    if (!hasHistoryPayment) {
+      const saleDate = (sale.sale_date || sale.saleDate || (sale.created_at ? String(sale.created_at).slice(0, 10) : "")).slice(0, 10);
+      if (saleDate === date) {
         const val = Number(sale.total) || Number(sale.partial_paid || sale.partialPaid) || 0;
         if (val > 0) {
           const desc = client ? `${client} — ${sale.description || (isVehicle ? "Aluguel Veículo" : "Venda")}` : (sale.description || (isVehicle ? "Aluguel Veículo" : "Venda"));
@@ -157,10 +153,16 @@ export function buildDailyFinancialData(params: {
   const vehicleExpenseItems: MovementItem[] = [];
 
   for (const exp of expenses) {
-    const isPaid = Boolean(exp.paid);
-    const payDate = exp.paid_date || exp.paidDate || exp.due_date || exp.dueDate;
+    const paidDate = exp.paid_date || exp.paidDate;
+    const dueDate = exp.due_date || exp.dueDate;
+    const createdAt = exp.created_at ? String(exp.created_at).slice(0, 10) : "";
+    
+    // Corresponde ao dia se paid_date for o dia, ou se due_date for o dia, ou createdAt
+    const matchesDate = (paidDate && String(paidDate).slice(0, 10) === date) ||
+      (dueDate && String(dueDate).slice(0, 10) === date) ||
+      (!paidDate && !dueDate && createdAt === date);
 
-    if (isPaid && payDate === date) {
+    if (matchesDate) {
       const val = Number(exp.amount) || 0;
       if (val > 0) {
         const desc = exp.description || "Despesa";

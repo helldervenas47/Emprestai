@@ -253,4 +253,25 @@ describe("Relatório Financeiro Diário — Telegram", () => {
     expect(data.expenses.total).toBe(80);
     expect(data.balance).toBe(120);
   });
+
+  // Cenário 8: Inclui lançamentos pendentes (a vencer ou previstos para o dia)
+  it("Cenário 8: inclui lançamentos pendentes do dia (não apenas pagos)", () => {
+    const incomes = [
+      { description: "Receita Prevista Hoje", amount: 400, status: "pending", received_date: TEST_DATE },
+    ];
+
+    const expenses = [
+      { description: "Boleto a Vencer Hoje", amount: 250, scope: "business", category: "Geral", paid: false, due_date: TEST_DATE },
+    ];
+
+    const data = buildDailyFinancialData({ date: TEST_DATE, incomes, sales: [], expenses });
+    expect(data.incomes.financial.items.length).toBe(1);
+    expect(data.incomes.financial.items[0].description).toBe("Receita Prevista Hoje");
+    expect(data.incomes.total).toBe(400);
+
+    expect(data.expenses.business.items.length).toBe(1);
+    expect(data.expenses.business.items[0].description).toBe("Boleto a Vencer Hoje");
+    expect(data.expenses.total).toBe(250);
+    expect(data.balance).toBe(150);
+  });
 });
