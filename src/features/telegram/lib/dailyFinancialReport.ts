@@ -201,6 +201,61 @@ export function buildDailyFinancialData(params: {
     }
   }
 
+  // 7. Faturas de Cartão de Crédito e Lançamentos no Extrato (account_ledger)
+  const ledgerRows = (params as any).ledgerRows || (params as any).ledger || [];
+  for (const row of ledgerRows) {
+    const rowDate = (row.occurred_on || row.occurredOn || (row.created_at ? String(row.created_at).slice(0, 10) : "")).slice(0, 10);
+    if (rowDate === date) {
+      const isOut = row.direction === "out" || row.category === "expense";
+      const isInvoice = row.metadata?.kind === "credit_card_invoice_payment" ||
+        row.metadata?.kind === "card_invoice_payment" ||
+        /fatura/i.test(row.description || "");
+
+      if (isOut && isInvoice) {
+        const val = Number(row.amount) || 0;
+        if (val > 0) {
+          personalExpenseItems.push({
+            description: row.description || "Pagamento de Fatura de Cartão",
+            amount: round2(val),
+          });
+        }
+      }
+    }
+  }
+
+  // 8. Faturas marcadas como pagas em credit_card_invoice_openings
+  const openings = (params as any).openings || [];
+  const cards = (params as any).creditCards || (params as any).cards || [];
+  for (const op of openings) {
+    const notes = op.notes || "";
+    const paidMatch = /\[PAID_DATE:(\d{4}-\d{2}-\d{2})\]/i.exec(notes);
+    const paidDate = paidMatch ? paidMatch[1] : null;
+    const isPaid = /\[PAGA\]/i.test(notes) || !!paidDate;
+    
+    if (paidDate === date || (isPaid && !paidDate && op.cycle_key && op.cycle_key.startsWith(date.slice(0, 7)))) {
+      // Verifica se já não foi incluído pelo account_ledger
+      const alreadyInLedger = ledgerRows.some((r: any) => {
+        const rDate = (r.occurred_on || r.occurredOn || "").slice(0, 10);
+        return rDate === date && r.metadata?.credit_card_id === op.card_id && r.metadata?.cycle_key === op.cycle_key;
+      });
+
+      if (!alreadyInLedger) {
+        const paidValMatch = /\[PAID:([0-9]+(?:\.[0-9]+)?)\]/i.exec(notes);
+        const totalValMatch = /\[TOTAL:([0-9]+(?:\.[0-9]+)?)\]/i.exec(notes);
+        const val = paidValMatch ? Number(paidValMatch[1]) : totalValMatch ? Number(totalValMatch[1]) : Number(op.opening_amount) || 0;
+        
+        if (val > 0) {
+          const card = cards.find((c: any) => c.id === op.card_id);
+          const cardLabel = card?.nickname || card?.bank ? `Fatura ${card.nickname || card.bank}` : "Fatura Cartão de Crédito";
+          personalExpenseItems.push({
+            description: cardLabel,
+            amount: round2(val),
+          });
+        }
+      }
+    }
+  }
+
   // Cálculos de subtotais e totais
   const sumItems = (items: MovementItem[]) => round2(items.reduce((s, i) => s + i.amount, 0));
 
@@ -317,17 +372,33 @@ export async function buildDailyFinancialReport(opts?: { ownerId?: string; date?
   let expensesQuery = supabase
     .from("expenses")
     .select("description, amount, scope, category, notes, paid, paid_date, due_date, created_at, installments, type, parent_expense_id");
+  let ledgerQuery = supabase
+    .from("account_ledger")
+    .select("amount, occurred_on, description, metadata, category")
+    .eq("category", "expense");
+  let cardsQuery = supabase
+    .from("credit_cards")
+    .select("id, nickname, bank, last_four, closing_day, due_day, active");
+  let openingsQuery = supabase
+    .from("credit_card_invoice_openings")
+    .select("card_id, cycle_key, opening_amount, notes");
 
   if (opts?.ownerId) {
     incomesQuery = incomesQuery.eq("user_id", opts.ownerId);
     salesQuery = salesQuery.eq("user_id", opts.ownerId);
     expensesQuery = expensesQuery.eq("user_id", opts.ownerId);
+    ledgerQuery = ledgerQuery.eq("user_id", opts.ownerId);
+    cardsQuery = cardsQuery.eq("user_id", opts.ownerId);
+    openingsQuery = openingsQuery.eq("user_id", opts.ownerId);
   }
 
-  const [incomesRes, salesRes, expensesRes] = await Promise.all([
+  const [incomesRes, salesRes, expensesRes, ledgerRes, cardsRes, openingsRes] = await Promise.all([
     incomesQuery,
     salesQuery,
     expensesQuery,
+    ledgerQuery,
+    cardsQuery,
+    openingsQuery,
   ]);
 
   const reportData = buildDailyFinancialData({
@@ -335,7 +406,10 @@ export async function buildDailyFinancialReport(opts?: { ownerId?: string; date?
     incomes: (incomesRes.data ?? []) as any[],
     sales: (salesRes.data ?? []) as any[],
     expenses: (expensesRes.data ?? []) as any[],
-  });
+    ledgerRows: (ledgerRes.data ?? []) as any[],
+    creditCards: (cardsRes.data ?? []) as any[],
+    openings: (openingsRes.data ?? []) as any[],
+  } as any);
 
   return formatDailyFinancialReportTelegram(reportData);
 }

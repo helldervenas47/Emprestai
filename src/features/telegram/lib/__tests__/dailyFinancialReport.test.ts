@@ -342,5 +342,49 @@ describe("Relatório Financeiro Diário — Telegram", () => {
     expect(data.incomes.sales.items[0].amount).toBe(200);
     expect(data.incomes.total).toBe(200);
   });
+
+  // Cenário 11: Faturas de cartão de crédito aparecem nas despesas pessoais
+  it("Cenário 11: faturas de cartão de crédito aparecem nas despesas pessoais", () => {
+    const ledgerRows = [
+      {
+        description: "Pagamento fatura Nubank",
+        amount: 850.50,
+        direction: "out",
+        category: "expense",
+        occurred_on: TEST_DATE,
+        metadata: { kind: "credit_card_invoice_payment", credit_card_id: "card-1" },
+      },
+    ];
+
+    const openings = [
+      {
+        card_id: "card-2",
+        cycle_key: "2026-09",
+        opening_amount: 420.00,
+        notes: `[PAGA] [PAID_DATE:${TEST_DATE}] [PAID:420.00]`,
+      },
+    ];
+
+    const creditCards = [
+      { id: "card-1", nickname: "Nubank", bank: "Nubank" },
+      { id: "card-2", nickname: "Itaú Black", bank: "Itaú" },
+    ];
+
+    const data = buildDailyFinancialData({
+      date: TEST_DATE,
+      incomes: [],
+      sales: [],
+      expenses: [],
+      ledgerRows,
+      openings,
+      creditCards,
+    } as any);
+
+    expect(data.expenses.personal.items.length).toBe(2);
+    expect(data.expenses.personal.items.find((i) => i.description === "Pagamento fatura Nubank")?.amount).toBe(850.5);
+    expect(data.expenses.personal.items.find((i) => i.description === "Fatura Itaú Black")?.amount).toBe(420);
+    expect(data.expenses.personal.subtotal).toBe(1270.5);
+    expect(data.expenses.total).toBe(1270.5);
+  });
 });
 

@@ -1381,15 +1381,21 @@ export async function generateOperationalSummaryReport(admin: any, userId: strin
 }
 
 export async function generateDailyFinancialReport(supabase: any, userId: string, date: string): Promise<string> {
-  const [incomesRes, salesRes, expensesRes] = await Promise.all([
+  const [incomesRes, salesRes, expensesRes, ledgerRes, cardsRes, openingsRes] = await Promise.all([
     supabase.from("incomes").select("description, amount, category, source, status, received_date, actual_received_date, created_at, recurrence, parent_id").eq("user_id", userId),
     supabase.from("sales").select("customer_name, description, total, sale_date, created_at, business_type, payment_history, paid_installments, partial_paid, installments, installment_value, down_payment").eq("user_id", userId),
     supabase.from("expenses").select("description, amount, scope, category, notes, paid, paid_date, due_date, created_at, installments, type, parent_expense_id").eq("user_id", userId),
+    supabase.from("account_ledger").select("amount, occurred_on, description, metadata, category").eq("user_id", userId).eq("category", "expense"),
+    supabase.from("credit_cards").select("id, nickname, bank, last_four, closing_day, due_day, active").eq("user_id", userId),
+    supabase.from("credit_card_invoice_openings").select("card_id, cycle_key, opening_amount, notes").eq("user_id", userId),
   ]);
 
   const rawIncomes = incomesRes.data ?? [];
   const rawSales = salesRes.data ?? [];
   const rawExpenses = expensesRes.data ?? [];
+  const rawLedger = ledgerRes.data ?? [];
+  const rawCards = cardsRes.data ?? [];
+  const rawOpenings = openingsRes.data ?? [];
 
   const isVehicleExpenseCategory = (category?: string | null) => {
     if (!category) return false;
@@ -1519,6 +1525,57 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
           } else {
             businessExpenseItems.push({ description: desc, amount: val });
           }
+        }
+      }
+    }
+  }
+
+  // 7. Faturas de Cartão de Crédito e Lançamentos no Extrato (account_ledger)
+  for (const row of rawLedger) {
+    const rowDate = String(row.occurred_on || row.created_at || "").slice(0, 10);
+    if (rowDate === date) {
+      const isOut = row.direction === "out" || row.category === "expense";
+      const isInvoice = row.metadata?.kind === "credit_card_invoice_payment" ||
+        row.metadata?.kind === "card_invoice_payment" ||
+        /fatura/i.test(row.description || "");
+
+      if (isOut && isInvoice) {
+        const val = Number(row.amount) || 0;
+        if (val > 0) {
+          personalExpenseItems.push({
+            description: row.description || "Pagamento de Fatura de Cartão",
+            amount: round2(val),
+          });
+        }
+      }
+    }
+  }
+
+  // 8. Faturas marcadas como pagas em credit_card_invoice_openings
+  for (const op of rawOpenings) {
+    const notes = op.notes || "";
+    const paidMatch = /\[PAID_DATE:(\d{4}-\d{2}-\d{2})\]/i.exec(notes);
+    const paidDate = paidMatch ? paidMatch[1] : null;
+    const isPaid = /\[PAGA\]/i.test(notes) || !!paidDate;
+    
+    if (paidDate === date || (isPaid && !paidDate && op.cycle_key && String(op.cycle_key).startsWith(date.slice(0, 7)))) {
+      const alreadyInLedger = rawLedger.some((r: any) => {
+        const rDate = String(r.occurred_on || "").slice(0, 10);
+        return rDate === date && r.metadata?.credit_card_id === op.card_id && r.metadata?.cycle_key === op.cycle_key;
+      });
+
+      if (!alreadyInLedger) {
+        const paidValMatch = /\[PAID:([0-9]+(?:\.[0-9]+)?)\]/i.exec(notes);
+        const totalValMatch = /\[TOTAL:([0-9]+(?:\.[0-9]+)?)\]/i.exec(notes);
+        const val = paidValMatch ? Number(paidValMatch[1]) : totalValMatch ? Number(totalValMatch[1]) : Number(op.opening_amount) || 0;
+        
+        if (val > 0) {
+          const card = rawCards.find((c: any) => c.id === op.card_id);
+          const cardLabel = card?.nickname || card?.bank ? `Fatura ${card.nickname || card.bank}` : "Fatura Cartão de Crédito";
+          personalExpenseItems.push({
+            description: cardLabel,
+            amount: round2(val),
+          });
         }
       }
     }
