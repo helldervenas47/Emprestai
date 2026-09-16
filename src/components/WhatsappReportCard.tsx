@@ -39,6 +39,8 @@ import {
   Copy,
   Check,
   DollarSign,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 type SlotKey = "send_time_1" | "send_time_2" | "send_time_3";
@@ -274,6 +276,24 @@ export function WhatsappReportCard() {
   };
 
   const [selectedDate, setSelectedDate] = useState<string>(todayInBahia);
+
+  const handlePreviousDay = () => {
+    if (!selectedDate) return;
+    const [y, m, d] = selectedDate.split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setDate(dt.getDate() - 1);
+    const prevStr = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+    setSelectedDate(prevStr);
+  };
+
+  const handleNextDay = () => {
+    if (!selectedDate) return;
+    const [y, m, d] = selectedDate.split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setDate(dt.getDate() + 1);
+    const nextStr = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+    setSelectedDate(nextStr);
+  };
 
   const [profilePhone, setProfilePhone] = useState("");
   const [whatsappPhone, setWhatsappPhone] = useState("");
@@ -784,16 +804,37 @@ export function WhatsappReportCard() {
                 </Button>
               </div>
 
-              <div className="relative">
+              <div className="flex items-center bg-background rounded-xl border border-border/70 shadow-xs p-0.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={handlePreviousDay}
+                  title="Retroceder 1 dia"
+                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 shrink-0"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+
                 <Input
                   type="date"
                   value={selectedDate}
-                  max={todayStr}
                   onChange={(e) => {
                     if (e.target.value) setSelectedDate(e.target.value);
                   }}
-                  className="h-10 text-xs font-semibold rounded-xl bg-background border-border/70 w-[150px] cursor-pointer"
+                  className="h-8 text-xs font-semibold bg-transparent border-0 w-[130px] cursor-pointer text-center px-1 focus-visible:ring-0 focus-visible:ring-offset-0"
                 />
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleNextDay}
+                  title="Avançar 1 dia"
+                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 shrink-0"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           </div>
