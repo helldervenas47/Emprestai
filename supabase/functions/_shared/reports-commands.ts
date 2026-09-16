@@ -1442,11 +1442,35 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
     return [];
   };
 
-  const addByFrequencyDate = (dateStr: string, frequency: string | undefined | null, n: number): string => {
-    if (!dateStr) return "";
-    if (n === 0) return dateStr.slice(0, 10);
+  const normalizeToIsoDate = (d: any): string => {
+    if (!d) return "";
+    const s = String(d).trim();
+    if (!s) return "";
+    const brMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if (brMatch) {
+      const day = brMatch[1].padStart(2, "0");
+      const month = brMatch[2].padStart(2, "0");
+      const year = brMatch[3];
+      return `${year}-${month}-${day}`;
+    }
+    const isoMatch = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+    if (isoMatch) {
+      const year = isoMatch[1];
+      const month = isoMatch[2].padStart(2, "0");
+      const day = isoMatch[3].padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+    return s.slice(0, 10);
+  };
 
-    const [y, m, d] = dateStr.slice(0, 10).split("-").map(Number);
+  const normalizedTargetDate = normalizeToIsoDate(date);
+
+  const addByFrequencyDate = (dateStr: string, frequency: string | undefined | null, n: number): string => {
+    const normalized = normalizeToIsoDate(dateStr);
+    if (!normalized) return "";
+    if (n === 0) return normalized;
+
+    const [y, m, d] = normalized.split("-").map(Number);
     if (!y || !m || !d) return "";
     const dt = new Date(y, m - 1, d);
 
@@ -1476,9 +1500,10 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
   ): string => {
     const dates = parseArrayField<string>(installmentDates);
     if (dates && dates[index]) {
-      return String(dates[index]).slice(0, 10);
+      return normalizeToIsoDate(dates[index]);
     }
-    return addByFrequencyDate(baseDate, frequency, index);
+    const normalizedBase = normalizeToIsoDate(baseDate);
+    return addByFrequencyDate(normalizedBase, frequency, index);
   };
 
   const isVehicleSale = (sale: any): boolean => {
@@ -1500,9 +1525,8 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
   // 1. Receitas do Módulo Financeiro (incomes)
   const financialItems: { description: string; amount: number }[] = [];
   for (const inc of rawIncomes) {
-    const recDate = inc.actual_received_date || inc.received_date;
-    const createdAt = inc.created_at ? String(inc.created_at).slice(0, 10) : "";
-    const matchesDate = (recDate && String(recDate).slice(0, 10) === date) || (!recDate && createdAt === date);
+    const recDate = normalizeToIsoDate(inc.actual_received_date || inc.received_date || inc.created_at);
+    const matchesDate = recDate === normalizedTargetDate;
 
     if (matchesDate) {
       const val = Number(inc.amount) || 0;
@@ -1523,7 +1547,7 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
     const isVehicle = isVehicleSale(sale);
     const history = parseArrayField<any>(sale.payment_history);
     const client = sale.customer_name || "";
-    const saleDate = String(sale.sale_date || (sale.created_at ? String(sale.created_at).slice(0, 10) : "")).slice(0, 10);
+    const saleDate = normalizeToIsoDate(sale.sale_date || sale.created_at);
     const instCount = Math.max(1, Number(sale.installments) || 1);
     const paidCount = Math.max(0, Number(sale.paid_installments) || 0);
     const instVal = Number(sale.installment_value) || 0;
@@ -1537,8 +1561,8 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
 
     // 1. Pagamentos recebidos hoje registrados no histórico
     for (const pay of history) {
-      const payDate = String(pay?.date || "").slice(0, 10);
-      if (payDate === date) {
+      const payDate = normalizeToIsoDate(pay?.date);
+      if (payDate === normalizedTargetDate) {
         const val = Number(pay?.amount) || 0;
         if (val > 0) {
           const desc = client ? `${client} — ${sale.description || defaultTypeDesc}` : (sale.description || defaultTypeDesc);
@@ -1555,7 +1579,7 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
     for (let i = 0; i < instCount; i++) {
       const installmentNum = i + 1;
       const dueDate = getSaleDueDate(saleDate, freq, i, customDates);
-      if (dueDate === date) {
+      if (dueDate === normalizedTargetDate) {
         const isPending = installmentNum > paidCount;
         if (isPending) {
           let val = 0;

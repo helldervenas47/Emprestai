@@ -97,11 +97,33 @@ export function parseArrayField<T = any>(val: any): T[] {
   return [];
 }
 
-function addByFrequencyDate(dateStr: string, frequency: string | undefined | null, n: number): string {
-  if (!dateStr) return "";
-  if (n === 0) return dateStr.slice(0, 10);
+export function normalizeToIsoDate(d: any): string {
+  if (!d) return "";
+  const s = String(d).trim();
+  if (!s) return "";
+  const brMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (brMatch) {
+    const day = brMatch[1].padStart(2, "0");
+    const month = brMatch[2].padStart(2, "0");
+    const year = brMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+  const isoMatch = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  if (isoMatch) {
+    const year = isoMatch[1];
+    const month = isoMatch[2].padStart(2, "0");
+    const day = isoMatch[3].padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+  return s.slice(0, 10);
+}
 
-  const [y, m, d] = dateStr.slice(0, 10).split("-").map(Number);
+function addByFrequencyDate(dateStr: string, frequency: string | undefined | null, n: number): string {
+  const normalized = normalizeToIsoDate(dateStr);
+  if (!normalized) return "";
+  if (n === 0) return normalized;
+
+  const [y, m, d] = normalized.split("-").map(Number);
   if (!y || !m || !d) return "";
   const dt = new Date(y, m - 1, d);
 
@@ -131,9 +153,10 @@ export function getSaleInstallmentDueDate(
 ): string {
   const dates = parseArrayField<string>(installmentDates);
   if (dates && dates[index]) {
-    return String(dates[index]).slice(0, 10);
+    return normalizeToIsoDate(dates[index]);
   }
-  return addByFrequencyDate(baseDate, frequency, index);
+  const normalizedBase = normalizeToIsoDate(baseDate);
+  return addByFrequencyDate(normalizedBase, frequency, index);
 }
 
 export function isVehicleSale(sale: any): boolean {
@@ -161,12 +184,13 @@ export function buildDailyFinancialData(params: {
   sales: any[];
   expenses: any[];
 }): DailyFinancialReportData {
-  const { date, incomes = [], sales = [], expenses = [] } = params;
+  const date = normalizeToIsoDate(params.date);
+  const { incomes = [], sales = [], expenses = [] } = params;
 
   // 1. Receitas - Financeiro
   const financialItems: MovementItem[] = [];
   for (const inc of incomes) {
-    const recDate = (inc.actual_received_date || inc.actualReceivedDate || inc.received_date || inc.receivedDate || inc.date || (inc.created_at ? String(inc.created_at).slice(0, 10) : "")).slice(0, 10);
+    const recDate = normalizeToIsoDate(inc.actual_received_date || inc.actualReceivedDate || inc.received_date || inc.receivedDate || inc.date || inc.created_at);
     if (recDate === date) {
       const incInstCount = Number(inc.installments) || 1;
       const isParentInst = incInstCount > 1 && !inc.parent_id && !inc.parentId;
@@ -188,7 +212,7 @@ export function buildDailyFinancialData(params: {
     const isVehicle = isVehicleSale(sale);
     const history = parseArrayField<any>(sale.payment_history || sale.paymentHistory);
     const client = sale.customer_name || sale.customerName || sale.customer || "";
-    const saleDate = String(sale.sale_date || sale.saleDate || sale.date || (sale.created_at ? String(sale.created_at).slice(0, 10) : "")).slice(0, 10);
+    const saleDate = normalizeToIsoDate(sale.sale_date || sale.saleDate || sale.date || sale.created_at);
     const instCount = Math.max(1, Number(sale.installments) || 1);
     const paidCount = Math.max(0, Number(sale.paid_installments ?? sale.paidInstallments) || 0);
     const instVal = Number(sale.installment_value || sale.installmentValue) || 0;
@@ -202,7 +226,7 @@ export function buildDailyFinancialData(params: {
 
     // 1. Pagamentos recebidos hoje registrados no histórico
     for (const pay of history) {
-      const payDate = String(pay?.date || "").slice(0, 10);
+      const payDate = normalizeToIsoDate(pay?.date);
       if (payDate === date) {
         const val = Number(pay?.amount) || 0;
         if (val > 0) {
