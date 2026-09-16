@@ -1382,9 +1382,9 @@ export async function generateOperationalSummaryReport(admin: any, userId: strin
 
 export async function generateDailyFinancialReport(supabase: any, userId: string, date: string): Promise<string> {
   const [incomesRes, salesRes, expensesRes] = await Promise.all([
-    supabase.from("incomes").select("description, amount, category, source, status, received_date, actual_received_date").eq("user_id", userId),
-    supabase.from("sales").select("customer_name, description, total, sale_date, business_type, payment_history, paid_installments, partial_paid").eq("user_id", userId),
-    supabase.from("expenses").select("description, amount, scope, category, notes, paid, paid_date, due_date").eq("user_id", userId),
+    supabase.from("incomes").select("description, amount, category, source, status, received_date, actual_received_date, created_at, recurrence, parent_id").eq("user_id", userId),
+    supabase.from("sales").select("customer_name, description, total, sale_date, created_at, business_type, payment_history, paid_installments, partial_paid, installments, installment_value, down_payment").eq("user_id", userId),
+    supabase.from("expenses").select("description, amount, scope, category, notes, paid, paid_date, due_date, created_at, installments, type, parent_expense_id").eq("user_id", userId),
   ]);
 
   const rawIncomes = incomesRes.data ?? [];
@@ -1420,7 +1420,10 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
   for (const inc of rawIncomes) {
     const recDate = String(inc.actual_received_date || inc.received_date || inc.created_at || "").slice(0, 10);
     if (recDate === date) {
-      const val = Number(inc.amount) || 0;
+      const incInstCount = Number(inc.installments) || 1;
+      const isParentInst = incInstCount > 1 && !inc.parent_id && !inc.parentId;
+      const rawVal = isParentInst ? (Number(inc.amount) || 0) / incInstCount : (Number(inc.amount) || 0);
+      const val = Math.round(rawVal * 100) / 100;
       if (val > 0) {
         financialItems.push({ description: inc.description || "Receita Financeiro", amount: val });
       }
@@ -1440,7 +1443,7 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
     for (const pay of history) {
       const payDate = (pay.date || "").slice(0, 10);
       if (payDate === date) {
-        const val = Number(pay.amount) || 0;
+        const val = Math.round((Number(pay.amount) || 0) * 100) / 100;
         if (val > 0) {
           hasHistoryPayment = true;
           const desc = client ? `${client} — ${sale.description || (isVehicle ? "Aluguel Veículo" : "Venda")}` : (sale.description || (isVehicle ? "Aluguel Veículo" : "Venda"));
@@ -1456,7 +1459,21 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
     if (!hasHistoryPayment) {
       const saleDate = String(sale.sale_date || sale.created_at || "").slice(0, 10);
       if (saleDate === date) {
-        const val = Number(sale.total) || Number(sale.partial_paid) || 0;
+        const instCount = Number(sale.installments) || 1;
+        const instVal = Number(sale.installment_value || sale.installmentValue) || 0;
+        const total = Number(sale.total) || 0;
+        const down = Number(sale.down_payment || sale.downPayment) || 0;
+
+        let rawVal = 0;
+        if (instVal > 0) {
+          rawVal = instVal;
+        } else if (instCount > 1) {
+          rawVal = (total - down > 0 ? (total - down) / instCount : total / instCount);
+        } else {
+          rawVal = total || Number(sale.partial_paid) || 0;
+        }
+
+        const val = Math.round(rawVal * 100) / 100;
         if (val > 0) {
           const desc = client ? `${client} — ${sale.description || (isVehicle ? "Aluguel Veículo" : "Venda")}` : (sale.description || (isVehicle ? "Aluguel Veículo" : "Venda"));
           if (isVehicle) {
@@ -1484,7 +1501,12 @@ export async function generateDailyFinancialReport(supabase: any, userId: string
       (!paidDate && !dueDate && createdAt === date);
 
     if (matchesDate) {
-      const val = Number(exp.amount) || 0;
+      const installments = Number(exp.installments) || 1;
+      const isParentParceladaOrRecurring = installments > 1 && !exp.parent_expense_id;
+      const rawAmount = Number(exp.amount) || 0;
+      const rawVal = isParentParceladaOrRecurring ? rawAmount / installments : rawAmount;
+      const val = Math.round(rawVal * 100) / 100;
+
       if (val > 0) {
         const desc = exp.description || "Despesa";
         const isVeh = isVehicleExp(exp);

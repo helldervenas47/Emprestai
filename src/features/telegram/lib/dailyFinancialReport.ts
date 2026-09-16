@@ -94,11 +94,13 @@ export function buildDailyFinancialData(params: {
   for (const inc of incomes) {
     const recDate = (inc.actual_received_date || inc.actualReceivedDate || inc.received_date || inc.receivedDate || (inc.created_at ? String(inc.created_at).slice(0, 10) : "")).slice(0, 10);
     if (recDate === date) {
-      const val = Number(inc.amount) || 0;
+      const incInstCount = Number(inc.installments) || 1;
+      const isParentInst = incInstCount > 1 && !inc.parent_id && !inc.parentId;
+      const val = isParentInst ? (Number(inc.amount) || 0) / incInstCount : (Number(inc.amount) || 0);
       if (val > 0) {
         financialItems.push({
           description: inc.description || "Receita Financeiro",
-          amount: val,
+          amount: round2(val),
         });
       }
     }
@@ -122,9 +124,9 @@ export function buildDailyFinancialData(params: {
           hasHistoryPayment = true;
           const desc = client ? `${client} — ${sale.description || (isVehicle ? "Aluguel Veículo" : "Venda")}` : (sale.description || (isVehicle ? "Aluguel Veículo" : "Venda"));
           if (isVehicle) {
-            vehicleIncomeItems.push({ description: desc, amount: val });
+            vehicleIncomeItems.push({ description: desc, amount: round2(val) });
           } else {
-            salesItems.push({ description: desc, amount: val });
+            salesItems.push({ description: desc, amount: round2(val) });
           }
         }
       }
@@ -134,13 +136,26 @@ export function buildDailyFinancialData(params: {
     if (!hasHistoryPayment) {
       const saleDate = (sale.sale_date || sale.saleDate || (sale.created_at ? String(sale.created_at).slice(0, 10) : "")).slice(0, 10);
       if (saleDate === date) {
-        const val = Number(sale.total) || Number(sale.partial_paid || sale.partialPaid) || 0;
+        const instCount = Number(sale.installments) || 1;
+        const instVal = Number(sale.installment_value || sale.installmentValue) || 0;
+        const total = Number(sale.total) || 0;
+        const down = Number(sale.down_payment || sale.downPayment) || 0;
+
+        let val = 0;
+        if (instVal > 0) {
+          val = instVal;
+        } else if (instCount > 1) {
+          val = (total - down > 0 ? (total - down) / instCount : total / instCount);
+        } else {
+          val = total || Number(sale.partial_paid || sale.partialPaid) || 0;
+        }
+
         if (val > 0) {
           const desc = client ? `${client} — ${sale.description || (isVehicle ? "Aluguel Veículo" : "Venda")}` : (sale.description || (isVehicle ? "Aluguel Veículo" : "Venda"));
           if (isVehicle) {
-            vehicleIncomeItems.push({ description: desc, amount: val });
+            vehicleIncomeItems.push({ description: desc, amount: round2(val) });
           } else {
-            salesItems.push({ description: desc, amount: val });
+            salesItems.push({ description: desc, amount: round2(val) });
           }
         }
       }
@@ -163,19 +178,23 @@ export function buildDailyFinancialData(params: {
       (!paidDate && !dueDate && createdAt === date);
 
     if (matchesDate) {
-      const val = Number(exp.amount) || 0;
+      const installments = Number(exp.installments) || 1;
+      const isParentParceladaOrRecurring = installments > 1 && !exp.parent_expense_id && !exp.parentExpenseId;
+      const rawAmount = Number(exp.amount) || 0;
+      const val = isParentParceladaOrRecurring ? rawAmount / installments : rawAmount;
+
       if (val > 0) {
         const desc = exp.description || "Despesa";
         const isVeh = isVehicleExpense(exp);
 
         if (isVeh) {
-          vehicleExpenseItems.push({ description: desc, amount: val });
+          vehicleExpenseItems.push({ description: desc, amount: round2(val) });
         } else {
           const scope = exp.scope || "business";
           if (scope === "personal") {
-            personalExpenseItems.push({ description: desc, amount: val });
+            personalExpenseItems.push({ description: desc, amount: round2(val) });
           } else {
-            businessExpenseItems.push({ description: desc, amount: val });
+            businessExpenseItems.push({ description: desc, amount: round2(val) });
           }
         }
       }
@@ -283,3 +302,41 @@ export function formatDailyFinancialReportTelegram(report: DailyFinancialReportD
 
   return lines.join("\n");
 }
+
+export async function buildDailyFinancialReport(opts?: { ownerId?: string; date?: string }): Promise<string> {
+  const { supabase } = await import("@/integrations/supabase/client");
+  const { todayInAppTz } = await import("@/lib/timezone");
+  const targetDate = opts?.date || todayInAppTz();
+
+  let incomesQuery = supabase
+    .from("incomes")
+    .select("description, amount, category, source, status, received_date, actual_received_date, created_at, recurrence, parent_id");
+  let salesQuery = supabase
+    .from("sales")
+    .select("customer_name, description, total, sale_date, created_at, business_type, payment_history, paid_installments, partial_paid, installments, installment_value, down_payment");
+  let expensesQuery = supabase
+    .from("expenses")
+    .select("description, amount, scope, category, notes, paid, paid_date, due_date, created_at, installments, type, parent_expense_id");
+
+  if (opts?.ownerId) {
+    incomesQuery = incomesQuery.eq("user_id", opts.ownerId);
+    salesQuery = salesQuery.eq("user_id", opts.ownerId);
+    expensesQuery = expensesQuery.eq("user_id", opts.ownerId);
+  }
+
+  const [incomesRes, salesRes, expensesRes] = await Promise.all([
+    incomesQuery,
+    salesQuery,
+    expensesQuery,
+  ]);
+
+  const reportData = buildDailyFinancialData({
+    date: targetDate,
+    incomes: (incomesRes.data ?? []) as any[],
+    sales: (salesRes.data ?? []) as any[],
+    expenses: (expensesRes.data ?? []) as any[],
+  });
+
+  return formatDailyFinancialReportTelegram(reportData);
+}
+

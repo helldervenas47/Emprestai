@@ -274,4 +274,73 @@ describe("Relatório Financeiro Diário — Telegram", () => {
     expect(data.expenses.total).toBe(250);
     expect(data.balance).toBe(150);
   });
+
+  // Cenário 9: Despesas parceladas e fixas recorrentes trazem o valor mensal/parcela e não o montante total
+  it("Cenário 9: despesas parceladas trazem o valor mensal da parcela (amount / installments)", () => {
+    const expenses = [
+      // Despesa parcelada em 10x de R$ 100 (amount total gravado = 1000)
+      {
+        description: "Compra Equipamento (10x)",
+        amount: 1000,
+        installments: 10,
+        type: "recorrente",
+        scope: "business",
+        category: "Equipamentos",
+        paid: false,
+        due_date: TEST_DATE,
+      },
+      // Despesa fixa mensal contínua (amount gravado = 50 * 999 = 49950)
+      {
+        description: "Assinatura Software",
+        amount: 49950,
+        installments: 999,
+        type: "recorrente",
+        scope: "personal",
+        category: "Assinaturas",
+        paid: false,
+        due_date: TEST_DATE,
+      },
+      // Despesa filha (já paga) onde amount já é o valor unitário
+      {
+        description: "Parcela Paga de Consultoria",
+        amount: 120,
+        installments: 5,
+        parent_expense_id: "parent-123",
+        scope: "business",
+        category: "Serviços",
+        paid: true,
+        paid_date: TEST_DATE,
+      },
+    ];
+
+    const data = buildDailyFinancialData({ date: TEST_DATE, incomes: [], sales: [], expenses });
+    expect(data.expenses.business.items.length).toBe(2);
+    expect(data.expenses.business.items.find((i) => i.description === "Compra Equipamento (10x)")?.amount).toBe(100);
+    expect(data.expenses.business.items.find((i) => i.description === "Parcela Paga de Consultoria")?.amount).toBe(120);
+
+    expect(data.expenses.personal.items.length).toBe(1);
+    expect(data.expenses.personal.items[0].amount).toBe(50);
+
+    expect(data.expenses.total).toBe(270);
+  });
+
+  // Cenário 10: Vendas parceladas trazem o valor da parcela quando sem histórico específico do dia
+  it("Cenário 10: vendas parceladas trazem o valor da parcela mensal", () => {
+    const sales = [
+      {
+        customer_name: "Cliente Teste",
+        description: "Venda Celular (10x)",
+        total: 2000,
+        installments: 10,
+        sale_date: TEST_DATE,
+        business_type: "venda",
+      },
+    ];
+
+    const data = buildDailyFinancialData({ date: TEST_DATE, incomes: [], sales, expenses: [] });
+    expect(data.incomes.sales.items.length).toBe(1);
+    expect(data.incomes.sales.items[0].amount).toBe(200);
+    expect(data.incomes.total).toBe(200);
+  });
 });
+
