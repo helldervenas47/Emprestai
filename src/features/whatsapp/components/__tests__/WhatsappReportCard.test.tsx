@@ -98,11 +98,11 @@ describe("WhatsappReportCard — Envio de Relatórios e Resumo Operacional pelo 
 
     // Botões de pré-visualização
     const previewButtons = screen.getAllByText("Pré-visualizar");
-    expect(previewButtons.length).toBeGreaterThanOrEqual(2);
+    expect(previewButtons.length).toBeGreaterThanOrEqual(3);
 
-    // Botões de disparo imediato
-    expect(screen.getByText("Enviar Resumo Operacional Agora")).toBeInTheDocument();
-    expect(screen.getByText("Enviar Relatório Agora no WhatsApp")).toBeInTheDocument();
+    // Botões de disparo imediato padronizados como "Enviar Relatório"
+    const sendButtons = screen.getAllByText("Enviar Relatório");
+    expect(sendButtons.length).toBeGreaterThanOrEqual(3);
   });
 
   it("formata corretamente a mensagem do Relatório de Cobranças com base na aba 'A cobrar'", () => {

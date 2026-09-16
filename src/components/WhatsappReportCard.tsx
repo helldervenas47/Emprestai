@@ -1120,7 +1120,7 @@ export function WhatsappReportCard() {
                 ) : (
                   <Send className="h-4 w-4" />
                 )}
-                Enviar Resumo Operacional Agora
+                Enviar Relatório
               </Button>
             </div>
           </div>
@@ -1248,7 +1248,7 @@ export function WhatsappReportCard() {
           {/* Ações: Ver Espelho e Enviar */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-border/40">
             <p className="text-[11px] text-muted-foreground">
-              Clique em <strong>Ver Espelho</strong> para conferir o formato idêntico ou enviar direto.
+              Clique em <strong>Pré-visualizar</strong> para conferir o formato idêntico ou enviar direto.
             </p>
 
             <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -1260,7 +1260,7 @@ export function WhatsappReportCard() {
                 className="flex-1 sm:flex-initial h-9 text-xs font-semibold rounded-xl gap-2 shadow-2xs"
               >
                 {loadingPreview ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
-                Ver Espelho
+                Pré-visualizar
               </Button>
 
               <Button
@@ -1459,7 +1459,7 @@ export function WhatsappReportCard() {
                 ) : (
                   <Send className="h-4 w-4" />
                 )}
-                Enviar Relatório Agora no WhatsApp
+                Enviar Relatório
               </Button>
             </div>
           </div>

@@ -134,7 +134,7 @@ export function ScheduledReportCard({ title, description, Icon, prefsTable, func
               onClick={handleOpenPreview}
             >
               <Eye className="h-3.5 w-3.5 text-primary" />
-              Ver Espelho
+              Pré-visualizar
             </Button>
             <Button
               type="button"
@@ -144,7 +144,7 @@ export function ScheduledReportCard({ title, description, Icon, prefsTable, func
               disabled={sending || !linked}
             >
               <Send className="h-3.5 w-3.5" />
-              <span className="truncate">{sending ? "Enviando..." : "Enviar agora"}</span>
+              <span className="truncate">{sending ? "Enviando..." : "Enviar Relatório"}</span>
             </Button>
           </div>
 
