@@ -20,6 +20,19 @@ const addDays = (ymd: string, days: number) => {
 
 const mockLoans = [
   {
+    id: "loan-0",
+    user_id: "user-1",
+    borrower_id: "client-0",
+    borrower_name: "Cliente Atrasado",
+    due_date: addDays(today, -2), // Vencido há 2 dias
+    amount: 400,
+    remaining_amount: 400,
+    installments: 1,
+    paid_installments: 0,
+    status: "active",
+    tags: ["Empréstimo Antigo"],
+  },
+  {
     id: "loan-1",
     user_id: "user-1",
     borrower_id: "client-1",
@@ -61,6 +74,13 @@ const mockLoans = [
 ];
 
 const mockClients = [
+  {
+    id: "client-0",
+    user_id: "user-1",
+    name: "Cliente Atrasado",
+    phone: "(11) 99999-0000",
+    auto_billing_enabled: true,
+  },
   {
     id: "client-1",
     user_id: "user-1",
@@ -186,6 +206,31 @@ describe("BillingCenter — Filtro de Futuras com separação por faixa de dias"
     await waitFor(() => {
       expect(screen.queryByText("Cliente Carlos")).not.toBeInTheDocument();
       expect(screen.getAllByTitle("Dia atual")[0]).toBeInTheDocument();
+    });
+  });
+
+  it("permite ativar o flag de incluir cobranças anteriores na aba Dia e exibe cobranças vencidas até o dia selecionado", async () => {
+    render(<BillingCenter />);
+
+    // Mudar para a aba "Dia"
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /^Dia$/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Dia$/i }));
+
+    // Por padrão (flag desativado), o cliente vencido há 2 dias não aparece na aba Dia (data = hoje)
+    await waitFor(() => {
+      expect(screen.getByText("Incluir anteriores")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Cliente Atrasado")).not.toBeInTheDocument();
+
+    // Ativar o flag "Incluir anteriores"
+    const checkbox = screen.getByLabelText("Incluir anteriores");
+    fireEvent.click(checkbox);
+
+    // Agora o cliente vencido antes de hoje deve aparecer na lista
+    await waitFor(() => {
+      expect(screen.getByText("Cliente Atrasado")).toBeInTheDocument();
     });
   });
 });

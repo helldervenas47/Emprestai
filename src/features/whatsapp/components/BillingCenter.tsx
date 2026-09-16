@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/userClient";
@@ -166,22 +167,23 @@ export function BillingCenter() {
 
   const todayInBahia = bahiaDay(new Date());
   const [selectedDate, setSelectedDate] = React.useState(todayInBahia);
+  const [includePrevious, setIncludePrevious] = React.useState(false);
   const autoBillingClientIds = React.useMemo(
     () => new Set(clientPreferences.filter((client) => client.enabled).map((client) => client.id)),
     [clientPreferences],
   );
   const visible = items.filter((item) => (filter === "all" && item.billingDate <= todayInBahia) ||
-    (filter === "today" && item.billingDate === selectedDate) ||
+    (filter === "today" && (includePrevious ? item.billingDate <= selectedDate : item.billingDate === selectedDate)) ||
     (filter === "overdue" && item.priority === "overdue") ||
     (filter === "upcoming" && ["tomorrow", "in_two_days", "in_three_days", "in_four_days"].includes(item.priority)));
   React.useEffect(() => {
     if (loading) return;
     const keys = visible.filter((item) => item.validPhone && autoBillingClientIds.has(item.clientId) && !sentTodayClientIds.has(item.clientId)).map((item) => item.key).sort();
-    const autoSelectionKey = `${filter}:${selectedDate}:${keys.join("|")}`;
+    const autoSelectionKey = `${filter}:${selectedDate}:${includePrevious}:${keys.join("|")}`;
     if (autoSelectionKeyRef.current === autoSelectionKey) return;
     autoSelectionKeyRef.current = autoSelectionKey;
     setSelected(new Set(keys));
-  }, [filter, selectedDate, loading, visible, autoBillingClientIds, sentTodayClientIds]);
+  }, [filter, selectedDate, includePrevious, loading, visible, autoBillingClientIds, sentTodayClientIds]);
   const selectedItems = visible.filter((item) => selected.has(item.key));
   const visibleClientIds = new Set(visible.map((item) => item.clientId));
   const sentTodayQueueRows = queue.filter(
@@ -397,46 +399,63 @@ export function BillingCenter() {
         {/* PC e Tablet: Filtro diário ao lado do botão Clientes */}
         <div className="hidden sm:flex sm:items-center sm:gap-2 shrink-0">
           {filter === "today" && (
-            <div className="inline-flex items-center gap-0.5 rounded-lg border border-border/60 bg-muted/20 px-1 py-0.5">
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7 shrink-0 rounded-md text-muted-foreground hover:text-foreground active:scale-95"
-                aria-label="Dia anterior"
-                title="Dia anterior"
-                onClick={() => setSelectedDate((curr) => shiftDay(curr, -1))}
-              >
-                <ChevronLeft className="h-3.5 w-3.5" />
-              </Button>
+            <>
+              <div className="inline-flex items-center gap-0.5 rounded-lg border border-border/60 bg-muted/20 px-1 py-0.5">
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 shrink-0 rounded-md text-muted-foreground hover:text-foreground active:scale-95"
+                  aria-label="Dia anterior"
+                  title="Dia anterior"
+                  onClick={() => setSelectedDate((curr) => shiftDay(curr, -1))}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
 
-              <button
-                type="button"
-                onClick={() => setSelectedDate(todayInBahia)}
-                title={selectedDate === todayInBahia ? "Dia atual" : "Clique para voltar ao dia atual"}
-                className={cn(
-                  "group flex items-center justify-center gap-1.5 rounded px-2 py-1 text-xs font-semibold whitespace-nowrap transition-all hover:bg-background/80 active:scale-95",
-                  selectedDate === todayInBahia
-                    ? "text-primary font-bold"
-                    : "text-foreground hover:text-primary"
-                )}
-              >
-                <Calendar className="h-3.5 w-3.5 shrink-0 text-primary" />
-                <span className="whitespace-nowrap">{formatDayLabel(selectedDate, todayInBahia).label}</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate(todayInBahia)}
+                  title={selectedDate === todayInBahia ? "Dia atual" : "Clique para voltar ao dia atual"}
+                  className={cn(
+                    "group flex items-center justify-center gap-1.5 rounded px-2 py-1 text-xs font-semibold whitespace-nowrap transition-all hover:bg-background/80 active:scale-95",
+                    selectedDate === todayInBahia
+                      ? "text-primary font-bold"
+                      : "text-foreground hover:text-primary"
+                  )}
+                >
+                  <Calendar className="h-3.5 w-3.5 shrink-0 text-primary" />
+                  <span className="whitespace-nowrap">{formatDayLabel(selectedDate, todayInBahia).label}</span>
+                </button>
 
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7 shrink-0 rounded-md text-muted-foreground hover:text-foreground active:scale-95"
-                aria-label="Próximo dia"
-                title="Próximo dia"
-                onClick={() => setSelectedDate((curr) => shiftDay(curr, 1))}
-              >
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Button>
-            </div>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 shrink-0 rounded-md text-muted-foreground hover:text-foreground active:scale-95"
+                  aria-label="Próximo dia"
+                  title="Próximo dia"
+                  onClick={() => setSelectedDate((curr) => shiftDay(curr, 1))}
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+
+              <div className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/20 px-2.5 py-1 text-xs select-none">
+                <Checkbox
+                  id="include-previous-desktop"
+                  checked={includePrevious}
+                  onCheckedChange={(checked) => setIncludePrevious(Boolean(checked))}
+                  className="h-3.5 w-3.5"
+                />
+                <Label
+                  htmlFor="include-previous-desktop"
+                  className="text-xs font-medium cursor-pointer text-muted-foreground hover:text-foreground"
+                >
+                  Incluir anteriores
+                </Label>
+              </div>
+            </>
           )}
 
           <Button
@@ -453,45 +472,62 @@ export function BillingCenter() {
 
       {/* Mobile: Filtro diário em linha própria ocupando 100% da largura */}
       {filter === "today" && (
-        <div className="mt-3 flex w-full items-center justify-between gap-1 rounded-xl border border-border/60 bg-muted/20 p-1 sm:hidden">
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground active:scale-95"
-            aria-label="Dia anterior"
-            title="Dia anterior"
-            onClick={() => setSelectedDate((curr) => shiftDay(curr, -1))}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
+        <div className="mt-3 flex flex-col gap-1.5 sm:hidden">
+          <div className="flex w-full items-center justify-between gap-1 rounded-xl border border-border/60 bg-muted/20 p-1">
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground active:scale-95"
+              aria-label="Dia anterior"
+              title="Dia anterior"
+              onClick={() => setSelectedDate((curr) => shiftDay(curr, -1))}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
 
-          <button
-            type="button"
-            onClick={() => setSelectedDate(todayInBahia)}
-            title={selectedDate === todayInBahia ? "Dia atual" : "Clique para voltar ao dia atual"}
-            className={cn(
-              "group flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold whitespace-nowrap transition-all hover:bg-background/80 active:scale-95",
-              selectedDate === todayInBahia
-                ? "text-primary font-bold"
-                : "text-foreground hover:text-primary"
-            )}
-          >
-            <Calendar className="h-3.5 w-3.5 shrink-0 text-primary" />
-            <span className="truncate">{formatDayLabel(selectedDate, todayInBahia).label}</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setSelectedDate(todayInBahia)}
+              title={selectedDate === todayInBahia ? "Dia atual" : "Clique para voltar ao dia atual"}
+              className={cn(
+                "group flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold whitespace-nowrap transition-all hover:bg-background/80 active:scale-95",
+                selectedDate === todayInBahia
+                  ? "text-primary font-bold"
+                  : "text-foreground hover:text-primary"
+              )}
+            >
+              <Calendar className="h-3.5 w-3.5 shrink-0 text-primary" />
+              <span className="truncate">{formatDayLabel(selectedDate, todayInBahia).label}</span>
+            </button>
 
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground active:scale-95"
-            aria-label="Próximo dia"
-            title="Próximo dia"
-            onClick={() => setSelectedDate((curr) => shiftDay(curr, 1))}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground active:scale-95"
+              aria-label="Próximo dia"
+              title="Próximo dia"
+              onClick={() => setSelectedDate((curr) => shiftDay(curr, 1))}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/20 px-3 py-2 select-none">
+            <Label
+              htmlFor="include-previous-mobile"
+              className="text-xs font-medium cursor-pointer text-foreground flex items-center gap-1.5"
+            >
+              <CalendarClock className="h-3.5 w-3.5 text-primary" />
+              <span>Incluir cobranças anteriores ao dia</span>
+            </Label>
+            <Checkbox
+              id="include-previous-mobile"
+              checked={includePrevious}
+              onCheckedChange={(checked) => setIncludePrevious(Boolean(checked))}
+            />
+          </div>
         </div>
       )}
 
@@ -549,7 +585,7 @@ export function BillingCenter() {
     {loading ? (
       <div className="py-12 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary"/></div>
     ) : visible.length === 0 ? (
-      <Card no3d><CardContent className="py-10 text-center text-sm text-muted-foreground"><CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-emerald-500"/>{filter === "today" ? `Nenhuma cobrança para ${formatDayLabel(selectedDate, todayInBahia).label}.` : "Nenhuma cobrança prioritária neste filtro."}</CardContent></Card>
+      <Card no3d><CardContent className="py-10 text-center text-sm text-muted-foreground"><CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-emerald-500"/>{filter === "today" ? (includePrevious ? `Nenhuma cobrança até ${formatDayLabel(selectedDate, todayInBahia).label}.` : `Nenhuma cobrança para ${formatDayLabel(selectedDate, todayInBahia).label}.`) : "Nenhuma cobrança prioritária neste filtro."}</CardContent></Card>
     ) : filter === "upcoming" ? (
       <div className="space-y-4">
         {upcomingDayGroups.map((dayGroup) => (
