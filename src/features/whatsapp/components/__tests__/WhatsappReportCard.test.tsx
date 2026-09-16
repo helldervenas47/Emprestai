@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import React from "react";
 import { WhatsappReportCard, formatBillingReportForWhatsapp } from "@/components/WhatsappReportCard";
 import type { BillingCandidate } from "@/features/whatsapp/lib/billingCenter";
@@ -78,7 +78,7 @@ describe("WhatsappReportCard — Envio de Relatórios e Resumo Operacional pelo 
     vi.clearAllMocks();
   });
 
-  it("renderiza todos os cards: Telefone, Resumo Operacional e Relatório de Cobranças", async () => {
+  it("renderiza todos os cards: Telefone (recolhido por padrão), Resumo Operacional e Relatório de Cobranças", async () => {
     render(<WhatsappReportCard />);
 
     await waitFor(() => {
@@ -87,7 +87,11 @@ describe("WhatsappReportCard — Envio de Relatórios e Resumo Operacional pelo 
       expect(screen.getByText("Relatório de Cobranças pelo WhatsApp")).toBeInTheDocument();
     });
 
-    // Toggle e campos de telefone
+    // Card de telefone vem recolhido por padrão
+    expect(screen.queryByText("Ativar envio automático no WhatsApp")).not.toBeInTheDocument();
+
+    // Ao clicar no cabeçalho do card de telefone, ele expande
+    fireEvent.click(screen.getByText("Telefone e Destino no WhatsApp"));
     expect(screen.getByText("Ativar envio automático no WhatsApp")).toBeInTheDocument();
 
     // Seletor de data de referência para relatórios anteriores

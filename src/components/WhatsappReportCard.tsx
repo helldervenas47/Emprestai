@@ -41,6 +41,7 @@ import {
   DollarSign,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 
 type SlotKey = "send_time_1" | "send_time_2" | "send_time_3";
@@ -297,6 +298,7 @@ export function WhatsappReportCard() {
 
   const [profilePhone, setProfilePhone] = useState("");
   const [whatsappPhone, setWhatsappPhone] = useState("");
+  const [phoneCardOpen, setPhoneCardOpen] = useState(false);
   const [sendingOpSummary, setSendingOpSummary] = useState(false);
   const [sendingBillingReport, setSendingBillingReport] = useState(false);
   const [sendingDailyFin, setSendingDailyFin] = useState(false);
@@ -849,8 +851,20 @@ export function WhatsappReportCard() {
       </Card>
 
       {/* Card 1: Configurações de Telefone e Ativação do WhatsApp */}
-      <Card no3d className="border-border/60 shadow-xs rounded-2xl overflow-hidden">
-        <CardHeader className="p-4 sm:p-5 pb-3">
+      <Card no3d className="border-border/60 shadow-xs rounded-2xl overflow-hidden transition-all">
+        <CardHeader
+          role="button"
+          tabIndex={0}
+          aria-expanded={phoneCardOpen}
+          onClick={() => setPhoneCardOpen((prev) => !prev)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setPhoneCardOpen((prev) => !prev);
+            }
+          }}
+          className="p-4 sm:p-5 cursor-pointer hover:bg-muted/30 transition-colors select-none"
+        >
           <div className="flex items-start sm:items-center justify-between gap-3">
             <div className="flex items-start sm:items-center gap-3 min-w-0">
               <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold shadow-xs shrink-0 ring-1 ring-primary/20">
@@ -866,7 +880,7 @@ export function WhatsappReportCard() {
               </div>
             </div>
 
-            <div className="shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               {isWhatsappConfigured ? (
                 <Badge
                   variant="outline"
@@ -886,82 +900,87 @@ export function WhatsappReportCard() {
                   <span className="sm:hidden">Pendente</span>
                 </Badge>
               )}
+              <div className="p-1 rounded-lg text-muted-foreground">
+                <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${phoneCardOpen ? "rotate-180" : ""}`} />
+              </div>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="p-4 sm:p-5 pt-2 space-y-4">
-          {/* Toggle de Ativação Geral */}
-          <div className="flex items-center justify-between p-3.5 rounded-xl bg-muted/40 border border-border/40 gap-3">
-            <div className="space-y-0.5 flex-1 min-w-0 pr-1">
-              <Label className="text-xs sm:text-sm font-semibold text-foreground cursor-pointer block">
-                Ativar envio automático no WhatsApp
-              </Label>
-              <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight">
-                Dispara os resumos e relatórios diários para o número configurado abaixo.
-              </p>
-            </div>
-            <Switch
-              checked={opPrefs.send_whatsapp ?? false}
-              disabled={loadingOpPrefs}
-              onCheckedChange={async (checked) => {
-                try {
-                  await saveOpPrefs({ send_whatsapp: checked });
-                  toast.success(checked ? "Envio automático no WhatsApp ativado!" : "Envio automático no WhatsApp desativado.");
-                } catch {
-                  toast.error("Erro ao salvar configuração de envio.");
-                }
-              }}
-              className="shrink-0"
-            />
-          </div>
-
-          {/* Telefone de Destino */}
-          <div className="space-y-2 pt-0.5">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <Label className="text-xs font-semibold text-foreground">
-                Telefone WhatsApp de Destino
-              </Label>
-              {profilePhone && whatsappPhone !== profilePhone && (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setWhatsappPhone(profilePhone);
-                    try {
-                      await saveOpPrefs({ whatsapp_phone: profilePhone });
-                      toast.success("Telefone do perfil aplicado!");
-                    } catch {
-                      toast.error("Erro ao salvar telefone.");
-                    }
-                  }}
-                  className="text-[11px] font-medium text-primary hover:underline cursor-pointer"
-                >
-                  Usar telefone do perfil ({profilePhone})
-                </button>
-              )}
-            </div>
-
-            <div className="relative">
-              <Smartphone className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-              <Input
-                placeholder={profilePhone || "Ex.: (11) 99999-8888"}
-                value={whatsappPhone}
-                onChange={(e) => setWhatsappPhone(e.target.value)}
-                onBlur={handlePhoneBlur}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handlePhoneBlur();
+        {phoneCardOpen && (
+          <CardContent className="p-4 sm:p-5 pt-0 sm:pt-0 space-y-4 border-t border-border/40 mt-1">
+            {/* Toggle de Ativação Geral */}
+            <div className="flex items-center justify-between p-3.5 rounded-xl bg-muted/40 border border-border/40 gap-3 mt-4">
+              <div className="space-y-0.5 flex-1 min-w-0 pr-1">
+                <Label className="text-xs sm:text-sm font-semibold text-foreground cursor-pointer block">
+                  Ativar envio automático no WhatsApp
+                </Label>
+                <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight">
+                  Dispara os resumos e relatórios diários para o número configurado abaixo.
+                </p>
+              </div>
+              <Switch
+                checked={opPrefs.send_whatsapp ?? false}
+                disabled={loadingOpPrefs}
+                onCheckedChange={async (checked) => {
+                  try {
+                    await saveOpPrefs({ send_whatsapp: checked });
+                    toast.success(checked ? "Envio automático no WhatsApp ativado!" : "Envio automático no WhatsApp desativado.");
+                  } catch {
+                    toast.error("Erro ao salvar configuração de envio.");
+                  }
                 }}
-                className="text-sm rounded-xl h-11 pl-9 pr-3 bg-background"
+                className="shrink-0"
               />
             </div>
 
-            <p className="text-[11px] text-muted-foreground leading-tight">
-              {profilePhone
-                ? `Se em branco, usará o telefone cadastrado no perfil (${profilePhone}).`
-                : "Informe o número com DDD (ex: 11999998888)."}
-            </p>
-          </div>
-        </CardContent>
+            {/* Telefone de Destino */}
+            <div className="space-y-2 pt-0.5">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <Label className="text-xs font-semibold text-foreground">
+                  Telefone WhatsApp de Destino
+                </Label>
+                {profilePhone && whatsappPhone !== profilePhone && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setWhatsappPhone(profilePhone);
+                      try {
+                        await saveOpPrefs({ whatsapp_phone: profilePhone });
+                        toast.success("Telefone do perfil aplicado!");
+                      } catch {
+                        toast.error("Erro ao salvar telefone.");
+                      }
+                    }}
+                    className="text-[11px] font-medium text-primary hover:underline cursor-pointer"
+                  >
+                    Usar telefone do perfil ({profilePhone})
+                  </button>
+                )}
+              </div>
+
+              <div className="relative">
+                <Smartphone className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <Input
+                  placeholder={profilePhone || "Ex.: (11) 99999-8888"}
+                  value={whatsappPhone}
+                  onChange={(e) => setWhatsappPhone(e.target.value)}
+                  onBlur={handlePhoneBlur}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handlePhoneBlur();
+                  }}
+                  className="text-sm rounded-xl h-11 pl-9 pr-3 bg-background"
+                />
+              </div>
+
+              <p className="text-[11px] text-muted-foreground leading-tight">
+                {profilePhone
+                  ? `Se em branco, usará o telefone cadastrado no perfil (${profilePhone}).`
+                  : "Informe o número com DDD (ex: 11999998888)."}
+              </p>
+            </div>
+          </CardContent>
+        )}
       </Card>
 
       {/* Card 2: Resumo Operacional Diário */}
