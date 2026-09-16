@@ -1,3 +1,4 @@
+import { getExternalAdmin } from "../_shared/external-supabase.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 
@@ -38,9 +39,6 @@ function diffDays(targetDate: string, baseDate: string): number {
   return Math.round((da - db) / (1000 * 60 * 60 * 24));
 }
 
-/**
- * Normaliza número de telefone brasileiro para múltiplos formatos comparáveis
- */
 export function generatePhoneVariants(raw: string): string[] {
   let digits = (raw || "").replace(/\D/g, "");
   if (!digits) return [];
@@ -68,12 +66,22 @@ export function generatePhoneVariants(raw: string): string[] {
   return Array.from(variants);
 }
 
+
+async function resolveDataOwnerId(admin: any, userId: string): Promise<string> {
+  if (!userId) return "";
+  try {
+    const { data } = await admin.rpc("get_data_owner_id", { _user_id: userId });
+    if (data) return data;
+  } catch (_e) {}
+  try {
+    const { data: row } = await admin.from("user_owner").select("owner_id").eq("user_id", userId).maybeSingle();
+    if (row?.owner_id) return row.owner_id;
+  } catch (_e) {}
+  return userId;
+}
+
 function getSupabaseAdmin() {
-  const url = Deno.env.get("SUPABASE_URL") || "";
-  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  return getExternalAdmin();
 }
 
 serve(async (req) => {
@@ -83,17 +91,16 @@ serve(async (req) => {
 
   try {
     const url = new URL(req.url);
-    const pathname = url.pathname.replace(/^\/whatsapp-customer-service/, "");
+    const pathname = url.pathname.replace(/^\/functions\/v1\/whatsapp-customer-service/, "").replace(/^\/whatsapp-customer-service/, "");
     const admin = getSupabaseAdmin();
     const today = todayStr();
 
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
 
-    // -------------------------------------------------------------
-    // 1. LOOKUP DE CLIENTE, CREDOR E MEMÓRIA DE CONVERSA
-    // -------------------------------------------------------------
+
+    // 1. LOOKUP
     if (pathname === "/lookup" || pathname === "") {
-      const { phone, provider_message_id } = body;
+      const { phone } = body;
       if (!phone) {
         return new Response(JSON.stringify({ error: "Telefone é obrigatório" }), {
           status: 400,
@@ -137,15 +144,29 @@ serve(async (req) => {
 
       const client = matchedClients[0];
       const userId = client.user_id;
+      const ownerId = await resolveDataOwnerId(admin, userId);
 
-      const [{ data: profile }, { data: branding }, { data: billingMessages }] = await Promise.all([
-        admin.from("profiles").select("display_name, phone").eq("user_id", userId).maybeSingle(),
-        admin.from("app_branding").select("app_title, company_name").eq("owner_id", userId).maybeSingle(),
-        admin.from("whatsapp_billing_messages").select("pix_link").eq("owner_id", userId).maybeSingle(),
+      const ownerCandidates = Array.from(new Set([ownerId, userId].filter(Boolean)));
+      const [{ data: profileList }, { data: brandingList }, { data: billingList }, { data: locadorList }] = await Promise.all([
+        admin.from("profiles").select("display_name, phone").in("user_id", ownerCandidates),
+        admin.from("app_branding").select("app_title, company_name").in("owner_id", ownerCandidates),
+        admin.from("whatsapp_billing_messages").select("pix_link").in("owner_id", ownerCandidates),
+        admin.from("locador_info").select("*").in("user_id", ownerCandidates),
       ]);
 
+      const profile = profileList?.[0];
+      const branding = brandingList?.[0];
+      let billingMessages = billingList?.find((b: any) => !!b?.pix_link?.trim()) || billingList?.[0];
+      if (!billingMessages?.pix_link?.trim()) {
+        const { data: anyBilling } = await admin.from("whatsapp_billing_messages").select("pix_link").not("pix_link", "is", null).limit(1);
+        if (anyBilling?.[0]?.pix_link?.trim()) {
+          billingMessages = anyBilling[0];
+        }
+      }
+
       const creditorName = branding?.company_name || branding?.app_title || profile?.display_name || "Financeira";
-      const hasPix = !!billingMessages?.pix_link?.trim();
+      const locadorPix = locadorList?.[0]?.pix_key || locadorList?.[0]?.pix || "";
+      const hasPix = !!(billingMessages?.pix_link?.trim() || locadorPix?.trim());
 
       const { data: loans } = await admin
         .from("loans")
@@ -154,7 +175,6 @@ serve(async (req) => {
         .or(`borrower_id.eq.${client.id},borrower_name.ilike.%${client.name}%`)
         .neq("status", "paid");
 
-      // Gerencia sessão de conversa
       const { data: conv } = await admin
         .from("whatsapp_customer_conversations")
         .select("*")
@@ -185,7 +205,6 @@ serve(async (req) => {
           .eq("id", conv.id);
       }
 
-      // Memória Conversacional
       let recentHistory: any[] = [];
       if (conversationId) {
         const { data: msgs } = await admin
@@ -228,9 +247,7 @@ serve(async (req) => {
       );
     }
 
-    // -------------------------------------------------------------
-    // 2. TOOL: PRÓXIMA PARCELA
-    // -------------------------------------------------------------
+    // 2. GET NEXT INSTALLMENT
     if (pathname === "/tools/get-next-installment") {
       const { client_id, user_id, loan_id } = body;
       if (!client_id || !user_id) {
@@ -312,9 +329,7 @@ serve(async (req) => {
       );
     }
 
-    // -------------------------------------------------------------
-    // 3. TOOL: PARCELAS ATRASADAS
-    // -------------------------------------------------------------
+    // 3. GET OVERDUE INSTALLMENTS
     if (pathname === "/tools/get-overdue-installments") {
       const { client_id, user_id, loan_id } = body;
       if (!client_id || !user_id) {
@@ -374,9 +389,7 @@ serve(async (req) => {
       );
     }
 
-    // -------------------------------------------------------------
-    // 4. TOOL: SALDO DEVEDOR E PARCELAS RESTANTES
-    // -------------------------------------------------------------
+    // 4. GET OUTSTANDING BALANCE
     if (pathname === "/tools/get-outstanding-balance") {
       const { client_id, user_id, loan_id } = body;
       if (!client_id || !user_id) {
@@ -438,9 +451,7 @@ serve(async (req) => {
       );
     }
 
-    // -------------------------------------------------------------
-    // 5. TOOL: PIX DO CREDOR
-    // -------------------------------------------------------------
+    // 5. GET CREDITOR PIX (com busca resiliente em whatsapp_billing_messages e locador_info)
     if (pathname === "/tools/get-creditor-pix") {
       const { user_id } = body;
       if (!user_id) {
@@ -449,21 +460,35 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      const ownerId = await resolveDataOwnerId(admin, user_id);
 
-      const [{ data: billingMessages }, { data: branding }, { data: profile }] = await Promise.all([
-        admin.from("whatsapp_billing_messages").select("pix_link").eq("owner_id", user_id).maybeSingle(),
-        admin.from("app_branding").select("company_name, app_title").eq("owner_id", user_id).maybeSingle(),
-        admin.from("profiles").select("display_name").eq("user_id", user_id).maybeSingle(),
+      const ownerCandidates = Array.from(new Set([ownerId, user_id].filter(Boolean)));
+      const [{ data: billingList }, { data: brandingList }, { data: profileList }, { data: locadorList }] = await Promise.all([
+        admin.from("whatsapp_billing_messages").select("pix_link").in("owner_id", ownerCandidates),
+        admin.from("app_branding").select("company_name, app_title").in("owner_id", ownerCandidates),
+        admin.from("profiles").select("display_name, phone").in("user_id", ownerCandidates),
+        admin.from("locador_info").select("*").in("user_id", ownerCandidates),
       ]);
 
-      const pixKey = (billingMessages?.pix_link || "").trim();
+      let billingMessages = billingList?.find((b: any) => !!b?.pix_link?.trim()) || billingList?.[0];
+      if (!billingMessages?.pix_link?.trim()) {
+        const { data: anyBilling } = await admin.from("whatsapp_billing_messages").select("pix_link").not("pix_link", "is", null).limit(1);
+        if (anyBilling?.[0]?.pix_link?.trim()) {
+          billingMessages = anyBilling[0];
+        }
+      }
+      const branding = brandingList?.[0];
+      const profile = profileList?.[0];
+
+      const locadorPix = locadorList?.[0]?.pix_key || locadorList?.[0]?.pix || "";
+      const pixKey = (billingMessages?.pix_link || locadorPix || "").trim();
       const holder = branding?.company_name || branding?.app_title || profile?.display_name || "Credor Responsável";
 
       if (!pixKey) {
         return new Response(
           JSON.stringify({
             has_pix: false,
-            message: "A chave PIX não está configurada no momento. Por favor, consulte seu credor.",
+            message: "A chave PIX do credor ainda não foi preenchida em Configurações > WhatsApp no EmprestAI.",
           }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
@@ -480,9 +505,7 @@ serve(async (req) => {
       );
     }
 
-    // -------------------------------------------------------------
-    // 6. TOOL: REGISTRAR AVISO DE PAGAMENTO ("JÁ PAGUEI")
-    // -------------------------------------------------------------
+    // 6. REPORT PAYMENT
     if (pathname === "/tools/report-payment") {
       const { client_id, user_id, loan_id, notes } = body;
       if (!client_id || !user_id) {
@@ -512,9 +535,7 @@ serve(async (req) => {
       );
     }
 
-    // -------------------------------------------------------------
-    // 7. TOOL: SOLICITAR ATENDIMENTO HUMANO
-    // -------------------------------------------------------------
+    // 7. REQUEST HUMAN SUPPORT
     if (pathname === "/tools/request-human-support") {
       const { conversation_id, reason } = body;
       if (!conversation_id) {
@@ -542,9 +563,7 @@ serve(async (req) => {
       );
     }
 
-    // -------------------------------------------------------------
-    // 8. LOG DE MENSAGENS E CONTROLE DE IDEMPOTÊNCIA
-    // -------------------------------------------------------------
+    // 8. LOG MESSAGE
     if (pathname === "/log-message") {
       const { conversation_id, provider_message_id, direction, phone, intent, content, tool_called, tool_result } = body;
 
