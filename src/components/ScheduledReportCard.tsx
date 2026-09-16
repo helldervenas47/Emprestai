@@ -4,13 +4,20 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Send, Plus, X, Clock } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Send, Plus, X, Clock, Eye, Copy, Check, Loader2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useScheduledReportPrefs } from "@/hooks/useScheduledReportPrefs";
 import { useTelegramReportsLink } from "@/features/telegram/hooks/useTelegramReportsLink";
 import { supabase } from "@/integrations/supabase/userClient";
 import { toast } from "sonner";
-
 
 type SlotKey = "send_time_1" | "send_time_2" | "send_time_3";
 
@@ -27,10 +34,38 @@ export function ScheduledReportCard({ title, description, Icon, prefsTable, func
   const { prefs, loading, save } = useScheduledReportPrefs(prefsTable, defaultTime);
   const { linked } = useTelegramReportsLink();
   const [sending, setSending] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewText, setPreviewText] = useState("");
+  const [copied, setCopied] = useState(false);
 
   const slots: SlotKey[] = ["send_time_1", "send_time_2", "send_time_3"];
   const active = slots.filter((s) => !!prefs[s]);
   const canAddMore = active.length < 3;
+
+  const handleOpenPreview = async () => {
+    setPreviewOpen(true);
+    setPreviewLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(functionName, {
+        body: { return_text: true },
+      });
+      if (error) throw error;
+      setPreviewText(data?.text || "Nenhum dado retornado.");
+    } catch (e: any) {
+      setPreviewText(`Erro ao gerar espelho: ${e?.message || "Falha na comunicação."}`);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleCopy = () => {
+    if (!previewText) return;
+    navigator.clipboard.writeText(previewText);
+    setCopied(true);
+    toast.success("Texto copiado para a área de transferência!");
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const sendNow = async () => {
     setSending(true);
@@ -49,7 +84,7 @@ export function ScheduledReportCard({ title, description, Icon, prefsTable, func
         });
         return;
       }
-      toast.success("Relatório enviado!");
+      toast.success("Relatório enviado para o Telegram!");
     } catch (e: any) {
       toast.error(e.message || "Erro ao enviar");
     } finally {
@@ -60,61 +95,134 @@ export function ScheduledReportCard({ title, description, Icon, prefsTable, func
   if (loading) return null;
 
   return (
-    <Card no3d>
-      <CardContent className="p-4 space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <Icon className="h-4 w-4 text-primary shrink-0" />
-            <div className="min-w-0">
-              <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-              <p className="text-xs text-muted-foreground truncate">{description}</p>
-            </div>
-          </div>
-          <Switch checked={prefs.enabled} onCheckedChange={(v) => save({ enabled: v })} />
-        </div>
-
-        {prefs.enabled && (
-          <div className="space-y-3 pt-2 border-t border-border/40">
-            {active.length === 0 && (
-              <p className="text-xs text-muted-foreground">Nenhum horário configurado.</p>
-            )}
-            {active.map((key, idx) => (
-              <div key={key} className="flex items-end gap-2">
-                <div className="flex-1 space-y-1">
-                  <Label className="text-xs flex items-center gap-1">
-                    <Clock className="h-3 w-3" /> Horário {idx + 1}
-                  </Label>
-                  <Input
-                    type="time"
-                    value={prefs[key] ?? ""}
-                    onChange={(e) => save({ [key]: e.target.value || null } as any)}
-                  />
-                </div>
-                <Button type="button" variant="ghost" size="icon" onClick={() => save({ [key]: null } as any)} title="Remover horário">
-                  <X className="w-[25px] h-[25px] text-destructive" />
-                </Button>
+    <>
+      <Card no3d>
+        <CardContent className="p-4 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <Icon className="h-4 w-4 text-primary shrink-0" />
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+                <p className="text-xs text-muted-foreground truncate">{description}</p>
               </div>
-            ))}
-            <div className="flex gap-2">
+            </div>
+            <Switch checked={prefs.enabled} onCheckedChange={(v) => save({ enabled: v })} />
+          </div>
+
+          <div className="flex items-center gap-2 pt-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs font-medium gap-1.5 flex-1"
+              onClick={handleOpenPreview}
+            >
+              <Eye className="h-3.5 w-3.5 text-primary" />
+              Ver Espelho
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="h-8 text-xs font-medium gap-1.5 flex-1"
+              onClick={sendNow}
+              disabled={sending || !linked}
+            >
+              <Send className="h-3.5 w-3.5" />
+              <span className="truncate">{sending ? "Enviando..." : "Enviar agora"}</span>
+            </Button>
+          </div>
+
+          {prefs.enabled && (
+            <div className="space-y-3 pt-2 border-t border-border/40">
+              {active.length === 0 && (
+                <p className="text-xs text-muted-foreground">Nenhum horário configurado.</p>
+              )}
+              {active.map((key, idx) => (
+                <div key={key} className="flex items-end gap-2">
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-xs flex items-center gap-1">
+                      <Clock className="h-3 w-3" /> Horário {idx + 1}
+                    </Label>
+                    <Input
+                      type="time"
+                      value={prefs[key] ?? ""}
+                      onChange={(e) => save({ [key]: e.target.value || null } as any)}
+                    />
+                  </div>
+                  <Button type="button" variant="ghost" size="icon" onClick={() => save({ [key]: null } as any)} title="Remover horário">
+                    <X className="w-[25px] h-[25px] text-destructive" />
+                  </Button>
+                </div>
+              ))}
               {canAddMore && (
                 <Button
-                  type="button" variant="outline" size="sm" className="flex-1 min-w-0"
+                  type="button" variant="outline" size="sm" className="w-full text-xs"
                   onClick={() => save({ [slots.find((s) => !prefs[s])!]: defaultTime } as any)}
                 >
-                  <Plus className="h-3.5 w-3.5 mr-1" /> <span className="truncate">Adicionar horário</span>
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar horário
                 </Button>
               )}
-              <Button type="button" size="sm" className="flex-1 min-w-0" onClick={sendNow} disabled={sending || !linked}>
-                <Send className="h-3.5 w-3.5 mr-1" />
-                <span className="truncate">{sending ? "Enviando..." : "Enviar agora"}</span>
-              </Button>
+              {!linked && (
+                <p className="text-[11px] text-muted-foreground">Conecte o Bot de Relatórios para habilitar os envios automáticos.</p>
+              )}
             </div>
-            {!linked && (
-              <p className="text-[11px] text-muted-foreground">Conecte o Bot de Relatórios para habilitar os envios.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Modal de Espelho do Relatório */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col bg-card/95 backdrop-blur-xl border-border/60">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <Eye className="h-5 w-5 text-primary shrink-0" />
+              <div>
+                <DialogTitle className="text-base font-bold">Espelho — {title}</DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  Texto formatado exatamente como será enviado no Telegram.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto py-2">
+            {previewLoading ? (
+              <div className="py-12 flex flex-col items-center justify-center space-y-2 text-muted-foreground">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <span className="text-xs">Gerando espelho em tempo real...</span>
+              </div>
+            ) : (
+              <div className="p-3.5 rounded-xl bg-muted/40 border border-border/70 font-mono text-xs text-foreground whitespace-pre-wrap leading-relaxed select-text shadow-inner">
+                {previewText}
+              </div>
             )}
           </div>
-        )}
-      </CardContent>
-    </Card>
+
+          <DialogFooter className="flex flex-row items-center justify-between gap-2 pt-2 border-t border-border/50">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleCopy}
+              disabled={previewLoading || !previewText}
+              className="text-xs gap-1.5"
+            >
+              {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? "Copiado!" : "Copiar Texto"}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={sendNow}
+              disabled={sending || !linked || previewLoading}
+              className="text-xs gap-1.5"
+            >
+              <Send className="h-3.5 w-3.5" />
+              {sending ? "Enviando..." : "Enviar Telegram"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
