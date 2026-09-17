@@ -61,6 +61,19 @@ describe("SystemSettings e PlanManagement — Reorganização de Abas", () => {
     expect(tabs[0]).toHaveAttribute("data-state", "active");
   });
 
+  it("renderiza lista de planos na grade responsiva quando selecionada a aba de planos", async () => {
+    const { fireEvent } = await import("@testing-library/react");
+    render(<PlanManagement />);
+
+    const planTab = screen.getByRole("tab", { name: /Plano de assinatura/i });
+    fireEvent.pointerDown(planTab);
+    fireEvent.keyDown(planTab, { key: "Enter" });
+    fireEvent.click(planTab);
+
+    expect(screen.getByText("Planos de assinatura")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Novo plano/i })).toBeInTheDocument();
+  });
+
   it("inicia todos os cards da aba Conta recolhidos por padrão e permite expandir", async () => {
     const { fireEvent } = await import("@testing-library/react");
     render(<SystemSettings />);

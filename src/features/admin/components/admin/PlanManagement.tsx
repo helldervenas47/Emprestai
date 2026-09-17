@@ -189,18 +189,27 @@ export function PlanManagement() {
 
   return (
     <Tabs defaultValue="financial" className="space-y-4">
-      <TabsList className="bg-muted/60 p-1 rounded-xl border border-border/50 w-full sm:w-auto grid grid-cols-3 sm:inline-flex">
-        <TabsTrigger value="financial" className="gap-2 text-xs sm:text-sm font-semibold">
-          <TrendingUp className="h-4 w-4" />
-          Faturamento
+      <TabsList className="bg-muted/60 p-1.5 rounded-xl border border-border/50 w-full sm:w-auto grid grid-cols-3 sm:inline-flex h-auto gap-1 items-center">
+        <TabsTrigger
+          value="financial"
+          className="gap-2 text-xs sm:text-sm font-semibold h-9 min-h-0 rounded-lg px-3 py-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all"
+        >
+          <TrendingUp className="h-4 w-4 shrink-0" />
+          <span>Faturamento</span>
         </TabsTrigger>
-        <TabsTrigger value="plans" className="gap-2 text-xs sm:text-sm font-semibold">
-          <Layers className="h-4 w-4" />
-          Plano de assinatura
+        <TabsTrigger
+          value="plans"
+          className="gap-2 text-xs sm:text-sm font-semibold h-9 min-h-0 rounded-lg px-3 py-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all"
+        >
+          <Layers className="h-4 w-4 shrink-0" />
+          <span>Plano de assinatura</span>
         </TabsTrigger>
-        <TabsTrigger value="coupons" className="gap-2 text-xs sm:text-sm font-semibold">
-          <Tag className="h-4 w-4 text-primary" />
-          Cupom de desconto
+        <TabsTrigger
+          value="coupons"
+          className="gap-2 text-xs sm:text-sm font-semibold h-9 min-h-0 rounded-lg px-3 py-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all"
+        >
+          <Tag className="h-4 w-4 shrink-0 text-primary" />
+          <span>Cupom de desconto</span>
         </TabsTrigger>
       </TabsList>
 
@@ -238,52 +247,70 @@ export function PlanManagement() {
           ) : plans.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">Nenhum plano cadastrado.</p>
           ) : (
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {plans.map((p) => {
                 const sem = calcCyclePrice(p.price, 6, p.discount_semestral ?? 0, p.price_semestral);
                 const an = calcCyclePrice(p.price, 12, p.discount_anual ?? 0, p.price_anual);
                 return (
                   <div
                     key={p.id}
-                    className="border rounded-lg p-4 flex flex-col items-center justify-center gap-3 text-center"
+                    className="border rounded-xl p-4 sm:p-5 flex flex-col justify-between gap-4 bg-card/60 backdrop-blur-xs hover:border-border/80 transition-all text-center relative shadow-xs"
                     style={p.recommended && p.highlight_color
                       ? { borderColor: p.highlight_color, boxShadow: `0 0 0 1px ${p.highlight_color}` }
                       : undefined}
                   >
-                    <div className="w-full min-w-0">
+                    <div className="w-full min-w-0 flex flex-col items-center space-y-2.5">
                       <div className="flex items-center justify-center gap-2 flex-wrap">
-                        <h4 className="font-semibold text-foreground">{p.name}</h4>
+                        <h4 className="font-semibold text-foreground text-base">{p.name}</h4>
                         {p.badge && <Badge variant="secondary">{p.badge}</Badge>}
                         {p.recommended && (
-                          <Badge className="gap-1"><Star className="h-3 w-3" /> Recomendado</Badge>
+                          <Badge className="gap-1 bg-primary text-primary-foreground">
+                            <Star className="h-3 w-3 fill-current" /> Recomendado
+                          </Badge>
                         )}
-                        {!p.active && <Badge variant="outline">Inativo</Badge>}
+                        {!p.active && <Badge variant="outline" className="text-muted-foreground">Inativo</Badge>}
                       </div>
                       {p.description && (
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2 text-center">{p.description}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2 text-center">{p.description}</p>
                       )}
-                      <div className="text-xs text-muted-foreground mt-1 flex flex-wrap justify-center gap-x-3 gap-y-1">
-                        <span>Mensal: <b className="text-foreground">{formatBRL(p.price)}</b></span>
-                        <span>Semestral: <b className="text-foreground">{formatBRL(sem)}</b> ({p.discount_semestral ?? 0}% off)</span>
-                        <span>Anual: <b className="text-foreground">{formatBRL(an)}</b> ({p.discount_anual ?? 0}% off)</span>
-                        <span>Ordem: {p.sort_order ?? 0}</span>
+                      <div className="text-xs text-muted-foreground flex flex-col justify-center gap-1.5 pt-2 border-t border-border/40 w-full">
+                        <div className="flex justify-between items-center px-1">
+                          <span className="text-muted-foreground">Mensal:</span>
+                          <b className="text-foreground text-sm">{formatBRL(p.price)}</b>
+                        </div>
+                        <div className="flex justify-between items-center px-1">
+                          <span className="text-muted-foreground">Semestral:</span>
+                          <span className="text-foreground font-medium">
+                            {formatBRL(sem)} <span className="text-muted-foreground text-[11px]">({p.discount_semestral ?? 0}% off)</span>
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center px-1">
+                          <span className="text-muted-foreground">Anual:</span>
+                          <span className="text-foreground font-medium">
+                            {formatBRL(an)} <span className="text-muted-foreground text-[11px]">({p.discount_anual ?? 0}% off)</span>
+                          </span>
+                        </div>
+                        <div className="text-right text-[11px] text-muted-foreground/60 pr-1">
+                          Ordem: {p.sort_order ?? 0}
+                        </div>
                       </div>
                     </div>
-                    <div className="flex flex-wrap justify-center gap-2 shrink-0">
+                    <div className="flex flex-wrap items-center justify-center gap-2 pt-3 border-t border-border/30 w-full shrink-0">
                       {!p.recommended && (
-                        <Button size="sm" variant="outline" onClick={() => setRecommended(p.id)}>
+                        <Button size="sm" variant="outline" title="Marcar como recomendado" onClick={() => setRecommended(p.id)}>
                           <Star className="h-4 w-4" />
                         </Button>
                       )}
                       <Button size="sm" variant="outline" onClick={() => update(p.id, { active: !p.active } as any)}>
                         {p.active ? "Desativar" : "Ativar"}
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => openEdit(p)}>
+                      <Button size="sm" variant="outline" title="Editar plano" onClick={() => openEdit(p)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
+                        title="Excluir plano"
                         onClick={() => {
                           if (confirmWithScroll(`Excluir o plano "${p.name}"?`)) remove(p.id);
                         }}
