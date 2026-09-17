@@ -41,26 +41,34 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const admin = getExternalAdmin();
     const authHeader = req.headers.get("Authorization") ?? "";
     const token = authHeader.replace(/^Bearer\s+/i, "").trim();
 
-    if (!token) {
-      return new Response(JSON.stringify({ error: "missing_token" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    let userRes: any = null;
+
+    if (token) {
+      const { data: userData, error: userTokenError } = await admin.auth.getUser(token);
+      if (!userTokenError && userData?.user?.id) {
+        userRes = userData.user;
+      }
     }
 
-    const { data: userData, error: userTokenError } = await admin.auth.getUser(token);
-    if (userTokenError || !userData?.user?.id) {
+    // Suporte para criação pós-signup (quando email confirmation está ativo e ainda não há session token)
+    if (!userRes && body.userId && typeof body.userId === "string") {
+      const { data: adminUserData, error: adminUserError } = await admin.auth.admin.getUserById(body.userId);
+      if (!adminUserError && adminUserData?.user?.id) {
+        if (!body.email || adminUserData.user.email?.toLowerCase() === String(body.email).toLowerCase()) {
+          userRes = adminUserData.user;
+        }
+      }
+    }
+
+    if (!userRes) {
       return new Response(JSON.stringify({ error: "invalid_token", reauth_required: true }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const userRes = userData.user;
 
     const userId = userRes.id;
     const displayName =
@@ -82,9 +90,12 @@ Deno.serve(async (req) => {
     // Optional fields provided by public signup (username, cpf, phone, trial).
     // Uses service role, so it works even when the client has no session yet
     // (email confirmation on) and RLS would otherwise block a direct update.
-    const rawUsername = typeof body.username === "string" ? body.username.trim().toLowerCase() : "";
-    const cpfCnpj = typeof body.cpf_cnpj === "string" ? body.cpf_cnpj : undefined;
-    const phone = typeof body.phone === "string" ? body.phone : undefined;
+    const rawUsername =
+      (typeof body.username === "string" && body.username.trim().replace(/^@/, "").toLowerCase()) ||
+      (typeof userRes.user_metadata?.username === "string" && userRes.user_metadata.username.trim().replace(/^@/, "").toLowerCase()) ||
+      "";
+    const cpfCnpj = typeof body.cpf_cnpj === "string" ? body.cpf_cnpj : (userRes.user_metadata?.cpf_cnpj || undefined);
+    const phone = typeof body.phone === "string" ? body.phone : (userRes.user_metadata?.phone || undefined);
     const trialPlanName = typeof body.trial_plan_name === "string" ? body.trial_plan_name : undefined;
 
     const profileUpdate: Record<string, unknown> = { display_name: displayName };

@@ -224,17 +224,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user.user_metadata?.display_name ||
       user.user_metadata?.full_name ||
       "";
-    await supabase
-      .from("profiles")
-      .upsert(
-        {
-          user_id: user.id,
-          full_name: fullName,
-          display_name: displayName,
-        },
-        { onConflict: "user_id", ignoreDuplicates: true },
-      );
 
+    const rawUsername = user.user_metadata?.username;
+    const cleanUsername =
+      typeof rawUsername === "string" && rawUsername.trim()
+        ? rawUsername.trim().replace(/^@/, "").toLowerCase()
+        : undefined;
+
+    const phone =
+      typeof user.user_metadata?.phone === "string" && user.user_metadata.phone.trim()
+        ? user.user_metadata.phone.trim()
+        : undefined;
+
+    const cpfCnpj =
+      typeof user.user_metadata?.cpf_cnpj === "string" && user.user_metadata.cpf_cnpj.trim()
+        ? user.user_metadata.cpf_cnpj.trim()
+        : undefined;
+
+    const payload: Record<string, unknown> = {
+      user_id: user.id,
+      full_name: fullName,
+      display_name: displayName,
+    };
+    if (cleanUsername) payload.username = cleanUsername;
+    if (phone) payload.phone = phone;
+    if (cpfCnpj) payload.cpf_cnpj = cpfCnpj;
+
+    // Se a linha já existe, atualiza apenas os campos vazios/nulos sem sobrescrever customizações existentes
+    const { data: existingProf } = await supabase
+      .from("profiles")
+      .select("username, phone, cpf_cnpj")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (existingProf) {
+      const updates: Record<string, unknown> = {};
+      if (!existingProf.username && cleanUsername) updates.username = cleanUsername;
+      if (!existingProf.phone && phone) updates.phone = phone;
+      if (!existingProf.cpf_cnpj && cpfCnpj) updates.cpf_cnpj = cpfCnpj;
+
+      if (Object.keys(updates).length > 0) {
+        await supabase.from("profiles").update(updates).eq("user_id", user.id);
+      }
+    } else {
+      await supabase
+        .from("profiles")
+        .upsert(payload, { onConflict: "user_id", ignoreDuplicates: true });
+    }
   };
 
   const hydrateUserState = async (userId: string, currentUser?: User | null, accessToken?: string) => {
