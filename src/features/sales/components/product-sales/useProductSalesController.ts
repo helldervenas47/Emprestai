@@ -19,6 +19,7 @@ import {
   getSaleRemainingHelper,
   rawFormatCurrency,
 } from "./productSalesUtils";
+import { matchesAnySearch } from "@/lib/searchUtils";
 
 export type SalesViewMode = "cards" | "folders";
 export type BreakdownCard = null | "overdue" | "due_today" | "ontrack" | "receivable" | "paid";
@@ -74,13 +75,10 @@ export function useProductSalesController(sales: Sale[], scopeKey = "sales") {
 
   const filteredSalesForCards = useMemo(() => {
     return sales.filter((s) => {
-      const q = search.toLowerCase();
-      const matchesSearch = s.description.toLowerCase().includes(q) ||
-        s.customerName.toLowerCase().includes(q) ||
-        s.productName.toLowerCase().includes(q) ||
-        (s.category || "").toLowerCase().includes(q) ||
-        (s.id || "").toLowerCase().includes(q) ||
-        (s.notes || "").toLowerCase().includes(q);
+      const matchesSearch = matchesAnySearch(
+        [s.description, s.customerName, s.productName, s.category, s.id, s.notes],
+        search,
+      );
       if (!matchesSearch) return false;
       if (incomeCategoryFilter !== "all") {
         if (incomeCategoryFilter === "__none__") {

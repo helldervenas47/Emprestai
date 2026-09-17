@@ -35,6 +35,7 @@ import { isAfterPaymentRecurrence } from "@/features/financial/lib/expensePaymen
 import { isCreditCardExpense } from "@/features/creditCards/lib/creditCardInvoiceTotals";
 import { filterBusinessExpenses, isExpenseOccurringInMonth, isCoreBotExpense } from "../lib/expenseFilterCore";
 import { useBusinessExpenseCategories } from "@/features/financial/hooks/useBusinessExpenseCategories";
+import { matchesAnySearch } from "@/lib/searchUtils";
 
 interface Props {
   expenses: Expense[];
@@ -474,9 +475,9 @@ export function ExpenseList({ expenses, onPay, onUnpay, onDelete, onUpdate, read
           }
         }
         
-        const matchesSearch = e.description.toLowerCase().includes(q) || e.category.toLowerCase().includes(q);
+        const matchesSearchTerm = matchesAnySearch([e.description, e.category, e.notes], search);
         const matchesSource = sourceFilter === "all" || (sourceFilter === "auto" ? isBotExpense(e) : !isBotExpense(e));
-        return matchesSearch && matchesSource;
+        return matchesSearchTerm && matchesSource;
       })
       .map((e) => {
         // Para despesas parceladas, precisamos determinar o status da parcela específica deste mês

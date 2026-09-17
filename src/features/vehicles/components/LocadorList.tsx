@@ -9,6 +9,7 @@ import { RowActions } from "@/components/ui/row-actions";
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { formatCPF, formatRG, onlyDigits } from "@/lib/brDocuments";
+import { matchesAnySearch } from "@/lib/searchUtils";
 
 interface Props {
   locadores: LocadorInfo[];
@@ -29,9 +30,8 @@ export function LocadorList({ locadores, onSave, onDelete, readOnly = false }: P
   const [adding, setAdding] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const filtered = locadores.filter(l =>
-    l.nome.toLowerCase().includes(search.toLowerCase()) ||
-    (onlyDigits(l.cpf).includes(onlyDigits(search)) && onlyDigits(search).length > 0) || l.cpf.includes(search)
+  const filtered = locadores.filter((l) =>
+    matchesAnySearch([l.nome, l.cpf, l.rg, l.cidade, l.bairro, l.profissao], search),
   );
 
   const startEdit = (l: LocadorInfo) => {

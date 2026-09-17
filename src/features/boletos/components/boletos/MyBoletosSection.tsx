@@ -37,6 +37,7 @@ import { BoletoPaymentDialog } from "./BoletoPaymentDialog";
 import { BoletoHistoryDialog } from "./BoletoHistoryDialog";
 import { BoletoFormDialog } from "./BoletoFormDialog";
 import { cn } from "@/lib/utils";
+import { matchesAnySearch } from "@/lib/searchUtils";
 
 
 const BRL = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -170,12 +171,12 @@ export function MyBoletosSection({ readOnly }: Props) {
     let list = computed;
     if (statusFilter !== "todos") list = list.filter((b) => b.status === statusFilter);
     if (categoryFilter !== "todas") list = list.filter((b) => (b.category ?? "") === categoryFilter);
-    if (q) {
-      const digits = q.replace(/\D/g, "");
+    if (query.trim()) {
       list = list.filter((b) =>
-        (b.description ?? "").toLowerCase().includes(q) ||
-        (b.beneficiary ?? "").toLowerCase().includes(q) ||
-        (digits && ((b.digits ?? "").includes(digits) || (b.barcode ?? "").includes(digits)))
+        matchesAnySearch(
+          [b.description, b.beneficiary, b.digits, b.barcode, b.category],
+          query,
+        ),
       );
     }
     const cmp = (a: Sortable, b: Sortable) => {

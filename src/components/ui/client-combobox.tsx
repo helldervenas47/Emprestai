@@ -12,6 +12,8 @@ import {
   CommandList,
 } from "@/components/ui/command";
 
+import { normalizeSearchText, matchesSearch } from "@/lib/searchUtils";
+
 export interface ClientOption {
   id: string;
   name: string;
@@ -38,23 +40,23 @@ export function ClientCombobox({
   emptyHint = "Nenhum cliente cadastrado",
   className,
   allowCreate = true,
-}: Props) {
+  }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
   const trimmedSearch = search.trim();
-  const sortedOptions = [...options].sort((a, b) => a.name.localeCompare(b.name));
+  const sortedOptions = [...options].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
 
   const selectedOption = valueKey === "id"
     ? sortedOptions.find((o) => o.id === value)
-    : sortedOptions.find((o) => o.name.toLowerCase() === value.toLowerCase());
+    : sortedOptions.find((o) => normalizeSearchText(o.name) === normalizeSearchText(value));
 
   const displayLabel = selectedOption
     ? `${selectedOption.name}${selectedOption.isManager ? " 👔 (Gerente)" : ""}`
     : (valueKey === "name" && value ? value : "");
 
   const exactMatch = sortedOptions.some(
-    (o) => o.name.toLowerCase() === trimmedSearch.toLowerCase()
+    (o) => normalizeSearchText(o.name) === normalizeSearchText(trimmedSearch)
   );
   const showCreate = allowCreate && trimmedSearch.length > 0 && !exactMatch;
 
@@ -107,7 +109,7 @@ export function ClientCombobox({
         className="w-[--radix-popover-trigger-width] min-w-[280px] max-w-[calc(100vw-2rem)] p-0 z-[250] shadow-xl rounded-2xl border border-border bg-popover"
         align="start"
       >
-        <Command shouldFilter>
+        <Command shouldFilter filter={(v, s) => (matchesSearch(v, s) ? 1 : 0)}>
           <CommandInput
             placeholder="Buscar ou digitar nome..."
             value={search}

@@ -38,6 +38,7 @@ import { toast } from "sonner";
 import { EditScopeDialog } from "@/components/EditScopeDialog";
 import { applyIncomeScopedUpdate, isIncomeInSeries } from "@/features/financial/lib/seriesEdit";
 import { useFinanceComponentDebug } from "@/lib/financeDebug";
+import { matchesAnySearch } from "@/lib/searchUtils";
 import { totalPartialPaid, incomeOutstanding } from "@/features/financial/lib/partialPayments";
 
 function fmtBRL(n: number) {
@@ -165,10 +166,10 @@ export function IncomeList({ readOnly }: Props) {
       }
       if (categoryFilter !== "all" && (i.category || "Outros") !== categoryFilter) return false;
       if (search.trim()) {
-        const q = search.toLowerCase();
         const cName = clients.find((c) => c.id === i.clientId)?.name || "";
-        const haystack = `${i.description} ${i.category ?? ""} ${i.source ?? ""} ${cName}`.toLowerCase();
-        if (!haystack.includes(q)) return false;
+        if (!matchesAnySearch([i.description, i.category, i.source, cName], search)) {
+          return false;
+        }
       }
       return true;
     });

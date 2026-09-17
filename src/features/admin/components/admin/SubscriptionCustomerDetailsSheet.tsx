@@ -114,16 +114,22 @@ export function SubscriptionCustomerDetailsSheet({
               <div className="flex items-center gap-2 flex-wrap">
                 <span className={cn("h-2.5 w-2.5 rounded-full shrink-0", statusMeta.dotColor)} />
                 <SheetTitle className="text-lg sm:text-xl font-bold text-foreground truncate max-w-full">
-                  {user.display_name || (user.username ? `@${user.username.replace(/^@/, "")}` : user.email || "Cliente")}
+                  {user.display_name?.trim() || user.username?.trim() || (user.email ? user.email.split("@")[0] : "Cliente")}
                 </SheetTitle>
               </div>
               <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
-                {user.username && (
-                  <div className="flex items-center gap-1.5 font-medium text-foreground/85 truncate">
-                    <User className="h-3.5 w-3.5 shrink-0 opacity-70 text-primary" />
-                    <span className="truncate">@{user.username.replace(/^@/, "")}</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-1.5 font-medium text-foreground/85 truncate">
+                  <User className="h-3.5 w-3.5 shrink-0 opacity-70 text-primary" />
+                  <span className="truncate">
+                    {user.username?.trim()
+                      ? `@${user.username.trim().replace(/^@/, "")}`
+                      : user.email
+                      ? `@${user.email.split("@")[0].toLowerCase().replace(/[^a-z0-9_.-]/g, "")}`
+                      : user.display_name
+                      ? `@${user.display_name.trim().toLowerCase().replace(/\s+/g, "").replace(/[^a-z0-9_.-]/g, "")}`
+                      : "@usuario"}
+                  </span>
+                </div>
                 <div className="flex items-center gap-1.5 text-muted-foreground truncate">
                   <Mail className="h-3.5 w-3.5 shrink-0 opacity-70" />
                   <span className="truncate">{user.email || "Sem e-mail cadastrado"}</span>

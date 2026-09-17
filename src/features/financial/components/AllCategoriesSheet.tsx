@@ -38,6 +38,7 @@ import { expandCreditCardExpenses } from "@/features/creditCards/lib/creditCardI
 import { getInstallmentScheduleStart, withoutInstallmentReceipts } from "@/features/financial/lib/installmentEdit";
 import { isExpenseOccurringInMonth } from "@/features/financial/lib/expenseFilterCore";
 import { isAfterPaymentRecurrence } from "@/features/financial/lib/expensePaymentUtils";
+import { matchesSearch, matchesAnySearch } from "@/lib/searchUtils";
 
 export interface UsedCategoryItem {
   name: string;
@@ -439,14 +440,11 @@ export function AllCategoriesSheet({
 
   const filteredCategories = useMemo(() => {
     if (!search.trim()) return categories;
-    const q = search.trim().toLowerCase();
     return categories
       .map((cat) => {
-        const matchesCatName = cat.name.toLowerCase().includes(q);
-        const matchingEntries = cat.entries.filter(
-          (e) =>
-            e.description.toLowerCase().includes(q) ||
-            (e.account && e.account.toLowerCase().includes(q))
+        const matchesCatName = matchesSearch(cat.name, search);
+        const matchingEntries = cat.entries.filter((e) =>
+          matchesAnySearch([e.description, e.account], search),
         );
         if (matchesCatName || matchingEntries.length > 0) {
           return {

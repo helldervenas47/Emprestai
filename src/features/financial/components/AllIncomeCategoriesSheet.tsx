@@ -29,6 +29,7 @@ import { Income } from "@/features/financial/hooks/useIncomes";
 import { Sale } from "@/types/loan";
 import { CategoryEntry } from "@/features/financial/components/CategoryDetailsSheet";
 import { displayIncomeCategory, incomeCategoryKey } from "@/features/financial/lib/incomeCategory";
+import { matchesSearch, matchesAnySearch } from "@/lib/searchUtils";
 
 export interface IncomeCategoryItem {
   name: string;
@@ -352,15 +353,11 @@ export function AllIncomeCategoriesSheet({
 
   const filteredCategories = useMemo(() => {
     if (!search.trim()) return categories;
-    const q = search.trim().toLowerCase();
     return categories
       .map((cat) => {
-        const matchesCatName = cat.name.toLowerCase().includes(q);
-        const matchingEntries = cat.entries.filter(
-          (e) =>
-            e.description.toLowerCase().includes(q) ||
-            (e.account && e.account.toLowerCase().includes(q)) ||
-            (e.clientName && e.clientName.toLowerCase().includes(q)),
+        const matchesCatName = matchesSearch(cat.name, search);
+        const matchingEntries = cat.entries.filter((e) =>
+          matchesAnySearch([e.description, e.account, e.clientName], search),
         );
         if (matchesCatName || matchingEntries.length > 0) {
           return {

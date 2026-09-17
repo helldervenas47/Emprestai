@@ -19,6 +19,7 @@ import { EmployeeGoalBonusSection, type GoalBonusDraft } from "./EmployeeGoalBon
 import { EmployeeGoalBonusHistory } from "./EmployeeGoalBonusHistory";
 import { toast } from "sonner";
 import { formatCPF, isValidCPF, onlyDigits } from "@/lib/brDocuments";
+import { matchesAnySearch } from "@/lib/searchUtils";
 
 const BRL = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -34,10 +35,7 @@ export function EmployeeManager({ readOnly }: Props) {
   const [historyOf, setHistoryOf] = useState<Employee | null>(null);
 
   const filtered = employees.filter((e) =>
-    e.name.toLowerCase().includes(search.toLowerCase()) ||
-    (e.cpf ?? "").includes(search) ||
-    onlyDigits(e.cpf ?? "").includes(onlyDigits(search)) ||
-    (e.role ?? "").toLowerCase().includes(search.toLowerCase())
+    matchesAnySearch([e.name, e.cpf, e.role], search),
   );
 
   const handleNew = () => { setEditing(null); setOpen(true); };

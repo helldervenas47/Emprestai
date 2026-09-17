@@ -148,8 +148,9 @@ export function useLoanListController({
   const baseFilteredLoans = useMemo(() => {
     let filtered = loans;
     if (search.trim()) {
+      const q = normalizeText(search);
       filtered = filtered.filter((l) =>
-        l.borrowerName.toLowerCase().includes(search.toLowerCase()),
+        normalizeText(l.borrowerName).includes(q),
       );
     }
 

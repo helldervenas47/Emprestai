@@ -4,6 +4,8 @@
 import type { Client } from "@/types/loan";
 import { onlyDigits } from "@/lib/brDocuments";
 
+import { normalizeSearchText, normalizeDigits } from "@/lib/searchUtils";
+
 export type ClientStatusFilter = "all" | "active" | "inactive" | "over-limit";
 export type ClientSortOption =
   | "name-asc"
@@ -27,16 +29,18 @@ export interface NormalizedSearch {
 }
 
 export function normalizeClientSearch(search: string): NormalizedSearch {
-  return { q: search.toLowerCase(), qDigits: onlyDigits(search), raw: search };
+  return { q: normalizeSearchText(search), qDigits: normalizeDigits(search), raw: search };
 }
 
 export function matchesClientSearch(client: Client, ns: NormalizedSearch): boolean {
   const { q, qDigits, raw } = ns;
+  if (!q) return true;
   return (
-    client.name.toLowerCase().includes(q) ||
-    (qDigits.length > 0 && onlyDigits(client.cpf).includes(qDigits)) ||
-    (client.cpf ?? "").toLowerCase().includes(q) ||
-    client.phone.includes(raw)
+    normalizeSearchText(client.name).includes(q) ||
+    (qDigits.length > 0 && normalizeDigits(client.cpf).includes(qDigits)) ||
+    normalizeSearchText(client.cpf ?? "").includes(q) ||
+    (client.phone && client.phone.includes(raw)) ||
+    (qDigits.length > 0 && normalizeDigits(client.phone).includes(qDigits))
   );
 }
 

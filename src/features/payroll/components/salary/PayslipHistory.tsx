@@ -9,6 +9,7 @@ import { FileText, Search, Download } from "lucide-react";
 import { generatePayslipPdf } from "@/features/payroll/lib/payslipPdf";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { matchesAnySearch } from "@/lib/searchUtils";
 
 const BRL = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -22,10 +23,9 @@ export function PayslipHistory() {
     return payrolls
       .filter((p) => p.status !== "pendente")
       .map((p) => ({ p, emp: employees.find((e) => e.id === p.employeeId) }))
-      .filter(({ p, emp }) => {
-        const q = search.toLowerCase();
-        return !q || (emp?.name ?? "").toLowerCase().includes(q) || p.competence.includes(q);
-      })
+      .filter(({ p, emp }) =>
+        matchesAnySearch([emp?.name, p.competence], search),
+      )
       .sort((a, b) => b.p.competence.localeCompare(a.p.competence));
   }, [payrolls, employees, search]);
 

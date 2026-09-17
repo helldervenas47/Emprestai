@@ -43,6 +43,7 @@ import { usePersonalBudgets } from "@/features/financial/hooks/usePersonalBudget
 import { isPiggyExpense } from "@/features/piggyBanks/hooks/usePiggyBanks";
 import { useCreditCards } from "@/features/creditCards/hooks/useCreditCards";
 import { isAfterPaymentRecurrence } from "@/features/financial/lib/expensePaymentUtils";
+import { matchesAnySearch, matchesSearch } from "@/lib/searchUtils";
 import { useCreditCardOpenings } from "@/features/creditCards/hooks/useCreditCardOpenings";
 import { useExpenses } from "@/features/financial/hooks/useExpenses";
 import {
@@ -399,11 +400,11 @@ export function PersonalExpenseList({ expenses: expensesInput, onPay, onUnpay, o
         !categoryFilter || categoryFilter === CREDIT_CARD_INVOICE_CATEGORY,
       )
       .filter(({ x }) => {
-        if (!searchLow) return true;
-        const nickname = (x.card.nickname ?? "").toLowerCase();
-        const lastFour = (x.card.lastFour ?? "").toLowerCase();
-        const label = `fatura cartão ${nickname} ${lastFour}`.toLowerCase();
-        return label.includes(searchLow);
+        if (!search.trim()) return true;
+        const nickname = x.card.nickname ?? "";
+        const lastFour = x.card.lastFour ?? "";
+        const label = `fatura cartão ${nickname} ${lastFour}`;
+        return matchesSearch(label, search);
       })
       .filter(() => sourceFilter !== "auto")
       .filter(() => !isBusiness);
@@ -969,10 +970,10 @@ export function PersonalExpenseList({ expenses: expensesInput, onPay, onUnpay, o
     
     return listVisibleMonth
       .filter((e) => {
-        const matchesSearch = !q || e.description.toLowerCase().includes(q) || e.category.toLowerCase().includes(q);
+        const matchesSearchTerm = matchesAnySearch([e.description, e.category, e.notes], search);
         const matchesCategory = !categoryFilter || e.category === categoryFilter;
         const matchesSource = matchesSourceFilter(e, sourceFilter);
-        return matchesSearch && matchesCategory && matchesSource;
+        return matchesSearchTerm && matchesCategory && matchesSource;
       })
       .map((e) => {
         // Determina o status da parcela específica para o mês selecionado

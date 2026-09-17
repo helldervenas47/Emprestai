@@ -201,6 +201,34 @@ function getDaysRemainingText(iso: string | null | undefined, status: string): s
   return `${hours}h restantes`;
 }
 
+function getUserMainName(u: AdminSubRow): string {
+  if (u.display_name && u.display_name.trim()) {
+    return u.display_name.trim();
+  }
+  if (u.username && u.username.trim()) {
+    return u.username.trim();
+  }
+  if (u.email && u.email.trim()) {
+    return u.email.split("@")[0];
+  }
+  return "Cliente sem nome";
+}
+
+function getUserHandle(u: AdminSubRow): string {
+  if (u.username && u.username.trim()) {
+    return `@${u.username.trim().replace(/^@/, "")}`;
+  }
+  if (u.email && u.email.trim()) {
+    const prefix = u.email.split("@")[0].toLowerCase().replace(/[^a-z0-9_.-]/g, "");
+    if (prefix) return `@${prefix}`;
+  }
+  if (u.display_name && u.display_name.trim()) {
+    const slug = u.display_name.trim().toLowerCase().replace(/\s+/g, "").replace(/[^a-z0-9_.-]/g, "");
+    if (slug) return `@${slug}`;
+  }
+  return "@usuario";
+}
+
 export function SubscriptionManagement() {
   const {
     page,
@@ -233,12 +261,19 @@ export function SubscriptionManagement() {
     [selectedUser],
   );
 
-  // Filtra as linhas com base no status resolvido dinamicamente
+  // Filtra as linhas com base no status resolvido dinamicamente e classifica por nome alfabeticamente (A-Z)
   const displayedRows = useMemo(() => {
-    if (!statusFilter) return rows;
-    return rows.filter((u) => {
-      const { st } = resolveSubscriberState(u);
-      return st === statusFilter;
+    let list = rows;
+    if (statusFilter) {
+      list = rows.filter((u) => {
+        const { st } = resolveSubscriberState(u);
+        return st === statusFilter;
+      });
+    }
+    return [...list].sort((a, b) => {
+      const nameA = getUserMainName(a);
+      const nameB = getUserMainName(b);
+      return nameA.localeCompare(nameB, "pt-BR", { sensitivity: "base", numeric: true });
     });
   }, [rows, statusFilter]);
 
@@ -343,15 +378,13 @@ export function SubscriptionManagement() {
                     className="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl border border-border/50 bg-card hover:bg-muted/40 hover:border-border transition-all cursor-pointer group shadow-sm active:scale-[0.99]"
                   >
                     <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex items-baseline gap-1.5 flex-wrap">
-                        <span className="font-bold text-sm sm:text-base text-foreground truncate group-hover:text-primary transition-colors">
-                          {u.display_name || (u.username ? `@${u.username.replace(/^@/, "")}` : u.email || "Cliente sem nome")}
+                      <div className="flex items-baseline gap-1.5 min-w-0 max-w-full">
+                        <span className="font-bold text-sm sm:text-base text-foreground truncate shrink min-w-0 group-hover:text-primary transition-colors">
+                          {getUserMainName(u)}
                         </span>
-                        {u.username && u.display_name && (
-                          <span className="text-xs text-muted-foreground font-normal">
-                            @{u.username.replace(/^@/, "")}
-                          </span>
-                        )}
+                        <span className="text-xs text-muted-foreground font-normal shrink-0">
+                          {getUserHandle(u)}
+                        </span>
                       </div>
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
                         <span className="text-xs">{meta.dot}</span>

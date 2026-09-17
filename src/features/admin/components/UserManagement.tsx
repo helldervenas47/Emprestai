@@ -20,8 +20,8 @@ import { useViewAsUser } from "@/features/admin/hooks/useViewAsUser";
 import { useAuth } from "@/hooks/useAuth";
 import { APP_TABS, APP_TAB_IDS, sanitizeAllowedTabs } from "@/lib/appTabs";
 import { normalizeUsername, validateUsernameFormat, isUsernameAvailable } from "@/lib/username";
-import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { confirmWithScroll } from "@/lib/confirmWithScroll";
+import { matchesAnySearch } from "@/lib/searchUtils";
 
 interface ManagedUser {
   id: string;
@@ -1119,7 +1119,7 @@ export function UserManagement() {
               ) : (
                 <div className="space-y-2">
                   {clients
-                    .filter(c => c.name.toLowerCase().includes(clientSearch.toLowerCase()))
+                    .filter((c) => matchesAnySearch([c.name, c.phone, c.cpf], clientSearch))
                     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
                     .map((client) => (
                       <div key={client.id} className="flex items-center gap-3 py-1.5 px-1 rounded hover:bg-muted/50">

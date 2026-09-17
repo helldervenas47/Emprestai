@@ -6,6 +6,7 @@ import {
   StockMovement,
   StockMovementType,
 } from "@/features/sales/hooks/useStockMovements";
+import { matchesAnySearch } from "@/lib/searchUtils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -263,12 +264,8 @@ export function StockManager({ readOnly = false }: Props) {
     const minM = parseFloat(minMargin) || -Infinity;
 
     const arr = products.filter((p) => {
-      // Busca textual
-      if (
-        q &&
-        !p.name.toLowerCase().includes(q) &&
-        !p.description.toLowerCase().includes(q)
-      ) {
+      // Busca textual sem diferenciar acentos
+      if (!matchesAnySearch([p.name, p.description], search)) {
         return false;
       }
 

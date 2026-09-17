@@ -8,6 +8,7 @@ import { Pencil, Check, X, Trash2, Car, Search, Plus } from "lucide-react";
 import { RowActions } from "@/components/ui/row-actions";
 import { toast } from "sonner";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
+import { matchesAnySearch } from "@/lib/searchUtils";
 
 interface Props {
   vehicles: VehicleInfo[];
@@ -25,15 +26,9 @@ export function VehicleCardList({ vehicles, onAdd, onUpdate, onDelete, readOnly 
   const [addForm, setAddForm] = useState({ marcaModelo: "", ano: "", cor: "", placa: "", renavam: "" });
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const filtered = vehicles.filter((v) => {
-    const q = search.toLowerCase();
-    return (
-      v.marcaModelo.toLowerCase().includes(q) ||
-      v.placa.toLowerCase().includes(q) ||
-      v.cor.toLowerCase().includes(q) ||
-      v.renavam.toLowerCase().includes(q)
-    );
-  });
+  const filtered = vehicles.filter((v) =>
+    matchesAnySearch([v.marcaModelo, v.placa, v.cor, v.renavam, v.ano], search),
+  );
 
   const startEdit = (v: VehicleInfo) => {
     setEditingId(v.id);
