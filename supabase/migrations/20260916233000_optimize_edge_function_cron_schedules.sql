@@ -201,4 +201,27 @@ begin
     );
     $job$
   );
+
+  -- 2.8 Relatório Financeiro Diário (Receitas e Despesas) (a cada 15 minutos)
+  begin
+    perform cron.unschedule('telegram-daily-financial-summary');
+  exception when others then null;
+  end;
+
+  perform cron.schedule(
+    'telegram-daily-financial-summary',
+    '*/15 * * * *',
+    $job$
+    select net.http_post(
+      url := 'https://syyxnqzxqabeuqbuptkh.supabase.co/functions/v1/telegram-daily-financial-summary',
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'x-cron-source', 'pg_cron',
+        'x-cron-secret', 'emprestai_cron_internal_secret_2026'
+      ),
+      body := '{}'::jsonb,
+      timeout_milliseconds := 60000
+    );
+    $job$
+  );
 end $$;

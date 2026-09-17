@@ -343,9 +343,26 @@ export function WhatsappReportCard() {
     schedule.base_url?.trim() && schedule.instance_id?.trim()
   );
 
+  const handlePhoneBlur = async () => {
+    const trimmed = whatsappPhone.trim() || null;
+    if (trimmed !== (opPrefs.whatsapp_phone || "")) {
+      try {
+        await Promise.all([
+          saveOpPrefs({ whatsapp_phone: trimmed }),
+          saveBillPrefs({ whatsapp_phone: trimmed }),
+          saveDailyFinPrefs({ whatsapp_phone: trimmed }),
+        ]);
+        toast.success("Telefone WhatsApp salvo com sucesso!");
+      } catch {
+        toast.error("Erro ao salvar telefone.");
+      }
+    }
+  };
+
   const handleOpTimeChange = async (key: SlotKey, value: string | null) => {
     try {
-      await saveOpPrefs({ [key]: value });
+      const phone = whatsappPhone.trim() || profilePhone || null;
+      await saveOpPrefs({ [key]: value, send_whatsapp: true, whatsapp_phone: phone });
     } catch {
       toast.error("Erro ao salvar horário.");
     }
@@ -353,19 +370,19 @@ export function WhatsappReportCard() {
 
   const handleBillTimeChange = async (key: SlotKey, value: string | null) => {
     try {
-      await saveBillPrefs({ [key]: value });
+      const phone = whatsappPhone.trim() || profilePhone || null;
+      await saveBillPrefs({ [key]: value, send_whatsapp: true, whatsapp_phone: phone });
     } catch {
       toast.error("Erro ao salvar horário.");
     }
   };
 
-  const handlePhoneBlur = async () => {
-    if (whatsappPhone !== (opPrefs.whatsapp_phone || "")) {
-      try {
-        await saveOpPrefs({ whatsapp_phone: whatsappPhone.trim() || null });
-      } catch {
-        toast.error("Erro ao salvar telefone.");
-      }
+  const handleDailyFinTimeChange = async (key: SlotKey, value: string | null) => {
+    try {
+      const phone = whatsappPhone.trim() || profilePhone || null;
+      await saveDailyFinPrefs({ [key]: value, send_whatsapp: true, whatsapp_phone: phone } as any);
+    } catch {
+      toast.error("Erro ao salvar horário.");
     }
   };
 
@@ -921,10 +938,15 @@ export function WhatsappReportCard() {
               </div>
               <Switch
                 checked={opPrefs.send_whatsapp ?? false}
-                disabled={loadingOpPrefs}
+                disabled={loadingOpPrefs || loadingDailyFinPrefs || loadingBillPrefs}
                 onCheckedChange={async (checked) => {
                   try {
-                    await saveOpPrefs({ send_whatsapp: checked });
+                    const phone = whatsappPhone.trim() || profilePhone || null;
+                    await Promise.all([
+                      saveOpPrefs({ send_whatsapp: checked, whatsapp_phone: phone }),
+                      saveBillPrefs({ send_whatsapp: checked, whatsapp_phone: phone }),
+                      saveDailyFinPrefs({ send_whatsapp: checked, whatsapp_phone: phone } as any),
+                    ]);
                     toast.success(checked ? "Envio automático no WhatsApp ativado!" : "Envio automático no WhatsApp desativado.");
                   } catch {
                     toast.error("Erro ao salvar configuração de envio.");
@@ -946,7 +968,11 @@ export function WhatsappReportCard() {
                     onClick={async () => {
                       setWhatsappPhone(profilePhone);
                       try {
-                        await saveOpPrefs({ whatsapp_phone: profilePhone });
+                        await Promise.all([
+                          saveOpPrefs({ whatsapp_phone: profilePhone }),
+                          saveBillPrefs({ whatsapp_phone: profilePhone }),
+                          saveDailyFinPrefs({ whatsapp_phone: profilePhone } as any),
+                        ]);
                         toast.success("Telefone do perfil aplicado!");
                       } catch {
                         toast.error("Erro ao salvar telefone.");
@@ -1193,7 +1219,7 @@ export function WhatsappReportCard() {
                   variant="outline"
                   size="sm"
                   className="h-8 text-xs rounded-lg gap-1.5 font-medium"
-                  onClick={() => saveDailyFinPrefs({ [slots[0]]: "19:00" } as any)}
+                  onClick={() => handleDailyFinTimeChange(slots[0], "19:00")}
                 >
                   <Plus className="h-3.5 w-3.5" /> Adicionar Primeiro Horário
                 </Button>
@@ -1212,7 +1238,7 @@ export function WhatsappReportCard() {
                       <input
                         type="time"
                         value={dailyFinPrefs[key] ?? ""}
-                        onChange={(e) => saveDailyFinPrefs({ [key]: e.target.value || null } as any)}
+                        onChange={(e) => handleDailyFinTimeChange(key, e.target.value || null)}
                         className="bg-transparent text-sm font-semibold text-foreground focus:outline-none cursor-pointer w-full tracking-wide"
                       />
                     </div>
@@ -1220,7 +1246,7 @@ export function WhatsappReportCard() {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      onClick={() => saveDailyFinPrefs({ [key]: null } as any)}
+                      onClick={() => handleDailyFinTimeChange(key, null)}
                       title="Remover horário"
                       className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg shrink-0 transition-colors"
                     >
@@ -1232,7 +1258,7 @@ export function WhatsappReportCard() {
                 {slots.filter((s) => !!dailyFinPrefs[s]).length < 3 && (
                   <button
                     type="button"
-                    onClick={() => saveDailyFinPrefs({ [slots.find((s) => !dailyFinPrefs[s])!]: "19:00" } as any)}
+                    onClick={() => handleDailyFinTimeChange(slots.find((s) => !dailyFinPrefs[s])!, "19:00")}
                     className="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-dashed border-border hover:border-primary/60 bg-muted/10 hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all text-xs font-semibold h-full min-h-[46px]"
                   >
                     <Plus className="h-3.5 w-3.5" />
