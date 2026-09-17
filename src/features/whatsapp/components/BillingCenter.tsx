@@ -212,13 +212,14 @@ export function BillingCenter() {
     }, new Map<string, BillingCandidate[]>()).values());
     const queueItems = grouped.map((rows) => {
       const first = rows[0];
+      const templateToUse = rows.length === 1 ? centerTemplates.single : centerTemplates.multiple;
       return {
         client_id: first.clientId,
         loan_id: first.loanId,
         loan_ids: rows.map((item) => item.loanId),
         installment_number: first.installmentNumber,
         phone: first.phone,
-        message: consolidatedMessage(rows, centerTemplates.multiple, centerTemplates.pixLink),
+        message: consolidatedMessage(rows, templateToUse, centerTemplates.pixLink),
         amount: rows.reduce((sum, item) => sum + item.amount, 0),
         due_date: first.dueDate,
       };
@@ -670,7 +671,7 @@ export function BillingCenter() {
       </div>
     )}
 
-    <Dialog open={!!confirm} onOpenChange={(open) => !open && setConfirm(null)}><DialogContent><DialogHeader><DialogTitle>Enviar cobranças?</DialogTitle><DialogDescription>{confirm && new Set(confirm.map(i => i.clientId)).size === 1 ? `Enviar uma mensagem com ${confirm.length} contrato(s) para ${confirm[0].clientName}?` : `${confirm?.length || 0} contratos serão agrupados por cliente, sem limite de quantidade.`}</DialogDescription></DialogHeader>{confirm && new Set(confirm.map(i => i.clientId)).size === 1 && <div className="max-h-72 overflow-y-auto rounded-xl bg-muted/50 p-3 text-sm whitespace-pre-wrap">{consolidatedMessage(confirm, centerTemplates.multiple, centerTemplates.pixLink)}</div>}<DialogFooter><Button variant="outline" onClick={() => setConfirm(null)}>Cancelar</Button><Button onClick={enqueue} disabled={creating}>{creating && <Loader2 className="h-4 w-4 mr-1 animate-spin"/>}Enviar mensagem</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={!!confirm} onOpenChange={(open) => !open && setConfirm(null)}><DialogContent><DialogHeader><DialogTitle>Enviar cobranças?</DialogTitle><DialogDescription>{confirm && new Set(confirm.map(i => i.clientId)).size === 1 ? `Enviar uma mensagem com ${confirm.length} contrato(s) para ${confirm[0].clientName}?` : `${confirm?.length || 0} contratos serão agrupados por cliente, sem limite de quantidade.`}</DialogDescription></DialogHeader>{confirm && new Set(confirm.map(i => i.clientId)).size === 1 && <div className="max-h-72 overflow-y-auto rounded-xl bg-muted/50 p-3 text-sm whitespace-pre-wrap">{consolidatedMessage(confirm, confirm.length === 1 ? centerTemplates.single : centerTemplates.multiple, centerTemplates.pixLink)}</div>}<DialogFooter><Button variant="outline" onClick={() => setConfirm(null)}>Cancelar</Button><Button onClick={enqueue} disabled={creating}>{creating && <Loader2 className="h-4 w-4 mr-1 animate-spin"/>}Enviar mensagem</Button></DialogFooter></DialogContent></Dialog>
 
     <Dialog open={clientsOpen} onOpenChange={setClientsOpen}>
       <DialogContent className="max-w-lg">
@@ -874,7 +875,7 @@ function consolidatedMessage(items: BillingCandidate[], template: string, pixLin
     .replace(/\{parcelas_vencidas\}/g, String(overdueInstallments))
     .replace(/\{etiquetas_contratos\}|\{etiqueta\}/g, items.map((item) => cleanLabel(item.contractLabel)).join(", "))
     .replace(/\{valores_contratos\}/g, items.map((item) => money.format(item.amount)).join("; "))
-    .replace(/\{datas_priorizadas\}|\{datas_vencimento\}|\{data_vencimento\}/g, items.map((item) => shortDate(item.billingDate)).join("; "))
+    .replace(/\{datas_priorizadas\}|\{datas_vencimento\}|\{data_vencimento\}|\{data_priorizada\}/g, items.map((item) => shortDate(item.billingDate)).join("; "))
     .replace(/\{vencimento_original\}/g, shortDate(items[0].dueDate))
     .replace(/\{dias_atraso\}/g, String(items[0].daysOverdue))
     .replace(/\{situacao\}/g, itemSituation(items[0]))

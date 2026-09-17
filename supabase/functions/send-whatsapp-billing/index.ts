@@ -526,22 +526,50 @@ Deno.serve(async (req: Request) => {
           return `• ${label} — ${amountSummary} — ${entry.situation}`;
         }).join("\n");
 
-        const template = (tplRow as any)?.message_center_multiple?.trim() || defaultCenterMultiple;
-        const message = template
-          .replace(/\{nome_cliente\}|\{nome\}/g, clientName)
-          .replace(/\{lista_contratos\}/g, lines)
-          .replace(/\{quantidade_contratos\}/g, String(entries.length))
-          .replace(/\{valor_total\}|\{valor_cobranca\}|\{valor_parcela\}|\{valor\}/g, formatBRL(totalAmount))
-          .replace(/\{valor_base\}/g, formatBRL(totalBase))
-          .replace(/\{encargos\}|\{juros\}/g, formatBRL(totalFees))
-          .replace(/\{parcelas_vencidas\}/g, String(totalOverdueInstallments))
-          .replace(/\{etiquetas_contratos\}|\{etiqueta\}/g, entries.map((entry: any) => cleanLabel(entry.label)).join(", "))
-          .replace(/\{valores_contratos\}/g, entries.map((entry: any) => formatBRL(entry.amount)).join("; "))
-          .replace(/\{datas_priorizadas\}|\{datas_vencimento\}|\{data_vencimento\}/g, entries.map((entry: any) => formatShortBR(entry.dueDate)).join("; "))
-          .replace(/\{vencimento_original\}/g, formatShortBR(first.originalDueDate || first.dueDate))
-          .replace(/\{dias_atraso\}/g, String(first.daysOverdue))
-          .replace(/\{situacao\}/g, first.situation)
-          .replace(/\{link_pagamento\}/g, linkPagamento);
+        let message = "";
+        if (entries.length > 1) {
+          const lines = entries.map((entry: any) => {
+            const label = cleanLabel(entry.label);
+            const amountSummary = entry.overdueInstallmentCount > 1
+              ? `${formatBRL(entry.amount)} (${entry.overdueInstallmentCount}x)`
+              : formatBRL(entry.amount);
+            if (entry.promisedDate) {
+              return `• ${label} — ${amountSummary} — Venc. ${formatShortBR(entry.dueDate)}`;
+            }
+            return `• ${label} — ${amountSummary} — ${entry.situation}`;
+          }).join("\n");
+
+          const template = (tplRow as any)?.message_center_multiple?.trim() || defaultCenterMultiple;
+          message = template
+            .replace(/\{nome_cliente\}|\{nome\}/g, clientName)
+            .replace(/\{lista_contratos\}/g, lines)
+            .replace(/\{quantidade_contratos\}/g, String(entries.length))
+            .replace(/\{valor_total\}|\{valor_cobranca\}|\{valor_parcela\}|\{valor\}/g, formatBRL(totalAmount))
+            .replace(/\{valor_base\}/g, formatBRL(totalBase))
+            .replace(/\{encargos\}|\{juros\}/g, formatBRL(totalFees))
+            .replace(/\{parcelas_vencidas\}/g, String(totalOverdueInstallments))
+            .replace(/\{etiquetas_contratos\}|\{etiqueta\}/g, entries.map((entry: any) => cleanLabel(entry.label)).join(", "))
+            .replace(/\{valores_contratos\}/g, entries.map((entry: any) => formatBRL(entry.amount)).join("; "))
+            .replace(/\{datas_priorizadas\}|\{datas_vencimento\}|\{data_vencimento\}|\{data_priorizada\}/g, entries.map((entry: any) => formatShortBR(entry.dueDate)).join("; "))
+            .replace(/\{vencimento_original\}/g, formatShortBR(first.originalDueDate || first.dueDate))
+            .replace(/\{dias_atraso\}/g, String(first.daysOverdue))
+            .replace(/\{situacao\}/g, first.situation)
+            .replace(/\{link_pagamento\}/g, linkPagamento);
+        } else {
+          const singleTemplate = (tplRow as any)?.message_center_single?.trim() || defaultCenterSingle;
+          message = singleTemplate
+            .replace(/\{nome_cliente\}|\{nome\}/g, clientName)
+            .replace(/\{etiqueta\}/g, cleanLabel(first.label))
+            .replace(/\{valor_total\}|\{valor_cobranca\}|\{valor_parcela\}|\{valor\}/g, formatBRL(first.amount))
+            .replace(/\{valor_base\}/g, formatBRL(first.baseAmount))
+            .replace(/\{encargos\}|\{juros\}/g, formatBRL(first.lateFees))
+            .replace(/\{parcelas_vencidas\}/g, String(first.overdueInstallmentCount))
+            .replace(/\{vencimento_original\}/g, formatShortBR(first.originalDueDate || first.dueDate))
+            .replace(/\{data_priorizada\}|\{datas_priorizadas\}|\{datas_vencimento\}|\{data_vencimento\}/g, formatShortBR(first.dueDate))
+            .replace(/\{dias_atraso\}/g, String(first.daysOverdue))
+            .replace(/\{situacao\}/g, first.situation)
+            .replace(/\{link_pagamento\}/g, linkPagamento);
+        }
         if (previewOnly) {
           results.push({ owner_id: ownerId, client_id: clientId, client_name: clientById.get(clientId)?.name || "", loan_ids: entries.map((entry: any) => entry.loanId), contracts: entries.length, amount: totalAmount, scheduled_at: new Date(Date.now() + queueIndex * 30_000).toISOString(), message });
           queueIndex += 1;
