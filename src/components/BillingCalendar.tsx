@@ -1344,7 +1344,7 @@ export function BillingCalendar({
                         </div>
                       </div>
 
-                      {dayTotal > 0 ? (
+                      {dayTotal > 0 && (
                         <div className="mt-auto">
                           <span
                             className={cn(
@@ -1367,16 +1367,7 @@ export function BillingCalendar({
                             {pending.count} {pending.count === 1 ? "cobr." : "cobr."}
                           </span>
                         </div>
-                      ) : isFullyPaid ? (
-                        <span
-                          className={cn(
-                            "mt-auto text-[8px] font-medium text-emerald-600 dark:text-emerald-400 block truncate",
-                            isSelected && "text-primary-foreground",
-                          )}
-                        >
-                          {formatCurrency(received.total)} ✓
-                        </span>
-                      ) : null}
+                      )}
                     </button>
                   );
                 })}
