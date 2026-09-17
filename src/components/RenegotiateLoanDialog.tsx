@@ -71,15 +71,35 @@ const formatDateBR = (iso: string | null | undefined) => {
   return str;
 };
 
-const stepDate = (baseISO: string, freq: "monthly" | "biweekly" | "weekly" | "daily", n: number): string => {
+const stepDate = (baseISO: string, freq: "monthly" | "biweekly" | "weekly" | "daily", n: number = 1): string => {
   if (!baseISO || !/^\d{4}-\d{2}-\d{2}/.test(baseISO)) return baseISO;
-  const d = new Date(baseISO.slice(0, 10) + "T00:00:00");
-  if (isNaN(d.getTime())) return baseISO;
-  if (freq === "monthly") d.setMonth(d.getMonth() + n);
-  else if (freq === "biweekly") d.setDate(d.getDate() + 15 * n);
-  else if (freq === "weekly") d.setDate(d.getDate() + 7 * n);
-  else d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
+  const parts = baseISO.slice(0, 10).split("-").map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) return baseISO;
+  const [year, month, day] = parts;
+
+  if (freq === "monthly") {
+    const targetMonthIdx = (month - 1) + n;
+    const targetYear = year + Math.floor(targetMonthIdx / 12);
+    const normalizedMonthIdx = ((targetMonthIdx % 12) + 12) % 12;
+    const daysInTargetMonth = new Date(targetYear, normalizedMonthIdx + 1, 0).getDate();
+    const targetDay = Math.min(day, daysInTargetMonth);
+    const mm = String(normalizedMonthIdx + 1).padStart(2, "0");
+    const dd = String(targetDay).padStart(2, "0");
+    return `${targetYear}-${mm}-${dd}`;
+  }
+
+  const d = new Date(year, month - 1, day, 12, 0, 0);
+  if (freq === "biweekly") {
+    d.setDate(d.getDate() + 15 * n);
+  } else if (freq === "weekly") {
+    d.setDate(d.getDate() + 7 * n);
+  } else {
+    d.setDate(d.getDate() + n);
+  }
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dayStr = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dayStr}`;
 };
 
 interface Props {
@@ -321,24 +341,66 @@ export function RenegotiateLoanDialog({
   const simulatedSchedule = useMemo(() => {
     const overrideDate = firstDueDate && /^\d{4}-\d{2}-\d{2}$/.test(firstDueDate) ? firstDueDate : null;
 
-    const computeNewDate = (i: number, base: string, startsAtBase: boolean) => {
-      if (customDates[i] && /^\d{4}-\d{2}-\d{2}$/.test(customDates[i])) return customDates[i];
-      const offset = startsAtBase ? i : i + 1;
-      return stepDate(base, frequency, offset);
-    };
+    let base: string;
+    let startsAtBase: boolean;
+
+    if (!isInstallmentLoan || pendingInstallments.length === 0) {
+      base = overrideDate || loan.dueDate || new Date().toISOString().slice(0, 10);
+      startsAtBase = true;
+    } else {
+      const remainingPendingScheds = pendingInstallments.filter(
+        (s) => !selectedNumbers.has(s.installmentNumber)
+      );
+      const isPartial = selectedNumbers.size < pendingInstallments.length;
+
+      const lastDate = remainingPendingScheds.length > 0
+        ? remainingPendingScheds[remainingPendingScheds.length - 1].dueDate
+        : (pendingInstallments[pendingInstallments.length - 1]?.dueDate || loan.dueDate);
+
+      const firstSelectedDate = !isPartial
+        ? (pendingInstallments.find((s) => selectedNumbers.has(s.installmentNumber))?.dueDate || loan.dueDate)
+        : null;
+
+      if (overrideDate) {
+        base = overrideDate;
+        startsAtBase = true;
+      } else if (!isPartial && firstSelectedDate) {
+        base = firstSelectedDate;
+        startsAtBase = true;
+      } else {
+        base = lastDate;
+        startsAtBase = false;
+      }
+    }
+
+    // Calcula a lista de novas datas com efeito cascata (cada parcela futura segue a frequência da anterior)
+    const initialNewBase = startsAtBase
+      ? (base ? base.slice(0, 10) : "")
+      : stepDate(base ? base.slice(0, 10) : "", frequency, 1);
+    
+    const computedNewDates: string[] = [];
+    for (let i = 0; i < installmentsCount; i++) {
+      if (i === 0) {
+        const d0 = (customDates[0] && /^\d{4}-\d{2}-\d{2}$/.test(customDates[0]))
+          ? customDates[0]
+          : initialNewBase;
+        computedNewDates.push(d0);
+      } else {
+        const prevDate = computedNewDates[i - 1];
+        const di = (customDates[i] && /^\d{4}-\d{2}-\d{2}$/.test(customDates[i]))
+          ? customDates[i]
+          : stepDate(prevDate, frequency, 1);
+        computedNewDates.push(di);
+      }
+    }
 
     if (!isInstallmentLoan || pendingInstallments.length === 0) {
       const result: { number: number; dueDate: string; amount: number; isNew: boolean; newIndex?: number }[] = [];
-      const baseDate = overrideDate || loan.dueDate;
-      let acc = 0;
       for (let i = 0; i < installmentsCount; i++) {
-        const dueStr = computeNewDate(i, baseDate, true);
-        const amt = finalAmountsPlan[i] ?? 0;
-        acc += amt;
         result.push({
           number: loan.paidInstallments + i + 1,
-          dueDate: dueStr,
-          amount: amt,
+          dueDate: computedNewDates[i] || "",
+          amount: finalAmountsPlan[i] ?? 0,
           isNew: true,
           newIndex: i,
         });
@@ -349,36 +411,14 @@ export function RenegotiateLoanDialog({
     const remainingPendingScheds = pendingInstallments.filter(
       (s) => !selectedNumbers.has(s.installmentNumber)
     );
-    const isPartial = selectedNumbers.size < pendingInstallments.length;
-
-    const lastDate = remainingPendingScheds.length > 0
-      ? remainingPendingScheds[remainingPendingScheds.length - 1].dueDate
-      : (pendingInstallments[pendingInstallments.length - 1]?.dueDate || loan.dueDate);
-
-    const firstSelectedDate = !isPartial
-      ? (pendingInstallments.find((s) => selectedNumbers.has(s.installmentNumber))?.dueDate || loan.dueDate)
-      : null;
-
-    let base: string;
-    let startsAtBase: boolean;
-    if (overrideDate) {
-      base = overrideDate;
-      startsAtBase = true;
-    } else if (!isPartial && firstSelectedDate) {
-      base = firstSelectedDate;
-      startsAtBase = true;
-    } else {
-      base = lastDate;
-      startsAtBase = false;
-    }
 
     const newScheds: { dueDate: string; amount: number; newIndex: number }[] = [];
-    let acc = 0;
     for (let i = 0; i < installmentsCount; i++) {
-      const dueStr = computeNewDate(i, base, startsAtBase);
-      const amt = finalAmountsPlan[i] ?? 0;
-      acc += amt;
-      newScheds.push({ dueDate: dueStr, amount: amt, newIndex: i });
+      newScheds.push({
+        dueDate: computedNewDates[i] || "",
+        amount: finalAmountsPlan[i] ?? 0,
+        newIndex: i,
+      });
     }
 
     const combined = [
@@ -403,11 +443,6 @@ export function RenegotiateLoanDialog({
     pendingInstallments,
     selectedNumbers,
     installmentsCount,
-    newInstallmentValue,
-    baseInstallmentValue,
-    firstInstallmentValue,
-    useFirstMode,
-    newTotal,
     loan.dueDate,
     loan.paidInstallments,
     firstDueDate,
@@ -1126,7 +1161,19 @@ export function RenegotiateLoanDialog({
                                       <DatePickerField
                                         value={row.dueDate}
                                         onChange={(v) => {
-                                          setCustomDates((prev) => ({ ...prev, [row.newIndex as number]: v }));
+                                          const idx = row.newIndex as number;
+                                          setCustomDates((prev) => {
+                                            const next = { ...prev, [idx]: v };
+                                            Object.keys(next).forEach((k) => {
+                                              if (Number(k) > idx) {
+                                                delete next[Number(k)];
+                                              }
+                                            });
+                                            return next;
+                                          });
+                                          if (idx === 0) {
+                                            setFirstDueDate(v);
+                                          }
                                           setConfirming(false);
                                         }}
                                         className="h-8 px-2 text-xs w-36"
