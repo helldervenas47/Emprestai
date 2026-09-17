@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,15 +31,44 @@ import { Loan, LoanRenegotiation, Payment, InstallmentSchedule } from "@/types/l
 import { getLoanRemainingAmount } from "@/features/loans/hooks/useLoans";
 import { useLoanRenegotiations } from "@/features/loans/hooks/useLoanRenegotiations";
 import { toast } from "sonner";
-import { History, AlertTriangle, ListChecks, CalendarDays, Pencil, Trash2, Save, X } from "lucide-react";
+import {
+  History,
+  AlertTriangle,
+  ListChecks,
+  CalendarDays,
+  Pencil,
+  Trash2,
+  Save,
+  X,
+  Sparkles,
+  Percent,
+  Calendar,
+  Wallet,
+  Layers,
+  CheckCircle2,
+  ArrowRight,
+  Calculator,
+  RotateCcw,
+  Check,
+  FileText,
+  DollarSign
+} from "lucide-react";
 
 const formatCurrency = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-const formatDateBR = (iso: string) => {
-  if (!iso) return "";
-  const [y, m, d] = iso.split("T")[0].split("-");
-  return `${d}/${m}/${y}`;
+const formatDateBR = (iso: string | null | undefined) => {
+  if (!iso) return "—";
+  const str = String(iso);
+  const datePart = str.includes("T") ? str.split("T")[0] : str.split(" ")[0];
+  if (datePart.includes("-")) {
+    const parts = datePart.split("-");
+    if (parts.length === 3) {
+      const [y, m, d] = parts;
+      return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`;
+    }
+  }
+  return str;
 };
 
 const stepDate = (baseISO: string, freq: "monthly" | "biweekly" | "weekly" | "daily", n: number): string => {
@@ -159,6 +189,7 @@ export function RenegotiateLoanDialog({
     const v = parseFloat(discountNewTotalInput.replace(",", ".")) || 0;
     return v > 0 ? Math.round(v * 100) / 100 : 0;
   }, [type, discountNewTotalInput]);
+
   const discountAmount = type === "discount" && discountNewTotal > 0 && discountNewTotal < remaining
     ? Math.round((remaining - discountNewTotal) * 100) / 100
     : 0;
@@ -187,7 +218,6 @@ export function RenegotiateLoanDialog({
   const firstInstallmentValue = useFirstMode
     ? Math.round((baseInstallmentValue + penaltyAmount) * 100) / 100
     : baseInstallmentValue;
-  // Mantém compat. com a UI atual ("X parcelas de Y")
   const newInstallmentValue = baseInstallmentValue;
 
   // ---- Valores personalizados por parcela ----
@@ -217,16 +247,12 @@ export function RenegotiateLoanDialog({
     return arr;
   }, [installmentsCount, useFirstMode, firstInstallmentValue, baseInstallmentValue, newTotal]);
 
-  /** Valores finais: default sobrescrito pelo que o usuário editou, 
-   * MAS com o comportamento dinâmico de redistribuição.
-   */
+  /** Valores finais: default sobrescrito pelo que o usuário editou */
   const finalAmountsPlan = useMemo(() => {
     const plan = [...defaultAmountsPlan];
     
-    // Se não há edições manuais, retorna o padrão
     if (editedIndexes.size === 0) return plan;
 
-    // 1. Aplica os valores fixos editados pelo usuário
     const fixedValues: Record<number, number> = {};
     let sumFixed = 0;
     editedIndexes.forEach(idx => {
@@ -240,7 +266,6 @@ export function RenegotiateLoanDialog({
       }
     });
 
-    // 2. Identifica parcelas que ainda podem ser ajustadas (não editadas)
     const adjustableIndexes = plan
       .map((_, i) => i)
       .filter(i => !editedIndexes.has(i));
@@ -249,12 +274,10 @@ export function RenegotiateLoanDialog({
       const remainingToDistribute = Math.round((newTotal - sumFixed) * 100) / 100;
       
       if (remainingToDistribute <= 0 && sumFixed > newTotal) {
-        // Se o usuário ultrapassou o total, as outras ficam zeradas (ou negativas se permitirmos, mas vamos manter consistency)
         adjustableIndexes.forEach(idx => {
           plan[idx] = 0;
         });
       } else {
-        // Distribui o saldo restante entre as ajustáveis
         const baseAdjustable = Math.round((remainingToDistribute / adjustableIndexes.length) * 100) / 100;
         let accAdjustable = 0;
         
@@ -294,16 +317,12 @@ export function RenegotiateLoanDialog({
     [finalAmountsPlan],
   );
 
-
-
   // Simula o novo cronograma de parcelas pendentes (não selecionadas + novas geradas)
   const simulatedSchedule = useMemo(() => {
     const overrideDate = firstDueDate && /^\d{4}-\d{2}-\d{2}$/.test(firstDueDate) ? firstDueDate : null;
 
     const computeNewDate = (i: number, base: string, startsAtBase: boolean) => {
-      // Se há override do usuário para esta parcela nova, usa ele
       if (customDates[i] && /^\d{4}-\d{2}-\d{2}$/.test(customDates[i])) return customDates[i];
-      // Se i===0 e não devemos avançar a partir da base, retorna a própria base
       const offset = startsAtBase ? i : i + 1;
       return stepDate(base, frequency, offset);
     };
@@ -340,7 +359,6 @@ export function RenegotiateLoanDialog({
       ? (pendingInstallments.find((s) => selectedNumbers.has(s.installmentNumber))?.dueDate || loan.dueDate)
       : null;
 
-    // Determina base e se a parcela 0 começa exatamente na base
     let base: string;
     let startsAtBase: boolean;
     if (overrideDate) {
@@ -519,7 +537,6 @@ export function RenegotiateLoanDialog({
   const allSelected =
     pendingInstallments.length > 0 && selectedNumbers.size === pendingInstallments.length;
 
-  // Tabs: "renegociar" | "history"
   const [activeTab, setActiveTab] = useState<"renegotiate" | "history">("renegotiate");
   useEffect(() => { if (open) setActiveTab("renegotiate"); }, [open]);
 
@@ -581,775 +598,895 @@ export function RenegotiateLoanDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md w-full sm:max-h-[90vh] max-h-[100dvh] h-[100dvh] sm:h-auto sm:rounded-2xl rounded-none overflow-y-auto overflow-x-hidden break-words">
-        <DialogHeader>
-          <DialogTitle>Renegociar contrato</DialogTitle>
-          <DialogDescription>
-            {loan.borrowerName} · saldo total {formatCurrency(totalRemaining)}
-          </DialogDescription>
+      <DialogContent className="max-w-full sm:max-w-3xl lg:max-w-4xl w-full max-h-[100dvh] h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:rounded-2xl rounded-none p-0 flex flex-col overflow-hidden border border-border/80 shadow-2xl bg-card">
+        {/* Header Elegante */}
+        <DialogHeader className="px-4 py-3 sm:px-6 sm:py-4 border-b border-border/60 bg-muted/20 shrink-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 ring-1 ring-primary/20">
+                <RotateCcw className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
+                  Renegociar Contrato
+                </DialogTitle>
+                <DialogDescription className="text-xs sm:text-sm text-muted-foreground truncate flex items-center gap-1.5 flex-wrap mt-0.5">
+                  <span className="font-semibold text-foreground">{loan.borrowerName}</span>
+                  <span>•</span>
+                  <span>Saldo Total: <strong className="text-foreground">{formatCurrency(totalRemaining)}</strong></span>
+                  {loan.paymentType && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-primary/30 text-primary bg-primary/5">
+                      {loan.paymentType}
+                    </Badge>
+                  )}
+                </DialogDescription>
+              </div>
+            </div>
+          </div>
+
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full mt-3">
+            <TabsList className="grid w-full grid-cols-2 h-9 p-1 bg-muted/60">
+              <TabsTrigger value="renegotiate" className="text-xs font-medium flex items-center gap-1.5">
+                <Calculator className="h-3.5 w-3.5" />
+                Simulação & Proposta
+              </TabsTrigger>
+              <TabsTrigger value="history" className="text-xs font-medium flex items-center gap-1.5">
+                <History className="h-3.5 w-3.5" />
+                Histórico {sortedHistory.length > 0 && `(${sortedHistory.length})`}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full min-w-0">
-          <TabsList className="grid w-full grid-cols-2 h-auto p-1">
-            <TabsTrigger value="renegotiate">Renegociar</TabsTrigger>
-            <TabsTrigger value="history">
-              Histórico{sortedHistory.length > 0 ? ` (${sortedHistory.length})` : ""}
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="renegotiate" className="mt-4 space-y-4 min-w-0">
-          <div className="rounded-lg border border-border/60 bg-muted/40 p-3 text-xs space-y-1">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Data de saída</span>
-              <span className="font-medium">{loan.startDate}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Saldo a renegociar</span>
-              <span className="font-medium">{formatCurrency(remaining)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">
-                {isInstallmentLoan ? "Parcelas selecionadas" : "Parcelas pendentes"}
-              </span>
-              <span className="font-medium">
-                {isInstallmentLoan
-                  ? `${selectedNumbers.size} de ${pendingInstallments.length}`
-                  : remainingPending}
-              </span>
-            </div>
-          </div>
-
-          {isInstallmentLoan && pendingInstallments.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs flex items-center gap-1.5">
-                  <ListChecks className="h-3.5 w-3.5" /> Parcelas a renegociar
-                </Label>
-                <button
-                  type="button"
-                  onClick={toggleAll}
-                  className="text-[11px] text-primary hover:underline"
-                >
-                  {allSelected ? "Desmarcar todas" : "Selecionar todas"}
-                </button>
-              </div>
-              <div className="rounded-lg border border-border/60 max-h-44 overflow-y-auto divide-y divide-border/40">
-                {pendingInstallments.map((inst) => {
-                  const checked = selectedNumbers.has(inst.installmentNumber);
-                  return (
-                    <label
-                      key={inst.installmentNumber}
-                      className="flex items-center gap-2.5 px-2.5 py-2 text-xs cursor-pointer hover:bg-muted/40"
-                    >
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={() => toggleOne(inst.installmentNumber)}
-                      />
-                      <div className="flex-1 flex items-center justify-between">
-                        <span className="font-medium">
-                          Parcela {inst.installmentNumber}
-                        </span>
-                        <span className="text-muted-foreground">
-                          {formatDateBR(inst.dueDate)}
-                        </span>
-                        <span className="font-semibold tabular-nums">
-                          {formatCurrency(Number(inst.amount || 0))}
-                        </span>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label>Tipo de renegociação</Label>
-            <RadioGroup
-              value={type}
-              onValueChange={(v) => {
-                setType(v as any);
-                setConfirming(false);
-              }}
-              className="grid grid-cols-3 gap-1.5"
-            >
-              <label
-                htmlFor="reneg-no-interest"
-                className={`flex flex-col items-center justify-center gap-1 rounded-lg border p-2 cursor-pointer text-center min-h-[60px] transition-colors ${
-                  type === "no_interest" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"
-                }`}
-              >
-                <RadioGroupItem value="no_interest" id="reneg-no-interest" className="sr-only" />
-                <p className="text-[11px] sm:text-xs font-semibold leading-tight">Sem juros</p>
-                <p className="text-[9px] sm:text-[10px] text-muted-foreground leading-tight">
-                  Ajusta prazo
-                </p>
-              </label>
-              <label
-                htmlFor="reneg-with-penalty"
-                className={`flex flex-col items-center justify-center gap-1 rounded-lg border p-2 cursor-pointer text-center min-h-[60px] transition-colors ${
-                  type === "with_penalty" ? "border-warning bg-warning/5" : "border-border hover:bg-muted/40"
-                }`}
-              >
-                <RadioGroupItem value="with_penalty" id="reneg-with-penalty" className="sr-only" />
-                <p className="text-[11px] sm:text-xs font-semibold leading-tight">Com multa</p>
-                <p className="text-[9px] sm:text-[10px] text-muted-foreground leading-tight">
-                  Acresce R$ / %
-                </p>
-              </label>
-              <label
-                htmlFor="reneg-discount"
-                className={`flex flex-col items-center justify-center gap-1 rounded-lg border p-2 cursor-pointer text-center min-h-[60px] transition-colors ${
-                  type === "discount" ? "border-success bg-success/5" : "border-border hover:bg-muted/40"
-                }`}
-              >
-                <RadioGroupItem value="discount" id="reneg-discount" className="sr-only" />
-                <p className="text-[11px] sm:text-xs font-semibold leading-tight">Com desconto</p>
-                <p className="text-[9px] sm:text-[10px] text-muted-foreground leading-tight">
-                  Novo total menor
-                </p>
-              </label>
-            </RadioGroup>
-          </div>
-
-
-          {type === "discount" && (
-            <div className="space-y-2 rounded-lg border border-success/30 bg-success/5 p-3">
-              <Label className="text-xs">Novo valor total negociado</Label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                inputMode="decimal"
-                placeholder={`Menor que ${formatCurrency(remaining)}`}
-                value={discountNewTotalInput}
-                onChange={(e) => { setDiscountNewTotalInput(e.target.value); setConfirming(false); }}
-              />
-              {discountNewTotal > 0 && discountNewTotal < remaining && (
-                <div className="flex items-center justify-between text-xs pt-1">
-                  <span className="text-muted-foreground">Desconto concedido</span>
-                  <span className="font-semibold text-success">
-                    − {formatCurrency(discountAmount)}
-                    <span className="text-[10px] text-muted-foreground ml-1">
-                      ({((discountAmount / remaining) * 100).toFixed(1)}%)
-                    </span>
-                  </span>
-                </div>
-              )}
-              {discountNewTotal > 0 && discountNewTotal >= remaining && (
-                <p className="text-[11px] text-destructive">
-                  O novo valor deve ser menor que o saldo atual ({formatCurrency(remaining)}).
-                </p>
-              )}
-            </div>
-          )}
-
-          {type === "with_penalty" && (
-            <div className="space-y-2 rounded-lg border border-warning/30 bg-warning/5 p-3">
-              <Label className="text-xs">Multa de renegociação</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  size="sm"
-                  type="button"
-                  variant={penaltyMode === "fixed" ? "default" : "outline"}
-                  className="h-9 text-xs px-2 whitespace-nowrap"
-                  onClick={() => { setPenaltyMode("fixed"); setConfirming(false); }}
-                >
-                  R$ fixo
-                </Button>
-                <Button
-                  size="sm"
-                  type="button"
-                  variant={penaltyMode === "percentage" ? "default" : "outline"}
-                  className="h-9 text-xs px-2 whitespace-nowrap"
-                  onClick={() => { setPenaltyMode("percentage"); setConfirming(false); }}
-                >
-                  % do saldo
-                </Button>
-              </div>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                inputMode="decimal"
-                placeholder={penaltyMode === "percentage" ? "Ex: 10 (%)" : "Ex: 100,00 (R$)"}
-                value={penaltyInput}
-                onChange={(e) => { setPenaltyInput(e.target.value); setConfirming(false); }}
-              />
-              <div className="space-y-1.5 pt-1">
-                <Label className="text-xs">Cobrança da multa</Label>
-          <div className="grid grid-cols-2 gap-2">
-
-                  <Button
-                    size="sm"
-                    type="button"
-                    variant={penaltyDistribution === "diluted" ? "default" : "outline"}
-                    className="h-auto min-h-9 py-1.5 text-[11px] leading-tight px-2 whitespace-normal text-center"
-                    onClick={() => { setPenaltyDistribution("diluted"); setConfirming(false); }}
-                  >
-                    Diluída nas parcelas
-                  </Button>
-                  <Button
-                    size="sm"
-                    type="button"
-                    variant={penaltyDistribution === "first" ? "default" : "outline"}
-                    className="h-auto min-h-9 py-1.5 text-[11px] leading-tight px-2 whitespace-normal text-center"
-                    onClick={() => { setPenaltyDistribution("first"); setConfirming(false); }}
-                  >
-                    Só na 1ª parcela
-                  </Button>
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  {penaltyDistribution === "diluted"
-                    ? "A multa é dividida igualmente entre todas as novas parcelas."
-                    : "A multa inteira é somada à 1ª nova parcela; as demais ficam sem multa."}
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-1.5">
-            <Label className="text-xs">
-              {isInstallmentLoan
-                ? "Em quantas parcelas dividir o saldo renegociado (opcional)"
-                : "Novo nº de parcelas pendentes (opcional)"}
-            </Label>
-            <Input
-              type="number"
-              min="1"
-              inputMode="numeric"
-              placeholder={`Manter: ${isInstallmentLoan ? Math.max(1, selectedCount) : remainingPending}`}
-              value={newInstallments}
-              onChange={(e) => { 
-                setNewInstallments(e.target.value); 
-                setCustomAmounts({}); 
-                setEditedIndexes(new Set());
-                setConfirming(false); 
-              }}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-2">
-
-            <div className="space-y-1.5 min-w-0">
-              <Label className="text-xs flex items-center gap-1.5">
-                <CalendarDays className="h-3.5 w-3.5" /> 1ª parcela
-              </Label>
-              <DatePickerField
-                value={firstDueDate}
-                onChange={(v) => { setFirstDueDate(v); setCustomDates({}); setConfirming(false); }}
-                className="h-11 text-sm w-full"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Frequência</Label>
-              <Select
-                value={frequency}
-                onValueChange={(v) => { setFrequency(v as any); setCustomDates({}); setConfirming(false); }}
-              >
-                <SelectTrigger className="h-11 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="monthly">Mensal</SelectItem>
-                  <SelectItem value="biweekly">Quinzenal</SelectItem>
-                  <SelectItem value="weekly">Semanal</SelectItem>
-                  <SelectItem value="daily">Diário</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          {installmentsCount > 1 && (
-            <p className="text-[10px] text-muted-foreground -mt-2">
-              Datas das demais parcelas seguem a frequência escolhida. Você pode editar cada uma na tabela abaixo.
-            </p>
-          )}
-
-          <div className="space-y-1.5">
-            <Label className="text-xs">Observações (opcional)</Label>
-            <Textarea
-              rows={2}
-              placeholder="Anote o motivo da renegociação..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-
-          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-1.5 text-xs">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
-              Pré-visualização
-            </p>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Saldo das parcelas selecionadas</span>
-              <span>{formatCurrency(remaining)}</span>
-            </div>
-            {type === "with_penalty" && (
-              <div className="flex justify-between text-warning">
-                <span>+ Multa de renegociação</span>
-                <span>{formatCurrency(penaltyAmount)}</span>
-              </div>
-            )}
-            {type === "discount" && discountAmount > 0 && (
-              <div className="flex justify-between text-success">
-                <span>− Desconto concedido</span>
-                <span>{formatCurrency(discountAmount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between font-semibold text-foreground border-t border-border/50 pt-1.5">
-              <span>Novo total renegociado</span>
-              <span className={hasCustomAmounts ? "text-primary" : type === "discount" && discountAmount > 0 ? "text-success" : ""}>
-                {formatCurrency(renegotiatedTotal)}
-              </span>
-            </div>
-            {hasCustomAmounts && (
-              <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>Total calculado automaticamente</span>
-                <span className="line-through">{formatCurrency(newTotal)}</span>
-              </div>
-            )}
-            {useFirstMode ? (
-              <>
-                <div className="flex justify-between border-t border-border/50 pt-1.5">
-                  <span className="text-muted-foreground">Qtd. de parcelas</span>
-                  <span className="font-medium">{installmentsCount}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">1ª parcela (com multa)</span>
-                  <span className="font-semibold text-warning">{formatCurrency(firstInstallmentValue)}</span>
-                </div>
-                {installmentsCount > 1 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">
-                      Demais ({installmentsCount - 1}× sem multa)
-                    </span>
-                    <span className="font-medium">{formatCurrency(baseInstallmentValue)}</span>
+        {/* Conteúdo com scroll independente */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 space-y-4 sm:space-y-5">
+          {activeTab === "renegotiate" && (
+            <div className="space-y-4 sm:space-y-5">
+              {/* Cards de Status do Contrato */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div className="rounded-xl border border-border/60 bg-card p-3 shadow-xs flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+                    <Calendar className="h-4 w-4" />
                   </div>
-                )}
-              </>
-            ) : (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Parcelas</span>
-                <span className="font-medium">
-                  {hasCustomAmounts
-                    ? `${installmentsCount}× (valores personalizados)`
-                    : `${installmentsCount}× de ${formatCurrency(newInstallmentValue)}`}
-                  {type === "with_penalty" && penaltyAmount > 0 && installmentsCount > 1 && (
-                    <span className="text-[10px] text-muted-foreground ml-1">
-                      (multa diluída)
-                    </span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] text-muted-foreground uppercase font-medium tracking-wider">Início do Contrato</p>
+                    <p className="text-xs sm:text-sm font-semibold text-foreground truncate">
+                      {formatDateBR(loan.startDate)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/60 bg-card p-3 shadow-xs flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+                    <Wallet className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] text-muted-foreground uppercase font-medium tracking-wider">Saldo a Renegociar</p>
+                    <p className="text-xs sm:text-sm font-semibold text-foreground truncate">
+                      {formatCurrency(remaining)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/60 bg-card p-3 shadow-xs flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0">
+                    <Layers className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] text-muted-foreground uppercase font-medium tracking-wider">
+                      {isInstallmentLoan ? "Parcelas Selecionadas" : "Parcelas Pendentes"}
+                    </p>
+                    <p className="text-xs sm:text-sm font-semibold text-foreground truncate">
+                      {isInstallmentLoan
+                        ? `${selectedNumbers.size} de ${pendingInstallments.length}`
+                        : `${remainingPending} pendente(s)`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Seletor de Parcelas a Renegociar (se for parcelado) */}
+              {isInstallmentLoan && pendingInstallments.length > 0 && (
+                <div className="rounded-xl border border-border/70 bg-card p-3.5 space-y-2.5 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs sm:text-sm font-semibold flex items-center gap-2 text-foreground">
+                      <ListChecks className="h-4 w-4 text-primary" /> Parcelas do Contrato a Renegociar
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={toggleAll}
+                      className="text-xs text-primary font-medium hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      {allSelected ? "Desmarcar todas" : "Selecionar todas"}
+                    </button>
+                  </div>
+                  
+                  <div className="rounded-lg border border-border/50 max-h-44 sm:max-h-52 overflow-y-auto divide-y divide-border/40 bg-muted/10">
+                    {pendingInstallments.map((inst) => {
+                      const checked = selectedNumbers.has(inst.installmentNumber);
+                      return (
+                        <label
+                          key={inst.installmentNumber}
+                          className={`flex items-center gap-3 px-3 py-2.5 text-xs sm:text-sm cursor-pointer transition-colors ${
+                            checked ? "bg-primary/5 font-medium" : "hover:bg-muted/40 text-muted-foreground"
+                          }`}
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={() => toggleOne(inst.installmentNumber)}
+                            className="rounded"
+                          />
+                          <div className="flex-1 flex items-center justify-between gap-2">
+                            <span className="font-semibold text-foreground">
+                              Parcela #{inst.installmentNumber}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {formatDateBR(inst.dueDate)}
+                            </span>
+                            <span className="font-semibold tabular-nums text-foreground">
+                              {formatCurrency(Number(inst.amount || 0))}
+                            </span>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Tipo de Renegociação */}
+              <div className="space-y-2">
+                <Label className="text-xs sm:text-sm font-semibold text-foreground">Tipo de Renegociação</Label>
+                <RadioGroup
+                  value={type}
+                  onValueChange={(v) => {
+                    setType(v as any);
+                    setConfirming(false);
+                  }}
+                  className="grid grid-cols-1 sm:grid-cols-3 gap-2.5"
+                >
+                  <label
+                    htmlFor="reneg-no-interest"
+                    className={`relative flex flex-col justify-between rounded-xl border-2 p-3 sm:p-3.5 cursor-pointer transition-all duration-200 ${
+                      type === "no_interest"
+                        ? "border-primary bg-primary/5 shadow-xs ring-2 ring-primary/20"
+                        : "border-border hover:border-border/80 bg-card hover:bg-muted/30"
+                    }`}
+                  >
+                    <RadioGroupItem value="no_interest" id="reneg-no-interest" className="sr-only" />
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <div className={`p-1.5 rounded-lg ${type === "no_interest" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                          <Sparkles className="h-3.5 w-3.5" />
+                        </div>
+                        <span className="text-xs sm:text-sm font-bold text-foreground">Sem Juros</span>
+                      </div>
+                      {type === "no_interest" && <Check className="h-4 w-4 text-primary shrink-0" />}
+                    </div>
+                    <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
+                      Ajusta o prazo ou redistribui parcelas mantendo o saldo original.
+                    </p>
+                  </label>
+
+                  <label
+                    htmlFor="reneg-with-penalty"
+                    className={`relative flex flex-col justify-between rounded-xl border-2 p-3 sm:p-3.5 cursor-pointer transition-all duration-200 ${
+                      type === "with_penalty"
+                        ? "border-amber-500 bg-amber-500/5 shadow-xs ring-2 ring-amber-500/20"
+                        : "border-border hover:border-border/80 bg-card hover:bg-muted/30"
+                    }`}
+                  >
+                    <RadioGroupItem value="with_penalty" id="reneg-with-penalty" className="sr-only" />
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <div className={`p-1.5 rounded-lg ${type === "with_penalty" ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"}`}>
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                        </div>
+                        <span className="text-xs sm:text-sm font-bold text-foreground">Com Multa</span>
+                      </div>
+                      {type === "with_penalty" && <Check className="h-4 w-4 text-amber-500 shrink-0" />}
+                    </div>
+                    <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
+                      Acresce taxa ou valor fixo pelo atraso ou renegociação.
+                    </p>
+                  </label>
+
+                  <label
+                    htmlFor="reneg-discount"
+                    className={`relative flex flex-col justify-between rounded-xl border-2 p-3 sm:p-3.5 cursor-pointer transition-all duration-200 ${
+                      type === "discount"
+                        ? "border-emerald-500 bg-emerald-500/5 shadow-xs ring-2 ring-emerald-500/20"
+                        : "border-border hover:border-border/80 bg-card hover:bg-muted/30"
+                    }`}
+                  >
+                    <RadioGroupItem value="discount" id="reneg-discount" className="sr-only" />
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <div className={`p-1.5 rounded-lg ${type === "discount" ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"}`}>
+                          <Percent className="h-3.5 w-3.5" />
+                        </div>
+                        <span className="text-xs sm:text-sm font-bold text-foreground">Com Desconto</span>
+                      </div>
+                      {type === "discount" && <Check className="h-4 w-4 text-emerald-500 shrink-0" />}
+                    </div>
+                    <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
+                      Define um novo valor total menor que o saldo atual.
+                    </p>
+                  </label>
+                </RadioGroup>
+              </div>
+
+              {/* Seção Condicional: Desconto */}
+              {type === "discount" && (
+                <div className="space-y-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs sm:text-sm font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+                      <Percent className="h-4 w-4" /> Novo Valor Total Negociado
+                    </Label>
+                    <span className="text-[11px] text-muted-foreground">Saldo atual: {formatCurrency(remaining)}</span>
+                  </div>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    inputMode="decimal"
+                    placeholder={`Ex: Menor que ${formatCurrency(remaining)}`}
+                    value={discountNewTotalInput}
+                    onChange={(e) => { setDiscountNewTotalInput(e.target.value); setConfirming(false); }}
+                    className="h-10 text-sm bg-background"
+                  />
+                  {discountNewTotal > 0 && discountNewTotal < remaining && (
+                    <div className="flex items-center justify-between text-xs sm:text-sm p-2 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-medium">
+                      <span>Desconto concedido:</span>
+                      <span className="font-bold">
+                        − {formatCurrency(discountAmount)} ({((discountAmount / remaining) * 100).toFixed(1)}%)
+                      </span>
+                    </div>
                   )}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {simulatedSchedule.length > 0 && (() => {
-            const rate = Number(loan.interestRate) || 0;
-            const interestRatio = rate > 0 ? rate / (100 + rate) : 0;
-            const newRows = simulatedSchedule.filter((r) => r.isNew);
-            const newCount = newRows.length;
-            let totMulta = 0;
-            let totJuros = 0;
-            let totParcela = 0;
-            return (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
-                    <CalendarDays className="h-3.5 w-3.5" /> Novo cronograma de parcelas pendentes
-                  </p>
-                  <span className="text-[10px] text-muted-foreground">
-                    {simulatedSchedule.length} parcela{simulatedSchedule.length > 1 ? "s" : ""}
-                  </span>
+                  {discountNewTotal > 0 && discountNewTotal >= remaining && (
+                    <p className="text-xs text-destructive font-medium flex items-center gap-1.5">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                      O novo valor negociado deve ser menor que o saldo atual ({formatCurrency(remaining)}).
+                    </p>
+                  )}
                 </div>
-                <div className="rounded-lg border border-border/60 max-h-64 overflow-y-auto overflow-x-hidden">
-                  <table className="w-full table-fixed text-[11px] sm:text-xs tabular-nums">
-                    <colgroup>
-                      <col className="w-[14%]" />
-                      <col className="w-[26%]" />
-                      <col className="w-[14%]" />
-                      <col className="w-[14%]" />
-                      <col className="w-[32%]" />
-                    </colgroup>
-                    <thead className="bg-muted/50 sticky top-0">
-                      <tr className="text-[9px] sm:text-[10px] uppercase tracking-wide text-muted-foreground">
-                        <th className="text-left px-1 py-1.5 font-semibold">#</th>
-                        <th className="text-left px-1 py-1.5 font-semibold">Venc.</th>
-                        <th className="text-right px-1 py-1.5 font-semibold">Multa</th>
-                        <th className="text-right px-1 py-1.5 font-semibold">Juros</th>
-                        <th className="text-right px-1 py-1.5 font-semibold">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/40">
-                      {simulatedSchedule.map((row, idx) => {
-                        let rowMulta = 0;
-                        if (row.isNew && type === "with_penalty" && penaltyAmount > 0) {
-                          if (useFirstMode) {
-                            const firstNewIdx = simulatedSchedule.findIndex((s) => s.isNew);
-                            rowMulta = idx === firstNewIdx ? penaltyAmount : 0;
-                          } else if (newCount > 0) {
-                            rowMulta = Math.round((penaltyAmount / newCount) * 100) / 100;
-                          }
-                        }
-                        const baseAmt = Math.max(0, row.amount - rowMulta);
-                        const rowJuros = row.isNew
-                          ? Math.round(baseAmt * interestRatio * 100) / 100
-                          : Math.round(Number(row.amount) * interestRatio * 100) / 100;
-                        totMulta += rowMulta;
-                        totJuros += rowJuros;
-                        totParcela += row.amount;
-                        return (
-                          <tr
-                            key={`${row.number}-${row.dueDate}-${row.isNew}`}
-                            className={row.isNew ? "bg-primary/5" : ""}
-                          >
-                            <td className="px-1 py-1.5 truncate">
-                              <span className="font-medium">#{row.number}</span>
-                              {row.isNew && (
-                                <span className="ml-0.5 text-[8px] uppercase tracking-tight bg-primary/15 text-primary rounded px-1 py-0.5 font-semibold">
-                                  Nova
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-1 py-1.5 text-muted-foreground truncate">
-                              {row.isNew && row.newIndex !== undefined ? (
-                                <DatePickerField
-                                  value={row.dueDate}
-                                  onChange={(v) => {
-                                    setCustomDates((prev) => ({ ...prev, [row.newIndex as number]: v }));
-                                    setConfirming(false);
-                                  }}
-                                  className="h-7 px-1 text-[11px] w-full min-w-0"
-                                />
-                              ) : (
-                                formatDateBR(row.dueDate)
-                              )}
-                            </td>
-                            <td className="px-1 py-1.5 text-right text-warning truncate">
-                              {rowMulta > 0 ? formatCurrency(rowMulta) : "—"}
-                            </td>
-                            <td className="px-1 py-1.5 text-right text-muted-foreground truncate">
-                              {rowJuros > 0 ? formatCurrency(rowJuros) : "—"}
-                            </td>
-                            <td className="px-1 py-1.5 text-right font-semibold">
-                              {row.isNew && row.newIndex !== undefined ? (
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  inputMode="decimal"
-                                  aria-label={`Valor da parcela ${row.number}`}
-                                  value={
-                                    customAmounts[row.newIndex] !== undefined
-                                      ? customAmounts[row.newIndex]
-                                      : String(finalAmountsPlan[row.newIndex] || "")
-                                  }
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    setCustomAmounts((prev) => ({ ...prev, [row.newIndex as number]: val }));
-                                    setEditedIndexes((prev) => {
-                                      const next = new Set(prev);
-                                      next.add(row.newIndex as number);
-                                      return next;
-                                    });
-                                    setConfirming(false);
-                                  }}
-                                  className={`h-7 px-1 text-[11px] text-right w-full min-w-0 tabular-nums ${
-                                    parseAmountInput(customAmounts[row.newIndex as number]) === null
-                                      ? "border-destructive focus-visible:ring-destructive"
-                                      : ""
-                                  }`}
-                                />
-                              ) : (
-                                formatCurrency(row.amount)
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot className="bg-muted/40 sticky bottom-0">
-                      <tr className="text-[9px] sm:text-[10px] font-semibold">
-                        <td className="px-1 py-1.5 truncate" colSpan={2}>Totais</td>
-                        <td className="px-1 py-1.5 text-right text-warning truncate">
-                          {totMulta > 0 ? formatCurrency(totMulta) : "—"}
-                        </td>
-                        <td className="px-1 py-1.5 text-right text-muted-foreground truncate">
-                          {totJuros > 0 ? formatCurrency(totJuros) : "—"}
-                        </td>
-                        <td className="px-1 py-1.5 text-right truncate">
-                          {formatCurrency(Math.round(totParcela * 100) / 100)}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-                <p className="text-[10px] text-muted-foreground italic">
-                  Você pode editar o valor de cada parcela nova. O total da renegociação é
-                  recalculado automaticamente pela soma das parcelas.
-                </p>
-                {hasInvalidAmount && (
-                  <p className="text-[11px] text-destructive">
-                    Corrija as parcelas com valor inválido ou negativo.
-                  </p>
-                )}
-                {rate > 0 && (
-                  <p className="text-[10px] text-muted-foreground italic">
-                    Juros estimado por parcela com base na taxa do contrato ({rate}%).
-                  </p>
-                )}
-                {isInstallmentLoan && pendingInstallments.length > 0 && (
-                  <p className="text-[10px] text-muted-foreground italic">
-                    Parcelas marcadas como "Nova" substituirão as selecionadas. As demais permanecem inalteradas.
-                  </p>
-                )}
-              </div>
-            );
-          })()}
+              )}
 
-          {confirming && (
-            <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-2 text-xs text-warning-foreground">
-              <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-              <div className="space-y-1.5 min-w-0">
-                <p>
-                  Confirma a renegociação? Esta ação será gravada no histórico permanente do contrato.
-                </p>
-                <div className="rounded-md bg-background/60 border border-border/50 p-2 space-y-1">
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
-                    Resumo final das parcelas
-                  </p>
-                  <div className="max-h-40 overflow-y-auto space-y-0.5">
-                    {simulatedSchedule.map((row) => (
-                      <div
-                        key={`sum-${row.number}-${row.dueDate}`}
-                        className="flex items-center justify-between gap-2 text-[11px] text-foreground"
+              {/* Seção Condicional: Multa */}
+              {type === "with_penalty" && (
+                <div className="space-y-3.5 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <Label className="text-xs sm:text-sm font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4" /> Multa de Renegociação
+                    </Label>
+                    <div className="inline-flex rounded-lg border border-amber-500/30 p-0.5 bg-background">
+                      <button
+                        type="button"
+                        className={`px-3 py-1 text-xs rounded-md font-medium transition-colors ${
+                          penaltyMode === "fixed" ? "bg-amber-500 text-white shadow-xs" : "text-muted-foreground hover:text-foreground"
+                        }`}
+                        onClick={() => { setPenaltyMode("fixed"); setConfirming(false); }}
                       >
-                        <span className="shrink-0">#{row.number}</span>
-                        <span className="text-muted-foreground truncate">{formatDateBR(row.dueDate)}</span>
-                        <span className="font-semibold tabular-nums">{formatCurrency(row.amount)}</span>
-                      </div>
-                    ))}
+                        R$ Fixo
+                      </button>
+                      <button
+                        type="button"
+                        className={`px-3 py-1 text-xs rounded-md font-medium transition-colors ${
+                          penaltyMode === "percentage" ? "bg-amber-500 text-white shadow-xs" : "text-muted-foreground hover:text-foreground"
+                        }`}
+                        onClick={() => { setPenaltyMode("percentage"); setConfirming(false); }}
+                      >
+                        % do Saldo
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between border-t border-border/50 pt-1 text-[11px] font-semibold text-foreground">
-                    <span>Total da renegociação</span>
-                    <span className="tabular-nums">{formatCurrency(renegotiatedTotal)}</span>
+
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    inputMode="decimal"
+                    placeholder={penaltyMode === "percentage" ? "Ex: 10 (%)" : "Ex: 100,00 (R$)"}
+                    value={penaltyInput}
+                    onChange={(e) => { setPenaltyInput(e.target.value); setConfirming(false); }}
+                    className="h-10 text-sm bg-background"
+                  />
+
+                  {penaltyAmount > 0 && (
+                    <div className="flex items-center justify-between text-xs sm:text-sm p-2 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300 font-medium">
+                      <span>Acréscimo calculado:</span>
+                      <span className="font-bold">+ {formatCurrency(penaltyAmount)}</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-2 pt-1 border-t border-amber-500/20">
+                    <Label className="text-xs font-semibold text-foreground">Distribuição da Multa</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        className={`p-2.5 text-left rounded-lg border text-xs transition-colors ${
+                          penaltyDistribution === "diluted"
+                            ? "border-amber-500 bg-amber-500/10 font-semibold text-foreground"
+                            : "border-border bg-background hover:bg-muted/40 text-muted-foreground"
+                        }`}
+                        onClick={() => { setPenaltyDistribution("diluted"); setConfirming(false); }}
+                      >
+                        <div className="font-semibold text-foreground mb-0.5">Diluída nas parcelas</div>
+                        <div className="text-[11px] text-muted-foreground">Dividida igualmente entre as novas parcelas.</div>
+                      </button>
+                      <button
+                        type="button"
+                        className={`p-2.5 text-left rounded-lg border text-xs transition-colors ${
+                          penaltyDistribution === "first"
+                            ? "border-amber-500 bg-amber-500/10 font-semibold text-foreground"
+                            : "border-border bg-background hover:bg-muted/40 text-muted-foreground"
+                        }`}
+                        onClick={() => { setPenaltyDistribution("first"); setConfirming(false); }}
+                      >
+                        <div className="font-semibold text-foreground mb-0.5">Somente na 1ª parcela</div>
+                        <div className="text-[11px] text-muted-foreground">O valor total da multa vai na 1ª parcela; demais sem acréscimo.</div>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Configurações de Parcelamento em Grid Responsivo */}
+              <div className="rounded-xl border border-border/70 bg-card p-4 space-y-4 shadow-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Layers className="h-3.5 w-3.5 text-primary" /> Novas Parcelas
+                    </Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      inputMode="numeric"
+                      placeholder={`Manter: ${isInstallmentLoan ? Math.max(1, selectedCount) : remainingPending}`}
+                      value={newInstallments}
+                      onChange={(e) => { 
+                        setNewInstallments(e.target.value); 
+                        setCustomAmounts({}); 
+                        setEditedIndexes(new Set());
+                        setConfirming(false); 
+                      }}
+                      className="h-10 text-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <CalendarDays className="h-3.5 w-3.5 text-primary" /> 1º Vencimento
+                    </Label>
+                    <DatePickerField
+                      value={firstDueDate}
+                      onChange={(v) => { setFirstDueDate(v); setCustomDates({}); setConfirming(false); }}
+                      className="h-10 text-sm w-full"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <RotateCcw className="h-3.5 w-3.5 text-primary" /> Frequência
+                    </Label>
+                    <Select
+                      value={frequency}
+                      onValueChange={(v) => { setFrequency(v as any); setCustomDates({}); setConfirming(false); }}
+                    >
+                      <SelectTrigger className="h-10 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monthly">Mensal</SelectItem>
+                        <SelectItem value="biweekly">Quinzenal</SelectItem>
+                        <SelectItem value="weekly">Semanal</SelectItem>
+                        <SelectItem value="daily">Diário</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground" /> Observações (opcional)
+                  </Label>
+                  <Textarea
+                    rows={2}
+                    placeholder="Anote o motivo da renegociação ou termos acordados..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="text-xs sm:text-sm resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Card de Resumo Financeiro / Pré-visualização */}
+              <div className="rounded-xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 via-card to-primary/10 p-4 sm:p-5 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                    <Sparkles className="h-4 w-4" /> Resumo da Proposta de Renegociação
+                  </span>
+                  <Badge variant="secondary" className="text-[11px] font-semibold">
+                    {installmentsCount} {installmentsCount === 1 ? "parcela" : "parcelas"}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Saldo Original:</span>
+                      <span className="font-medium text-foreground">{formatCurrency(remaining)}</span>
+                    </div>
+                    {type === "with_penalty" && (
+                      <div className="flex justify-between text-amber-600 dark:text-amber-400">
+                        <span>(+) Multa de Renegociação:</span>
+                        <span className="font-semibold">+{formatCurrency(penaltyAmount)}</span>
+                      </div>
+                    )}
+                    {type === "discount" && discountAmount > 0 && (
+                      <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                        <span>(−) Desconto Concedido:</span>
+                        <span className="font-semibold">−{formatCurrency(discountAmount)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 sm:border-l sm:border-border/60 sm:pl-4">
+                    <div className="flex justify-between text-xs sm:text-sm font-semibold">
+                      <span className="text-foreground">Novo Total Renegociado:</span>
+                      <span className={`text-sm sm:text-base font-bold ${hasCustomAmounts ? "text-primary" : type === "discount" && discountAmount > 0 ? "text-emerald-500" : "text-primary"}`}>
+                        {formatCurrency(renegotiatedTotal)}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between text-xs text-muted-foreground pt-1">
+                      <span>Parcelamento Estimado:</span>
+                      <span className="font-semibold text-foreground">
+                        {hasCustomAmounts
+                          ? `${installmentsCount}× (valores manuais)`
+                          : useFirstMode
+                            ? `1× ${formatCurrency(firstInstallmentValue)} + ${installmentsCount - 1}× ${formatCurrency(baseInstallmentValue)}`
+                            : `${installmentsCount}× de ${formatCurrency(newInstallmentValue)}`}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
+
+              {/* Tabela de Cronograma de Parcelas */}
+              {simulatedSchedule.length > 0 && (() => {
+                const rate = Number(loan.interestRate) || 0;
+                const interestRatio = rate > 0 ? rate / (100 + rate) : 0;
+                const newRows = simulatedSchedule.filter((r) => r.isNew);
+                const newCount = newRows.length;
+                let totMulta = 0;
+                let totJuros = 0;
+                let totParcela = 0;
+                return (
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <CalendarDays className="h-4 w-4 text-primary" />
+                        <h4 className="text-xs sm:text-sm font-bold text-foreground">
+                          Cronograma Simulado das Parcelas
+                        </h4>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {simulatedSchedule.length} parcela(s) total no contrato
+                      </span>
+                    </div>
+
+                    <div className="rounded-xl border border-border/80 overflow-hidden shadow-xs bg-card">
+                      <div className="max-h-64 sm:max-h-80 overflow-y-auto overflow-x-auto">
+                        <table className="w-full text-xs sm:text-sm tabular-nums border-collapse min-w-[500px]">
+                          <thead className="bg-muted/60 sticky top-0 z-10 border-b border-border/60">
+                            <tr className="text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                              <th className="text-left px-3 py-2">#</th>
+                              <th className="text-left px-3 py-2">Vencimento</th>
+                              <th className="text-right px-3 py-2">Multa</th>
+                              <th className="text-right px-3 py-2">Juros Estim.</th>
+                              <th className="text-right px-3 py-2">Valor da Parcela</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border/40">
+                            {simulatedSchedule.map((row, idx) => {
+                              let rowMulta = 0;
+                              if (row.isNew && type === "with_penalty" && penaltyAmount > 0) {
+                                if (useFirstMode) {
+                                  const firstNewIdx = simulatedSchedule.findIndex((s) => s.isNew);
+                                  rowMulta = idx === firstNewIdx ? penaltyAmount : 0;
+                                } else if (newCount > 0) {
+                                  rowMulta = Math.round((penaltyAmount / newCount) * 100) / 100;
+                                }
+                              }
+                              const baseAmt = Math.max(0, row.amount - rowMulta);
+                              const rowJuros = row.isNew
+                                ? Math.round(baseAmt * interestRatio * 100) / 100
+                                : Math.round(Number(row.amount) * interestRatio * 100) / 100;
+                              totMulta += rowMulta;
+                              totJuros += rowJuros;
+                              totParcela += row.amount;
+                              return (
+                                <tr
+                                  key={`${row.number}-${row.dueDate}-${row.isNew}`}
+                                  className={`transition-colors ${row.isNew ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/30"}`}
+                                >
+                                  <td className="px-3 py-2 whitespace-nowrap">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="font-bold text-foreground">#{row.number}</span>
+                                      {row.isNew && (
+                                        <span className="text-[9px] uppercase tracking-wide bg-primary/20 text-primary font-bold px-1.5 py-0.5 rounded">
+                                          Nova
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
+                                    {row.isNew && row.newIndex !== undefined ? (
+                                      <DatePickerField
+                                        value={row.dueDate}
+                                        onChange={(v) => {
+                                          setCustomDates((prev) => ({ ...prev, [row.newIndex as number]: v }));
+                                          setConfirming(false);
+                                        }}
+                                        className="h-8 px-2 text-xs w-36"
+                                      />
+                                    ) : (
+                                      <span className="font-medium text-foreground">{formatDateBR(row.dueDate)}</span>
+                                    )}
+                                  </td>
+                                  <td className="px-3 py-2 text-right text-amber-600 dark:text-amber-400 font-medium whitespace-nowrap">
+                                    {rowMulta > 0 ? formatCurrency(rowMulta) : "—"}
+                                  </td>
+                                  <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
+                                    {rowJuros > 0 ? formatCurrency(rowJuros) : "—"}
+                                  </td>
+                                  <td className="px-3 py-2 text-right font-bold text-foreground whitespace-nowrap">
+                                    {row.isNew && row.newIndex !== undefined ? (
+                                      <Input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        inputMode="decimal"
+                                        aria-label={`Valor da parcela ${row.number}`}
+                                        value={
+                                          customAmounts[row.newIndex] !== undefined
+                                            ? customAmounts[row.newIndex]
+                                            : String(finalAmountsPlan[row.newIndex] || "")
+                                        }
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          setCustomAmounts((prev) => ({ ...prev, [row.newIndex as number]: val }));
+                                          setEditedIndexes((prev) => {
+                                            const next = new Set(prev);
+                                            next.add(row.newIndex as number);
+                                            return next;
+                                          });
+                                          setConfirming(false);
+                                        }}
+                                        className={`h-8 px-2 text-xs text-right w-32 ml-auto tabular-nums font-semibold ${
+                                          parseAmountInput(customAmounts[row.newIndex as number]) === null
+                                            ? "border-destructive focus-visible:ring-destructive"
+                                            : ""
+                                        }`}
+                                      />
+                                    ) : (
+                                      formatCurrency(row.amount)
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                          <tfoot className="bg-muted/70 sticky bottom-0 z-10 border-t border-border font-bold">
+                            <tr className="text-xs sm:text-sm">
+                              <td className="px-3 py-2.5" colSpan={2}>
+                                Totais das Parcelas
+                              </td>
+                              <td className="px-3 py-2.5 text-right text-amber-600 dark:text-amber-400">
+                                {totMulta > 0 ? formatCurrency(totMulta) : "—"}
+                              </td>
+                              <td className="px-3 py-2.5 text-right text-muted-foreground">
+                                {totJuros > 0 ? formatCurrency(totJuros) : "—"}
+                              </td>
+                              <td className="px-3 py-2.5 text-right text-primary">
+                                {formatCurrency(Math.round(totParcela * 100) / 100)}
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-[11px] text-muted-foreground gap-1 italic">
+                      <p>Você pode editar individualmente as datas e valores das novas parcelas.</p>
+                      {rate > 0 && <p>Juros calculados com base na taxa contratual ({rate}%).</p>}
+                    </div>
+
+                    {hasInvalidAmount && (
+                      <p className="text-xs font-semibold text-destructive flex items-center gap-1.5">
+                        <AlertTriangle className="h-4 w-4" />
+                        Existem parcelas com valores inválidos ou negativos. Corrija antes de prosseguir.
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Banner de Confirmação Pré-Envio */}
+              {confirming && (
+                <div className="rounded-xl border-2 border-amber-500/50 bg-amber-500/10 p-4 space-y-3 shadow-md">
+                  <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-bold text-xs sm:text-sm">
+                    <AlertTriangle className="h-5 w-5 shrink-0" />
+                    <span>Confirmação da Renegociação de Contrato</span>
+                  </div>
+                  <p className="text-xs text-foreground leading-relaxed">
+                    Esta ação atualizará o cronograma e registrará um evento permanente no histórico do contrato. Revise o resumo abaixo antes de confirmar:
+                  </p>
+                  <div className="rounded-lg bg-background/80 border border-border/60 p-3 space-y-1.5 text-xs">
+                    <div className="flex justify-between font-semibold text-foreground">
+                      <span>Total Renegociado Final:</span>
+                      <span className="text-primary font-bold">{formatCurrency(renegotiatedTotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Quantidade de Parcelas:</span>
+                      <span>{installmentsCount} parcela(s)</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
-          </TabsContent>
 
-          <TabsContent value="history" className="mt-4 space-y-3 min-w-0">
-            {sortedHistory.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border/60 p-6 text-center">
-                <History className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Nenhuma renegociação registrada para este contrato.</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {sortedHistory.map((r) => {
-                  const isEditing = editingId === r.id;
-                  return (
-                    <div
-                      key={r.id}
-                      className="rounded-md border border-border/60 bg-muted/30 p-3 text-xs space-y-2"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-semibold text-foreground">{formatDateBR(r.renegotiatedAt)}</span>
-                        <div className="flex items-center gap-1">
+          {/* Tab Histórico */}
+          {activeTab === "history" && (
+            <div className="space-y-4">
+              {sortedHistory.length === 0 ? (
+                <div className="rounded-xl border-2 border-dashed border-border/70 p-8 sm:p-12 text-center space-y-2">
+                  <div className="h-12 w-12 rounded-full bg-muted/60 text-muted-foreground flex items-center justify-center mx-auto">
+                    <History className="h-6 w-6" />
+                  </div>
+                  <h4 className="text-sm font-semibold text-foreground">Nenhuma renegociação anterior</h4>
+                  <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                    Este contrato ainda não passou por renegociações registradas.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {sortedHistory.map((r) => {
+                    const isEditing = editingId === r.id;
+                    const discountVal = r.newAmount < r.previousAmount
+                      ? Math.round((r.previousAmount - r.newAmount) * 100) / 100
+                      : 0;
+
+                    return (
+                      <div
+                        key={r.id}
+                        className="rounded-xl border border-border/70 bg-card p-4 space-y-3 shadow-xs transition-all hover:border-border"
+                      >
+                        <div className="flex items-center justify-between gap-2 border-b border-border/50 pb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-xs sm:text-sm text-foreground">
+                              {formatDateBR(r.renegotiatedAt)}
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] ${
+                                r.type === "with_penalty"
+                                  ? "border-amber-500/40 text-amber-600 bg-amber-500/10"
+                                  : discountVal > 0
+                                    ? "border-emerald-500/40 text-emerald-600 bg-emerald-500/10"
+                                    : "border-primary/40 text-primary bg-primary/10"
+                              }`}
+                            >
+                              {r.type === "with_penalty"
+                                ? "Com Multa"
+                                : discountVal > 0
+                                  ? "Com Desconto"
+                                  : "Sem Juros"}
+                            </Badge>
+                          </div>
+
                           {!isEditing && (
-                            <>
+                            <div className="flex items-center gap-1">
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="h-7 px-2"
+                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                                 onClick={() => startEdit(r)}
-                                title="Editar"
+                                title="Editar Registro"
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="h-7 px-2 text-destructive hover:text-destructive"
+                                className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
                                 onClick={() => setPendingDeleteId(r.id)}
-                                title="Excluir"
+                                title="Excluir do Histórico"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
-                            </>
+                            </div>
                           )}
                         </div>
-                      </div>
 
-                      {(() => {
-                        const discountVal = r.newAmount < r.previousAmount
-                          ? Math.round((r.previousAmount - r.newAmount) * 100) / 100
-                          : 0;
-                        return (
-                          <>
-                            <div className="flex justify-between text-muted-foreground">
-                              <span>{formatCurrency(r.previousAmount)} → {formatCurrency(r.newAmount)}</span>
-                              {r.penaltyAmount > 0 && (
-                                <span className="text-warning font-medium">
-                                  +{formatCurrency(r.penaltyAmount)}
-                                  {r.penaltyMode === "percentage" && r.penaltyInput
-                                    ? ` (${r.penaltyInput}%)`
-                                    : ""}
-                                </span>
-                              )}
-                              {discountVal > 0 && (
-                                <span className="text-success font-medium">
-                                  −{formatCurrency(discountVal)}
-                                </span>
-                              )}
+                        {!isEditing ? (
+                          <div className="space-y-2 text-xs sm:text-sm">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <span className="text-muted-foreground">Valor:</span>
+                              <div className="flex items-center gap-2 font-semibold">
+                                <span className="text-muted-foreground line-through">{formatCurrency(r.previousAmount)}</span>
+                                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span className="text-foreground">{formatCurrency(r.newAmount)}</span>
+                              </div>
                             </div>
+
+                            {r.penaltyAmount > 0 && (
+                              <div className="flex justify-between text-amber-600 dark:text-amber-400 font-medium">
+                                <span>Multa Aplicada:</span>
+                                <span>
+                                  +{formatCurrency(r.penaltyAmount)}
+                                  {r.penaltyMode === "percentage" && r.penaltyInput ? ` (${r.penaltyInput}%)` : ""}
+                                </span>
+                              </div>
+                            )}
+
+                            {discountVal > 0 && (
+                              <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                                <span>Desconto Concedido:</span>
+                                <span>−{formatCurrency(discountVal)}</span>
+                              </div>
+                            )}
 
                             {r.previousInstallments != null && r.newInstallments != null && (
-                              <div className="text-[11px] text-muted-foreground">
-                                Parcelas: {r.previousInstallments} → {r.newInstallments}
+                              <div className="flex justify-between text-muted-foreground">
+                                <span>Parcelas:</span>
+                                <span>{r.previousInstallments} → {r.newInstallments} parcelas</span>
                               </div>
                             )}
 
-                            {!isEditing && (
-                              <div className="flex items-center justify-between">
-                                <span
-                                  className={
-                                    r.type === "with_penalty"
-                                      ? "text-warning font-medium"
-                                      : discountVal > 0
-                                        ? "text-success font-medium"
-                                        : "text-muted-foreground"
-                                  }
-                                >
-                                  {r.type === "with_penalty"
-                                    ? "Com multa"
-                                    : discountVal > 0
-                                      ? "Com desconto"
-                                      : "Sem juros"}
-                                </span>
+                            {r.notes && (
+                              <div className="rounded-lg bg-muted/40 p-2.5 text-xs text-muted-foreground italic border-l-2 border-primary/40 mt-2">
+                                "{r.notes}"
                               </div>
                             )}
-                          </>
-                        );
-                      })()}
-
-                      {!isEditing ? (
-                        <>
-                          {r.notes && (
-                            <p className="text-muted-foreground italic border-t border-border/40 pt-1.5">
-                              {r.notes}
-                            </p>
-                          )}
-                        </>
-                      ) : (
-                        <div className="space-y-2 border-t border-border/40 pt-2">
-                          <div>
-                            <Label className="text-[11px]">Tipo</Label>
-                            <RadioGroup
-                              value={editType}
-                              onValueChange={(v) => setEditType(v as any)}
-                              className="grid grid-cols-2 gap-2 mt-1"
-                            >
-                              <label className="flex items-center gap-2 rounded border border-border p-2 cursor-pointer">
-                                <RadioGroupItem value="no_interest" />
-                                <span className="text-[11px]">Sem juros</span>
-                              </label>
-                              <label className="flex items-center gap-2 rounded border border-border p-2 cursor-pointer">
-                                <RadioGroupItem value="with_penalty" />
-                                <span className="text-[11px]">Com multa</span>
-                              </label>
-                            </RadioGroup>
                           </div>
-                          {editType === "with_penalty" && (
+                        ) : (
+                          <div className="space-y-3 pt-1">
                             <div className="space-y-1.5">
-                              <Label className="text-[11px]">Multa registrada</Label>
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  type="button"
-                                  variant={editPenaltyMode === "fixed" ? "default" : "outline"}
-                                  className="flex-1 h-7 text-[11px]"
-                                  onClick={() => setEditPenaltyMode("fixed")}
-                                >
-                                  R$ fixo
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  type="button"
-                                  variant={editPenaltyMode === "percentage" ? "default" : "outline"}
-                                  className="flex-1 h-7 text-[11px]"
-                                  onClick={() => setEditPenaltyMode("percentage")}
-                                >
-                                  % do saldo
-                                </Button>
+                              <Label className="text-xs">Tipo de Renegociação</Label>
+                              <RadioGroup
+                                value={editType}
+                                onValueChange={(v) => setEditType(v as any)}
+                                className="grid grid-cols-2 gap-2"
+                              >
+                                <label className="flex items-center gap-2 rounded-lg border border-border p-2 cursor-pointer text-xs">
+                                  <RadioGroupItem value="no_interest" />
+                                  <span>Sem juros</span>
+                                </label>
+                                <label className="flex items-center gap-2 rounded-lg border border-border p-2 cursor-pointer text-xs">
+                                  <RadioGroupItem value="with_penalty" />
+                                  <span>Com multa</span>
+                                </label>
+                              </RadioGroup>
+                            </div>
+
+                            {editType === "with_penalty" && (
+                              <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                                <Label className="text-xs font-semibold">Multa Registrada</Label>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    type="button"
+                                    variant={editPenaltyMode === "fixed" ? "default" : "outline"}
+                                    className="flex-1 h-8 text-xs"
+                                    onClick={() => setEditPenaltyMode("fixed")}
+                                  >
+                                    R$ Fixo
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    type="button"
+                                    variant={editPenaltyMode === "percentage" ? "default" : "outline"}
+                                    className="flex-1 h-8 text-xs"
+                                    onClick={() => setEditPenaltyMode("percentage")}
+                                  >
+                                    % do Saldo
+                                  </Button>
+                                </div>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  inputMode="decimal"
+                                  value={editPenaltyInput}
+                                  onChange={(e) => setEditPenaltyInput(e.target.value)}
+                                  className="h-8 text-xs bg-background"
+                                />
                               </div>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                inputMode="decimal"
-                                value={editPenaltyInput}
-                                onChange={(e) => setEditPenaltyInput(e.target.value)}
-                                className="h-8 text-xs"
+                            )}
+
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">Observação</Label>
+                              <Textarea
+                                rows={2}
+                                value={editNotes}
+                                onChange={(e) => setEditNotes(e.target.value)}
+                                className="text-xs"
                               />
                             </div>
-                          )}
-                          <div>
-                            <Label className="text-[11px]">Observação</Label>
-                            <Textarea
-                              rows={2}
-                              value={editNotes}
-                              onChange={(e) => setEditNotes(e.target.value)}
-                              className="text-xs"
-                            />
-                          </div>
-                          <p className="text-[10px] text-muted-foreground italic">
-                            A edição altera apenas as informações do registro. Os valores e o cronograma
-                            já aplicados ao contrato não são recalculados.
-                          </p>
-                          <div className="flex justify-end gap-2">
-                            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={cancelEdit} disabled={savingEdit}>
-                              <X className="h-3.5 w-3.5 mr-1" /> Cancelar
-                            </Button>
-                            <Button size="sm" className="h-7 text-xs" onClick={saveEdit} disabled={savingEdit}>
-                              <Save className="h-3.5 w-3.5 mr-1" /> Salvar
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
 
-        {activeTab === "renegotiate" && (
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => handleClose(false)} disabled={submitting}>
-              Cancelar
+                            <div className="flex justify-end gap-2 pt-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 text-xs"
+                                onClick={cancelEdit}
+                                disabled={savingEdit}
+                              >
+                                <X className="h-3.5 w-3.5 mr-1" /> Cancelar
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="h-8 text-xs"
+                                onClick={saveEdit}
+                                disabled={savingEdit}
+                              >
+                                <Save className="h-3.5 w-3.5 mr-1" /> {savingEdit ? "Salvando..." : "Salvar Alterações"}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer Fixo */}
+        <DialogFooter className="px-4 py-3 sm:px-6 sm:py-4 border-t border-border/60 bg-muted/20 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0">
+          <Button
+            variant="outline"
+            onClick={() => handleClose(false)}
+            disabled={submitting}
+            className="w-full sm:w-auto h-10 text-xs sm:text-sm font-medium"
+          >
+            {activeTab === "history" ? "Fechar" : "Cancelar"}
+          </Button>
+
+          {activeTab === "renegotiate" && (
+            <Button
+              onClick={handleSubmit}
+              disabled={submitting}
+              className={`w-full sm:w-auto h-10 text-xs sm:text-sm font-semibold transition-all ${
+                confirming
+                  ? "bg-amber-600 hover:bg-amber-700 text-white animate-pulse"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+              }`}
+            >
+              {submitting ? (
+                "Gravando Renegociação..."
+              ) : confirming ? (
+                "Confirmar Renegociação Agora"
+              ) : (
+                "Avançar para Confirmação"
+              )}
             </Button>
-            <Button onClick={handleSubmit} disabled={submitting}>
-              {submitting ? "Salvando..." : confirming ? "Confirmar renegociação" : "Renegociar"}
-            </Button>
-          </DialogFooter>
-        )}
-        {activeTab === "history" && (
-          <DialogFooter>
-            <Button variant="outline" onClick={() => handleClose(false)}>Fechar</Button>
-          </DialogFooter>
-        )}
+          )}
+        </DialogFooter>
       </DialogContent>
 
       <AlertDialog open={!!pendingDeleteId} onOpenChange={(v) => !v && setPendingDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir renegociação?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir histórico de renegociação?</AlertDialogTitle>
             <AlertDialogDescription>
               Este registro será removido permanentemente do histórico do contrato. Os valores
               e o cronograma já aplicados ao contrato continuam inalterados — esta ação afeta
-              apenas o histórico.
+              apenas a lista de histórico.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1359,7 +1496,7 @@ export function RenegotiateLoanDialog({
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? "Excluindo..." : "Excluir"}
+              {deleting ? "Excluindo..." : "Excluir Registro"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1367,3 +1504,4 @@ export function RenegotiateLoanDialog({
     </Dialog>
   );
 }
+
