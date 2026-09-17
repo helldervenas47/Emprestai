@@ -82,12 +82,12 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
             "max-h-[100dvh] overflow-y-auto overflow-x-hidden overscroll-contain",
             className,
           )}
-
+          {...props}
           style={{
             paddingTop: `calc(env(safe-area-inset-top) + 1.5rem)`,
             paddingBottom: `calc(env(safe-area-inset-bottom) + 1.5rem)`,
+            ...props.style,
           }}
-          {...props}
         >
 
         {children}

@@ -102,9 +102,13 @@ export function SubscriptionCustomerDetailsSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto p-0 flex flex-col gap-0 border-l border-border/60 bg-background">
+      <SheetContent
+        showCloseButton={false}
+        className="w-full sm:max-w-lg overflow-y-auto p-0 flex flex-col gap-0 border-l border-border/60 bg-background"
+        style={{ paddingTop: 0, paddingBottom: 0 }}
+      >
         {/* Cabeçalho do Cliente */}
-        <SheetHeader className="p-4 sm:p-5 pb-3 sm:pb-4 border-b border-border/40 bg-card/80 backdrop-blur-sm sticky top-0 z-20 text-left">
+        <SheetHeader className="px-4 sm:px-5 pt-[max(env(safe-area-inset-top),1rem)] pb-3.5 sm:pb-4 border-b border-border/40 bg-card/95 backdrop-blur-md sticky top-0 z-30 text-left shadow-xs pr-4 sm:pr-5">
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1 min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
@@ -157,7 +161,7 @@ export function SubscriptionCustomerDetailsSheet({
         </SheetHeader>
 
         {/* Corpo com Informações e Ações */}
-        <div className="p-5 space-y-6 flex-1">
+        <div className="p-4 sm:p-5 space-y-6 flex-1 pb-[calc(env(safe-area-inset-bottom)+2rem)]">
           {/* Card de Resumo de Acesso */}
           <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3.5 shadow-sm">
             <div className="flex items-center justify-between">
