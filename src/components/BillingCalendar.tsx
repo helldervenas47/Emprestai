@@ -25,7 +25,6 @@ import {
   MessageCircle,
   Copy,
   Search,
-  CheckCircle2,
   TrendingUp,
   RotateCcw,
   Sparkles,
@@ -1270,8 +1269,6 @@ export function BillingCalendar({
                   const isToday = dateStr === todayStr;
                   const isSelected = dateStr === selectedDate;
                   const hasPending = pending.count > 0;
-                  const hasReceived = !!received && received.total > 0;
-                  const isFullyPaid = hasReceived && !hasPending;
                   const isOverdue = dateStr < todayStr && hasPending;
                   const isUpcoming = dateStr >= todayStr && hasPending;
                   const dayTotal = pending.total;
@@ -1289,8 +1286,6 @@ export function BillingCalendar({
                           ? "bg-primary/5 border-primary/40 ring-1 ring-primary/40"
                           : isOverdue
                           ? "bg-destructive/10 border-destructive/20 hover:bg-destructive/15"
-                          : isFullyPaid
-                          ? "bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/15"
                           : isUpcoming
                           ? "bg-warning/5 border-warning/20 hover:bg-warning/10"
                           : "border-border/40 hover:bg-muted/40",
@@ -1306,22 +1301,6 @@ export function BillingCalendar({
                           {day}
                         </span>
                         <div className="flex items-center gap-0.5">
-                          {isFullyPaid && (
-                            <CheckCircle2
-                              className={cn(
-                                "h-3 w-3",
-                                isSelected ? "text-primary-foreground" : "text-emerald-500",
-                              )}
-                            />
-                          )}
-                          {hasReceived && !isFullyPaid && (
-                            <span
-                              className={cn(
-                                "h-1.5 w-1.5 rounded-full",
-                                isSelected ? "bg-primary-foreground" : "bg-emerald-500",
-                              )}
-                            />
-                          )}
                           {isUpcoming && (
                             <span
                               className={cn(
@@ -1338,7 +1317,7 @@ export function BillingCalendar({
                               )}
                             />
                           )}
-                          {!hasPending && !hasReceived && (
+                          {!hasPending && (
                             <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/30" />
                           )}
                         </div>
@@ -1375,9 +1354,6 @@ export function BillingCalendar({
 
               {/* Legend */}
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-[10px] md:text-xs text-muted-foreground border-t border-border/40 pt-2">
-                <div className="flex items-center gap-1">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" /> Recebido
-                </div>
                 <div className="flex items-center gap-1">
                   <span className="h-2 w-2 rounded-full bg-warning" /> A vencer
                 </div>
