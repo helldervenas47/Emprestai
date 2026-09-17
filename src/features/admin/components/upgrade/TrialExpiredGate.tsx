@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 import { usePlanEntitlements } from "@/features/admin/hooks/usePlanEntitlements";
 import { supabase } from "@/integrations/supabase/userClient";
 
@@ -10,14 +11,16 @@ import { supabase } from "@/integrations/supabase/userClient";
  *   - readonly / force_upgrade: libera navegação na aba principal;
  *     as funcionalidades ficam bloqueadas via SubscriptionGate/Banner.
  *
+ * Administradores (`role === 'admin'`) nunca são bloqueados por expiração.
  * Os dados do usuário permanecem no banco — nada é apagado.
  * (Não há mais redirecionamento automático para /planos quando o plano expira.)
  */
 export function TrialExpiredGate({ children }: { children: React.ReactNode }) {
+  const { role } = useAuth();
   const { trial, isPaid, loading } = usePlanEntitlements();
   const navigate = useNavigate();
 
-  if (loading || isPaid || !trial.expired) return <>{children}</>;
+  if (role === "admin" || loading || isPaid || !trial.expired) return <>{children}</>;
 
   if (trial.expirationAction === "block_all") {
     return (

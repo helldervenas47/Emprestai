@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { usePlanEntitlements } from "@/features/admin/hooks/usePlanEntitlements";
 import { setReadOnly } from "@/lib/readOnlyState";
 
@@ -7,11 +8,14 @@ import { setReadOnly } from "@/lib/readOnlyState";
  * Independente de expiration_action ("readonly" | "force_upgrade" | "block_all")
  * — qualquer expiração sem upgrade trava ações de escrita.
  *
+ * Administradores (`role === 'admin'`) nunca entram em modo somente leitura.
  * Para "block_all", o TrialExpiredGate continua mostrando a tela cheia.
  */
 export function useReadOnlyMode() {
+  const { role } = useAuth();
   const { trial, isPaid, loading } = usePlanEntitlements();
-  const readOnly = !loading && trial.expired && !isPaid;
+  const isAdmin = role === "admin";
+  const readOnly = !isAdmin && !loading && trial.expired && !isPaid;
 
   useEffect(() => {
     setReadOnly(readOnly);
@@ -19,7 +23,7 @@ export function useReadOnlyMode() {
 
   return {
     readOnly,
-    loading,
+    loading: isAdmin ? false : loading,
     reason: readOnly ? ("trial_expired" as const) : null,
   };
 }

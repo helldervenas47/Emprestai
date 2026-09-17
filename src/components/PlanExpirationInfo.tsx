@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { usePlanEntitlements } from "@/features/admin/hooks/usePlanEntitlements";
 import { CalendarClock, AlertCircle, Clock } from "lucide-react";
@@ -10,6 +11,7 @@ interface PlanExpirationInfoProps {
 }
 
 export function PlanExpirationInfo({ className, showIcon = true }: PlanExpirationInfoProps) {
+  const { role } = useAuth();
   const { subscription, isActive } = useSubscription();
   const { trial, loading } = usePlanEntitlements();
 
@@ -20,7 +22,8 @@ export function PlanExpirationInfo({ className, showIcon = true }: PlanExpiratio
     return () => clearInterval(timer);
   }, []);
 
-  if (loading) return null;
+  // Usuários com perfil admin têm acesso total vitalício e não possuem data de expiração
+  if (role === "admin" || loading) return null;
 
   // Determina a data de expiração do plano ou do período de teste
   const rawEnd = subscription?.current_period_end || trial?.endsAt;

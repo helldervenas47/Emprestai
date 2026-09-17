@@ -138,11 +138,16 @@ export function usePlanEntitlements() {
   }, []);
 
   const trial = useMemo(() => {
+    const action = plan?.expiration_action ?? "force_upgrade";
+    // Usuários com perfil admin possuem acesso total sem expiração ou contagem de trial
+    if (role === "admin") {
+      return { active: false, daysLeft: 0, hoursLeft: 0, msLeft: 0, endsAt: null as Date | null, expired: false, expirationAction: action };
+    }
+
     // Prioridade: override manual do admin > default do plano.
     // Isso garante que "Iniciar teste" / "Prorrogar teste" na Administração
     // reflitam imediatamente no contador do usuário.
     const days = trialDaysOverride ?? plan?.trial_days ?? 7;
-    const action = plan?.expiration_action ?? "force_upgrade";
     const stillResolving = authLoading || subscriptionLoading || loading;
     if (!plan || !trialStartedAt || stillResolving) {
       return { active: false, daysLeft: 0, hoursLeft: 0, msLeft: 0, endsAt: null as Date | null, expired: false, expirationAction: action };
@@ -157,16 +162,17 @@ export function usePlanEntitlements() {
     const hoursLeft = Math.max(0, Math.ceil(msLeft / 3600_000));
     const expired = msLeft <= 0 && !isActive;
     return { active: !hasExplicitPlan && !isActive && msLeft > 0, daysLeft, hoursLeft, msLeft: Math.max(0, msLeft), endsAt, expired, expirationAction: action };
-  }, [plan, trialStartedAt, trialDaysOverride, isActive, authLoading, subscriptionLoading, loading, now, subscription]);
+  }, [plan, trialStartedAt, trialDaysOverride, isActive, authLoading, subscriptionLoading, loading, now, subscription, role]);
 
-  const lockdown = trial.expired && trial.expirationAction === "readonly";
   const hasPlanAccess = role === "admin" || isActive;
 
   const can = (action: string) => {
+    if (role === "admin") return true;
     if (!plan || loading || (!hasPlanAccess && !trial.active)) return false;
     return isPermitted(plan?.permissions, action);
   };
   const withinLimit = (key: LimitKey, current: number) => {
+    if (role === "admin") return true;
     if (!plan || loading || (!hasPlanAccess && !trial.active)) return false;
     return isWithinLimit(plan?.limits, key, current);
   };
@@ -174,7 +180,7 @@ export function usePlanEntitlements() {
   return {
     loading: loading || authLoading || subscriptionLoading,
     plan, limits: plan?.limits ?? {}, permissions: plan?.permissions ?? {},
-    allowedTabs: plan ? plan.allowed_tabs : [], trial, can, withinLimit,
+    allowedTabs: role === "admin" ? null : (plan ? plan.allowed_tabs : []), trial, can, withinLimit,
     isPaid: hasPlanAccess, allKnownPermissions: ALL_PERMISSION_KEYS,
   };
 }

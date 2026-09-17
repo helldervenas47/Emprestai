@@ -2,16 +2,18 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { AlertTriangle, ArrowRight, X } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { usePlanEntitlements } from "@/features/admin/hooks/usePlanEntitlements";
 
 export function SubscriptionBanner() {
+  const { role } = useAuth();
   const { isActive, loading: subLoading, daysRemaining } = useSubscription();
   const { trial, loading: planLoading } = usePlanEntitlements();
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(false);
 
-  if (subLoading || planLoading) return null;
+  if (role === "admin" || subLoading || planLoading) return null;
 
   // Se não estiver ativo E não tiver um trial ativo, mostra o banner padrão de bloqueio
   if (!isActive && !trial.active) {

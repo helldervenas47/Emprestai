@@ -38,7 +38,7 @@ export function useAccessLock(): AccessLockState {
   const [reloadTick, setReloadTick] = useState(0);
 
   useEffect(() => {
-    if (!ownerId) {
+    if (role === "admin" || !ownerId) {
       setAdminBlocked(false);
       setBlockedReason(null);
       setServerState(null);
@@ -49,25 +49,29 @@ export function useAccessLock(): AccessLockState {
     setProfileLoading(true);
     (async () => {
       // Fonte única de verdade: mesma regra usada pela RLS (`is_access_blocked`).
-      const { data: rpcData, error: rpcError } = await (supabase as any).rpc(
-        "my_access_state",
-      );
-      if (cancelled) return;
+      try {
+        const { data: rpcData, error: rpcError } = typeof (supabase as any)?.rpc === "function"
+          ? await (supabase as any).rpc("my_access_state")
+          : { data: null, error: new Error("rpc_not_supported") };
+        if (cancelled) return;
 
-      if (!rpcError && rpcData) {
-        const raw = Array.isArray(rpcData) ? rpcData[0] : rpcData;
-        const s = raw as {
-          locked?: boolean;
-          blocked?: boolean;
-          reason?: AccessLockReason;
-          blocked_reason?: string | null;
-        };
-        const locked = Boolean(s.locked ?? s.blocked);
-        setServerState({ locked, reason: s.reason ?? null });
-        setAdminBlocked(s.reason === "admin_blocked");
-        setBlockedReason(s.blocked_reason ?? null);
-        setProfileLoading(false);
-        return;
+        if (!rpcError && rpcData) {
+          const raw = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+          const s = raw as {
+            locked?: boolean;
+            blocked?: boolean;
+            reason?: AccessLockReason;
+            blocked_reason?: string | null;
+          };
+          const locked = Boolean(s.locked ?? s.blocked);
+          setServerState({ locked, reason: s.reason ?? null });
+          setAdminBlocked(s.reason === "admin_blocked");
+          setBlockedReason(s.blocked_reason ?? null);
+          setProfileLoading(false);
+          return;
+        }
+      } catch {
+        // ignora erro de rpc e tenta o fallback direto no profile
       }
 
       // Fallback (RPC ainda não aplicada no banco): lê o flag no perfil.
@@ -108,9 +112,9 @@ export function useAccessLock(): AccessLockState {
 
   const loading = authLoading || planLoading || profileLoading;
 
-  // Explicit administrative blocks take precedence, including for account admins.
+  // Usuários com perfil admin possuem acesso irrestrito sem bloqueios ou expiração
   if (role === "admin" && !adminBlocked) {
-    return { loading, locked: false, reason: null, blockedReason: null, planExpiresAt: trial.endsAt };
+    return { loading: false, locked: false, reason: null, blockedReason: null, planExpiresAt: null };
   }
 
   // Se a RPC respondeu, ela manda (mesma regra da RLS).

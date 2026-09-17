@@ -3,6 +3,7 @@ import { todayInAppTz } from "@/lib/timezone";
 import { Loan, Payment } from "@/types/loan";
 import { calculateTotalWithInterest } from "@/features/loans/hooks/useLoans";
 import { useHideValues } from "@/contexts/HideValuesContext";
+import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { Progress } from "@/components/ui/progress";
 
@@ -13,7 +14,9 @@ interface Props {
 
 export function DashboardCards({ loans, payments }: Props) {
   const { mask } = useHideValues();
+  const { role } = useAuth();
   const { planTier, planLimits } = useSubscription();
+  const isAdmin = role === "admin";
   const activeLoansData = loans.filter((l) => l.status !== "paid");
 
   // Capital na Rua = principal proporcional ainda em aberto
@@ -114,32 +117,34 @@ export function DashboardCards({ loans, payments }: Props) {
         ))}
       </div>
       
-      {/* Loan Limit Indicator */}
-      <div className="rounded-2xl p-4 bg-card border border-border/20 shadow-[0_1px_8px_-4px_hsl(0_0%_0%/0.05)] backdrop-blur-sm">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Crown className={`h-4 w-4 ${isAtLimit ? "text-destructive" : isNearLimit ? "text-warning" : "text-primary"}`} />
-            <span className="text-sm font-medium">Limite de Empréstimos</span>
-            <span className="text-xs text-muted-foreground">
-              ({planTier === 1 ? "Básico" : planTier === 2 ? "Profissional" : planTier === 3 ? "Empresarial" : "Trial"})
+      {/* Loan Limit Indicator (não exibido para administradores com acesso total) */}
+      {!isAdmin && (
+        <div className="rounded-2xl p-4 bg-card border border-border/20 shadow-[0_1px_8px_-4px_hsl(0_0%_0%/0.05)] backdrop-blur-sm">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Crown className={`h-4 w-4 ${isAtLimit ? "text-destructive" : isNearLimit ? "text-warning" : "text-primary"}`} />
+              <span className="text-sm font-medium">Limite de Empréstimos</span>
+              <span className="text-xs text-muted-foreground">
+                ({planTier === 1 ? "Básico" : planTier === 2 ? "Profissional" : planTier === 3 ? "Empresarial" : "Trial"})
+              </span>
+            </div>
+            <span className={`text-sm font-semibold ${isAtLimit ? "text-destructive" : isNearLimit ? "text-warning" : "text-primary"}`}>
+              {activeLoans} / {maxLoans}
             </span>
           </div>
-          <span className={`text-sm font-semibold ${isAtLimit ? "text-destructive" : isNearLimit ? "text-warning" : "text-primary"}`}>
-            {activeLoans} / {maxLoans}
-          </span>
+          <Progress 
+            value={loanLimitPercent} 
+            className={`h-2 ${isAtLimit ? "bg-destructive/20" : isNearLimit ? "bg-warning/20" : ""}`}
+          />
+          <p className="text-xs text-muted-foreground mt-2">
+            {isAtLimit 
+              ? "Limite atingido. Faça upgrade para criar mais empréstimos." 
+              : isNearLimit 
+                ? `Restam apenas ${maxLoans - activeLoans} empréstimos no seu plano.` 
+                : `Você pode criar mais ${maxLoans - activeLoans} empréstimos.`}
+          </p>
         </div>
-        <Progress 
-          value={loanLimitPercent} 
-          className={`h-2 ${isAtLimit ? "bg-destructive/20" : isNearLimit ? "bg-warning/20" : ""}`}
-        />
-        <p className="text-xs text-muted-foreground mt-2">
-          {isAtLimit 
-            ? "Limite atingido. Faça upgrade para criar mais empréstimos." 
-            : isNearLimit 
-              ? `Restam apenas ${maxLoans - activeLoans} empréstimos no seu plano.` 
-              : `Você pode criar mais ${maxLoans - activeLoans} empréstimos.`}
-        </p>
-      </div>
+      )}
     </div>
   );
 }

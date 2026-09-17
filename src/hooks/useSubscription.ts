@@ -48,10 +48,11 @@ const STALE_PAID_MS = 5 * 60_000;
 const STALE_TRIAL_MS = 15_000;
 
 export function useSubscription() {
-  const { user, dataOwnerId, loading: authLoading } = useAuth();
+  const { user, dataOwnerId, role, loading: authLoading } = useAuth();
   const environment = BILLING_ENVIRONMENT;
   const effectiveUserId = dataOwnerId ?? user?.id ?? null;
   const cacheKey = effectiveUserId ? `subscription:${effectiveUserId}:${environment}` : "";
+  const isAdmin = role === "admin";
 
   const [subscription, setSubscription] = useState<Subscription | null>(
     () => readSharedResource<Subscription | null>(cacheKey) ?? null,
@@ -179,15 +180,18 @@ export function useSubscription() {
     return () => clearInterval(timer);
   }, []);
 
-  const isActive = hasSubscriptionAccess(subscription);
+  const isActive = isAdmin || hasSubscriptionAccess(subscription);
 
-  const daysRemaining = subscription?.current_period_end 
+  // Usuários admin têm acesso total vitalício sem contagem regressiva de expiração
+  const daysRemaining = isAdmin
+    ? null
+    : subscription?.current_period_end 
     ? Math.ceil((new Date(subscription.current_period_end).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
     : null;
 
-  const planTier = subscription ? PLAN_TIERS[subscription.product_id] || 0 : 0;
-  const planLimits = subscription ? PLAN_LIMITS[subscription.product_id] : null;
-  const hasFeature = (requiredTier: number) => isActive && planTier >= requiredTier;
+  const planTier = isAdmin ? 3 : (subscription ? PLAN_TIERS[subscription.product_id] || 0 : 0);
+  const planLimits = isAdmin ? null : (subscription ? PLAN_LIMITS[subscription.product_id] : null);
+  const hasFeature = (requiredTier: number) => isAdmin || (isActive && planTier >= requiredTier);
 
   return {
     subscription,

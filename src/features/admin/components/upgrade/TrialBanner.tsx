@@ -1,13 +1,15 @@
 import { useNavigate } from "react-router-dom";
 import { Clock, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 import { usePlanEntitlements } from "@/features/admin/hooks/usePlanEntitlements";
 
 export function TrialBanner() {
   const navigate = useNavigate();
+  const { role } = useAuth();
   const { trial, isPaid } = usePlanEntitlements();
 
-  if (isPaid) return null;
+  if (role === "admin" || isPaid) return null;
 
   if (trial.expired) {
     return (
