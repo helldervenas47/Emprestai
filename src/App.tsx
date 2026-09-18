@@ -146,16 +146,15 @@ const App = () => {
       <div
         className={`min-h-screen w-full bg-background ${
           showSplash
-            ? "transition-all duration-[400ms] motion-reduce:transition-opacity motion-reduce:duration-200"
+            ? "transition-opacity duration-[400ms] motion-reduce:duration-200"
             : ""
         } ${
           showSplash && !appRevealed
-            ? "opacity-0 scale-[0.985] motion-reduce:scale-100"
-            : "opacity-100 scale-100"
+            ? "opacity-0"
+            : "opacity-100"
         }`}
         style={{
           transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
-          willChange: showSplash ? "transform, opacity" : "auto",
         }}
       >
         <QueryClientProvider client={queryClient}>

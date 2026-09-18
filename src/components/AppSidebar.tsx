@@ -138,6 +138,7 @@ export function AppSidebar({
   onOpenPlans,
   popoverExtras,
 }: AppSidebarProps) {
+  const asideRef = React.useRef<HTMLElement | null>(null);
   const navRef = React.useRef<HTMLElement | null>(null);
 
   // Restaura posição de rolagem do menu lateral
@@ -163,6 +164,48 @@ export function AppSidebar({
     } catch {
       // noop
     }
+  }, []);
+
+  // Isolamento completo de rolagem entre o menu lateral e a janela do app
+  React.useEffect(() => {
+    const aside = asideRef.current;
+    if (!aside) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.stopPropagation();
+      const nav = navRef.current;
+      if (nav) {
+        nav.scrollTop += e.deltaY;
+      }
+      e.preventDefault();
+    };
+
+    let touchStartY = 0;
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartY = e.touches[0]?.clientY ?? 0;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      e.stopPropagation();
+      const nav = navRef.current;
+      if (nav && e.touches.length > 0) {
+        const touchY = e.touches[0].clientY;
+        const deltaY = touchStartY - touchY;
+        touchStartY = touchY;
+        nav.scrollTop += deltaY;
+      }
+      e.preventDefault();
+    };
+
+    aside.addEventListener("wheel", handleWheel, { passive: false });
+    aside.addEventListener("touchstart", handleTouchStart, { passive: true });
+    aside.addEventListener("touchmove", handleTouchMove, { passive: false });
+
+    return () => {
+      aside.removeEventListener("wheel", handleWheel);
+      aside.removeEventListener("touchstart", handleTouchStart);
+      aside.removeEventListener("touchmove", handleTouchMove);
+    };
   }, []);
 
   const { collapsed, setCollapsed } = useSidebarCollapsed();
@@ -199,6 +242,7 @@ export function AppSidebar({
   return (
     <TooltipProvider delayDuration={200}>
       <aside
+        ref={asideRef}
         data-sidebar="true"
         aria-label="Navegação principal"
         style={{ width, overscrollBehavior: "contain" }}
