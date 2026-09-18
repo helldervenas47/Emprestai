@@ -342,8 +342,8 @@ export function useAdminCustomersSubscribers() {
         });
       });
 
-      // Ordenar por data de cadastro decrescente
-      list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      // Ordenar por nome em ordem alfabética (A-Z)
+      list.sort((a, b) => (a.display_name || "").localeCompare(b.display_name || "", "pt-BR", { sensitivity: "base" }));
 
       setCustomers(list);
     } catch (err: any) {

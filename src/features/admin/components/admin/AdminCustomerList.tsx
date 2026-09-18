@@ -72,16 +72,16 @@ export function AdminCustomerList({
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // Ordenação
-  const [sortField, setSortField] = useState<keyof AdminCustomerItem>("created_at");
-  const [sortAsc, setSortAsc] = useState(false);
+  // Ordenação padrão: Alfabética por nome (A-Z)
+  const [sortField, setSortField] = useState<keyof AdminCustomerItem>("display_name");
+  const [sortAsc, setSortAsc] = useState(true);
 
   const handleSort = (field: keyof AdminCustomerItem) => {
     if (sortField === field) {
       setSortAsc(!sortAsc);
     } else {
       setSortField(field);
-      setSortAsc(false);
+      setSortAsc(true);
     }
   };
 
@@ -100,7 +100,9 @@ export function AdminCustomerList({
       if (bVal === null || bVal === undefined) return -1;
 
       if (typeof aVal === "string" && typeof bVal === "string") {
-        return sortAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        return sortAsc 
+          ? aVal.localeCompare(bVal, "pt-BR", { sensitivity: "base" }) 
+          : bVal.localeCompare(aVal, "pt-BR", { sensitivity: "base" });
       }
 
       if (typeof aVal === "number" && typeof bVal === "number") {
