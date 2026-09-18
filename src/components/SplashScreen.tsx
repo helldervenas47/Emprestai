@@ -81,16 +81,30 @@ export function SplashScreen({ onStartExit, onFinish }: SplashScreenProps) {
   return (
     <div
       onTransitionEnd={handleContainerTransitionEnd}
-      className={`fixed inset-0 z-[999999] flex flex-col items-center justify-center bg-background text-foreground select-none pointer-events-none transition-opacity duration-[400ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+      className={`fixed inset-0 z-[999999] flex flex-col items-center justify-center overflow-hidden select-none pointer-events-none transition-opacity duration-[400ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
         phase === "exiting" ? "opacity-0" : "opacity-100"
       }`}
       style={{
+        background:
+          "radial-gradient(circle at 15% 15%, rgba(0, 229, 255, 0.28) 0%, rgba(0, 110, 255, 0.12) 35%, transparent 65%), " +
+          "radial-gradient(circle at 85% 85%, rgba(0, 82, 255, 0.42) 0%, rgba(0, 30, 120, 0.25) 45%, transparent 70%), " +
+          "linear-gradient(145deg, #03143F 0%, #020C28 45%, #010617 100%)",
         willChange: phase === "exiting" ? "opacity" : "auto",
       }}
       aria-hidden="true"
     >
+      {/* Ondas de luz suaves no fundo que espelham a arte da logo */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-40 mix-blend-screen"
+        style={{
+          backgroundImage:
+            "radial-gradient(ellipse 60% 40% at 10% 20%, rgba(0, 229, 255, 0.35) 0%, transparent 70%), " +
+            "radial-gradient(ellipse 70% 50% at 90% 80%, rgba(0, 102, 255, 0.5) 0%, transparent 70%)",
+        }}
+      />
+
       {/* Contêiner Central */}
-      <div className="flex flex-col items-center justify-center gap-3.5">
+      <div className="relative z-10 flex flex-col items-center justify-center gap-4">
         {/* Símbolo / Logo Oficial */}
         <div
           className={`relative flex items-center justify-center transition-all duration-[500ms] ${
@@ -105,19 +119,19 @@ export function SplashScreen({ onStartExit, onFinish }: SplashScreenProps) {
             willChange: "transform, opacity",
           }}
         >
-          {/* Logo Imagem */}
-          <div className="relative overflow-hidden rounded-[22px] w-20 h-20 sm:w-24 sm:h-24 shadow-2xl shadow-black/20 dark:shadow-black/40 ring-1 ring-border/40 bg-transparent flex items-center justify-center">
+          {/* Logo Imagem com squircle e iluminação azul viva */}
+          <div className="relative overflow-hidden rounded-[26px] w-24 h-24 sm:w-28 sm:h-28 shadow-[0_16px_48px_rgba(0,102,255,0.4)] ring-1 ring-cyan-300/30 bg-transparent flex items-center justify-center">
             <img
               src={logoSrc}
               alt={brandName}
-              className="w-full h-full object-contain pointer-events-none"
+              className="w-full h-full object-cover pointer-events-none"
               draggable={false}
               loading="eager"
             />
 
             {/* Brilho sutil atravessando as áreas coloridas do símbolo */}
             <div
-              className="absolute inset-0 pointer-events-none bg-gradient-to-r from-transparent via-white/20 to-transparent"
+              className="absolute inset-0 pointer-events-none bg-gradient-to-r from-transparent via-cyan-200/30 to-transparent"
               style={{
                 transform:
                   phase === "initial"
@@ -141,7 +155,7 @@ export function SplashScreen({ onStartExit, onFinish }: SplashScreenProps) {
             willChange: "transform, opacity",
           }}
         >
-          <span className="text-[21px] sm:text-[23px] font-bold tracking-tight text-foreground font-['Space_Grotesk',sans-serif]">
+          <span className="text-[22px] sm:text-[24px] font-bold tracking-tight text-white drop-shadow-[0_2px_16px_rgba(0,210,255,0.45)] font-['Space_Grotesk',sans-serif]">
             {brandName}
           </span>
         </div>
