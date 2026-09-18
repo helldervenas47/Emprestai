@@ -3,7 +3,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
-import { Settings, TrendingUp, Wallet, Landmark, Banknote, PiggyBank, Car, ArrowDownCircle, ArrowUpRight, ArrowDownRight, PieChart, Percent, Hourglass, BarChart3, Trophy, CalendarClock, CalendarX, LineChart, Gem, ArrowUp, ArrowDown, Minus, ChevronLeft, ChevronRight, Eye, EyeOff, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Settings, TrendingUp, Wallet, Landmark, Banknote, PiggyBank, Car, ArrowDownCircle, ArrowUpRight, ArrowDownRight, PieChart, Percent, Hourglass, BarChart3, Trophy, CalendarClock, CalendarX, LineChart, Gem, ArrowUp, ArrowDown, Minus, ChevronLeft, ChevronRight, Eye, EyeOff, X, Building2, RefreshCw } from "lucide-react";
 import { useLoans } from "@/features/loans/hooks/useLoans";
 import { getLoanReceivable } from "@/features/loans/lib/loanLateFees";
 import { useProducts } from "@/features/sales/hooks/useProducts";
@@ -11,6 +14,7 @@ import { usePiggyBanks } from "@/features/piggyBanks/hooks/usePiggyBanks";
 import { useIncomes } from "@/features/financial/hooks/useIncomes";
 import { useExpenses } from "@/features/financial/hooks/useExpenses";
 import { useUnifiedAccountBalanceState } from "@/features/financial/hooks/useUnifiedAccountBalance";
+import { useAsaasBalance } from "@/features/admin/hooks/useSaasFinancialMetrics";
 import { getBalances } from "@/features/financial/lib/balance";
 import { supabase } from "@/integrations/supabase/userClient";
 import { useDashboardPrefs, DEFAULT_EXTRA as PREFS_DEFAULT_EXTRA, DEFAULT_VIS as PREFS_DEFAULT_VIS } from "@/features/dashboard/hooks/useDashboardPrefs";
@@ -119,8 +123,19 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
   const [openSettings, setOpenSettings] = useState(false);
   const [openPiggyBreakdown, setOpenPiggyBreakdown] = useState(false);
   const [openStockBreakdown, setOpenStockBreakdown] = useState(false);
+  const [openAsaas, setOpenAsaas] = useState(false);
   const [showMaosAmounts, setShowMaosAmounts] = useState(true);
   const { extraCards, visibility, setExtraCards, setVisibility, toggleExtra, toggleVis } = useDashboardPrefs();
+
+  const {
+    balance: asaasBalance,
+    pendingBalance: asaasPendingBalance,
+    retainedBalance: asaasRetainedBalance,
+    loading: asaasLoading,
+    isVisible: asaasVisible,
+    toggleVisibility: toggleAsaasVisibility,
+    refetch: refetchAsaas,
+  } = useAsaasBalance();
 
 
   const reloadExternalBalances = useCallback(async () => {
@@ -348,8 +363,8 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
             </CardContent>
           </Card>
 
-          {/* Bento grid — 4 secondary metrics */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
+          {/* Bento grid — 5 secondary metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
             <Card
               no3d
               className="cursor-pointer border border-border/60 bg-card hover:bg-accent/40 hover:border-border transition-all duration-200 rounded-xl shadow-xs"
@@ -425,10 +440,44 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
                 </p>
               </CardContent>
             </Card>
+
+            <Card
+              no3d
+              className="cursor-pointer border border-border/60 bg-card hover:bg-accent/40 hover:border-border transition-all duration-200 rounded-xl shadow-xs col-span-2 sm:col-span-1"
+              onClick={() => setOpenAsaas(true)}
+            >
+              <CardContent className="p-3 sm:p-3.5 flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="rounded-lg bg-indigo-500/10 p-1.5 shrink-0">
+                      <Building2 className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                    </div>
+                    <p className="text-[11px] sm:text-xs font-medium text-muted-foreground truncate">Saldo Asaas</p>
+                  </div>
+                  <Badge variant="outline" className="text-[9px] h-4 px-1 text-indigo-600 dark:text-indigo-400 border-indigo-500/30 bg-indigo-500/5 shrink-0">
+                    Asaas
+                  </Badge>
+                </div>
+                <div className="mt-2">
+                  {asaasLoading ? (
+                    <span aria-hidden className="inline-block h-5 w-20 animate-pulse rounded-md bg-muted-foreground/25" />
+                  ) : (
+                    <p className={`text-sm sm:text-base font-bold tabular-nums truncate ${asaasBalance < 0 ? "text-destructive" : "text-foreground"}`}>
+                      {asaasVisible ? formatBRL(asaasBalance) : "R$ ••••••••"}
+                    </p>
+                  )}
+                  {asaasPendingBalance > 0 && asaasVisible && (
+                    <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                      +{formatBRL(asaasPendingBalance)} a receber
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
           <Card no3d className="cursor-pointer hover:bg-accent/40 transition-colors" onClick={() => setOpenTotal(true)}>
             <CardContent className="p-2.5 sm:p-3 flex flex-col items-center text-center">
               <div className="flex items-center justify-center gap-1.5">
@@ -502,9 +551,84 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
               <p className="text-[10px] text-muted-foreground mt-0.5">{"\n"}</p>
             </CardContent>
           </Card>
+          <Card no3d className="cursor-pointer hover:bg-accent/40 transition-colors col-span-2 sm:col-span-1" onClick={() => setOpenAsaas(true)}>
+            <CardContent className="p-2.5 sm:p-3 flex flex-col items-center text-center">
+              <div className="flex items-center justify-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-indigo-600 dark:text-indigo-400" />
+                <p className="text-[11px] sm:text-xs text-muted-foreground">Saldo Asaas</p>
+              </div>
+              {asaasLoading ? (
+                <span aria-hidden className="mt-1 inline-block h-5 w-20 animate-pulse rounded-md bg-muted-foreground/25 sm:h-6 sm:w-24" />
+              ) : (
+                <p className={`text-base sm:text-xl font-bold truncate leading-tight mt-0.5 ${asaasBalance < 0 ? "text-destructive" : "text-foreground"}`}>
+                  {asaasVisible ? formatBRL(asaasBalance) : "R$ ••••••••"}
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
 
+      <Dialog open={openAsaas} onOpenChange={setOpenAsaas}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <div className="flex items-center justify-between pr-6">
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <Building2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" /> Saldo da Conta Asaas
+              </DialogTitle>
+              <button
+                type="button"
+                onClick={toggleAsaasVisibility}
+                className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md"
+                title={asaasVisible ? "Ocultar valores" : "Mostrar valores"}
+              >
+                {asaasVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </DialogHeader>
+          <div className="space-y-1.5 pt-1">
+            <div className="flex items-center justify-between py-2 border-b border-border/40">
+              <span className="text-sm text-muted-foreground">Disponível para saque</span>
+              <span className="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                {asaasLoading ? "..." : asaasVisible ? formatBRL(asaasBalance) : "R$ ••••••••"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between py-2 border-b border-border/40">
+              <span className="text-sm text-muted-foreground">A Receber / Futuro</span>
+              <span className="text-sm font-semibold tabular-nums text-foreground">
+                {asaasLoading ? "..." : asaasVisible ? formatBRL(asaasPendingBalance) : "R$ ••••••••"}
+              </span>
+            </div>
+            {asaasRetainedBalance > 0 && (
+              <div className="flex items-center justify-between py-2 border-b border-border/40">
+                <span className="text-sm text-muted-foreground">Retido / Bloqueado</span>
+                <span className="text-sm font-semibold tabular-nums text-rose-500">
+                  {asaasLoading ? "..." : asaasVisible ? formatBRL(asaasRetainedBalance) : "R$ ••••••••"}
+                </span>
+              </div>
+            )}
+            <div className="flex items-center justify-between pt-3 mt-2 border-t border-border">
+              <span className="text-sm font-bold text-foreground">Total no Asaas</span>
+              <span className="text-base font-extrabold tabular-nums text-foreground">
+                {asaasLoading ? "..." : asaasVisible ? formatBRL(asaasBalance + asaasPendingBalance) : "R$ ••••••••"}
+              </span>
+            </div>
+
+            <div className="pt-3 flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetchAsaas()}
+                disabled={asaasLoading}
+                className="gap-1.5 text-xs h-8"
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", asaasLoading && "animate-spin text-primary")} />
+                <span>Atualizar Saldo</span>
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={openPatrimonio} onOpenChange={setOpenPatrimonio}>
         <DialogContent className="max-w-sm">
