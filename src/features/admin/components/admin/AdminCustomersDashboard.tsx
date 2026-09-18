@@ -47,13 +47,13 @@ export function AdminCustomersDashboard() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto pt-1 sm:pt-0">
           <Button
             variant="outline"
             size="sm"
             onClick={syncWithAsaas}
             disabled={reconciling}
-            className="h-9 text-xs gap-1.5 rounded-xl border-primary/30 hover:bg-primary/10 text-primary font-medium"
+            className="w-full sm:w-auto h-9 text-xs gap-1.5 rounded-xl border-primary/30 hover:bg-primary/10 text-primary font-medium justify-center"
             title="Sincronizar base de dados com as assinaturas e clientes do Asaas"
           >
             <RefreshCw className={cn("h-4 w-4", reconciling && "animate-spin")} />
