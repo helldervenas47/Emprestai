@@ -201,10 +201,10 @@ export function AppSidebar({
       <aside
         data-sidebar="true"
         aria-label="Navegação principal"
-        style={{ width }}
+        style={{ width, overscrollBehavior: "contain" }}
         className={cn(
-          "fixed inset-y-0 left-0 z-40 hidden md:flex flex-col",
-          "bg-sidebar text-sidebar-foreground border-r border-sidebar-border",
+          "fixed inset-y-0 left-0 z-40 hidden md:flex flex-col h-[100dvh] max-h-[100dvh] overscroll-contain",
+          "bg-sidebar text-sidebar-foreground border-r border-sidebar-border select-none",
           "will-change-[width] transition-[width] duration-200 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none"
         )}
       >
@@ -256,7 +256,8 @@ export function AppSidebar({
           ref={navRef}
           onScroll={handleNavScroll}
           data-sidebar-nav="true"
-          className="flex-1 overflow-y-auto overflow-x-hidden py-2"
+          style={{ overscrollBehavior: "contain", WebkitOverflowScrolling: "touch" }}
+          className="flex-1 overflow-y-auto overflow-x-hidden py-2 overscroll-contain overscroll-y-contain"
         >
           {groups.map((group) => (
             <div key={group.label} className="mb-3">
