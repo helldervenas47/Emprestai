@@ -5,6 +5,9 @@ import {
   type PeriodFilterKey,
   type RecentTransactionItem,
 } from "@/features/admin/hooks/useSaasFinancialMetrics";
+import { useAdminCustomersSubscribers } from "@/features/admin/hooks/useAdminCustomersSubscribers";
+import { CustomerMetricsCards } from "./CustomerMetricsCards";
+import { AdminCustomerList } from "./AdminCustomerList";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   TrendingUp,
   TrendingDown,
@@ -107,6 +111,27 @@ export function SaasFinancialDashboard() {
     refetch: refetchBalance,
   } = useAsaasBalance();
 
+  // Clientes e Assinaturas
+  const {
+    customers: adminCustomers,
+    summaryMetrics: customerSummary,
+    loading: customersLoading,
+    reconciling,
+    syncWithAsaas,
+    searchTerm: customerSearchTerm,
+    setSearchTerm: setCustomerSearchTerm,
+    statusFilter: customerStatusFilter,
+    setStatusFilter: setCustomerStatusFilter,
+    planFilter: customerPlanFilter,
+    setPlanFilter: setCustomerPlanFilter,
+    paymentMethodFilter: customerPaymentMethodFilter,
+    setPaymentMethodFilter: setCustomerPaymentMethodFilter,
+    availablePlans: customerAvailablePlans,
+    refetch: refetchCustomers,
+  } = useAdminCustomersSubscribers();
+
+  const [activeSubTab, setActiveSubTab] = useState<"customers" | "financial">("customers");
+
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const [transactionsExpanded, setTransactionsExpanded] = useState(false);
@@ -162,8 +187,73 @@ export function SaasFinancialDashboard() {
   return (
     <TooltipProvider>
       <div className="space-y-6">
-        {/* 1. Header com Título e Filtros Globais */}
-        <div className="relative z-20 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 bg-card/60 p-3.5 sm:p-4 rounded-2xl border border-border/50 backdrop-blur-sm shadow-sm">
+        {/* Navegação entre Clientes & Assinaturas e Faturamento */}
+        <Tabs value={activeSubTab} onValueChange={(v) => setActiveSubTab(v as any)} className="w-full space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border/50 pb-3">
+            <TabsList className="bg-muted/60 p-1 rounded-xl border border-border/50">
+              <TabsTrigger
+                value="customers"
+                className="gap-2 text-xs sm:text-sm font-semibold rounded-lg px-3.5 py-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
+              >
+                <Users className="w-4 h-4 text-primary" />
+                <span>Clientes & Assinaturas</span>
+                {customerSummary.totalCustomers > 0 && (
+                  <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-[10px] font-bold">
+                    {customerSummary.totalCustomers}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger
+                value="financial"
+                className="gap-2 text-xs sm:text-sm font-semibold rounded-lg px-3.5 py-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
+              >
+                <DollarSign className="w-4 h-4 text-emerald-500" />
+                <span>Faturamento & Métricas</span>
+              </TabsTrigger>
+            </TabsList>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={syncWithAsaas}
+                disabled={reconciling}
+                className="h-8 text-xs gap-1.5 rounded-xl border-primary/30 hover:bg-primary/10 text-primary font-medium"
+                title="Sincronizar base de dados com as assinaturas e clientes do Asaas"
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", reconciling && "animate-spin")} />
+                <span>{reconciling ? "Sincronizando..." : "Sincronizar com Asaas"}</span>
+              </Button>
+            </div>
+          </div>
+
+          <TabsContent value="customers" className="space-y-6 mt-0">
+            {/* Cards de Métricas e Indicadores de Conversão */}
+            <CustomerMetricsCards summary={customerSummary} loading={customersLoading} />
+
+            {/* Tabela de Clientes e Assinaturas */}
+            <AdminCustomerList
+              customers={adminCustomers}
+              loading={customersLoading}
+              searchTerm={customerSearchTerm}
+              setSearchTerm={setCustomerSearchTerm}
+              statusFilter={customerStatusFilter}
+              setStatusFilter={setCustomerStatusFilter}
+              planFilter={customerPlanFilter}
+              setPlanFilter={setCustomerPlanFilter}
+              paymentMethodFilter={customerPaymentMethodFilter}
+              setPaymentMethodFilter={setCustomerPaymentMethodFilter}
+              availablePlans={customerAvailablePlans}
+              onRefresh={() => {
+                refetchCustomers();
+                refetch();
+              }}
+            />
+          </TabsContent>
+
+          <TabsContent value="financial" className="space-y-6 mt-0">
+            {/* 1. Header com Título e Filtros Globais */}
+            <div className="relative z-20 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 bg-card/60 p-3.5 sm:p-4 rounded-2xl border border-border/50 backdrop-blur-sm shadow-sm">
           <div className="flex flex-col gap-1 w-full md:w-auto">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
@@ -1051,6 +1141,8 @@ export function SaasFinancialDashboard() {
             </CardContent>
           )}
         </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </TooltipProvider>
   );
