@@ -55,7 +55,7 @@ export function DashboardManagerSplitSection({ managerSplit, formatCurrency }: P
           <div className="pointer-events-none absolute -top-12 -right-12 h-24 w-24 sm:h-28 sm:w-28 rounded-full bg-primary/10 blur-2xl" />
 
           <CardContent className="p-2.5 sm:p-5 flex flex-col justify-between h-full gap-2.5 sm:gap-4">
-            {/* Topo do Card: Badge + Quantidade (Alinhados à esquerda/laterais, não centralizados) */}
+            {/* Topo do Card: Badge + Quantidade (Títulos NÃO centralizados, alinhados nas laterais) */}
             <div className="flex items-center justify-between gap-1.5 sm:gap-2">
               <div className="flex items-center justify-start gap-1.5 sm:gap-2 min-w-0">
                 <div className="h-5 w-5 sm:h-7 sm:w-7 rounded-md bg-primary/15 border border-primary/25 flex items-center justify-center text-primary shrink-0">
@@ -70,43 +70,43 @@ export function DashboardManagerSplitSection({ managerSplit, formatCurrency }: P
               </span>
             </div>
 
-            {/* Valores Principais (Empilhados no mobile, Lado a lado no PC e Tablet) */}
+            {/* Valores Principais (Centralizados no mobile, Lado a lado à esquerda no PC/Tablet) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-1.5 sm:gap-2.5">
               {/* Taxa de Juros Geral */}
-              <div className="p-2 sm:p-2.5 md:p-3 rounded-lg bg-background/60 border border-border/50 flex flex-col items-start justify-between text-left min-w-0">
-                <div className="flex items-center justify-start gap-1 sm:gap-1.5 text-muted-foreground mb-1 w-full min-w-0">
+              <div className="p-2 sm:p-2.5 md:p-3 rounded-lg bg-background/60 border border-border/50 flex flex-col items-center md:items-start justify-center md:justify-between text-center md:text-left min-w-0">
+                <div className="flex items-center justify-center md:justify-start gap-1 sm:gap-1.5 text-muted-foreground mb-1 w-full min-w-0">
                   <Percent className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary shrink-0" />
                   <span className="text-[9px] sm:text-[10px] md:text-[11px] font-medium uppercase tracking-wider truncate">
                     Taxa de Juros Geral
                   </span>
                 </div>
-                <span className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-foreground tabular-nums tracking-tight truncate w-full text-left">
+                <span className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-foreground tabular-nums tracking-tight truncate w-full text-center md:text-left">
                   {withManager.interestRate.toFixed(1)}%
                 </span>
               </div>
 
               {/* Juros a Receber */}
-              <div className="p-2 sm:p-2.5 md:p-3 rounded-lg bg-background/60 border border-border/50 flex flex-col items-start justify-between text-left min-w-0">
-                <div className="flex items-center justify-start gap-1 sm:gap-1.5 text-muted-foreground mb-1 w-full min-w-0">
+              <div className="p-2 sm:p-2.5 md:p-3 rounded-lg bg-background/60 border border-border/50 flex flex-col items-center md:items-start justify-center md:justify-between text-center md:text-left min-w-0">
+                <div className="flex items-center justify-center md:justify-start gap-1 sm:gap-1.5 text-muted-foreground mb-1 w-full min-w-0">
                   <Coins className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-warning shrink-0" />
                   <span className="text-[9px] sm:text-[10px] md:text-[11px] font-medium uppercase tracking-wider truncate">
                     Juros a Receber
                   </span>
                 </div>
-                <span className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-warning tabular-nums tracking-tight truncate w-full text-left">
+                <span className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-warning tabular-nums tracking-tight truncate w-full text-center md:text-left">
                   {formatCurrency(withManager.interestPending)}
                 </span>
               </div>
 
               {/* Total a Receber */}
-              <div className="p-2 sm:p-2.5 md:p-3 rounded-lg bg-background/60 border border-border/50 flex flex-col items-start justify-between text-left min-w-0">
-                <div className="flex items-center justify-start gap-1 sm:gap-1.5 text-muted-foreground mb-1 w-full min-w-0">
+              <div className="p-2 sm:p-2.5 md:p-3 rounded-lg bg-background/60 border border-border/50 flex flex-col items-center md:items-start justify-center md:justify-between text-center md:text-left min-w-0">
+                <div className="flex items-center justify-center md:justify-start gap-1 sm:gap-1.5 text-muted-foreground mb-1 w-full min-w-0">
                   <Wallet className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-success shrink-0" />
                   <span className="text-[9px] sm:text-[10px] md:text-[11px] font-medium uppercase tracking-wider truncate">
                     Total a Receber
                   </span>
                 </div>
-                <span className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-foreground tabular-nums tracking-tight truncate w-full text-left">
+                <span className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-foreground tabular-nums tracking-tight truncate w-full text-center md:text-left">
                   {formatCurrency(withManager.totalReceivable)}
                 </span>
               </div>
@@ -139,7 +139,7 @@ export function DashboardManagerSplitSection({ managerSplit, formatCurrency }: P
           <div className="pointer-events-none absolute -top-12 -right-12 h-24 w-24 sm:h-28 sm:w-28 rounded-full bg-emerald-500/10 blur-2xl" />
 
           <CardContent className="p-2.5 sm:p-5 flex flex-col justify-between h-full gap-2.5 sm:gap-4">
-            {/* Topo do Card: Badge + Quantidade (Alinhados à esquerda/laterais, não centralizados) */}
+            {/* Topo do Card: Badge + Quantidade (Títulos NÃO centralizados, alinhados nas laterais) */}
             <div className="flex items-center justify-between gap-1.5 sm:gap-2">
               <div className="flex items-center justify-start gap-1.5 sm:gap-2 min-w-0">
                 <div className="h-5 w-5 sm:h-7 sm:w-7 rounded-md bg-muted/60 border border-border flex items-center justify-center text-muted-foreground shrink-0">
@@ -154,43 +154,43 @@ export function DashboardManagerSplitSection({ managerSplit, formatCurrency }: P
               </span>
             </div>
 
-            {/* Valores Principais (Empilhados no mobile, Lado a lado no PC e Tablet) */}
+            {/* Valores Principais (Centralizados no mobile, Lado a lado à esquerda no PC/Tablet) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-1.5 sm:gap-2.5">
               {/* Taxa de Juros Geral */}
-              <div className="p-2 sm:p-2.5 md:p-3 rounded-lg bg-background/60 border border-border/50 flex flex-col items-start justify-between text-left min-w-0">
-                <div className="flex items-center justify-start gap-1 sm:gap-1.5 text-muted-foreground mb-1 w-full min-w-0">
+              <div className="p-2 sm:p-2.5 md:p-3 rounded-lg bg-background/60 border border-border/50 flex flex-col items-center md:items-start justify-center md:justify-between text-center md:text-left min-w-0">
+                <div className="flex items-center justify-center md:justify-start gap-1 sm:gap-1.5 text-muted-foreground mb-1 w-full min-w-0">
                   <Percent className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-400 shrink-0" />
                   <span className="text-[9px] sm:text-[10px] md:text-[11px] font-medium uppercase tracking-wider truncate">
                     Taxa de Juros Geral
                   </span>
                 </div>
-                <span className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-foreground tabular-nums tracking-tight truncate w-full text-left">
+                <span className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-foreground tabular-nums tracking-tight truncate w-full text-center md:text-left">
                   {withoutManager.interestRate.toFixed(1)}%
                 </span>
               </div>
 
               {/* Juros a Receber */}
-              <div className="p-2 sm:p-2.5 md:p-3 rounded-lg bg-background/60 border border-border/50 flex flex-col items-start justify-between text-left min-w-0">
-                <div className="flex items-center justify-start gap-1 sm:gap-1.5 text-muted-foreground mb-1 w-full min-w-0">
+              <div className="p-2 sm:p-2.5 md:p-3 rounded-lg bg-background/60 border border-border/50 flex flex-col items-center md:items-start justify-center md:justify-between text-center md:text-left min-w-0">
+                <div className="flex items-center justify-center md:justify-start gap-1 sm:gap-1.5 text-muted-foreground mb-1 w-full min-w-0">
                   <Coins className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-warning shrink-0" />
                   <span className="text-[9px] sm:text-[10px] md:text-[11px] font-medium uppercase tracking-wider truncate">
                     Juros a Receber
                   </span>
                 </div>
-                <span className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-warning tabular-nums tracking-tight truncate w-full text-left">
+                <span className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-warning tabular-nums tracking-tight truncate w-full text-center md:text-left">
                   {formatCurrency(withoutManager.interestPending)}
                 </span>
               </div>
 
               {/* Total a Receber */}
-              <div className="p-2 sm:p-2.5 md:p-3 rounded-lg bg-background/60 border border-border/50 flex flex-col items-start justify-between text-left min-w-0">
-                <div className="flex items-center justify-start gap-1 sm:gap-1.5 text-muted-foreground mb-1 w-full min-w-0">
+              <div className="p-2 sm:p-2.5 md:p-3 rounded-lg bg-background/60 border border-border/50 flex flex-col items-center md:items-start justify-center md:justify-between text-center md:text-left min-w-0">
+                <div className="flex items-center justify-center md:justify-start gap-1 sm:gap-1.5 text-muted-foreground mb-1 w-full min-w-0">
                   <Wallet className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-success shrink-0" />
                   <span className="text-[9px] sm:text-[10px] md:text-[11px] font-medium uppercase tracking-wider truncate">
                     Total a Receber
                   </span>
                 </div>
-                <span className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-foreground tabular-nums tracking-tight truncate w-full text-left">
+                <span className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-foreground tabular-nums tracking-tight truncate w-full text-center md:text-left">
                   {formatCurrency(withoutManager.totalReceivable)}
                 </span>
               </div>
