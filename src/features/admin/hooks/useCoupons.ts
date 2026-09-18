@@ -90,18 +90,28 @@ export function useCoupons() {
         planMap.set(rel.coupon_id, list);
       });
 
-      const enrichedCoupons: CouponRecord[] = (couponsData || []).map((c: any) => ({
-        ...c,
-        discount_value: Number(c.discount_value),
-        used_count: Number(c.used_count || 0),
-        plan_ids: planMap.get(c.id) || [],
-      }));
-
       // 3. Buscar histórico de usos
       const { data: usagesData } = await supabase
         .from("coupon_usages" as any)
         .select("*")
         .order("created_at", { ascending: false });
+
+      const usageCountMap = new Map<string, number>();
+      ((usagesData as any[]) || []).forEach((u: any) => {
+        if (u.coupon_id) {
+          usageCountMap.set(u.coupon_id, (usageCountMap.get(u.coupon_id) || 0) + 1);
+        }
+      });
+
+      const enrichedCoupons: CouponRecord[] = (couponsData || []).map((c: any) => {
+        const usagesCount = usageCountMap.get(c.id) || 0;
+        return {
+          ...c,
+          discount_value: Number(c.discount_value),
+          used_count: Math.max(Number(c.used_count || 0), usagesCount),
+          plan_ids: planMap.get(c.id) || [],
+        };
+      });
 
       setCoupons(enrichedCoupons);
       setUsages((usagesData as unknown as CouponUsageRecord[]) || []);
