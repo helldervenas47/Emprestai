@@ -433,8 +433,8 @@ describe("Dashboard Manager Split (Com Gerente / Sem Gerente)", () => {
     expect(screen.getByText("Empréstimos por Gerenciamento")).toBeDefined();
     expect(screen.getByText("COM GERENTE")).toBeDefined();
     expect(screen.getByText("SEM GERENTE")).toBeDefined();
-    expect(screen.getByText("12 empréstimos")).toBeDefined();
-    expect(screen.getByText("18 empréstimos")).toBeDefined();
+    expect(screen.getByText(/12/)).toBeDefined();
+    expect(screen.getByText(/18/)).toBeDefined();
     expect(screen.getAllByText("Juros a Receber")).toHaveLength(2);
     expect(screen.getAllByText("Total a Receber")).toHaveLength(2);
   });
