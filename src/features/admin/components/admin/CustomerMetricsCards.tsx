@@ -16,14 +16,36 @@ import {
 } from "lucide-react";
 import { CustomerSummaryMetrics } from "@/features/admin/hooks/useAdminCustomersSubscribers";
 
+export const defaultCustomerMetrics: CustomerSummaryMetrics = {
+  totalCustomers: 0,
+  activeCount: 0,
+  activePct: 0,
+  trialCount: 0,
+  trialPct: 0,
+  pastDueCount: 0,
+  pastDuePct: 0,
+  expiredCount: 0,
+  expiredPct: 0,
+  canceledCount: 0,
+  canceledPct: 0,
+  newCustomersThisMonth: 0,
+  trialsStartedThisMonth: 0,
+  convertedTrialsThisMonth: 0,
+  canceledThisMonth: 0,
+  conversionRatePct: 0,
+};
+
 interface Props {
-  metrics: CustomerSummaryMetrics;
+  metrics?: CustomerSummaryMetrics;
+  summary?: CustomerSummaryMetrics;
   loading?: boolean;
   onFilterStatus?: (status: string) => void;
   activeStatusFilter?: string;
 }
 
-export function CustomerMetricsCards({ metrics, loading, onFilterStatus, activeStatusFilter = "all" }: Props) {
+export function CustomerMetricsCards({ metrics, summary, loading, onFilterStatus, activeStatusFilter = "all" }: Props) {
+  const data = metrics || summary || defaultCustomerMetrics;
+
   if (loading) {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 animate-pulse">
@@ -38,7 +60,7 @@ export function CustomerMetricsCards({ metrics, loading, onFilterStatus, activeS
     {
       id: "all",
       label: "TOTAL DE CLIENTES",
-      count: metrics.totalCustomers,
+      count: data.totalCustomers,
       subtitle: "100% da base",
       icon: Users,
       color: "text-foreground",
@@ -48,8 +70,8 @@ export function CustomerMetricsCards({ metrics, loading, onFilterStatus, activeS
     {
       id: "active",
       label: "CLIENTES ATIVOS",
-      count: metrics.activeCount,
-      subtitle: `${metrics.activePct}% da base`,
+      count: data.activeCount,
+      subtitle: `${data.activePct}% da base`,
       icon: CheckCircle2,
       color: "text-emerald-500",
       badgeClass: "bg-emerald-500/15 text-emerald-500 border-emerald-500/30",
@@ -58,8 +80,8 @@ export function CustomerMetricsCards({ metrics, loading, onFilterStatus, activeS
     {
       id: "trial",
       label: "EM TESTE",
-      count: metrics.trialCount,
-      subtitle: `${metrics.trialPct}% da base`,
+      count: data.trialCount,
+      subtitle: `${data.trialPct}% da base`,
       icon: Clock,
       color: "text-amber-500",
       badgeClass: "bg-amber-500/15 text-amber-500 border-amber-500/30",
@@ -68,8 +90,8 @@ export function CustomerMetricsCards({ metrics, loading, onFilterStatus, activeS
     {
       id: "past_due",
       label: "INADIMPLENTES",
-      count: metrics.pastDueCount,
-      subtitle: `${metrics.pastDuePct}% da base`,
+      count: data.pastDueCount,
+      subtitle: `${data.pastDuePct}% da base`,
       icon: AlertTriangle,
       color: "text-rose-500",
       badgeClass: "bg-rose-500/15 text-rose-500 border-rose-500/30",
@@ -78,8 +100,8 @@ export function CustomerMetricsCards({ metrics, loading, onFilterStatus, activeS
     {
       id: "expired",
       label: "EXPIRADOS",
-      count: metrics.expiredCount,
-      subtitle: `${metrics.expiredPct}% da base`,
+      count: data.expiredCount,
+      subtitle: `${data.expiredPct}% da base`,
       icon: RotateCcw,
       color: "text-muted-foreground",
       badgeClass: "bg-muted text-muted-foreground border-border",
@@ -88,8 +110,8 @@ export function CustomerMetricsCards({ metrics, loading, onFilterStatus, activeS
     {
       id: "canceled",
       label: "CANCELADOS",
-      count: metrics.canceledCount,
-      subtitle: `${metrics.canceledPct}% da base`,
+      count: data.canceledCount,
+      subtitle: `${data.canceledPct}% da base`,
       icon: XCircle,
       color: "text-destructive",
       badgeClass: "bg-destructive/15 text-destructive border-destructive/30",
@@ -157,7 +179,7 @@ export function CustomerMetricsCards({ metrics, loading, onFilterStatus, activeS
                 Novos Clientes
               </div>
               <div className="text-lg font-bold text-foreground mt-0.5">
-                +{metrics.newCustomersThisMonth}
+                +{data.newCustomersThisMonth}
               </div>
             </div>
 
@@ -168,7 +190,7 @@ export function CustomerMetricsCards({ metrics, loading, onFilterStatus, activeS
                 Trials Iniciados
               </div>
               <div className="text-lg font-bold text-foreground mt-0.5">
-                {metrics.trialsStartedThisMonth}
+                {data.trialsStartedThisMonth}
               </div>
             </div>
 
@@ -178,19 +200,20 @@ export function CustomerMetricsCards({ metrics, loading, onFilterStatus, activeS
                 <Flame className="h-3 w-3 text-emerald-500" />
                 Teste → Pago
               </div>
-              <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                {metrics.convertedTrialsThisMonth}
+              <div className="text-lg font-bold text-emerald-500 mt-0.5 flex items-center gap-1">
+                {data.convertedTrialsThisMonth}
+                <ArrowUpRight className="h-3 w-3" />
               </div>
             </div>
 
             {/* Taxa de Conversão */}
-            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-2.5 min-w-[130px]">
-              <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold uppercase">
-                <ArrowUpRight className="h-3 w-3" />
-                Taxa Conversão
+            <div className="bg-background/80 rounded-xl p-2.5 border border-border/60 min-w-[120px]">
+              <div className="flex items-center gap-1.5 text-muted-foreground text-[10px] font-semibold uppercase">
+                <ShieldCheck className="h-3 w-3 text-primary" />
+                Taxa de Conversão
               </div>
-              <div className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
-                {metrics.conversionRatePct}%
+              <div className="text-lg font-bold text-primary mt-0.5">
+                {data.conversionRatePct}%
               </div>
             </div>
           </div>

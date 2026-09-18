@@ -197,9 +197,9 @@ export function SaasFinancialDashboard() {
               >
                 <Users className="w-4 h-4 text-primary" />
                 <span>Clientes & Assinaturas</span>
-                {customerSummary.totalCustomers > 0 && (
+                {(customerSummary?.totalCustomers ?? 0) > 0 && (
                   <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-[10px] font-bold">
-                    {customerSummary.totalCustomers}
+                    {customerSummary?.totalCustomers}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -229,7 +229,7 @@ export function SaasFinancialDashboard() {
 
           <TabsContent value="customers" className="space-y-6 mt-0">
             {/* Cards de Métricas e Indicadores de Conversão */}
-            <CustomerMetricsCards summary={customerSummary} loading={customersLoading} />
+            <CustomerMetricsCards metrics={customerSummary} loading={customersLoading} />
 
             {/* Tabela de Clientes e Assinaturas */}
             <AdminCustomerList

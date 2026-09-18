@@ -489,10 +489,21 @@ export function useAdminCustomersSubscribers() {
     });
   }, [customers, searchTerm, statusFilter, planFilter, paymentMethodFilter]);
 
+  // Planos disponíveis na base
+  const availablePlans = useMemo(() => {
+    const set = new Set<string>();
+    customers.forEach((c) => {
+      if (c.plan_name) set.add(c.plan_name);
+    });
+    return Array.from(set);
+  }, [customers]);
+
   return {
     customers: filteredCustomers,
     rawCustomers: customers,
+    summaryMetrics: metrics,
     metrics,
+    availablePlans,
     loading,
     reconciling,
     error,
