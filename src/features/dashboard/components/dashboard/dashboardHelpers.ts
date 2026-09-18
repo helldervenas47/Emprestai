@@ -19,6 +19,13 @@ export function isInRange(dateStr: string, start: Date, end: Date): boolean {
   return date >= start && date <= end;
 }
 
+function formatShortDate(d: Date): string {
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = String(d.getFullYear()).slice(-2);
+  return `${day}/${month}/${year}`;
+}
+
 export function getRange(period: Period, offset: number): { start: Date; end: Date; label: string } {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -28,7 +35,7 @@ export function getRange(period: Period, offset: number): { start: Date; end: Da
     d.setDate(d.getDate() + offset);
     const end = new Date(d);
     end.setHours(23, 59, 59, 999);
-    return { start: d, end, label: d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" }) };
+    return { start: d, end, label: formatShortDate(d) };
   }
   if (period === "week") {
     const weekStart = new Date(today);
@@ -37,8 +44,9 @@ export function getRange(period: Period, offset: number): { start: Date; end: Da
     weekEnd.setDate(weekStart.getDate() + 6);
     weekEnd.setHours(23, 59, 59, 999);
     return {
-      start: weekStart, end: weekEnd,
-      label: `${weekStart.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} — ${weekEnd.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}`,
+      start: weekStart,
+      end: weekEnd,
+      label: `${formatShortDate(weekStart)} — ${formatShortDate(weekEnd)}`,
     };
   }
   const m = new Date(today.getFullYear(), today.getMonth() + offset, 1);
