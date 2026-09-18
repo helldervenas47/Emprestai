@@ -33,6 +33,7 @@ export interface ManagerSplitCategory {
   interestPending: number;
   totalReceivable: number;
   capitalOnStreet: number;
+  interestRate: number;
 }
 
 export interface ManagerSplitData {
@@ -936,16 +937,33 @@ export function useDashboardMetrics(input: UseDashboardMetricsInput) {
         0
       );
 
+      const interestBearing = categoryLoans.filter((l) => (Number(l.interestRate) || 0) > 0);
+      const totalLent = interestBearing.reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
+      const totalExpected = interestBearing.reduce(
+        (sum, l) => sum + calculateTotalWithInterest(l.amount, l.interestRate, l.installments),
+        0
+      );
+      const interestRate = totalLent > 0 ? ((totalExpected - totalLent) / totalLent) * 100 : 0;
+
       return {
         count: categoryLoans.length,
         interestPending: roundCurrency(pendingTotals.interestPending),
         totalReceivable: roundCurrency(totalReceivable),
         capitalOnStreet: roundCurrency(pendingTotals.capitalOnStreet),
+        interestRate: Math.round(interestRate * 10) / 10,
       };
     };
 
     const withManager = computeCategory(withManagerLoans);
     const withoutManager = computeCategory(withoutManagerLoans);
+
+    const allInterestBearing = activeLoans.filter((l) => (Number(l.interestRate) || 0) > 0);
+    const totalAllPrincipal = allInterestBearing.reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
+    const totalAllExpected = allInterestBearing.reduce(
+      (sum, l) => sum + calculateTotalWithInterest(l.amount, l.interestRate, l.installments),
+      0
+    );
+    const totalInterestRate = totalAllPrincipal > 0 ? ((totalAllExpected - totalAllPrincipal) / totalAllPrincipal) * 100 : 0;
 
     return {
       withManager,
@@ -955,6 +973,7 @@ export function useDashboardMetrics(input: UseDashboardMetricsInput) {
         interestPending: roundCurrency(withManager.interestPending + withoutManager.interestPending),
         totalReceivable: roundCurrency(withManager.totalReceivable + withoutManager.totalReceivable),
         capitalOnStreet: roundCurrency(withManager.capitalOnStreet + withoutManager.capitalOnStreet),
+        interestRate: Math.round(totalInterestRate * 10) / 10,
       },
     };
   }, [loans, payments, installmentSchedules]);

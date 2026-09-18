@@ -418,9 +418,9 @@ describe("Dashboard Manager Split (Com Gerente / Sem Gerente)", () => {
   // Teste de renderização do componente UI
   it("renderiza visualmente os dois cards e os valores formatados", () => {
     const mockSplit = {
-      withManager: { count: 12, interestPending: 8450, totalReceivable: 32700, capitalOnStreet: 24250 },
-      withoutManager: { count: 18, interestPending: 11320, totalReceivable: 48900, capitalOnStreet: 37580 },
-      total: { count: 30, interestPending: 19770, totalReceivable: 81600, capitalOnStreet: 61830 },
+      withManager: { count: 12, interestPending: 8450, totalReceivable: 32700, capitalOnStreet: 24250, interestRate: 20 },
+      withoutManager: { count: 18, interestPending: 11320, totalReceivable: 48900, capitalOnStreet: 37580, interestRate: 15 },
+      total: { count: 30, interestPending: 19770, totalReceivable: 81600, capitalOnStreet: 61830, interestRate: 17 },
     };
 
     render(
@@ -435,6 +435,7 @@ describe("Dashboard Manager Split (Com Gerente / Sem Gerente)", () => {
     expect(screen.getByText("SEM GERENTE")).toBeDefined();
     expect(screen.getByText(/12/)).toBeDefined();
     expect(screen.getByText(/18/)).toBeDefined();
+    expect(screen.getAllByText("Taxa de Juros Geral")).toHaveLength(2);
     expect(screen.getAllByText("Juros a Receber")).toHaveLength(2);
     expect(screen.getAllByText("Total a Receber")).toHaveLength(2);
   });
