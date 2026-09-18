@@ -363,8 +363,47 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
             </CardContent>
           </Card>
 
-          {/* Bento grid — 5 secondary metrics */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
+          {/* Card — Saldo Asaas (Abaixo do Saldo em Conta) */}
+          <Card
+            no3d
+            className="cursor-pointer border border-border/60 bg-card hover:bg-accent/40 hover:border-border transition-all duration-200 rounded-xl shadow-xs"
+            onClick={() => setOpenAsaas(true)}
+          >
+            <CardContent className="p-3 sm:p-3.5 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="rounded-lg bg-indigo-500/10 p-2 text-indigo-600 dark:text-indigo-400 shrink-0">
+                  <Building2 className="h-4 w-4 sm:h-5 sm:w-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Saldo Asaas</p>
+                    <Badge variant="outline" className="text-[9px] h-4 px-1 text-indigo-600 dark:text-indigo-400 border-indigo-500/30 bg-indigo-500/5 shrink-0 font-semibold">
+                      Asaas
+                    </Badge>
+                  </div>
+                  {asaasLoading ? (
+                    <span aria-hidden className="mt-1 inline-block h-5 w-24 animate-pulse rounded-md bg-muted-foreground/25" />
+                  ) : (
+                    <p className={`text-base sm:text-xl font-bold tabular-nums truncate leading-tight mt-0.5 ${asaasBalance < 0 ? "text-destructive" : "text-foreground"}`}>
+                      {asaasVisible ? formatBRL(asaasBalance) : "R$ ••••••••"}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {asaasPendingBalance > 0 && asaasVisible && (
+                <div className="text-right shrink-0">
+                  <span className="text-[10px] text-muted-foreground block">A receber</span>
+                  <span className="text-xs font-semibold text-foreground tabular-nums">
+                    +{formatBRL(asaasPendingBalance)}
+                  </span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Bento grid — 4 secondary metrics */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
             <Card
               no3d
               className="cursor-pointer border border-border/60 bg-card hover:bg-accent/40 hover:border-border transition-all duration-200 rounded-xl shadow-xs"
@@ -438,40 +477,6 @@ export function ConsolidatedBalanceCards({ variant = "grid" }: ConsolidatedBalan
                 <p className={`mt-2 text-sm sm:text-base font-bold tabular-nums truncate ${stockValue < 0 ? "text-destructive" : "text-foreground"}`}>
                   {formatBRL(stockValue)}
                 </p>
-              </CardContent>
-            </Card>
-
-            <Card
-              no3d
-              className="cursor-pointer border border-border/60 bg-card hover:bg-accent/40 hover:border-border transition-all duration-200 rounded-xl shadow-xs col-span-2 sm:col-span-1"
-              onClick={() => setOpenAsaas(true)}
-            >
-              <CardContent className="p-3 sm:p-3.5 flex flex-col justify-between h-full">
-                <div className="flex items-center justify-between gap-1.5">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="rounded-lg bg-indigo-500/10 p-1.5 shrink-0">
-                      <Building2 className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-                    </div>
-                    <p className="text-[11px] sm:text-xs font-medium text-muted-foreground truncate">Saldo Asaas</p>
-                  </div>
-                  <Badge variant="outline" className="text-[9px] h-4 px-1 text-indigo-600 dark:text-indigo-400 border-indigo-500/30 bg-indigo-500/5 shrink-0">
-                    Asaas
-                  </Badge>
-                </div>
-                <div className="mt-2">
-                  {asaasLoading ? (
-                    <span aria-hidden className="inline-block h-5 w-20 animate-pulse rounded-md bg-muted-foreground/25" />
-                  ) : (
-                    <p className={`text-sm sm:text-base font-bold tabular-nums truncate ${asaasBalance < 0 ? "text-destructive" : "text-foreground"}`}>
-                      {asaasVisible ? formatBRL(asaasBalance) : "R$ ••••••••"}
-                    </p>
-                  )}
-                  {asaasPendingBalance > 0 && asaasVisible && (
-                    <p className="text-[10px] text-muted-foreground truncate mt-0.5">
-                      +{formatBRL(asaasPendingBalance)} a receber
-                    </p>
-                  )}
-                </div>
               </CardContent>
             </Card>
           </div>
