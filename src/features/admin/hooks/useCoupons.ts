@@ -90,14 +90,20 @@ export function useCoupons() {
         planMap.set(rel.coupon_id, list);
       });
 
-      // 3. Buscar histórico de usos
+      // 3. Buscar histórico de usos cruzando com o status da ordem de pagamento
       const { data: usagesData } = await supabase
         .from("coupon_usages" as any)
-        .select("*")
+        .select("*, billing_orders(status)")
         .order("created_at", { ascending: false });
 
+      // Considera apenas usos de compras finalizadas e confirmadas (status 'paid' ou sem ordem pendente)
+      const confirmedUsages = ((usagesData as any[]) || []).filter((u: any) => {
+        const orderStatus = u.billing_orders?.status;
+        return !orderStatus || orderStatus === "paid";
+      });
+
       const usageCountMap = new Map<string, number>();
-      ((usagesData as any[]) || []).forEach((u: any) => {
+      confirmedUsages.forEach((u: any) => {
         if (u.coupon_id) {
           usageCountMap.set(u.coupon_id, (usageCountMap.get(u.coupon_id) || 0) + 1);
         }
@@ -108,13 +114,13 @@ export function useCoupons() {
         return {
           ...c,
           discount_value: Number(c.discount_value),
-          used_count: Math.max(Number(c.used_count || 0), usagesCount),
+          used_count: usagesCount,
           plan_ids: planMap.get(c.id) || [],
         };
       });
 
       setCoupons(enrichedCoupons);
-      setUsages((usagesData as unknown as CouponUsageRecord[]) || []);
+      setUsages(confirmedUsages as unknown as CouponUsageRecord[]);
     } catch (err) {
       console.warn("[useCoupons] Exceção ao buscar cupons:", err);
     } finally {

@@ -93,14 +93,6 @@ export async function handleCheckout(req: Request, recurring = false) {
           final_amount_cents: appliedCoupon.final_cents,
           order_id: order.id,
         });
-
-        // Incrementa used_count no cupom
-        await admin.rpc("increment_coupon_uses", { _coupon_id: appliedCoupon.coupon_id }).catch(async () => {
-          const { data: c } = await admin.from("coupons").select("used_count").eq("id", appliedCoupon.coupon_id).single();
-          if (c) {
-            await admin.from("coupons").update({ used_count: (c.used_count || 0) + 1, updated_at: new Date().toISOString() }).eq("id", appliedCoupon.coupon_id);
-          }
-        });
       } catch (couponErr) {
         console.warn("[checkout coupon usage recording warning]", couponErr);
       }
