@@ -66,9 +66,17 @@
       #app-boot {
         position: fixed; inset: 0; display: flex; flex-direction: column;
         align-items: center; justify-content: center; gap: 16px;
-        background: #15181D; color: #F8FAFC;
+        background: hsl(var(--background, 222 44% 9%)); color: hsl(var(--foreground, 210 40% 98%));
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         z-index: 2147483000;
+      }
+      html:not(.dark) #app-boot {
+        background: hsl(var(--background, 240 30% 98%));
+        color: hsl(var(--foreground, 240 40% 12%));
+      }
+      html.dark #app-boot {
+        background: hsl(var(--background, 222 44% 9%));
+        color: hsl(var(--foreground, 210 40% 98%));
       }
       html[data-app-mounted="true"] #app-boot { display: none; }
       #app-boot .boot-recovery { display: none; max-width: 340px; text-align: center; padding: 0 24px; }

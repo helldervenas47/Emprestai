@@ -81,7 +81,7 @@ export function SplashScreen({ onStartExit, onFinish }: SplashScreenProps) {
   return (
     <div
       onTransitionEnd={handleContainerTransitionEnd}
-      className={`fixed inset-0 z-[999999] flex flex-col items-center justify-center bg-[#15181D] select-none pointer-events-none transition-opacity duration-[400ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+      className={`fixed inset-0 z-[999999] flex flex-col items-center justify-center bg-background text-foreground select-none pointer-events-none transition-opacity duration-[400ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
         phase === "exiting" ? "opacity-0" : "opacity-100"
       }`}
       style={{
@@ -106,7 +106,7 @@ export function SplashScreen({ onStartExit, onFinish }: SplashScreenProps) {
           }}
         >
           {/* Logo Imagem */}
-          <div className="relative overflow-hidden rounded-[22px] w-20 h-20 sm:w-24 sm:h-24 shadow-2xl shadow-black/40 ring-1 ring-white/10 bg-transparent flex items-center justify-center">
+          <div className="relative overflow-hidden rounded-[22px] w-20 h-20 sm:w-24 sm:h-24 shadow-2xl shadow-black/20 dark:shadow-black/40 ring-1 ring-border/40 bg-transparent flex items-center justify-center">
             <img
               src={logoSrc}
               alt={brandName}
@@ -141,7 +141,7 @@ export function SplashScreen({ onStartExit, onFinish }: SplashScreenProps) {
             willChange: "transform, opacity",
           }}
         >
-          <span className="text-[21px] sm:text-[23px] font-bold tracking-tight text-[#F8FAFC] font-['Space_Grotesk',sans-serif]">
+          <span className="text-[21px] sm:text-[23px] font-bold tracking-tight text-foreground font-['Space_Grotesk',sans-serif]">
             {brandName}
           </span>
         </div>
