@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MoneyInput } from "@/components/ui/money-input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Pencil, Plus, Trash2, Star, Loader2, Check, Tag, Layers, TrendingUp } from "lucide-react";
+import { Pencil, Plus, Trash2, Star, Loader2, Check, Tag, Layers, TrendingUp, Users } from "lucide-react";
 import { usePlans, PlanRecord } from "@/features/admin/hooks/usePlans";
 import { calcCyclePrice, calcSavings, equivalentMonthly, formatBRL } from "@/features/admin/lib/planPricing";
 import { LIMIT_KEYS, PERMISSION_GROUPS, PlanLimits, PlanPermissions } from "@/features/admin/lib/planEntitlements";
@@ -24,6 +24,10 @@ import { CouponManagement } from "./CouponManagement";
 
 const SaasFinancialDashboard = lazy(() =>
   import("./SaasFinancialDashboard").then((m) => ({ default: m.SaasFinancialDashboard }))
+);
+
+const AdminCustomersDashboard = lazy(() =>
+  import("./AdminCustomersDashboard").then((m) => ({ default: m.AdminCustomersDashboard }))
 );
 
 const BADGE_OPTIONS = [
@@ -189,13 +193,20 @@ export function PlanManagement() {
 
   return (
     <Tabs defaultValue="financial" className="space-y-4">
-      <TabsList className="bg-muted/60 p-1.5 rounded-xl border border-border/50 w-full sm:w-auto grid grid-cols-3 sm:inline-flex h-auto gap-1 items-center">
+      <TabsList className="bg-muted/60 p-1.5 rounded-xl border border-border/50 w-full sm:w-auto grid grid-cols-2 sm:inline-flex h-auto gap-1 items-center">
         <TabsTrigger
           value="financial"
           className="gap-2 text-xs sm:text-sm font-semibold h-9 min-h-0 rounded-lg px-3 py-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all"
         >
           <TrendingUp className="h-4 w-4 shrink-0" />
           <span>Faturamento</span>
+        </TabsTrigger>
+        <TabsTrigger
+          value="customers"
+          className="gap-2 text-xs sm:text-sm font-semibold h-9 min-h-0 rounded-lg px-3 py-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all"
+        >
+          <Users className="h-4 w-4 shrink-0" />
+          <span>Clientes e assinaturas</span>
         </TabsTrigger>
         <TabsTrigger
           value="plans"
@@ -222,6 +233,18 @@ export function PlanManagement() {
           }
         >
           <SaasFinancialDashboard />
+        </Suspense>
+      </TabsContent>
+
+      <TabsContent value="customers" className="space-y-4 mt-0">
+        <Suspense
+          fallback={
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          }
+        >
+          <AdminCustomersDashboard />
         </Suspense>
       </TabsContent>
 
