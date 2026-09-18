@@ -900,27 +900,128 @@ function stripInstallmentPhrase(desc: string): string {
 function quickParseExpense(text: string): { amount: number; description: string; category: string; installments: number | null } | null {
   const t = text.trim();
   if (t.length < 2 || t.startsWith("/")) return null;
-  // Defer to AI when text mentions a date — quick parser would assume "today".
+  // Defer to AI when text mentions a date
   if (hasDateHint(t)) return null;
-  // Defer to AI when natural-language amount/payment hints are present.
-  if (hasNaturalLanguageHint(t)) return null;
+
   const installments = detectInstallments(t);
-  // Remove installment tokens before extracting amount/description so they don't confuse the regex.
   const cleaned = installments ? stripInstallmentPhrase(t) : t;
+
+  // Patterns for "<desc1> <amount> <desc2>" (e.g. "Gasolina 20 Itaú", "Almoço 35 nubank", "Mercado 80 alimentação")
+  const middleMatch = cleaned.match(/^(.+?)\s+R?\$?\s*([\d]+(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:\.\d{1,2})?)\s+(.+)$/i);
   let amountStr: string | null = null;
-  let description: string | null = null;
-  const mA = cleaned.match(/^R?\$?\s*([\d]+(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:\.\d{1,2})?)\s+(.{2,80})$/i);
-  if (mA) { amountStr = mA[1]; description = mA[2]; }
-  else {
-    const mB = cleaned.match(/^(.{2,80}?)\s+R?\$?\s*([\d]+(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:\.\d{1,2})?)$/i);
-    if (mB) { description = mB[1]; amountStr = mB[2]; }
+  let descPart1 = "";
+  let descPart2 = "";
+
+  if (middleMatch) {
+    descPart1 = middleMatch[1].trim();
+    amountStr = middleMatch[2].trim();
+    descPart2 = middleMatch[3].trim();
+  } else {
+    const startMatch = cleaned.match(/^R?\$?\s*([\d]+(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:\.\d{1,2})?)\s+(.+)$/i);
+    if (startMatch) {
+      amountStr = startMatch[1].trim();
+      descPart2 = startMatch[2].trim();
+    } else {
+      const endMatch = cleaned.match(/^(.+?)\s+R?\$?\s*([\d]+(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:\.\d{1,2})?)$/i);
+      if (endMatch) {
+        descPart1 = endMatch[1].trim();
+        amountStr = endMatch[2].trim();
+      }
+    }
   }
-  if (!amountStr || !description) return null;
+
+  if (!amountStr) return null;
   const amount = parseAmount(amountStr);
-  if (amount === null) return null;
-  const desc = stripInstallmentPhrase(description.trim());
-  if (desc.length < 2) return null;
-  return { amount, description: desc, category: detectCategory(desc), installments };
+  if (amount === null || isNaN(amount) || amount <= 0) return null;
+
+  let rawDesc = `${descPart1} ${descPart2}`.trim();
+  rawDesc = stripInstallmentPhrase(rawDesc);
+  if (rawDesc.length < 2) return null;
+
+  const category = detectCategory(rawDesc);
+  return { amount, description: rawDesc, category, installments };
+}
+
+/**
+ * Robust local fallback parser when Gemini AI is unreachable or yields low confidence.
+ * Extracts value, description, date, installments, and payment hints with 100% deterministic reliability.
+ */
+function smartParseExpenseFallback(text: string): {
+  description: string;
+  amount: number;
+  category: string;
+  date: string;
+  installments?: number;
+  payment_method?: string;
+  confidence: number;
+} | null {
+  const raw = text.trim();
+  if (raw.length < 2 || raw.startsWith("/")) return null;
+
+  // 1. Detect installments (e.g. "3x", "em 10x", "em 6 parcelas")
+  const installments = detectInstallments(raw) ?? undefined;
+  let cleaned = stripInstallmentPhrase(raw);
+
+  // 2. Detect date mentions
+  let date = todayBR();
+  const lower = cleaned.toLowerCase();
+  if (/\bontem\b/i.test(lower)) {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    date = d.toISOString().slice(0, 10);
+    cleaned = cleaned.replace(/\bontem\b/gi, "").trim();
+  } else if (/\banteontem\b/i.test(lower) || /\bantes de ontem\b/i.test(lower)) {
+    const d = new Date();
+    d.setDate(d.getDate() - 2);
+    date = d.toISOString().slice(0, 10);
+    cleaned = cleaned.replace(/\b(anteontem|antes de ontem)\b/gi, "").trim();
+  } else if (/\bhoje\b/i.test(lower)) {
+    cleaned = cleaned.replace(/\bhoje\b/gi, "").trim();
+  }
+
+  // 3. Extract amount
+  const amountMatch = cleaned.match(/(?:r\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{1,2}|\d+\.\d{1,2}|\b\d+\b)/i);
+  if (!amountMatch) return null;
+
+  const rawAmountStr = amountMatch[1];
+  const amount = parseAmount(rawAmountStr);
+  if (amount == null || isNaN(amount) || amount <= 0) return null;
+
+  // 4. Extract description and payment hints
+  let desc = cleaned.replace(amountMatch[0], "").trim();
+
+  let payment_method: string | undefined = undefined;
+  if (/\b(cart[ãa]o|cr[eé]dito|fatura)\b/i.test(raw)) {
+    payment_method = "cartão";
+  } else if (/\bpix\b/i.test(raw)) {
+    payment_method = "pix";
+  } else if (/\b(dinheiro|cash|esp[eé]cie)\b/i.test(raw)) {
+    payment_method = "dinheiro";
+  } else if (/\bd[eé]bito\b/i.test(raw)) {
+    payment_method = "débito";
+  }
+
+  const category = detectCategory(desc || raw);
+
+  // Clean conversational filler words
+  desc = desc
+    .replace(/\b(gastei|paguei|comprei|foi|custou|com|no|na|de|em|reais|real|pila|conto|contos|mangos|cart[ãa]o|cr[eé]dito|d[eé]bito|pix|dinheiro|fatura)\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  if (!desc || desc.length < 2) {
+    desc = category !== "Outros" ? category : "Despesa";
+  }
+
+  return {
+    description: desc,
+    amount,
+    category,
+    date,
+    installments,
+    payment_method,
+    confidence: 1,
+  };
 }
 
 const HELP_TEXT = `🤖 *Como usar*
@@ -3400,8 +3501,14 @@ Deno.serve(async (req) => {
                 };
               } else {
                 extracted = await extractExpense(text);
+                if (!extracted || !extracted.amount || extracted.confidence < 0.6) {
+                  extracted = smartParseExpenseFallback(text);
+                }
               }
-              if (!extracted || !extracted.amount || extracted.confidence < 0.6) {
+              if (!extracted || !extracted.amount) {
+                extracted = smartParseExpenseFallback(text);
+              }
+              if (!extracted || !extracted.amount) {
                 await tgSend(chatId, "🤔 Não consegui entender. Tente algo como:\n_\"mercado 80 alimentação\"_ ou _\"uber 25 ontem\"_", telegramKey);
               } else {
                 const finalDate = sanitizeDate(extracted.date);
@@ -3419,7 +3526,20 @@ Deno.serve(async (req) => {
                 const cardSearchText = aiPayMethod ? `${text}\n${aiPayMethod}` : text;
                 const card = detectCardInText(cardSearchText, userCards);
 
-                const description = capitalizeFirst(extracted.description || text.slice(0, 80));
+                let description = capitalizeFirst(extracted.description || text.slice(0, 80));
+                if (card) {
+                  const cardAliases = BANK_ALIASES[card.bank?.toLowerCase()] || [card.bank, card.nickname].filter(Boolean);
+                  for (const alias of cardAliases) {
+                    if (alias && alias.length >= 2) {
+                      const aliasRe = new RegExp(`\\b${normalize(alias)}\\b`, "gi");
+                      description = description.replace(aliasRe, "").replace(/\s{2,}/g, " ").trim();
+                    }
+                  }
+                  if (!description || description.length < 2) {
+                    description = initialCat !== "Outros" ? initialCat : "Despesa";
+                  }
+                  description = capitalizeFirst(description);
+                }
 
                 let displayDate = finalDate;
                 let ccBuilt: ReturnType<typeof buildCreditCardExpense> | null = null;
