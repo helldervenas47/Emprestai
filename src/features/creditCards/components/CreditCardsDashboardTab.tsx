@@ -17,11 +17,21 @@ import {
   Wifi,
   ArrowLeft,
   X,
+  Pencil,
+  Trash2,
+  MoreVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { useCreditCards, CreditCard } from "@/features/creditCards/hooks/useCreditCards";
 import { useExpenses } from "@/features/financial/hooks/useExpenses";
 import { useCreditCardOpenings, cycleKeyFromDate } from "@/features/creditCards/hooks/useCreditCardOpenings";
@@ -623,6 +633,21 @@ export function CreditCardsDashboardTab({
               {cards.length} {cards.length === 1 ? "cartão" : "cartões"}
             </Badge>
           </h3>
+
+          {!readOnly && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs font-semibold rounded-xl"
+              onClick={() => {
+                setEditingCard(null);
+                setShowForm(true);
+              }}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1 text-primary" />
+              Novo Cartão
+            </Button>
+          )}
         </div>
 
         {loading ? (
@@ -669,18 +694,93 @@ export function CreditCardsDashboardTab({
                   {/* Cartão Visual com Estilo do Banco */}
                   <div className="p-3.5 pb-2">
                     <div
-                      className={`${bank.gradient} ${bank.textClass} relative aspect-[1.586/1] w-full rounded-xl p-3.5 shadow-sm overflow-hidden flex flex-col justify-between`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        if (!readOnly) {
+                          setEditingCard(card);
+                          setShowForm(true);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if ((e.key === "Enter" || e.key === " ") && !readOnly) {
+                          e.preventDefault();
+                          setEditingCard(card);
+                          setShowForm(true);
+                        }
+                      }}
+                      className={`${bank.gradient} ${bank.textClass} relative aspect-[1.586/1] w-full rounded-xl p-3.5 shadow-sm overflow-hidden flex flex-col justify-between cursor-pointer group/card focus:outline-hidden focus:ring-2 focus:ring-primary/40`}
+                      title="Clique para editar as configurações deste cartão"
                     >
                       <div className="pointer-events-none absolute -top-6 -right-6 h-24 w-24 rounded-full bg-white/10 blur-xl" />
                       
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-1.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <div className="h-5 w-6 rounded-sm bg-gradient-to-br from-[hsl(45,90%,75%)] to-[hsl(40,80%,50%)] border border-[hsl(45,90%,80%)]/40 shadow-xs" />
                           <Wifi className="h-3 w-3 rotate-90 opacity-80" />
                         </div>
-                        <span className="text-xs font-bold tracking-wide truncate max-w-[65%] text-right drop-shadow-xs">
-                          {card.nickname || bank.name}
-                        </span>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-xs font-bold tracking-wide truncate max-w-[110px] sm:max-w-[140px] text-right drop-shadow-xs">
+                            {card.nickname || bank.name}
+                          </span>
+                          {!readOnly && (
+                            <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingCard(card);
+                                  setShowForm(true);
+                                }}
+                                className="h-6 w-6 rounded-md bg-black/25 hover:bg-black/45 active:scale-95 flex items-center justify-center text-white/90 hover:text-white transition-all cursor-pointer shadow-xs border border-white/10"
+                                title="Editar cartão"
+                                aria-label={`Editar cartão ${card.nickname || bank.name}`}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="h-6 w-6 rounded-md bg-black/25 hover:bg-black/45 active:scale-95 flex items-center justify-center text-white/90 hover:text-white transition-all cursor-pointer shadow-xs border border-white/10"
+                                    title="Mais opções do cartão"
+                                    aria-label={`Opções do cartão ${card.nickname || bank.name}`}
+                                  >
+                                    <MoreVertical className="h-3.5 w-3.5" />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48 z-[80]">
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setEditingCard(card);
+                                      setShowForm(true);
+                                    }}
+                                  >
+                                    <Pencil className="h-4 w-4 mr-2 text-primary" />
+                                    Editar Cartão
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => openInvoiceDetail(card)}>
+                                    <Receipt className="h-4 w-4 mr-2 text-muted-foreground" />
+                                    Ver Fatura
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => openInvoicePay(card)}>
+                                    <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-500" />
+                                    {isPaid ? "Editar Fatura" : "Pagar Fatura"}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={() => setDeletingCard(card)}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Excluir Cartão
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       <div className="flex items-end justify-between">
