@@ -36,11 +36,6 @@ export function AdminCustomersDashboard() {
             <h3 className="text-lg font-bold tracking-tight text-foreground">
               Gestão de Usuários & Assinaturas
             </h3>
-            {(customerSummary?.totalCustomers ?? 0) > 0 && (
-              <Badge variant="secondary" className="px-2 py-0.5 text-xs font-bold uppercase">
-                {customerSummary?.totalCustomers} {customerSummary?.totalCustomers === 1 ? "usuário" : "usuários"}
-              </Badge>
-            )}
           </div>
           <p className="text-xs text-muted-foreground">
             Acompanhe a base de usuários, períodos de teste gratuito, planos vigentes e status financeiro unificado.
