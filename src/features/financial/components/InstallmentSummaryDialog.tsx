@@ -10,6 +10,11 @@ import { useHideValues } from "@/contexts/HideValuesContext";
 import { Expense } from "@/types/loan";
 import { todayInAppTz } from "@/lib/timezone";
 import { supabase } from "@/integrations/supabase/userClient";
+import {
+  deserializeCustomInstallments,
+  getDueDateForMonth,
+  getSingleInstallmentAmount,
+} from "@/features/financial/lib/installmentEdit";
 
 interface Props {
   open: boolean;
@@ -73,14 +78,29 @@ export function InstallmentSummaryDialog({ open, onOpenChange, expense }: Props)
       ? paidChildren.length
       : (expense.paidInstallments ?? 0);
     const pendingCount = Math.max(totalInstallments - paidCount, 0);
-    const installmentValue = total / totalInstallments;
+    const customList = deserializeCustomInstallments(expense.notes);
+
     const paidFromHistory = paidChildren.reduce((s, h) => s + h.amount, 0);
-    const paid = history.length > 0 ? paidFromHistory : installmentValue * paidCount;
+    const paidFromVirtual = Array.from({ length: paidCount }).reduce(
+      (s, _, i) => s + getSingleInstallmentAmount(expense, i),
+      0
+    );
+    const paid = history.length > 0 ? paidFromHistory : paidFromVirtual;
     const pending = Math.max(total - paid, 0);
-    const today = todayInAppTz();
+
     const fullyPaid = paidCount >= totalInstallments;
-    const overdue = !fullyPaid && expense.dueDate < today;
-    const dueToday = !fullyPaid && expense.dueDate === today;
+    const nextIndex = paidCount;
+    const nextCustomItem = customList?.find((c) => c.index === nextIndex);
+    const nextDueDate = fullyPaid
+      ? null
+      : nextCustomItem?.dueDate || expense.dueDate;
+    const nextInstallmentAmount = fullyPaid
+      ? 0
+      : getSingleInstallmentAmount(expense, nextIndex);
+
+    const today = todayInAppTz();
+    const overdue = !fullyPaid && nextDueDate ? nextDueDate < today : false;
+    const dueToday = !fullyPaid && nextDueDate ? nextDueDate === today : false;
     const status: "concluido" | "atrasado" | "vence_hoje" | "em_dia" = fullyPaid
       ? "concluido"
       : overdue
@@ -96,8 +116,8 @@ export function InstallmentSummaryDialog({ open, onOpenChange, expense }: Props)
       totalInstallments,
       paidCount,
       pendingCount,
-      installmentValue,
-      nextDueDate: fullyPaid ? null : expense.dueDate,
+      nextInstallmentAmount,
+      nextDueDate,
       status,
       progress,
       paidChildren,
@@ -225,7 +245,7 @@ export function InstallmentSummaryDialog({ open, onOpenChange, expense }: Props)
                 Próxima parcela
               </div>
               <div className="text-sm font-semibold text-foreground">
-                {formatCurrency(summary.installmentValue)}
+                {formatCurrency(summary.nextInstallmentAmount)}
                 <span className="text-xs text-muted-foreground font-normal">
                   {" "}
                   • vence em{" "}

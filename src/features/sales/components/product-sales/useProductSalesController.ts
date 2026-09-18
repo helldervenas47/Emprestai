@@ -294,6 +294,7 @@ export function useProductSalesController(sales: Sale[], scopeKey = "sales") {
     overdueSales,
     onTrackSales,
     dueTodaySales,
+    dueTodayCount: dueTodaySales.length,
     paidSales,
     paidContractsCount,
     totalOverdue,

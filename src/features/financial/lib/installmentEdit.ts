@@ -58,6 +58,23 @@ export function getInstallmentNumberForDueDate(parent: Expense, dueDate: string)
   return getInstallmentNumberForMonth(parent, dueDate.slice(0, 7));
 }
 
+/** Data de vencimento correspondente à parcela do mês selecionado (YYYY-MM). */
+export function getDueDateForMonth(parent: Expense, month: string): string {
+  if (parent.type !== "recorrente" || (parent.installments ?? 0) <= 1) return parent.dueDate;
+  const idx = getInstallmentNumberForMonth(parent, month) - 1;
+  const customList = deserializeCustomInstallments(parent.notes);
+  const customItem = customList?.find(c => c.index === idx);
+  if (customItem?.dueDate) return customItem.dueDate;
+
+  const scheduleStart = getInstallmentScheduleStart(parent);
+  const [dYear, dMonth, dDay] = scheduleStart.split("-").map(Number);
+  const dt = new Date(dYear, dMonth - 1 + idx, dDay);
+  const yyyy = dt.getFullYear();
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 /**
  * Recalcula o total de uma despesa recorrente baseada em edições individuais.
  */
@@ -75,6 +92,7 @@ export function getInstallmentEdits(parent: Expense, siblings: Expense[]): Indiv
   const scheduleStart = getInstallmentScheduleStart(parent);
   const [dYear, dMonth, dDay] = scheduleStart.split("-").map(Number);
   const baseInstallmentAmount = parent.amount / count;
+  const customList = deserializeCustomInstallments(parent.notes);
 
   for (let i = 0; i < count; i++) {
     const installmentNumber = i + 1;
@@ -82,6 +100,7 @@ export function getInstallmentEdits(parent: Expense, siblings: Expense[]): Indiv
     
     // Procura se já existe um registro físico para esta parcela (filho pago)
     const physicalChild = siblings.find(s => s.description.includes(label));
+    const customItem = customList?.find(c => c.index === i);
     
     if (physicalChild) {
       installments.push({
@@ -95,12 +114,13 @@ export function getInstallmentEdits(parent: Expense, siblings: Expense[]): Indiv
     } else {
       // Parcela virtual
       const instDate = new Date(dYear, dMonth - 1 + i, dDay);
-      const instDateStr = instDate.toISOString().split('T')[0];
+      const instDateStr = customItem?.dueDate || instDate.toISOString().split('T')[0];
+      const instAmount = customItem ? customItem.amount : baseInstallmentAmount;
       
       installments.push({
         index: i,
         dueDate: instDateStr,
-        amount: baseInstallmentAmount,
+        amount: instAmount,
         paid: (parent.paidInstallments || 0) > i,
         description: `${parent.description} ${label}`
       });
@@ -112,24 +132,81 @@ export function getInstallmentEdits(parent: Expense, siblings: Expense[]): Indiv
 
 /**
  * Filtra metadados e notas de parcelas para salvar estados customizados.
- * Para suportar datas/valores customizados em parcelas virtuais (ainda não pagas),
- * podemos usar um objeto JSON nas notas do pai.
  */
 export function serializeCustomInstallments(edits: IndividualInstallmentEdit[]): string {
-  // Apenas parcelas que diferem do padrão (ou todas para garantir?)
-  // Por enquanto, vamos salvar apenas se houver mudanças.
-  return JSON.stringify(edits.map(e => ({ i: e.index, d: e.dueDate, a: e.amount })));
+  return encodeURIComponent(JSON.stringify(edits.map(e => ({ i: e.index, d: e.dueDate, a: e.amount }))));
 }
 
-export function deserializeCustomInstallments(notes: string | undefined): IndividualInstallmentEdit[] | null {
+export function deserializeCustomInstallments(notes: string | undefined | null): IndividualInstallmentEdit[] | null {
   if (!notes) return null;
-  const match = notes.match(/\[CustomInstallments:(.*?)\]/);
+  const match = notes.match(/\[CustomInstallments:([^\]]+)\]/);
   if (!match) return null;
   try {
-    return JSON.parse(match[1]);
+    const raw = match[1].trim();
+    const jsonStr = raw.startsWith("%") || raw.startsWith("[") || raw.startsWith("{")
+      ? (raw.startsWith("%") ? decodeURIComponent(raw) : raw)
+      : decodeURIComponent(raw);
+    const parsed = JSON.parse(jsonStr);
+    const list = Array.isArray(parsed) ? parsed : (parsed as any)?.items;
+    if (!Array.isArray(list)) return null;
+    return list.map((item: any) => ({
+      index: item.index ?? item.i ?? 0,
+      dueDate: item.dueDate ?? item.d ?? "",
+      amount: item.amount ?? item.a ?? 0,
+      paid: false,
+      description: "",
+    }));
   } catch {
     return null;
   }
+}
+
+export function withoutCustomInstallments(notes: string | null | undefined): string {
+  return (notes ?? "").replace(/\[CustomInstallments:[^\]]*\]/gi, "").replace(/\n{2,}/g, "\n").trim();
+}
+
+export function withCustomInstallments(notes: string | null | undefined, edits: IndividualInstallmentEdit[]): string {
+  const base = withoutCustomInstallments(notes);
+  const serialized = serializeCustomInstallments(edits);
+  return base ? `${base}\n[CustomInstallments:${serialized}]` : `[CustomInstallments:${serialized}]`;
+}
+
+/**
+ * Retorna o valor de uma única parcela específica (customizada ou padrão proporcional).
+ */
+export function getSingleInstallmentAmount(
+  expense: Pick<Expense, "amount" | "installments" | "notes" | "parentExpenseId" | "type" | "dueDate">,
+  indexOrDueDate?: number | string,
+): number {
+  if (expense.parentExpenseId) {
+    return expense.amount;
+  }
+  const isParcelada = expense.type === "recorrente" && (expense.installments ?? 0) > 1;
+  if (!isParcelada) {
+    return expense.amount;
+  }
+  const count = expense.installments || 1;
+  const defaultAmount = expense.amount / count;
+  const customList = deserializeCustomInstallments(expense.notes);
+  if (!customList || customList.length === 0) {
+    return defaultAmount;
+  }
+
+  let targetIndex = -1;
+  if (typeof indexOrDueDate === "number") {
+    targetIndex = indexOrDueDate;
+  } else if (typeof indexOrDueDate === "string" && indexOrDueDate) {
+    targetIndex = getInstallmentNumberForDueDate(expense as Expense, indexOrDueDate) - 1;
+  }
+
+  if (targetIndex >= 0) {
+    const found = customList.find(c => c.index === targetIndex);
+    if (found && typeof found.amount === "number") {
+      return found.amount;
+    }
+  }
+
+  return defaultAmount;
 }
 
 /**
@@ -218,6 +295,7 @@ export function withHealedSeriesStart(list: Expense[]): Expense[] {
 export function displayNotes(notes?: string | null): string {
   return (notes ?? "")
     .replace(SERIES_START_RE, "")
+    .replace(/\[CustomInstallments:[^\]]*\]/gi, "")
     .replace(/\[PrevDue:\s*[\d-]+\]/gi, "")
     .replace(/\[Partial:[^\]]*\]/gi, "")
     .replace(/\[Skip:[^\]]*\]/gi, "")

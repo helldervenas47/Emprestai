@@ -71,4 +71,26 @@ describe("ProductSalesSummaryCards — Padrão visual dos cards de Empréstimos"
 
     expect(screen.getByText("Ticket médio")).toBeInTheDocument();
   });
+
+  it("exibe a quantidade correta de contratos no Total a Receber e evita NaN quando dueTodayCount é 0 ou ausente", () => {
+    render(
+      <ProductSalesSummaryCards
+        formatCurrency={(v) => `R$ ${v.toFixed(2)}`}
+        totalOverdue={8344.94}
+        totalDueToday={0}
+        totalOnTrack={34716}
+        totalAReceber={43078.54}
+        overdueCount={13}
+        dueTodayCount={0}
+        onTrackCount={7}
+        onSelect={vi.fn()}
+      />
+    );
+
+    expect(screen.getAllByText("13 contratos").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("0 contratos").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("7 contratos").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("20 contratos").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/NaN/)).toBeNull();
+  });
 });

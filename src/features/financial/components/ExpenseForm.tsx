@@ -17,9 +17,15 @@ import { useDescriptionHistory } from "@/features/financial/hooks/useDescription
 import { useExpenses } from "@/features/financial/hooks/useExpenses";
 import { useBusinessExpenseCategories } from "@/features/financial/hooks/useBusinessExpenseCategories";
 import { BusinessCategoryCreatorDialog } from "@/features/financial/components/BusinessCategoryCreatorDialog";
+import { FormModalOverlay } from "@/components/ui/form-modal-overlay";
+import { InstallmentScheduleEditor } from "@/features/financial/components/InstallmentScheduleEditor";
+import {
+  IndividualInstallmentEdit,
+  calculateTotalFromInstallments,
+  withCustomInstallments,
+} from "@/features/financial/lib/installmentEdit";
 import { usePaymentMethods } from "@/hooks/usePaymentMethods";
 import { useCreditCards } from "@/features/creditCards/hooks/useCreditCards";
-import { FormModalOverlay } from "@/components/ui/form-modal-overlay";
 import { toast } from "sonner";
 
 type ExpenseKind = "unica" | "parcelada" | "fixa" | "recorrente_pos_pagamento";
@@ -64,6 +70,9 @@ export function ExpenseForm({ onAdd, onClose, scope = "business", defaults }: Pr
     notes: defaults?.notes ?? "",
     creditCardId: "",
   });
+
+  const [customInstallments, setCustomInstallments] = useState<IndividualInstallmentEdit[]>([]);
+  const [isCustomInstallments, setIsCustomInstallments] = useState(false);
 
   // Seed templates with existing expenses of the same scope so previously
   // registered descriptions can pre-fill the form on first use.
@@ -138,9 +147,23 @@ export function ExpenseForm({ onAdd, onClose, scope = "business", defaults }: Pr
 
     if (form.kind === "parcelada") {
       const installments = Math.max(1, parseInt(form.installments) || 1);
+      const totalAmount = isCustomInstallments && customInstallments.length > 0
+        ? calculateTotalFromInstallments(customInstallments)
+        : parsedAmount;
+      
+      const notesWithCustom = isCustomInstallments && customInstallments.length > 0
+        ? withCustomInstallments(finalNotes, customInstallments)
+        : finalNotes;
+
+      const firstDueDate = isCustomInstallments && customInstallments.length > 0
+        ? customInstallments[0].dueDate
+        : form.dueDate;
+
       payload = {
         ...commonPayload,
-        amount: parsedAmount * installments,
+        dueDate: firstDueDate,
+        notes: notesWithCustom,
+        amount: totalAmount,
         type: "recorrente",
         installments,
         paidInstallments: 0,
@@ -197,7 +220,7 @@ export function ExpenseForm({ onAdd, onClose, scope = "business", defaults }: Pr
     setForm((prev) => ({ ...prev, [field]: value }));
 
   const amountLabel =
-    form.kind === "parcelada" ? "Valor da Parcela (R$)" :
+    form.kind === "parcelada" ? "Valor Total (R$)" :
     form.kind === "fixa" || form.kind === "recorrente_pos_pagamento" ? "Valor Mensal (R$)" : "Valor (R$)";
 
   return (
@@ -291,18 +314,34 @@ export function ExpenseForm({ onAdd, onClose, scope = "business", defaults }: Pr
               </div>
 
               {form.kind === "parcelada" && (
-                <div className="space-y-1.5 animate-in fade-in-50 duration-200">
-                  <Label htmlFor="installments" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Número de Parcelas *
-                  </Label>
-                  <Input
-                    id="installments"
-                    type="number"
-                    min="1"
-                    value={form.installments}
-                    onChange={(e) => update("installments", e.target.value)}
-                    placeholder="12"
-                    className="h-10"
+                <div className="space-y-3 animate-in fade-in-50 duration-200">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="installments" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Número de Parcelas *
+                    </Label>
+                    <Input
+                      id="installments"
+                      type="number"
+                      min="1"
+                      value={form.installments}
+                      onChange={(e) => update("installments", e.target.value)}
+                      placeholder="12"
+                      className="h-10"
+                    />
+                  </div>
+
+                  <InstallmentScheduleEditor
+                    totalInstallments={Math.max(1, parseInt(form.installments) || 1)}
+                    totalAmount={parseFloat(form.amount) || 0}
+                    startDate={form.dueDate}
+                    customInstallments={customInstallments}
+                    isCustomized={isCustomInstallments}
+                    onChange={(items, isCustom) => {
+                      setCustomInstallments(items);
+                      if (typeof isCustom === "boolean") {
+                        setIsCustomInstallments(isCustom);
+                      }
+                    }}
                   />
                 </div>
               )}

@@ -49,13 +49,14 @@ describe("SystemSettings e PlanManagement — Reorganização de Abas", () => {
     expect(screen.queryByRole("tab", { name: /Saúde do Sistema/i })).toBeNull();
   });
 
-  it("renderiza PlanManagement com as sub-abas Faturamento, Plano de assinatura e Cupom de desconto, padrão Faturamento", () => {
+  it("renderiza PlanManagement com as sub-abas Faturamento, Usuários e assinaturas, Plano de assinatura e Cupom de desconto, padrão Faturamento", () => {
     render(<PlanManagement />);
 
     const tabs = screen.getAllByRole("tab");
     expect(tabs[0]).toHaveTextContent(/Faturamento/i);
-    expect(tabs[1]).toHaveTextContent(/Plano de assinatura/i);
-    expect(tabs[2]).toHaveTextContent(/Cupom de desconto/i);
+    expect(tabs[1]).toHaveTextContent(/Usuários e assinaturas/i);
+    expect(tabs[2]).toHaveTextContent(/Plano de assinatura/i);
+    expect(tabs[3]).toHaveTextContent(/Cupom de desconto/i);
 
     // Aba padrão é Faturamento
     expect(tabs[0]).toHaveAttribute("data-state", "active");

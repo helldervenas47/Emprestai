@@ -74,7 +74,12 @@ import {
   type HeroMetric,
 } from "@/features/financial/components/financial";
 import { usePaymentMethods } from "@/hooks/usePaymentMethods";
-import { getInstallmentScheduleStart, withoutInstallmentReceipts } from "@/features/financial/lib/installmentEdit";
+import {
+  getInstallmentScheduleStart,
+  withoutInstallmentReceipts,
+  getSingleInstallmentAmount,
+  getDueDateForMonth,
+} from "@/features/financial/lib/installmentEdit";
 import { filterBusinessExpenses, isExpenseOccurringInMonth } from "../lib/expenseFilterCore";
 
   const isTelegramBotExpense = (e: any) =>
@@ -267,10 +272,9 @@ export function PersonalExpenseList({ expenses: expensesInput, onPay, onUnpay, o
     months.forEach((m) => (byMonth[m.key] = {}));
     expenses.forEach((e) => {
       if (isPiggyExpense(e.notes)) return; // Cofrinho transfers are not spending
-      const isRec = isRecurringMonthly(e);
-      const amt = isRec ? e.amount / e.installments! : e.amount;
       months.forEach((m) => {
         if (!occursInMonth(e, m.key)) return;
+        const amt = getSingleInstallmentAmount(e, m.key);
         const cat = (e.category || "Outros").trim() || "Outros";
         byMonth[m.key][cat] = (byMonth[m.key][cat] || 0) + amt;
         categoriesPresent.add(cat);
@@ -300,10 +304,9 @@ export function PersonalExpenseList({ expenses: expensesInput, onPay, onUnpay, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expenses, allExpenses, cards, isBusiness, historyMonths, occursInMonth]);
 
-  const getInstallmentAmount = useCallback((e: Expense) => {
-    const isRec = isRecurringMonthly(e);
-    return isRec ? e.amount / e.installments! : e.amount;
-  }, []);
+  const getInstallmentAmount = useCallback((e: Expense, monthOrDueDate?: string) => {
+    return getSingleInstallmentAmount(e, monthOrDueDate || selectedMonth);
+  }, [selectedMonth]);
 
   // Filtra exclusivamente pela data de vencimento (dueDate). Despesas pagas em
   // outro mês mas cujo vencimento cai no mês selecionado continuam aparecendo;
@@ -1521,7 +1524,7 @@ export function PersonalExpenseList({ expenses: expensesInput, onPay, onUnpay, o
                     const overdue = isOverdue(expense);
                     const dueAccent = getDueAccent(expense.dueDate, expense.paid);
                     const isRecorrente = expense.type === "recorrente" && expense.installments && expense.installments > 1;
-                    const installmentAmount = isRecorrente ? expense.amount / expense.installments! : expense.amount;
+                    const installmentAmount = getInstallmentAmount(expense, selectedMonth);
                     const parentExpense = expense.parentExpenseId
                       ? expenses.find((p) => p.id === expense.parentExpenseId)
                       : null;
@@ -1732,7 +1735,7 @@ export function PersonalExpenseList({ expenses: expensesInput, onPay, onUnpay, o
                                     </Button>
                                   )}
                                   {onUpdate && (
-                                    <Button data-mutation size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditingExpense(expense)}>
+                                    <Button data-mutation size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditingExpense({ ...expense, dueDate: getDueDateForMonth(expense, selectedMonth) })}>
                                       <Pencil className="h-3 w-3 mr-1" />
                                       Editar
                                     </Button>
@@ -2170,15 +2173,7 @@ export function PersonalExpenseList({ expenses: expensesInput, onPay, onUnpay, o
         onSave={async (patch, scope) => {
           if (!editingExpense || !onUpdate) return;
           const exp = editingExpense;
-          const totalInstallments = exp.parentExpenseId
-            ? expenses.find((e) => e.id === exp.parentExpenseId)?.installments ?? exp.installments ?? 1
-            : (exp.installments ?? 1);
-          // patch.amount vem como TOTAL do dialog; converte para POR PARCELA.
-          const perInstallment = (exp.type === "recorrente" && (exp.installments ?? 0) > 1)
-            ? patch.amount / totalInstallments
-            : exp.parentExpenseId
-              ? patch.amount
-              : patch.amount;
+          const perInstallment = patch.amount;
           try {
             await applyExpenseScopedUpdate({
               target: exp,

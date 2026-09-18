@@ -192,35 +192,35 @@ export function PlanManagement() {
   };
 
   return (
-    <Tabs defaultValue="financial" className="space-y-4">
-      <TabsList className="bg-muted/60 p-1.5 rounded-xl border border-border/50 w-full sm:w-auto grid grid-cols-2 sm:inline-flex h-auto gap-1 items-center">
+    <Tabs defaultValue="financial" className="space-y-4 w-full">
+      <TabsList className="bg-muted/60 p-1.5 rounded-xl border border-border/50 w-full grid grid-cols-2 sm:grid-cols-4 h-auto gap-1 items-center">
         <TabsTrigger
           value="financial"
-          className="gap-2 text-xs sm:text-sm font-semibold h-9 min-h-0 rounded-lg px-3 py-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all"
+          className="flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold h-9 min-h-0 rounded-lg px-3 py-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all w-full"
         >
           <TrendingUp className="h-4 w-4 shrink-0" />
-          <span>Faturamento</span>
+          <span className="truncate">Faturamento</span>
         </TabsTrigger>
         <TabsTrigger
           value="customers"
-          className="gap-2 text-xs sm:text-sm font-semibold h-9 min-h-0 rounded-lg px-3 py-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all"
+          className="flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold h-9 min-h-0 rounded-lg px-3 py-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all w-full"
         >
           <Users className="h-4 w-4 shrink-0" />
-          <span>Usuários e assinaturas</span>
+          <span className="truncate">Usuários e assinaturas</span>
         </TabsTrigger>
         <TabsTrigger
           value="plans"
-          className="gap-2 text-xs sm:text-sm font-semibold h-9 min-h-0 rounded-lg px-3 py-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all"
+          className="flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold h-9 min-h-0 rounded-lg px-3 py-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all w-full"
         >
           <Layers className="h-4 w-4 shrink-0" />
-          <span>Plano de assinatura</span>
+          <span className="truncate">Plano de assinatura</span>
         </TabsTrigger>
         <TabsTrigger
           value="coupons"
-          className="gap-2 text-xs sm:text-sm font-semibold h-9 min-h-0 rounded-lg px-3 py-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all"
+          className="flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold h-9 min-h-0 rounded-lg px-3 py-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all w-full"
         >
           <Tag className="h-4 w-4 shrink-0 text-primary" />
-          <span>Cupom de desconto</span>
+          <span className="truncate">Cupom de desconto</span>
         </TabsTrigger>
       </TabsList>
 

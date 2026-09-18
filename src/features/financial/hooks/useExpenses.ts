@@ -24,7 +24,14 @@ import {
   loadSharedResource, readSharedResource, writeSharedResource,
   invalidateSharedResource, subscribeSharedResource,
 } from "@/lib/sharedResource";
-import { getInstallmentScheduleStart, getInstallmentNumberForDueDate, readSeriesStart, withSeriesStart, withHealedSeriesStart } from "@/features/financial/lib/installmentEdit";
+import {
+  getInstallmentScheduleStart,
+  getInstallmentNumberForDueDate,
+  readSeriesStart,
+  withSeriesStart,
+  withHealedSeriesStart,
+  getSingleInstallmentAmount,
+} from "@/features/financial/lib/installmentEdit";
 import {
   round2, occurrenceAmount, defaultOccurrenceMonth, partialPaidForMonth,
   withPartialPayment, withoutPartialPayments,
@@ -505,7 +512,7 @@ export function useExpenses(enabled = true) {
         }
       }
 
-      const originalInstallment = expense.amount / expense.installments!;
+      const originalInstallment = getSingleInstallmentAmount(expense, expense.dueDate);
       const installmentAmount = typeof paidAmount === "number" && paidAmount > 0 ? paidAmount : originalInstallment;
       const newPaid = (expense.paidInstallments || 0) + 1;
       const fullyPaid = newPaid >= expense.installments!;

@@ -24,13 +24,22 @@ import {
 } from "lucide-react";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { ExpenseBoletoLinkButton } from "@/features/financial/components/ExpenseBoletoLinkButton";
-import { EditScopeDialog } from "@/components/EditScopeDialog";
 import { CategoryDetailsSheet, CategoryEntry } from "@/features/financial/components/CategoryDetailsSheet";
 import { applyExpenseScopedUpdate, isExpenseInSeries } from "@/features/financial/lib/seriesEdit";
 import { useFinanceComponentDebug } from "@/lib/financeDebug";
-import { FinancialHeroCard, FinancialMetricCard, type HeroMetric } from "@/features/financial/components/financial";
-import { getInstallmentEdits, getInstallmentScheduleStart, IndividualInstallmentEdit, calculateTotalFromInstallments, serializeCustomInstallments, deserializeCustomInstallments, withoutInstallmentReceipts, displayNotes } from "@/features/financial/lib/installmentEdit";
-import { supabase } from "@/integrations/supabase/userClient";
+import {
+  getInstallmentEdits,
+  getInstallmentScheduleStart,
+  IndividualInstallmentEdit,
+  calculateTotalFromInstallments,
+  serializeCustomInstallments,
+  deserializeCustomInstallments,
+  withoutInstallmentReceipts,
+  displayNotes,
+  getSingleInstallmentAmount,
+  getDueDateForMonth,
+} from "@/features/financial/lib/installmentEdit";
+import { ExpenseEditDialog } from "@/features/financial/components/ExpenseEditDialog";
 import { isAfterPaymentRecurrence } from "@/features/financial/lib/expensePaymentUtils";
 import { isCreditCardExpense } from "@/features/creditCards/lib/creditCardInvoiceTotals";
 import { filterBusinessExpenses, isExpenseOccurringInMonth, isCoreBotExpense } from "../lib/expenseFilterCore";
@@ -70,336 +79,6 @@ function detectKind(expense: Expense): ExpenseKind {
   return "unica";
 }
 
-function ExpenseEditDialog({ expense, expenses, open, onOpenChange, onSave, formatCurrency }: {
-  expense: Expense;
-  expenses: Expense[];
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSave: (data: Partial<Omit<Expense, "id" | "createdAt">>) => void;
-  formatCurrency: (v: number) => string;
-}) {
-  const initialKind = detectKind(expense);
-  const initialUnit =
-    initialKind === "parcelada" ? expense.amount / (expense.installments || 1) :
-    initialKind === "fixa" ? expense.amount / FIXED_RECURRING_INSTALLMENTS :
-    expense.amount;
-
-  const [form, setForm] = useState({
-    description: expense.description,
-    amount: String(initialUnit),
-    kind: initialKind as ExpenseKind,
-    category: expense.category,
-    installments: String(expense.installments && expense.installments < FIXED_RECURRING_INSTALLMENTS ? expense.installments : 1),
-    dueDate: expense.dueDate,
-    notes: expense.notes || "",
-    generateIncomeOnPay: !!expense.generateIncomeOnPay,
-    customInstallments: [] as IndividualInstallmentEdit[],
-  });
-
-  const [savingInstallmentId, setSavingInstallmentId] = useState<string | number | null>(null);
-  const { categories } = useBusinessExpenseCategories();
-
-  useEffect(() => {
-    if (open) {
-      const k = detectKind(expense);
-      const unit =
-        k === "parcelada" ? expense.amount / (expense.installments || 1) :
-        k === "fixa" ? expense.amount / FIXED_RECURRING_INSTALLMENTS :
-        expense.amount;
-      setForm({
-        description: expense.description,
-        amount: String(unit),
-        kind: k,
-        category: expense.category,
-        installments: String(expense.installments && expense.installments < FIXED_RECURRING_INSTALLMENTS ? expense.installments : 1),
-        dueDate: expense.dueDate,
-        notes: expense.notes || "",
-        generateIncomeOnPay: !!expense.generateIncomeOnPay,
-        customInstallments: getInstallmentEdits(expense, expenses.filter(e => e.parentExpenseId === expense.id)),
-      });
-    }
-  }, [open, expense]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const parsedAmount = parseFloat(form.amount) || 0;
-    let patch: Partial<Omit<Expense, "id" | "createdAt">>;
-    
-    if (form.kind === "parcelada") {
-      const inst = Math.max(1, parseInt(form.installments) || 1);
-      const totalAmount = calculateTotalFromInstallments(form.customInstallments);
-      
-      // Salva customizações nas notas para persistência se houver edições em parcelas virtuais
-      const customData = serializeCustomInstallments(form.customInstallments);
-      const baseNotes = form.notes.replace(/\[CustomInstallments:.*?\]/g, "").trim();
-      const finalNotes = customData ? `${baseNotes} [CustomInstallments:${customData}]`.trim() : baseNotes;
-
-      patch = {
-        description: form.description,
-        amount: totalAmount,
-        type: "recorrente",
-        category: form.category,
-        installments: inst,
-        dueDate: form.dueDate,
-        notes: finalNotes || undefined,
-        generateIncomeOnPay: form.generateIncomeOnPay,
-      };
-    } else if (form.kind === "fixa" || form.kind === "recorrente_pos_pagamento") {
-      patch = {
-        description: form.description,
-        amount: parsedAmount * FIXED_RECURRING_INSTALLMENTS,
-        type: "recorrente",
-        category: form.category,
-        installments: FIXED_RECURRING_INSTALLMENTS,
-        dueDate: form.dueDate,
-        notes: form.notes || undefined,
-        generateIncomeOnPay: form.generateIncomeOnPay,
-        recurrenceType: form.kind === "recorrente_pos_pagamento" ? "after_payment" : "standard",
-      };
-    } else {
-      patch = {
-        description: form.description,
-        amount: parsedAmount,
-        type: "fixa",
-        category: form.category,
-        installments: undefined,
-        dueDate: form.dueDate,
-        notes: form.notes || undefined,
-        generateIncomeOnPay: form.generateIncomeOnPay,
-      };
-    }
-    onSave(patch);
-  };
-
-  const handleUpdateInstallment = async (index: number, patch: Partial<IndividualInstallmentEdit>) => {
-    const updated = [...form.customInstallments];
-    updated[index] = { ...updated[index], ...patch };
-    setForm(prev => ({ ...prev, customInstallments: updated }));
-
-    const inst = updated[index];
-    if (inst.id) {
-      // Parcela já existe como registro individual (filha paga), atualiza no banco
-      setSavingInstallmentId(inst.id);
-      try {
-        const payload: any = {};
-        if (patch.amount !== undefined) payload.amount = patch.amount;
-        if (patch.dueDate !== undefined) payload.due_date = patch.dueDate;
-        
-        await supabase.from("expenses").update(payload).eq("id", inst.id);
-      } finally {
-        setSavingInstallmentId(null);
-      }
-    }
-  };
-
-  const updateIndividualInstallmentAndRecalculateTotal = (index: number, patch: Partial<IndividualInstallmentEdit>) => {
-    const updated = [...form.customInstallments];
-    updated[index] = { ...updated[index], ...patch };
-    
-    // Se a parcela for "virtual" (não salva individualmente ainda), atualizamos o total do pai
-    const newTotal = calculateTotalFromInstallments(updated);
-    
-    setForm(prev => ({ 
-      ...prev, 
-      customInstallments: updated,
-      amount: String(newTotal / (parseInt(prev.installments) || 1)) // Mantemos a compatibilidade com o campo amount unitário se necessário
-    }));
-
-    handleUpdateInstallment(index, patch);
-  };
-
-  const update = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
-
-  const amountLabel =
-    form.kind === "parcelada" ? "Valor da Parcela (R$)" :
-    (form.kind === "fixa" || form.kind === "recorrente_pos_pagamento") ? "Valor Mensal (R$)" : "Valor (R$)";
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <div className="space-y-1">
-            <DialogTitle>Editar lançamento</DialogTitle>
-          </div>
-          <Button variant="ghost" className="h-auto p-0 text-sm font-normal" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="edit-desc">Descrição</Label>
-            <Input id="edit-desc" value={form.description} onChange={e => update("description", e.target.value)} required />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="edit-amount">{amountLabel}</Label>
-              <Input id="edit-amount" type="number" step="0.01" value={form.amount} onChange={e => update("amount", e.target.value)} required />
-            </div>
-            <div>
-              <Label>Tipo</Label>
-              <Select value={form.kind} onValueChange={v => update("kind", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unica">Única</SelectItem>
-                  <SelectItem value="parcelada">Parcelada</SelectItem>
-                  <SelectItem value="fixa">Fixa (mensal)</SelectItem>
-                  <SelectItem value="recorrente_pos_pagamento">Recorrente após pagamento</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          {form.kind === "parcelada" && (
-            <div>
-              <Label htmlFor="edit-inst">Parcelas</Label>
-              <Input id="edit-inst" type="number" min="1" value={form.installments} onChange={e => update("installments", e.target.value)} />
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Categoria</Label>
-              <Select value={form.category} onValueChange={v => update("category", v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="edit-due">Data de Pagamento</Label>
-              <DatePickerField id="edit-due" value={form.dueDate} onChange={(v) => update("dueDate", v)} />
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="edit-notes">Observações</Label>
-            <Textarea id="edit-notes" value={form.notes} onChange={e => update("notes", e.target.value)} rows={2} />
-          </div>
-          <div className="space-y-4 rounded-xl border bg-muted/30 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="space-y-0.5">
-                <Label htmlFor="edit-gen-income" className="text-sm font-medium">Gerar receita ao pagar</Label>
-                <p className="text-[11px] text-muted-foreground leading-tight">
-                  Cria uma receita idêntica ao confirmar o pagamento.
-                </p>
-              </div>
-              <Switch
-                id="edit-gen-income"
-                checked={form.generateIncomeOnPay}
-                onCheckedChange={(v) => setForm(prev => ({ ...prev, generateIncomeOnPay: v }))}
-              />
-            </div>
-
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground pt-2 border-t border-border/40">
-              <Receipt className="h-3.5 w-3.5" />
-              <span>Boleto vinculado</span>
-              <div className="flex-1" />
-              <Button type="button" variant="ghost" className="h-7 px-2 text-[11px] text-primary hover:bg-primary/10">
-                + Vincular
-              </Button>
-            </div>
-            <p className="text-[10px] text-muted-foreground/60 italic">Nenhum boleto vinculado. Cada despesa pode ter até 1 boleto.</p>
-          </div>
-          {form.kind === "parcelada" && parseInt(form.installments) > 1 && (
-            <div className="space-y-4 pt-2 border-t border-border/40">
-              <div className="rounded-xl bg-muted/50 p-3 flex flex-col gap-1">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground/70">Aplicar alteração em</span>
-                <div className="grid grid-cols-3 gap-2 mt-1">
-                  <button
-                    type="button"
-                    className="flex flex-col items-center gap-1.5 p-2 rounded-xl border bg-primary/5 border-primary/20 transition-all active:scale-95"
-                  >
-                    <div className="h-4 w-4 rounded-full border-2 border-primary flex items-center justify-center">
-                      <div className="h-2 w-2 rounded-full bg-primary" />
-                    </div>
-                    <p className="text-[10px] font-bold text-center leading-tight">Apenas esta</p>
-                  </button>
-                  <button
-                    type="button"
-                    className="flex flex-col items-center gap-1.5 p-2 rounded-xl border bg-card/50 border-border/50 transition-all active:scale-95"
-                  >
-                    <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30" />
-                    <p className="text-[10px] font-bold text-center leading-tight text-muted-foreground">Próximas</p>
-                  </button>
-                  <button
-                    type="button"
-                    className="flex flex-col items-center gap-1.5 p-2 rounded-xl border bg-card/50 border-border/50 transition-all active:scale-95"
-                  >
-                    <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30" />
-                    <p className="text-[10px] font-bold text-center leading-tight text-muted-foreground">Todas</p>
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between px-1">
-                  <Label className="text-sm font-semibold flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-primary" />
-                    Detalhamento das Parcelas
-                  </Label>
-                  <span className="text-[11px] font-medium text-muted-foreground truncate max-w-[150px]">
-                    Total: {formatCurrency(calculateTotalFromInstallments(form.customInstallments))}
-                  </span>
-                </div>
-                
-                <div className="max-h-[250px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                  {form.customInstallments.map((inst, idx) => (
-                    <div key={idx} className={`p-3 rounded-xl border bg-card/50 space-y-3 transition-all ${inst.paid ? "opacity-60 bg-muted/20" : "hover:border-primary/30"}`}>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-muted-foreground/80 uppercase">Parcela {idx + 1}/{form.installments}</span>
-                        {inst.paid && (
-                          <Badge variant="outline" className="text-[9px] h-4 bg-success/10 text-success border-success/20 px-1.5 uppercase font-bold">
-                            Paga
-                          </Badge>
-                        )}
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <Label className="text-[9px] uppercase font-bold text-muted-foreground/60">Vencimento</Label>
-                          <DatePickerField 
-                            value={inst.dueDate} 
-                            onChange={(v) => updateIndividualInstallmentAndRecalculateTotal(idx, { dueDate: v })}
-                            disabled={inst.paid}
-                            className="h-8 text-xs"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-[9px] uppercase font-bold text-muted-foreground/60">Valor (R$)</Label>
-                          <Input 
-                            type="number" 
-                            step="0.01" 
-                            value={inst.amount} 
-                            onChange={(e) => updateIndividualInstallmentAndRecalculateTotal(idx, { amount: parseFloat(e.target.value) || 0 })}
-                            className="h-8 text-xs font-medium"
-                            disabled={inst.paid}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-          {form.kind === "fixa" && (
-            <div className="rounded-xl bg-muted/30 p-3 border border-border/30">
-              <p className="text-[11px] text-muted-foreground flex items-center gap-2">
-                <Clock className="h-3.5 w-3.5" />
-                Despesa mensal recorrente sem prazo final definido.
-              </p>
-            </div>
-          )}
-          <DialogFooter className="pt-2 border-t border-border/40">
-            <Button data-mutation type="submit" className="w-full h-11 rounded-xl text-base font-semibold shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90 transition-all active:scale-[0.98]">
-              Salvar Alterações
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-
 function isTelegramBotExpense(e: any) {
   return !!(e.metadata?.via_telegram || e.metadata?.kind === "telegram_bot");
 }
@@ -423,7 +102,7 @@ export function ExpenseList({ expenses, onPay, onUnpay, onDelete, onUpdate, read
   
   const now = todayDateInAppTz();
   const [selectedMonth, setSelectedMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
-  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [viewPaymentsExpenseId, setViewPaymentsExpenseId] = useState<string | null>(null);
   const [showClearPayments, setShowClearPayments] = useState(false);
   const [expensesExpanded, setExpensesExpanded] = useState(false);
@@ -436,15 +115,10 @@ export function ExpenseList({ expenses, onPay, onUnpay, onDelete, onUpdate, read
   const [viewDateExpenseId, setViewDateExpenseId] = useState<string | null>(null);
   const [editingPaidDate, setEditingPaidDate] = useState(false);
   const [editPaidDateValue, setEditPaidDateValue] = useState("");
-  const [pendingScopeEdit, setPendingScopeEdit] = useState<
-    { target: Expense; patch: Partial<Omit<Expense, "id" | "createdAt">> } | null
-  >(null);
 
-
-  const getInstallmentAmount = useCallback((e: Expense) => {
-    const isRec = e.type === "recorrente" && e.installments && e.installments > 1;
-    return isRec ? e.amount / e.installments! : e.amount;
-  }, []);
+  const getInstallmentAmount = useCallback((e: Expense, monthOrDueDate?: string) => {
+    return getSingleInstallmentAmount(e, monthOrDueDate || selectedMonth);
+  }, [selectedMonth]);
 
   const monthFiltered = useMemo(() => {
     // 1. Filtra despesas Business (remove cartões de crédito completamente deste modo)
@@ -802,7 +476,7 @@ export function ExpenseList({ expenses, onPay, onUnpay, onDelete, onUpdate, read
             const dueAccent = getDueAccent(expense.dueDate, expense.paid);
             const hasPaidSomething = expense.paid || (expense.paidInstallments && expense.paidInstallments > 0);
             const isRecorrente = expense.type === "recorrente" && expense.installments && expense.installments > 1;
-            const installmentAmount = isRecorrente ? expense.amount / expense.installments! : expense.amount;
+            const installmentAmount = getInstallmentAmount(expense, selectedMonth);
 
             return (
               <div key={expense.id} className="animate-fade-in" style={{ animationDelay: `${i * 50}ms`, animationFillMode: 'backwards' }}>
@@ -823,7 +497,7 @@ export function ExpenseList({ expenses, onPay, onUnpay, onDelete, onUpdate, read
                       if (readOnly || !onUpdate) return;
                       const target = e.target as HTMLElement;
                       if (target.closest("[data-actions-row]") || target.closest("button") || target.closest("a")) return;
-                      setEditingExpenseId(expense.id);
+                      setEditingExpense({ ...expense, dueDate: getDueDateForMonth(expense, selectedMonth) });
                     }}
                   >
                     <div className={`h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center shrink-0 ${dueAccent.iconBg}`}>
@@ -900,7 +574,7 @@ export function ExpenseList({ expenses, onPay, onUnpay, onDelete, onUpdate, read
                             </Button>
                           )}
                           {!readOnly && onUpdate && (
-                            <Button data-mutation variant="ghost" onClick={() => setEditingExpenseId(expense.id)} className="h-9 w-9 md:w-auto md:px-3 flex-1 min-h-0 text-muted-foreground hover:text-foreground" title="Editar" aria-label="Editar">
+                            <Button data-mutation variant="ghost" onClick={() => setEditingExpense({ ...expense, dueDate: getDueDateForMonth(expense, selectedMonth) })} className="h-9 w-9 md:w-auto md:px-3 flex-1 min-h-0 text-muted-foreground hover:text-foreground" title="Editar" aria-label="Editar">
                               <Pencil className="h-4 w-4" />
                               <span className="hidden md:inline">Editar</span>
                             </Button>
@@ -1002,24 +676,6 @@ export function ExpenseList({ expenses, onPay, onUnpay, onDelete, onUpdate, read
                   </DialogContent>
                 </Dialog>
 
-                {/* Dialog de edição */}
-                {onUpdate && (
-                  <ExpenseEditDialog
-                    expense={expense}
-                    expenses={expenses}
-                    open={editingExpenseId === expense.id}
-                    onOpenChange={(open) => { if (!open) setEditingExpenseId(null); }}
-                    onSave={(data) => {
-                      if (isExpenseInSeries(expense)) {
-                        setPendingScopeEdit({ target: expense, patch: data });
-                      } else {
-                        onUpdate(expense.id, data);
-                      }
-                      setEditingExpenseId(null);
-                    }}
-                    formatCurrency={formatCurrency}
-                  />
-                )}
               </Card>
               </div>
             );
@@ -1189,40 +845,36 @@ export function ExpenseList({ expenses, onPay, onUnpay, onDelete, onUpdate, read
         </DialogContent>
       </Dialog>
 
-      <EditScopeDialog
-        open={!!pendingScopeEdit}
-        onOpenChange={(o) => { if (!o) setPendingScopeEdit(null); }}
-        onConfirm={async (scope) => {
-          if (!pendingScopeEdit || !onUpdate) return;
-          const { target, patch } = pendingScopeEdit;
-          const totalInstallments = target.parentExpenseId
-            ? expenses.find((e) => e.id === target.parentExpenseId)?.installments ?? target.installments ?? 1
-            : (target.installments ?? 1);
-          const perInstallment = patch.amount === undefined
-            ? undefined
-            : (target.type === "recorrente" && (target.installments ?? 0) > 1)
-              ? (patch.amount as number) / totalInstallments
-              : (patch.amount as number);
-          try {
-            await applyExpenseScopedUpdate({
-              target,
-              patch: {
-                description: patch.description as any,
-                amount: perInstallment,
-                dueDate: patch.dueDate as any,
-                category: patch.category as any,
-                notes: patch.notes as any,
-                paymentMethodId: patch.paymentMethodId as any,
-              },
-              scope,
-              expenses,
-              onUpdateLocal: async (id, data) => { await onUpdate(id, data); },
-            });
-          } finally {
-            setPendingScopeEdit(null);
-          }
-        }}
-      />
+      {/* Edit dialog */}
+      {editingExpense && onUpdate && (
+        <ExpenseEditDialog
+          open={!!editingExpense}
+          onOpenChange={(o) => { if (!o) setEditingExpense(null); }}
+          expense={editingExpense}
+          onSave={async (patch, scope) => {
+            if (!editingExpense || !onUpdate) return;
+            const exp = editingExpense;
+            const perInstallment = patch.amount;
+            try {
+              await applyExpenseScopedUpdate({
+                target: exp,
+                patch: {
+                  description: patch.description,
+                  amount: perInstallment,
+                  dueDate: patch.dueDate,
+                  category: patch.category,
+                  notes: patch.notes,
+                },
+                scope,
+                expenses,
+                onUpdateLocal: async (id, data) => { await onUpdate(id, data); },
+              });
+            } catch (err) {
+              console.error("[scope-edit] propagation failed", err);
+            }
+          }}
+        />
+      )}
 
       <CategoryDetailsSheet
         open={!!summaryView}

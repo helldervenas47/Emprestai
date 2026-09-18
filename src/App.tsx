@@ -124,6 +124,26 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 const SPLASH_SESSION_KEY = "hvcred-splash-shown";
 
+function isPlanRoute(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const pathname = (window.location.pathname || "").toLowerCase();
+    const search = (window.location.search || "").toLowerCase();
+    const hash = (window.location.hash || "").toLowerCase();
+    return (
+      pathname.startsWith("/planos") ||
+      pathname.startsWith("/pricing") ||
+      search.includes("tab=plans") ||
+      search.includes("tab=pricing") ||
+      (search.includes("tab=system") && search.includes("subtab=plans")) ||
+      hash.includes("planos") ||
+      hash.includes("pricing")
+    );
+  } catch {
+    return false;
+  }
+}
+
 function hasShownSplashInSession(): boolean {
   if (typeof window === "undefined") return true;
   try {
@@ -142,6 +162,7 @@ function markSplashShownInSession(): void {
 
 const App = () => {
   const [showSplash, setShowSplash] = React.useState(() => {
+    if (isPlanRoute()) return false;
     if (hasShownSplashInSession()) return false;
     markSplashShownInSession();
     return true;
@@ -162,7 +183,7 @@ const App = () => {
       <div
         className={`min-h-screen w-full bg-background ${
           showSplash
-            ? "transition-opacity duration-[400ms] motion-reduce:duration-200"
+            ? "transition-opacity duration-[500ms] motion-reduce:duration-200"
             : ""
         } ${
           showSplash && !appRevealed

@@ -76,7 +76,10 @@ export function ProductSalesSummaryCards({
   selectedCard,
   sales = [],
 }: Props) {
-  const totalActive = overdueCount + onTrackCount + dueTodayCount;
+  const safeOverdueCount = Number(overdueCount) || 0;
+  const safeOnTrackCount = Number(onTrackCount) || 0;
+  const safeDueTodayCount = Number(dueTodayCount) || 0;
+  const totalActive = safeOverdueCount + safeOnTrackCount + safeDueTodayCount;
 
   const footer = useMemo(() => {
     // 1. Maior atraso entre as vendas vencidas
@@ -144,8 +147,8 @@ export function ProductSalesSummaryCards({
       id: "overdue",
       label: "Atrasados",
       sublabel: "Em atraso",
-      value: totalOverdue,
-      count: overdueCount,
+      value: totalOverdue || 0,
+      count: safeOverdueCount,
       icon: AlertTriangle,
       tone: "destructive",
       footerLabel: "Maior atraso",
@@ -155,8 +158,8 @@ export function ProductSalesSummaryCards({
       id: "due_today",
       label: "Vence Hoje",
       sublabel: "Para receber hoje",
-      value: totalDueToday,
-      count: dueTodayCount,
+      value: totalDueToday || 0,
+      count: safeDueTodayCount,
       icon: Calendar,
       tone: "warning",
       footerLabel: "Próx. vencimento",
@@ -166,8 +169,8 @@ export function ProductSalesSummaryCards({
       id: "ontrack",
       label: "Em Dia",
       sublabel: "Contratos regulares",
-      value: totalOnTrack,
-      count: onTrackCount,
+      value: totalOnTrack || 0,
+      count: safeOnTrackCount,
       icon: CheckCircle,
       tone: "sky",
       footerLabel: "Parcela média",
@@ -178,7 +181,7 @@ export function ProductSalesSummaryCards({
       id: "receivable",
       label: "Total a Receber",
       sublabel: "Carteira ativa",
-      value: totalAReceber,
+      value: totalAReceber || 0,
       count: totalActive,
       icon: DollarSign,
       tone: "indigo",

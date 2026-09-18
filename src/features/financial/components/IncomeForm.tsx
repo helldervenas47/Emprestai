@@ -20,6 +20,12 @@ import { useDescriptionHistory } from "@/features/financial/hooks/useDescription
 import { displayIncomeCategory, incomeCategoryKey } from "@/features/financial/lib/incomeCategory";
 import { IncomeBoletoLinkSection } from "@/features/financial/components/IncomeBoletoLinkSection";
 import { FormModalOverlay } from "@/components/ui/form-modal-overlay";
+import { InstallmentScheduleEditor } from "@/features/financial/components/InstallmentScheduleEditor";
+import {
+  IndividualInstallmentEdit,
+  calculateTotalFromInstallments,
+  withCustomInstallments,
+} from "@/features/financial/lib/installmentEdit";
 
 export const INCOME_CATEGORIES = [
   "Vendas",
@@ -31,6 +37,8 @@ export const INCOME_CATEGORIES = [
   "Reembolso",
   "Outros",
 ];
+
+type IncomeTypeSelection = "once" | "installment" | "weekly" | "biweekly" | "monthly" | "yearly";
 
 interface Props {
   open: boolean;
@@ -51,7 +59,10 @@ export function IncomeForm({ open, onClose, onSubmit, initial }: Props) {
   const [receivedDate, setReceivedDate] = useState(todayInAppTz());
   const [actualReceivedDate, setActualReceivedDate] = useState<string>("");
   const [status, setStatus] = useState<IncomeStatus>("received");
-  const [recurrence, setRecurrence] = useState<IncomeRecurrence>("once");
+  const [recurrenceSelection, setRecurrenceSelection] = useState<IncomeTypeSelection>("once");
+  const [installmentsCount, setInstallmentsCount] = useState("2");
+  const [customInstallments, setCustomInstallments] = useState<IndividualInstallmentEdit[]>([]);
+  const [isCustomInstallments, setIsCustomInstallments] = useState(false);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [creatorOpen, setCreatorOpen] = useState(false);
@@ -102,7 +113,7 @@ export function IncomeForm({ open, onClose, onSubmit, initial }: Props) {
         setReceivedDate(initial.receivedDate);
         setActualReceivedDate(initial.actualReceivedDate || (initial.status === "received" ? initial.receivedDate : ""));
         setStatus(initial.status);
-        setRecurrence(initial.recurrence);
+        setRecurrenceSelection(initial.recurrence);
         setNotes(initial.notes || "");
       } else {
         setDescription("");
@@ -113,7 +124,10 @@ export function IncomeForm({ open, onClose, onSubmit, initial }: Props) {
         setReceivedDate(todayInAppTz());
         setActualReceivedDate(todayInAppTz());
         setStatus("received");
-        setRecurrence("once");
+        setRecurrenceSelection("once");
+        setInstallmentsCount("2");
+        setCustomInstallments([]);
+        setIsCustomInstallments(false);
         setNotes("");
       }
     }
@@ -137,30 +151,71 @@ export function IncomeForm({ open, onClose, onSubmit, initial }: Props) {
     const finalStatus: IncomeStatus = !initial && receivedDate > today && status === "received"
       ? "pending"
       : status;
+
+    let finalAmount = Number(amount);
+    let finalRecurrence: IncomeRecurrence = recurrenceSelection === "installment" ? "monthly" : recurrenceSelection;
+    let finalNotes = notes.trim() || "";
+    let finalReceivedDate = receivedDate;
+
+    if (recurrenceSelection === "installment" && !initial) {
+      const count = Math.max(1, parseInt(installmentsCount) || 1);
+      if (isCustomInstallments && customInstallments.length > 0) {
+        finalAmount = calculateTotalFromInstallments(customInstallments);
+        finalNotes = withCustomInstallments(finalNotes, customInstallments);
+        finalReceivedDate = customInstallments[0].dueDate;
+      } else {
+        // Gerar N parcelas com valores iguais a partir do valor total
+        const total = Number(amount) || 0;
+        const baseUnit = count > 0 ? Math.round((total / count) * 100) / 100 : total;
+        const generated: IndividualInstallmentEdit[] = [];
+        const [yStr, mStr, dStr] = receivedDate.split("-");
+        const y = parseInt(yStr);
+        const m = parseInt(mStr) - 1;
+        const d = parseInt(dStr);
+        for (let i = 0; i < count; i++) {
+          const dt = new Date(y, m + i, d);
+          const yyyy = dt.getFullYear();
+          const mm = String(dt.getMonth() + 1).padStart(2, "0");
+          const dd = String(dt.getDate()).padStart(2, "0");
+          generated.push({
+            index: i,
+            amount: baseUnit,
+            dueDate: `${yyyy}-${mm}-${dd}`,
+            paid: false,
+            description: `Parcela ${i + 1}/${count}`,
+          });
+        }
+        finalAmount = total;
+        finalNotes = withCustomInstallments(finalNotes, generated);
+      }
+    }
+
     await onSubmit({
       description: description.trim(),
-      amount: Number(amount),
+      amount: finalAmount,
       category: displayIncomeCategory(category),
       clientId: matched?.id || null,
       source: !matched && clientName.trim() ? clientName.trim() : null,
       paymentMethodId: paymentMethodId || null,
-      receivedDate,
+      receivedDate: finalReceivedDate,
       actualReceivedDate: finalStatus === "received" ? (actualReceivedDate || today) : null,
       status: finalStatus,
-      notes: notes.trim() || null,
-      recurrence,
+      notes: finalNotes || null,
+      recurrence: finalRecurrence,
       parentId: initial?.parentId || null,
     });
     record(description, {
       amount: Number(amount),
       category: displayIncomeCategory(category),
-      notes: notes.trim(),
+      notes: finalNotes,
       paymentMethodId: paymentMethodId || null,
       clientName: clientName.trim(),
     });
     setSaving(false);
     onClose();
   };
+
+  const amountLabel = recurrenceSelection === "installment" ? "Valor Total (R$)" : "Valor *";
 
   if (!open) return null;
 
@@ -242,7 +297,7 @@ export function IncomeForm({ open, onClose, onSubmit, initial }: Props) {
               <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Valor *
+                    {amountLabel}
                   </Label>
                   <MoneyInput value={amount} onChange={setAmount} placeholder="R$ 0,00" required />
                 </div>
@@ -341,7 +396,7 @@ export function IncomeForm({ open, onClose, onSubmit, initial }: Props) {
               />
             </div>
 
-            {/* Bloco 4: Forma de Pagamento e Recorrência */}
+            {/* Bloco 4: Forma de Pagamento e Recorrência / Parcelamento */}
             <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs space-y-3.5">
               <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5">
                 <div className="space-y-1.5">
@@ -359,14 +414,19 @@ export function IncomeForm({ open, onClose, onSubmit, initial }: Props) {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Recorrência
+                    Tipo / Recorrência
                   </Label>
-                  <Select value={recurrence} onValueChange={(v) => setRecurrence(v as IncomeRecurrence)}>
+                  <Select
+                    value={recurrenceSelection}
+                    onValueChange={(v) => setRecurrenceSelection(v as IncomeTypeSelection)}
+                    disabled={!!initial}
+                  >
                     <SelectTrigger className="h-10 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="once">Única</SelectItem>
+                      <SelectItem value="installment">Parcelada</SelectItem>
                       <SelectItem value="weekly">Semanal</SelectItem>
                       <SelectItem value="biweekly">Quinzenal</SelectItem>
                       <SelectItem value="monthly">Mensal</SelectItem>
@@ -375,6 +435,38 @@ export function IncomeForm({ open, onClose, onSubmit, initial }: Props) {
                   </Select>
                 </div>
               </div>
+
+              {recurrenceSelection === "installment" && !initial && (
+                <div className="space-y-3 pt-2 border-t border-border/50 animate-in fade-in-50 duration-200">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Número de Parcelas *
+                    </Label>
+                    <Input
+                      type="number"
+                      min="2"
+                      value={installmentsCount}
+                      onChange={(e) => setInstallmentsCount(e.target.value)}
+                      placeholder="2"
+                      className="h-10 text-sm"
+                    />
+                  </div>
+
+                  <InstallmentScheduleEditor
+                    totalInstallments={Math.max(2, parseInt(installmentsCount) || 2)}
+                    totalAmount={parseFloat(amount) || 0}
+                    startDate={receivedDate}
+                    customInstallments={customInstallments}
+                    isCustomized={isCustomInstallments}
+                    onChange={(items, isCustom) => {
+                      setCustomInstallments(items);
+                      if (typeof isCustom === "boolean") {
+                        setIsCustomInstallments(isCustom);
+                      }
+                    }}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Bloco 5: Observações */}

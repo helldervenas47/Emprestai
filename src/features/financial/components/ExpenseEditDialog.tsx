@@ -26,17 +26,9 @@ import { usePersonalExpenseCategories } from "@/features/financial/hooks/usePers
 import { useCreditCards } from "@/features/creditCards/hooks/useCreditCards";
 import { AlertTriangle, ArrowLeft } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ExpenseBoletoLinkSection } from "@/features/financial/components/ExpenseBoletoLinkSection";
+import { getSingleInstallmentAmount } from "@/features/financial/lib/installmentEdit";
 
 
 
@@ -169,7 +161,7 @@ export function ExpenseEditDialog({
     setDescription(expense.description);
     const inst = expense.installments ?? 0;
     const isParc = expense.type === "recorrente" && inst > 1;
-    setAmount(String(isParc ? expense.amount / inst : expense.amount));
+    setAmount(String(isParc ? getSingleInstallmentAmount(expense, expense.dueDate) : expense.amount));
     setDueDate(expense.dueDate);
     setCategory(expense.category ?? "");
     const pm = detectPaymentMethod(expense.notes);
@@ -527,12 +519,11 @@ export function ExpenseEditDialog({
         cardId: paymentMethod === "Crédito" ? cardId : null,
         freeNotes,
       });
-      const inst = expense.installments ?? 0;
-      const totalAmount = isParcelada ? Number(amount) * inst : Number(amount);
+      const unitAmount = Number(amount);
       await onSave(
         {
           description,
-          amount: totalAmount,
+          amount: unitAmount,
           dueDate,
           category,
           notes,

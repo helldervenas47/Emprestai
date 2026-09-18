@@ -18,6 +18,10 @@ import {
   totalPartialPaid,
   round2,
 } from "@/features/financial/lib/partialPayments";
+import {
+  deserializeCustomInstallments,
+  displayNotes,
+} from "@/features/financial/lib/installmentEdit";
 
 export type IncomeStatus = "pending" | "received" | "overdue";
 export type IncomeRecurrence = "once" | "weekly" | "biweekly" | "monthly" | "yearly";
@@ -281,12 +285,42 @@ export function useIncomes(enabled = true) {
     return out;
   }
 
-  // Expande receitas recorrentes (semanais/quinzenais no mês, mensais/anuais até o horizonte)
+  // Expande receitas recorrentes (semanais/quinzenais no mês, mensais/anuais até o horizonte, ou parceladas customizadas)
   const addIncome = useCallback(async (
     input: Omit<Income, "id" | "createdAt">,
   ): Promise<Income | null> => {
     if (!dataOwnerId) return null;
     const today = todayInAppTz();
+
+    // Se houver parcelamento com valores/datas customizados nas observações
+    const customList = input.notes ? deserializeCustomInstallments(input.notes) : null;
+    if (customList && customList.length > 0) {
+      const baseNotes = input.notes ?? "";
+      let parent: Income | null = null;
+      const created: Income[] = [];
+      for (let i = 0; i < customList.length; i++) {
+        const item = customList[i];
+        const isFirst = i === 0;
+        const inc = await insertSingle({
+          ...input,
+          amount: item.amount,
+          receivedDate: item.dueDate,
+          status: item.dueDate > today ? "pending" : input.status,
+          recurrence: isFirst ? input.recurrence : "once",
+          parentId: isFirst ? input.parentId : (parent?.id ?? null),
+          notes: isFirst ? baseNotes : (displayNotes(baseNotes) || null),
+        });
+        if (!inc) continue;
+        if (isFirst) parent = inc;
+        created.push(inc);
+      }
+      if (created.length > 0) {
+        financeSetState("useIncomes", "optimistic recurring incomes", { rows: created.length });
+        setIncomes((prev) => [...created, ...prev]);
+      }
+      return parent;
+    }
+
     let dates: string[] | null = null;
     if (input.recurrence === "weekly" || input.recurrence === "biweekly") {
       const stepDays = input.recurrence === "weekly" ? 7 : 14;

@@ -37,25 +37,25 @@ export function SplashScreen({ onStartExit, onFinish }: SplashScreenProps) {
       };
     }
 
-    // 0ms - 300ms: Fundo inicial escuro ativo
-    const tSymbol = setTimeout(() => setPhase("symbol"), 300);
-    // 800ms: Revelar suavemente o nome
-    const tName = setTimeout(() => setPhase("name"), 800);
-    // 1200ms: Conclusão da animação da logo -> início da estabilização visual (180ms)
-    const tSettled = setTimeout(() => setPhase("settled"), 1200);
-    // 1380ms: Fim da estabilização -> início do crossfade suave de 400ms para o Dashboard
+    // 0ms - 350ms: Fundo inicial escuro ativo
+    const tSymbol = setTimeout(() => setPhase("symbol"), 350);
+    // 1050ms: Revelar suavemente o nome da marca
+    const tName = setTimeout(() => setPhase("name"), 1050);
+    // 1650ms: Conclusão da animação da logo -> início da estabilização visual
+    const tSettled = setTimeout(() => setPhase("settled"), 1650);
+    // 2250ms: Fim da estabilização -> início do crossfade suave de 500ms para o app
     const tExit = setTimeout(() => {
       setPhase("exiting");
       onStartExit?.();
-    }, 1380);
-    // 1780ms: Término completo da transição de 400ms e desmontagem da Splash
+    }, 2250);
+    // 2750ms: Término completo da transição de 500ms e desmontagem da Splash
     const tDone = setTimeout(() => {
       if (!hasFinishedRef.current) {
         hasFinishedRef.current = true;
         setPhase("done");
         onFinish?.();
       }
-    }, 1780);
+    }, 2750);
 
     return () => {
       clearTimeout(tSymbol);
@@ -81,7 +81,7 @@ export function SplashScreen({ onStartExit, onFinish }: SplashScreenProps) {
   return (
     <div
       onTransitionEnd={handleContainerTransitionEnd}
-      className={`fixed inset-0 z-[999999] flex flex-col items-center justify-center overflow-hidden select-none pointer-events-none transition-opacity duration-[400ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+      className={`fixed inset-0 z-[999999] flex flex-col items-center justify-center overflow-hidden select-none pointer-events-none transition-opacity duration-[500ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
         phase === "exiting" ? "opacity-0" : "opacity-100"
       }`}
       style={{
@@ -107,12 +107,12 @@ export function SplashScreen({ onStartExit, onFinish }: SplashScreenProps) {
       <div className="relative z-10 flex flex-col items-center justify-center gap-4">
         {/* Símbolo / Logo Oficial */}
         <div
-          className={`relative flex items-center justify-center transition-all duration-[500ms] ${
+          className={`relative flex items-center justify-center transition-all duration-[600ms] ${
             phase === "initial"
               ? "opacity-0 scale-[0.82] translate-y-2"
               : phase === "symbol" || phase === "name"
               ? "opacity-100 scale-100 translate-y-0"
-              : "opacity-100 scale-[1.012] translate-y-0"
+              : "opacity-100 scale-[1.015] translate-y-0"
           }`}
           style={{
             transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
@@ -137,7 +137,7 @@ export function SplashScreen({ onStartExit, onFinish }: SplashScreenProps) {
                   phase === "initial"
                     ? "translateX(-150%) skewX(-20deg)"
                     : "translateX(150%) skewX(-20deg)",
-                transition: "transform 750ms cubic-bezier(0.4, 0, 0.2, 1)",
+                transition: "transform 900ms cubic-bezier(0.4, 0, 0.2, 1)",
               }}
             />
           </div>
@@ -145,7 +145,7 @@ export function SplashScreen({ onStartExit, onFinish }: SplashScreenProps) {
 
         {/* Nome da Marca Tipográfico */}
         <div
-          className={`transition-all duration-[400ms] ${
+          className={`transition-all duration-[500ms] ${
             phase === "initial" || phase === "symbol"
               ? "opacity-0 translate-y-1.5"
               : "opacity-100 translate-y-0"

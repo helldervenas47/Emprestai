@@ -142,15 +142,15 @@ export function SystemSettings() {
     <div className="space-y-6 w-full">
 
       <Tabs value={subTab} onValueChange={setSubTab} className="w-full">
-        {/* Abas Responsivas: Grade 2 colunas no mobile, Flex no desktop */}
-        <TabsList className="w-full grid grid-cols-2 sm:flex sm:flex-wrap h-auto gap-1.5 sm:gap-1 bg-muted/40 sm:bg-muted/50 p-1.5 sm:p-1 rounded-2xl sm:rounded-lg border border-border/40 sm:border-transparent">
+        {/* Abas Responsivas: Grade 2 colunas no mobile, 4 colunas no desktop ocupando toda a largura */}
+        <TabsList className="w-full grid grid-cols-2 sm:grid-cols-4 h-auto gap-1.5 sm:gap-1 bg-muted/40 sm:bg-muted/50 p-1.5 sm:p-1 rounded-2xl sm:rounded-xl border border-border/40 sm:border-transparent">
           {systemTabs.map(tab => {
             const TabIcon = tab.icon;
             return (
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
-                className="flex items-center justify-center sm:justify-start gap-2 sm:gap-1.5 h-10 sm:h-9 text-xs sm:text-xs font-semibold rounded-xl data-[state=active]:bg-background data-[state=active]:shadow-xs transition-all flex-1 min-w-0 sm:min-w-[120px]"
+                className="flex items-center justify-center gap-2 sm:gap-1.5 h-10 sm:h-9 text-xs sm:text-xs font-semibold rounded-xl sm:rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-xs transition-all w-full"
               >
                 <TabIcon className="h-3.5 w-3.5 shrink-0" />
                 <span className="truncate">{tab.label}</span>

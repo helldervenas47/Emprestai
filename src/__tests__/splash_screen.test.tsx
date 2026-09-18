@@ -19,7 +19,7 @@ describe("SplashScreen Component", () => {
     expect(img).toBeDefined();
   });
 
-  it("completa o ciclo de animação chamando onStartExit aos 1380ms e onFinish aos 1780ms", () => {
+  it("completa o ciclo de animação chamando onStartExit aos 2250ms e onFinish aos 2750ms", () => {
     const onStartExit = vi.fn();
     const onFinish = vi.fn();
     const { container } = render(<SplashScreen onStartExit={onStartExit} onFinish={onFinish} />);
@@ -27,23 +27,23 @@ describe("SplashScreen Component", () => {
     expect(onStartExit).not.toHaveBeenCalled();
     expect(onFinish).not.toHaveBeenCalled();
 
-    // Avança para 1200ms (término da animação da logo -> início da estabilização de 180ms)
+    // Avança para 1650ms (término da animação da logo -> início da estabilização)
     act(() => {
-      vi.advanceTimersByTime(1200);
+      vi.advanceTimersByTime(1650);
     });
     expect(onStartExit).not.toHaveBeenCalled();
     expect(onFinish).not.toHaveBeenCalled();
 
-    // Avança 180ms até 1380ms (início do crossfade simultâneo de 400ms)
+    // Avança 600ms até 2250ms (início do crossfade simultâneo de 500ms)
     act(() => {
-      vi.advanceTimersByTime(180);
+      vi.advanceTimersByTime(600);
     });
     expect(onStartExit).toHaveBeenCalledTimes(1);
     expect(onFinish).not.toHaveBeenCalled();
 
-    // Avança os 400ms do crossfade até 1780ms (término e desmontagem completa)
+    // Avança os 500ms do crossfade até 2750ms (término e desmontagem completa)
     act(() => {
-      vi.advanceTimersByTime(400);
+      vi.advanceTimersByTime(500);
     });
     expect(onFinish).toHaveBeenCalledTimes(1);
     expect(container.firstChild).toBeNull();

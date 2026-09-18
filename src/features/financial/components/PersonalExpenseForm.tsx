@@ -19,6 +19,12 @@ import { PersonalCategoryCreator } from "@/features/financial/components/Persona
 import { MoneyInput } from "@/components/ui/money-input";
 import { useDescriptionHistory } from "@/features/financial/hooks/useDescriptionHistory";
 import { FormModalOverlay } from "@/components/ui/form-modal-overlay";
+import { InstallmentScheduleEditor } from "@/features/financial/components/InstallmentScheduleEditor";
+import {
+  IndividualInstallmentEdit,
+  calculateTotalFromInstallments,
+  withCustomInstallments,
+} from "@/features/financial/lib/installmentEdit";
 
 /** Pick the user's default credit card — prefers Nubank, falls back to first card. */
 function pickDefaultCard<T extends { bank: string; nickname: string }>(cards: T[]): T | null {
@@ -60,6 +66,8 @@ export function PersonalExpenseForm({ onAdd, onClose }: Props) {
     dueDate: todayInAppTz(),
     notes: "",
   });
+  const [customInstallments, setCustomInstallments] = useState<IndividualInstallmentEdit[]>([]);
+  const [isCustomInstallments, setIsCustomInstallments] = useState(false);
   const [cardId, setCardId] = useState<string>("");
   const [toPiggy, setToPiggy] = useState(false);
   const [piggyId, setPiggyId] = useState<string>("");
@@ -155,9 +163,23 @@ export function PersonalExpenseForm({ onAdd, onClose }: Props) {
 
     if (form.kind === "parcelada") {
       const installments = Math.max(1, parseInt(form.installments) || 1);
+      const totalAmount = isCustomInstallments && customInstallments.length > 0
+        ? calculateTotalFromInstallments(customInstallments)
+        : amount;
+      
+      const notesWithCustom = isCustomInstallments && customInstallments.length > 0
+        ? withCustomInstallments(notesWithMethod, customInstallments)
+        : notesWithMethod;
+
+      const firstDueDate = isCustomInstallments && customInstallments.length > 0
+        ? customInstallments[0].dueDate
+        : form.dueDate;
+
       payload = {
         ...commonPayload,
-        amount: amount * installments,
+        dueDate: firstDueDate,
+        notes: notesWithCustom,
+        amount: totalAmount,
         type: "recorrente",
         installments,
         paidInstallments: 0,
@@ -191,7 +213,7 @@ export function PersonalExpenseForm({ onAdd, onClose }: Props) {
     setForm((prev) => ({ ...prev, [field]: value }));
 
   const amountLabel =
-    form.kind === "parcelada" ? "Valor da Parcela (R$)" :
+    form.kind === "parcelada" ? "Valor Total (R$)" :
     form.kind === "fixa" || form.kind === "recorrente_pos_pagamento" ? "Valor Mensal (R$)" : "Valor (R$)";
 
   return (
@@ -262,16 +284,32 @@ export function PersonalExpenseForm({ onAdd, onClose }: Props) {
               </div>
 
               {form.kind === "parcelada" && !toPiggy && (
-                <div className="space-y-1 pt-1">
-                  <Label htmlFor="installments" className="text-xs font-medium">Número de Parcelas *</Label>
-                  <Input
-                    id="installments"
-                    type="number"
-                    min="1"
-                    value={form.installments}
-                    onChange={(e) => update("installments", e.target.value)}
-                    placeholder="12"
-                    className="h-10 text-sm"
+                <div className="space-y-3 pt-1 animate-in fade-in-50 duration-200">
+                  <div className="space-y-1">
+                    <Label htmlFor="installments" className="text-xs font-medium">Número de Parcelas *</Label>
+                    <Input
+                      id="installments"
+                      type="number"
+                      min="1"
+                      value={form.installments}
+                      onChange={(e) => update("installments", e.target.value)}
+                      placeholder="12"
+                      className="h-10 text-sm"
+                    />
+                  </div>
+
+                  <InstallmentScheduleEditor
+                    totalInstallments={Math.max(1, parseInt(form.installments) || 1)}
+                    totalAmount={parseFloat(form.amount) || 0}
+                    startDate={form.dueDate}
+                    customInstallments={customInstallments}
+                    isCustomized={isCustomInstallments}
+                    onChange={(items, isCustom) => {
+                      setCustomInstallments(items);
+                      if (typeof isCustom === "boolean") {
+                        setIsCustomInstallments(isCustom);
+                      }
+                    }}
                   />
                 </div>
               )}

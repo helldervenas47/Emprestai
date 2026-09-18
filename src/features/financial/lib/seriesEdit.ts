@@ -1,10 +1,12 @@
-/**
- * Helpers para edição com escopo (apenas esta / esta e próximas / todas)
- * em séries recorrentes/parceladas de receitas e despesas.
- */
 import { supabase } from "@/integrations/supabase/userClient";
 import type { Expense } from "@/types/loan";
 import type { Income } from "@/features/financial/hooks/useIncomes";
+import {
+  getInstallmentEdits,
+  calculateTotalFromInstallments,
+  withCustomInstallments,
+  getInstallmentNumberForDueDate,
+} from "@/features/financial/lib/installmentEdit";
 
 export type EditScope = "this" | "pending" | "all";
 
@@ -31,9 +33,7 @@ export function isExpenseInSeries(exp: Expense): boolean {
  * `onUpdateLocal(id, partial)` deve atualizar tanto o backend quanto o estado local
  * (passe a função `updateExpense` retornada por `useExpenses`).
  *
- * `patch.amount` representa o valor POR PARCELA. Para o registro pai (parcelada),
- * armazenamos `amount = porParcela * installments`. Para filhos (parcelas já pagas)
- * armazenamos `amount = porParcela`.
+ * `patch.amount` representa o valor POR PARCELA.
  */
 export async function applyExpenseScopedUpdate(opts: {
   target: Expense;
@@ -45,72 +45,171 @@ export async function applyExpenseScopedUpdate(opts: {
   const { target, patch, scope, expenses, onUpdateLocal } = opts;
   const isParcelada = target.type === "recorrente" && (target.installments ?? 0) > 1;
   const isChild = !!target.parentExpenseId;
-
   const perInstallment = patch.amount;
-  const totalInstallments = isChild
-    ? expenses.find((e) => e.id === target.parentExpenseId)?.installments ?? target.installments ?? 1
-    : (target.installments ?? 1);
-  const targetIsParent = isParcelada && !isChild;
 
-  // Patch para o registro do alvo (o pai armazena o TOTAL).
-  const targetPatch: Partial<Omit<Expense, "id" | "createdAt">> = {
+  if (isChild) {
+    const parentId = target.parentExpenseId!;
+    const parentExpense = expenses.find((e) => e.id === parentId);
+    const siblings = expenses.filter((e) => e.parentExpenseId === parentId);
+
+    const childPatch: Partial<Omit<Expense, "id" | "createdAt">> = {
+      description: patch.description,
+      dueDate: patch.dueDate,
+      category: patch.category,
+      notes: patch.notes ?? undefined,
+      paymentMethodId: patch.paymentMethodId,
+      amount: perInstallment,
+    };
+    Object.keys(childPatch).forEach((k) => {
+      if ((childPatch as any)[k] === undefined) delete (childPatch as any)[k];
+    });
+
+    await onUpdateLocal(target.id, childPatch);
+
+    if (scope === "this") {
+      // Recalcula o total no registro pai
+      if (parentExpense) {
+        const allEdits = getInstallmentEdits(parentExpense, siblings.map(s => s.id === target.id ? { ...s, ...childPatch } as Expense : s));
+        const newTotal = calculateTotalFromInstallments(allEdits);
+        await onUpdateLocal(parentId, { amount: newTotal });
+      }
+      return;
+    }
+
+    // Escopo pending ou all a partir de filho
+    if (parentExpense) {
+      const count = parentExpense.installments || 1;
+      const allEdits = getInstallmentEdits(parentExpense, siblings);
+      const targetIndex = getInstallmentNumberForDueDate(parentExpense, target.dueDate) - 1;
+      const validIndex = Math.min(Math.max(0, targetIndex), count - 1);
+
+      const startIdx = scope === "pending" ? validIndex : 0;
+      for (let i = startIdx; i < count; i++) {
+        if (perInstallment !== undefined) allEdits[i].amount = perInstallment;
+      }
+
+      const newTotal = calculateTotalFromInstallments(allEdits);
+      const cleanNotes = scope === "all"
+        ? (patch.notes ?? parentExpense.notes ?? "").replace(/\[CustomInstallments:[^\]]*\]/gi, "").trim()
+        : withCustomInstallments(patch.notes ?? parentExpense.notes, allEdits);
+
+      await onUpdateLocal(parentId, {
+        description: patch.description ?? parentExpense.description,
+        category: patch.category ?? parentExpense.category,
+        paymentMethodId: patch.paymentMethodId !== undefined ? patch.paymentMethodId : parentExpense.paymentMethodId,
+        amount: newTotal,
+        notes: cleanNotes || undefined,
+      });
+
+      // Atualiza irmãos
+      for (const sib of siblings) {
+        if (sib.id === target.id) continue;
+        if (scope === "pending" && (sib.dueDate < target.dueDate)) continue;
+        const sibPatch: any = {};
+        if (patch.description !== undefined) sibPatch.description = patch.description;
+        if (patch.category !== undefined) sibPatch.category = patch.category;
+        if (patch.paymentMethodId !== undefined) sibPatch.payment_method_id = patch.paymentMethodId;
+        if (perInstallment !== undefined) sibPatch.amount = perInstallment;
+        if (Object.keys(sibPatch).length > 0) {
+          await supabase.from("expenses").update(sibPatch).eq("id", sib.id);
+        }
+      }
+    }
+    return;
+  }
+
+  if (isParcelada) {
+    const count = target.installments || 1;
+    const siblings = expenses.filter((e) => e.parentExpenseId === target.id);
+    const allEdits = getInstallmentEdits(target, siblings);
+    const targetDueDate = patch.dueDate || target.dueDate;
+    const targetIndex = getInstallmentNumberForDueDate(target, targetDueDate) - 1;
+    const validIndex = Math.min(Math.max(0, targetIndex), count - 1);
+
+    if (scope === "this") {
+      if (perInstallment !== undefined) {
+        allEdits[validIndex].amount = perInstallment;
+      }
+      if (patch.dueDate !== undefined) {
+        allEdits[validIndex].dueDate = patch.dueDate;
+      }
+
+      const newTotal = calculateTotalFromInstallments(allEdits);
+      const customNotes = withCustomInstallments(patch.notes ?? target.notes, allEdits);
+
+      const parentPatch: Partial<Omit<Expense, "id" | "createdAt">> = {
+        description: patch.description ?? target.description,
+        category: patch.category ?? target.category,
+        paymentMethodId: patch.paymentMethodId !== undefined ? patch.paymentMethodId : target.paymentMethodId,
+        amount: newTotal,
+        notes: customNotes,
+      };
+      await onUpdateLocal(target.id, parentPatch);
+      return;
+    }
+
+    if (scope === "pending") {
+      for (let i = validIndex; i < count; i++) {
+        if (perInstallment !== undefined) allEdits[i].amount = perInstallment;
+      }
+      const newTotal = calculateTotalFromInstallments(allEdits);
+      const customNotes = withCustomInstallments(patch.notes ?? target.notes, allEdits);
+
+      const parentPatch: Partial<Omit<Expense, "id" | "createdAt">> = {
+        description: patch.description ?? target.description,
+        category: patch.category ?? target.category,
+        paymentMethodId: patch.paymentMethodId !== undefined ? patch.paymentMethodId : target.paymentMethodId,
+        amount: newTotal,
+        notes: customNotes,
+      };
+      await onUpdateLocal(target.id, parentPatch);
+      return;
+    }
+
+    if (scope === "all") {
+      for (let i = 0; i < count; i++) {
+        if (perInstallment !== undefined) allEdits[i].amount = perInstallment;
+      }
+      const newTotal = (perInstallment !== undefined ? perInstallment : (target.amount / count)) * count;
+      const cleanNotes = (patch.notes ?? target.notes ?? "").replace(/\[CustomInstallments:[^\]]*\]/gi, "").trim();
+
+      const parentPatch: Partial<Omit<Expense, "id" | "createdAt">> = {
+        description: patch.description ?? target.description,
+        category: patch.category ?? target.category,
+        paymentMethodId: patch.paymentMethodId !== undefined ? patch.paymentMethodId : target.paymentMethodId,
+        amount: newTotal,
+        notes: cleanNotes || undefined,
+      };
+      await onUpdateLocal(target.id, parentPatch);
+
+      // Atualiza também os filhos (recibos já pagos)
+      for (const sib of siblings) {
+        const sibPatch: any = {};
+        if (patch.description !== undefined) sibPatch.description = patch.description;
+        if (patch.category !== undefined) sibPatch.category = patch.category;
+        if (patch.paymentMethodId !== undefined) sibPatch.payment_method_id = patch.paymentMethodId;
+        if (perInstallment !== undefined) sibPatch.amount = perInstallment;
+        if (Object.keys(sibPatch).length > 0) {
+          await supabase.from("expenses").update(sibPatch).eq("id", sib.id);
+        }
+      }
+      return;
+    }
+  }
+
+  // Despesa simples / fixa não parcelada
+  const singlePatch: Partial<Omit<Expense, "id" | "createdAt">> = {
     description: patch.description,
     dueDate: patch.dueDate,
     category: patch.category,
     notes: patch.notes ?? undefined,
     paymentMethodId: patch.paymentMethodId,
-    amount: perInstallment === undefined
-      ? undefined
-      : (targetIsParent ? perInstallment * totalInstallments : perInstallment),
+    amount: perInstallment,
   };
-  Object.keys(targetPatch).forEach((k) => {
-    if ((targetPatch as any)[k] === undefined) delete (targetPatch as any)[k];
+  Object.keys(singlePatch).forEach((k) => {
+    if ((singlePatch as any)[k] === undefined) delete (singlePatch as any)[k];
   });
-
-  await onUpdateLocal(target.id, targetPatch);
-
-  if (scope === "this" || (!isParcelada && !isChild)) return;
-
-  const parentId = isChild ? target.parentExpenseId! : target.id;
-  const parentExpense = isChild ? expenses.find((e) => e.id === parentId) : target;
-
-  // Atualiza os irmãos (parcelas filhas).
-  let q = supabase.from("expenses").select("id, paid").eq("parent_expense_id", parentId);
-  if (scope === "pending") q = q.eq("paid", false);
-  const { data: siblings } = await q;
-
-  const siblingPatch: any = {};
-  if (patch.description !== undefined) siblingPatch.description = patch.description;
-  if (patch.category !== undefined) siblingPatch.category = patch.category;
-  if (patch.notes !== undefined) siblingPatch.notes = patch.notes;
-  if (patch.paymentMethodId !== undefined) siblingPatch.payment_method_id = patch.paymentMethodId;
-  if (perInstallment !== undefined) siblingPatch.amount = perInstallment;
-
-  if (Object.keys(siblingPatch).length > 0) {
-    for (const s of (siblings ?? [])) {
-      if ((s as any).id === target.id) continue;
-      await supabase.from("expenses").update(siblingPatch).eq("id", (s as any).id);
-    }
-  }
-
-  // Se o alvo era um filho, também ajusta o pai (mantendo o total recalculado).
-  if (isChild && parentExpense) {
-    const parentPatch: Partial<Omit<Expense, "id" | "createdAt">> = {
-      description: patch.description,
-      category: patch.category,
-      notes: patch.notes ?? undefined,
-      paymentMethodId: patch.paymentMethodId,
-      amount: perInstallment === undefined
-        ? undefined
-        : perInstallment * (parentExpense.installments ?? totalInstallments),
-    };
-    Object.keys(parentPatch).forEach((k) => {
-      if ((parentPatch as any)[k] === undefined) delete (parentPatch as any)[k];
-    });
-    if (Object.keys(parentPatch).length > 0) {
-      await onUpdateLocal(parentId, parentPatch);
-    }
-  }
+  await onUpdateLocal(target.id, singlePatch);
 }
 
 /**

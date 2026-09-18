@@ -15,8 +15,10 @@ import {
   DollarSign,
   CreditCard,
   ChevronDown,
+  ChevronUp,
   ChevronRight,
   ChevronLeft,
+  ArrowRight,
   Info,
   FileSpreadsheet,
   Building2,
@@ -50,6 +52,7 @@ interface AccountantReportProps {
   payments: any[];
   sales: any[];
   expenses: any[];
+  initialTab?: string;
 }
 
 const TAX_CATEGORIES = [
@@ -78,25 +81,40 @@ function fmt(n: number, hidden = false): string {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-function formatDate(dateStr: string): string {
-  if (!dateStr) return "—";
-  if (dateStr.length === 7) {
-    const [y, m] = dateStr.split("-");
-    const d = new Date(Number(y), Number(m) - 1, 1);
-    return d.toLocaleString("pt-BR", { month: "long", year: "numeric" });
-  }
-  return (dateStr || "").slice(0, 4);
+function getDayKey(dateStr: string): string {
+  if (!dateStr) return "";
+  return String(dateStr).trim().slice(0, 10);
 }
 
 function getMonthKey(dateStr: string): string {
-  return (dateStr || "").slice(0, 7);
+  if (!dateStr) return "";
+  return String(dateStr).trim().slice(0, 7);
 }
 
 function getYearKey(dateStr: string): string {
-  return (dateStr || "").slice(0, 4);
+  if (!dateStr) return "";
+  return String(dateStr).trim().slice(0, 4);
 }
 
-export function AccountantReport({ loans, payments, sales, expenses }: AccountantReportProps) {
+function formatDate(dateStr: string): string {
+  if (!dateStr) return "—";
+  const clean = String(dateStr).trim();
+  if (clean.length === 7 && clean.includes("-")) {
+    const [y, m] = clean.split("-");
+    const d = new Date(Number(y), Number(m) - 1, 1);
+    return d.toLocaleString("pt-BR", { month: "long", year: "numeric" });
+  }
+  const dayKey = clean.slice(0, 10);
+  if (dayKey.length === 10 && dayKey.includes("-")) {
+    const [y, m, d] = dayKey.split("-");
+    if (y && m && d) {
+      return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`;
+    }
+  }
+  return clean;
+}
+
+export function AccountantReport({ loans, payments, sales, expenses, initialTab = "dre" }: AccountantReportProps) {
   const { hidden } = useHideValues();
   const { methods: paymentMethods } = usePaymentMethods();
   const [expandedMethod, setExpandedMethod] = useState<string | null>(null);
@@ -113,7 +131,8 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
   const currentYear = String(now.getFullYear());
 
   const [period, setPeriod] = useState<"month" | "year">("month");
-  const [tab, setTab] = useState<string>("dre");
+  const [tab, setTab] = useState<string>(initialTab);
+  const [expandedTaxScenario, setExpandedTaxScenario] = useState<string | null>(null);
 
   const handleTabChange = (value: string) => {
     setTab(value);
@@ -485,7 +504,8 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
     let totalLoanOutgoing = 0;
     const inPayments = payments.filter((p) => matchPeriod(p.date));
     inPayments.forEach((p) => {
-      const k = period === "month" ? p.date : getMonthKey(p.date);
+      const k = period === "month" ? getDayKey(p.date) : getMonthKey(p.date);
+      if (!k) return;
       const cur = map.get(k) || { in: 0, out: 0 };
       cur.in += Number(p.amount) || 0;
       map.set(k, cur);
@@ -503,7 +523,8 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
     });
     outExpenses.forEach((e) => {
       const d = e.paidDate ?? e.paid_date ?? e.dueDate ?? e.due_date;
-      const k = period === "month" ? d : getMonthKey(d);
+      const k = period === "month" ? getDayKey(d) : getMonthKey(d);
+      if (!k) return;
       const cur = map.get(k) || { in: 0, out: 0 };
       cur.out += Number(e.amount) || 0;
       map.set(k, cur);
@@ -513,7 +534,8 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
     const outLoans = loans.filter((l) => matchPeriod(l.startDate ?? l.start_date));
     outLoans.forEach((l) => {
       const d = l.startDate ?? l.start_date;
-      const k = period === "month" ? d : getMonthKey(d);
+      const k = period === "month" ? getDayKey(d) : getMonthKey(d);
+      if (!k) return;
       const cur = map.get(k) || { in: 0, out: 0 };
       const amt = Number(l.amount) || 0;
       cur.out += amt;
@@ -578,24 +600,23 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
           contracts: new Map(),
         });
       }
-      const agg = map.get(mid)!;
+      const cur = map.get(mid)!;
       const amt = Number(p.amount) || 0;
-      agg.total += amt;
-      agg.count += 1;
+      cur.total += amt;
+      cur.count += 1;
       grandTotal += amt;
-      const loan = loanById.get(p.loanId);
-      const lid = p.loanId || "__noloan__";
-      if (!agg.contracts.has(lid)) {
-        agg.contracts.set(lid, {
-          loanId: lid,
-          borrowerName: loan?.borrowerName || "Sem contrato",
-          total: 0,
-          count: 0,
-        });
-      }
-      const c = agg.contracts.get(lid)!;
-      c.total += amt;
-      c.count += 1;
+      const lid = p.loanId || "__sem_contrato__";
+      const l = loanById.get(lid);
+      const bname = l ? l.borrowerName || l.borrower_name || "Sem nome" : "Lançamento Avulso";
+      const ccur = cur.contracts.get(lid) || {
+        loanId: lid,
+        borrowerName: bname,
+        total: 0,
+        count: 0,
+      };
+      ccur.total += amt;
+      ccur.count += 1;
+      cur.contracts.set(lid, ccur);
     }
     const rows = Array.from(map.values())
       .map((m) => ({
@@ -607,15 +628,23 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
   }, [payments, paymentMethods, loans, matchPeriod]);
 
   const formatDate = (k: string) => {
-    if (k.length === 10) return new Date(k + "T00:00:00").toLocaleDateString("pt-BR");
-    if (k.length === 7) {
-      const [y, m] = k.split("-");
+    if (!k) return "—";
+    const clean = String(k).trim();
+    if (clean.length === 7 && clean.includes("-")) {
+      const [y, m] = clean.split("-");
       return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("pt-BR", {
         month: "long",
         year: "numeric",
       });
     }
-    return k;
+    const dayKey = clean.slice(0, 10);
+    if (dayKey.length === 10 && dayKey.includes("-")) {
+      const [y, m, d] = dayKey.split("-");
+      if (y && m && d) {
+        return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`;
+      }
+    }
+    return clean;
   };
 
   const drawBrandingLogo = (
@@ -793,7 +822,7 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
       drawBrandingLogo(doc, branding);
       doc.setFontSize(16);
       doc.setFont("helvetica", "bold");
-      doc.text("Planejamento Tributário & Simulação", 14, 18);
+      doc.text("Simulação de Impostos (Planejamento Financeiro)", 14, 18);
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(100);
@@ -804,7 +833,7 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
 
       doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
-      doc.text("Base Tributável (Juros Recebidos)", 14, 42);
+      doc.text("Base da Simulação (Juros Recebidos)", 14, 42);
       autoTable(doc, {
         startY: 45,
         theme: "grid",
@@ -829,8 +858,8 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
         body: [
           ["Faixa", String(taxSim.simples.faixa)],
           ["Alíquota efetiva", pct(taxSim.simples.aliquotaEfetiva)],
-          ["DAS estimado", fmtBRL(taxSim.simples.total)],
-          ["Líquido após imposto", fmtBRL(taxSim.simples.liquido)],
+          ["Imposto estimado", fmtBRL(taxSim.simples.total)],
+          ["Após imposto", fmtBRL(taxSim.simples.liquido)],
         ],
       });
 
@@ -851,9 +880,9 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
           ["PIS (0,65%)", fmtBRL(taxSim.presumido.pis)],
           ["COFINS (3%)", fmtBRL(taxSim.presumido.cofins)],
           ["ISS (5%)", fmtBRL(taxSim.presumido.iss)],
-          ["Total estimado", fmtBRL(taxSim.presumido.total)],
+          ["Imposto estimado", fmtBRL(taxSim.presumido.total)],
           ["Alíquota efetiva", pct(taxSim.presumido.aliquotaEfetiva)],
-          ["Líquido após imposto", fmtBRL(taxSim.presumido.liquido)],
+          ["Após imposto", fmtBRL(taxSim.presumido.liquido)],
         ],
       });
 
@@ -863,13 +892,13 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
         y = 20;
       }
       doc.setFont("helvetica", "bold");
-      doc.text("Comparativo entre Regimes", 14, y);
+      doc.text("Comparativo dos Cenários de Simulação", 14, y);
       autoTable(doc, {
         startY: y + 3,
         theme: "grid",
         styles: { fontSize: 10 },
         headStyles: { fillColor: [30, 41, 59] },
-        head: [["Regime", "Imposto", "Alíquota Efetiva", "Líquido"]],
+        head: [["Cenário", "Imposto Estimado", "Estimativa", "Após Imposto"]],
         body: [
           [
             "Simples Nacional",
@@ -892,7 +921,7 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
         ],
       });
 
-      doc.save(`planejamento-tributario-${periodLabel.replace(/\s+/g, "-")}.pdf`);
+      doc.save(`simulacao-impostos-${periodLabel.replace(/\s+/g, "-")}.pdf`);
       toast.success("PDF da simulação exportado!");
     } catch (e) {
       console.error(e);
@@ -1383,7 +1412,7 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
             className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-2 text-[11px] sm:text-sm font-semibold rounded-xl data-[state=active]:bg-background data-[state=active]:shadow-xs data-[state=active]:text-primary transition-all"
           >
             <Sparkles className="h-4 w-4 shrink-0" />
-            <span className="truncate">Tributação</span>
+            <span className="truncate">Simulação de Impostos</span>
           </TabsTrigger>
           <TabsTrigger
             value="cashflow"
@@ -1730,7 +1759,7 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
           </Card>
         </TabsContent>
 
-        {/* ABA 2: PLANEJAMENTO TRIBUTÁRIO & SIMULADOR */}
+        {/* ABA 2: SIMULAÇÃO DE IMPOSTOS */}
         <TabsContent value="simulation" className="space-y-4 mt-4">
           <Card className="rounded-2xl border-border/60 shadow-xs">
             <CardHeader className="p-4 sm:p-5 pb-3">
@@ -1738,26 +1767,69 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                 <div>
                   <div className="flex items-center gap-2">
                     <CardTitle className="text-base sm:text-lg font-bold">
-                      Comparador de Regimes Tributários
+                      Simulação de Impostos
                     </CardTitle>
-                    <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-[10px]">
-                      Planejamento Fiscal
+                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-[10px]">
+                      Estimativa Financeira
                     </Badge>
                   </div>
                   <CardDescription className="text-xs mt-0.5">
-                    Comparação do imposto a pagar sobre os juros auferidos de <strong>{fmt(taxSim.base, hidden)}</strong>.
+                    Veja uma estimativa de quanto você poderia pagar de impostos sobre os juros recebidos neste período.
                   </CardDescription>
                 </div>
                 <Button size="sm" variant="outline" onClick={exportTaxSimulationPDF} className="hidden sm:inline-flex h-8 gap-1 rounded-xl text-xs shrink-0">
                   <Download className="h-3.5 w-3.5" />
-                  <span>PDF Tributos</span>
+                  <span>PDF Simulação</span>
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="p-4 sm:p-5 pt-0 space-y-4">
-              {/* 3 Cards de Regimes Lado a Lado */}
+              {/* Fluxo Resumo Didático: Juros -> Imposto -> Líquido */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-card via-muted/30 to-card border border-border/60 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex-1 text-center md:text-left min-w-0">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                    Juros Recebidos
+                  </span>
+                  <p className="text-xl sm:text-2xl font-black text-foreground tabular-nums">
+                    {fmt(taxSim.base, hidden)}
+                  </p>
+                  <span className="text-[11px] text-muted-foreground">Rendimentos no período</span>
+                </div>
+
+                <div className="hidden md:flex items-center text-muted-foreground/40 shrink-0">
+                  <ArrowRight className="h-5 w-5" />
+                </div>
+
+                <div className="flex-1 text-center min-w-0">
+                  <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block mb-1">
+                    Imposto Estimado (Menor)
+                  </span>
+                  <p className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums">
+                    {fmt(taxSim.bestOption.total, hidden)}
+                  </p>
+                  <span className="text-[11px] text-muted-foreground">
+                    {(taxSim.bestOption.aliq * 100).toFixed(2)}% ({taxSim.bestOption.name})
+                  </span>
+                </div>
+
+                <div className="hidden md:flex items-center text-muted-foreground/40 shrink-0">
+                  <ArrowRight className="h-5 w-5" />
+                </div>
+
+                <div className="flex-1 text-center md:text-right min-w-0">
+                  <span className="text-[11px] font-semibold text-primary uppercase tracking-wider block mb-1">
+                    Após Imposto
+                  </span>
+                  <p className="text-xl sm:text-2xl font-black text-primary tabular-nums">
+                    {fmt(taxSim.base - taxSim.bestOption.total, hidden)}
+                  </p>
+                  <span className="text-[11px] text-muted-foreground">Disponível líquido estimado</span>
+                </div>
+              </div>
+
+              {/* 3 Cards de Cenários de Simulação */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-                {/* Opção 1: Simples Nacional */}
+                {/* Cenário 1: Simples Nacional */}
                 <div
                   className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
                     taxSim.bestOption.key === "simples"
@@ -1766,39 +1838,76 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                   }`}
                 >
                   <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-bold flex items-center gap-1.5">
-                        <Building2 className="h-4 w-4 text-primary" /> Simples Nacional
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <h4 className="text-sm font-bold flex items-center gap-1.5 text-foreground">
+                        <Building2 className="h-4 w-4 text-primary shrink-0" /> Simples Nacional
                       </h4>
                       {taxSim.bestOption.key === "simples" && (
-                        <Badge className="bg-emerald-600 text-white text-[10px] py-0 px-2 font-bold">
-                          Mais Econômico
+                        <Badge className="bg-emerald-600 text-white text-[10px] py-0 px-2 font-bold shrink-0">
+                          MENOR ESTIMATIVA
                         </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground">Anexo III (Serviços / Intermediação)</p>
-                    <div className="my-3">
-                      <p className="text-xl sm:text-2xl font-black text-foreground tabular-nums whitespace-nowrap">
-                        {fmt(taxSim.simples.total, hidden)}
-                      </p>
-                      <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5 whitespace-nowrap">
-                        Alíquota Efetiva: {(taxSim.simples.aliquotaEfetiva * 100).toFixed(2)}% (Faixa {taxSim.simples.faixa})
-                      </p>
+
+                    <div className="space-y-2 mt-3">
+                      <div>
+                        <span className="text-xs text-muted-foreground block">Imposto estimado:</span>
+                        <p className="text-xl sm:text-2xl font-black text-foreground tabular-nums whitespace-nowrap">
+                          {fmt(taxSim.simples.total, hidden)}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs py-1 border-t border-border/30">
+                        <span className="text-muted-foreground">Estimativa:</span>
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                          {(taxSim.simples.aliquotaEfetiva * 100).toFixed(2)}%
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs py-1 border-t border-border/30">
+                        <span className="text-muted-foreground">Após imposto:</span>
+                        <span className="font-bold text-foreground tabular-nums">
+                          {fmt(taxSim.simples.liquido, hidden)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div className="pt-3 border-t border-border/40 text-xs space-y-1">
-                    <div className="flex justify-between text-muted-foreground gap-2">
-                      <span className="truncate">RBT12 (Anualizada)</span>
-                      <span className="whitespace-nowrap tabular-nums">{fmt(taxSim.rbt12, hidden)}</span>
-                    </div>
-                    <div className="flex justify-between font-bold text-foreground gap-2">
-                      <span className="truncate">Líquido após DAS</span>
-                      <span className="whitespace-nowrap tabular-nums">{fmt(taxSim.simples.liquido, hidden)}</span>
-                    </div>
+
+                  {/* Ação Ver Cálculo */}
+                  <div className="mt-3 pt-2.5 border-t border-border/40">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedTaxScenario(expandedTaxScenario === "simples" ? null : "simples")}
+                      className="text-[11px] font-semibold text-primary hover:underline flex items-center justify-between w-full text-left"
+                    >
+                      <span>{expandedTaxScenario === "simples" ? "Ocultar cálculo" : "Ver cálculo"}</span>
+                      {expandedTaxScenario === "simples" ? (
+                        <ChevronUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+
+                    {expandedTaxScenario === "simples" && (
+                      <div className="mt-2.5 p-2.5 rounded-xl bg-muted/50 text-[11px] space-y-1 text-muted-foreground animate-fade-in">
+                        <div className="flex justify-between">
+                          <span>RBT12 anualizada:</span>
+                          <span className="font-medium text-foreground tabular-nums">{fmt(taxSim.rbt12, hidden)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Faixa considerada:</span>
+                          <span className="font-medium text-foreground">Faixa {taxSim.simples.faixa} (Anexo III)</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Base juros:</span>
+                          <span className="font-medium text-foreground tabular-nums">{fmt(taxSim.base, hidden)}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Opção 2: Lucro Presumido */}
+                {/* Cenário 2: Lucro Presumido */}
                 <div
                   className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
                     taxSim.bestOption.key === "presumido"
@@ -1807,39 +1916,80 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                   }`}
                 >
                   <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-bold flex items-center gap-1.5">
-                        <Receipt className="h-4 w-4 text-amber-500" /> Lucro Presumido
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <h4 className="text-sm font-bold flex items-center gap-1.5 text-foreground">
+                        <Receipt className="h-4 w-4 text-amber-500 shrink-0" /> Lucro Presumido
                       </h4>
                       {taxSim.bestOption.key === "presumido" && (
-                        <Badge className="bg-emerald-600 text-white text-[10px] py-0 px-2 font-bold">
-                          Mais Econômico
+                        <Badge className="bg-emerald-600 text-white text-[10px] py-0 px-2 font-bold shrink-0">
+                          MENOR ESTIMATIVA
                         </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground">Presunção de 32% (IRPJ + CSLL + PIS/COFINS + ISS)</p>
-                    <div className="my-3">
-                      <p className="text-xl sm:text-2xl font-black text-foreground tabular-nums whitespace-nowrap">
-                        {fmt(taxSim.presumido.total, hidden)}
-                      </p>
-                      <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mt-0.5 whitespace-nowrap">
-                        Alíquota Efetiva: {(taxSim.presumido.aliquotaEfetiva * 100).toFixed(2)}%
-                      </p>
+
+                    <div className="space-y-2 mt-3">
+                      <div>
+                        <span className="text-xs text-muted-foreground block">Imposto estimado:</span>
+                        <p className="text-xl sm:text-2xl font-black text-foreground tabular-nums whitespace-nowrap">
+                          {fmt(taxSim.presumido.total, hidden)}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs py-1 border-t border-border/30">
+                        <span className="text-muted-foreground">Estimativa:</span>
+                        <span className="font-bold text-amber-600 dark:text-amber-400 tabular-nums">
+                          {(taxSim.presumido.aliquotaEfetiva * 100).toFixed(2)}%
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs py-1 border-t border-border/30">
+                        <span className="text-muted-foreground">Após imposto:</span>
+                        <span className="font-bold text-foreground tabular-nums">
+                          {fmt(taxSim.presumido.liquido, hidden)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div className="pt-3 border-t border-border/40 text-xs space-y-1">
-                    <div className="flex justify-between text-muted-foreground gap-2">
-                      <span className="truncate">Base de Cálculo (32%)</span>
-                      <span className="whitespace-nowrap tabular-nums">{fmt(taxSim.presumido.baseCalculo, hidden)}</span>
-                    </div>
-                    <div className="flex justify-between font-bold text-foreground gap-2">
-                      <span className="truncate">Líquido após Tributos</span>
-                      <span className="whitespace-nowrap tabular-nums">{fmt(taxSim.presumido.liquido, hidden)}</span>
-                    </div>
+
+                  {/* Ação Ver Cálculo */}
+                  <div className="mt-3 pt-2.5 border-t border-border/40">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedTaxScenario(expandedTaxScenario === "presumido" ? null : "presumido")}
+                      className="text-[11px] font-semibold text-primary hover:underline flex items-center justify-between w-full text-left"
+                    >
+                      <span>{expandedTaxScenario === "presumido" ? "Ocultar cálculo" : "Ver cálculo"}</span>
+                      {expandedTaxScenario === "presumido" ? (
+                        <ChevronUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+
+                    {expandedTaxScenario === "presumido" && (
+                      <div className="mt-2.5 p-2.5 rounded-xl bg-muted/50 text-[11px] space-y-1 text-muted-foreground animate-fade-in">
+                        <div className="flex justify-between">
+                          <span>Base presumida (32%):</span>
+                          <span className="font-medium text-foreground tabular-nums">{fmt(taxSim.presumido.baseCalculo, hidden)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>IRPJ + Adicional:</span>
+                          <span className="font-medium text-foreground tabular-nums">{fmt(taxSim.presumido.irpj + taxSim.presumido.irpjAdicional, hidden)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>CSLL (9%):</span>
+                          <span className="font-medium text-foreground tabular-nums">{fmt(taxSim.presumido.csll, hidden)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>PIS/COFINS/ISS:</span>
+                          <span className="font-medium text-foreground tabular-nums">{fmt(taxSim.presumido.pis + taxSim.presumido.cofins + taxSim.presumido.iss, hidden)}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Opção 3: Pessoa Física / Carnê-Leão */}
+                {/* Cenário 3: Pessoa Física */}
                 <div
                   className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
                     taxSim.bestOption.key === "irpf"
@@ -1848,40 +1998,85 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                   }`}
                 >
                   <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-bold flex items-center gap-1.5">
-                        <Percent className="h-4 w-4 text-purple-500" /> Pessoa Física (IRPF)
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <h4 className="text-sm font-bold flex items-center gap-1.5 text-foreground">
+                        <Percent className="h-4 w-4 text-purple-500 shrink-0" /> Pessoa Física
                       </h4>
                       {taxSim.bestOption.key === "irpf" && (
-                        <Badge className="bg-emerald-600 text-white text-[10px] py-0 px-2 font-bold">
-                          Mais Econômico
+                        <Badge className="bg-emerald-600 text-white text-[10px] py-0 px-2 font-bold shrink-0">
+                          MENOR ESTIMATIVA
                         </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground">Carnê-Leão Mensal (Tabela Progressiva)</p>
-                    <div className="my-3">
-                      <p className="text-xl sm:text-2xl font-black text-foreground tabular-nums whitespace-nowrap">
-                        {fmt(taxSim.irpf.total, hidden)}
-                      </p>
-                      <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 mt-0.5 whitespace-nowrap">
-                        Alíquota Efetiva: {(taxSim.irpf.aliquotaEfetiva * 100).toFixed(2)}%
-                      </p>
+
+                    <div className="space-y-2 mt-3">
+                      <div>
+                        <span className="text-xs text-muted-foreground block">Imposto estimado:</span>
+                        <p className="text-xl sm:text-2xl font-black text-foreground tabular-nums whitespace-nowrap">
+                          {fmt(taxSim.irpf.total, hidden)}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs py-1 border-t border-border/30">
+                        <span className="text-muted-foreground">Estimativa:</span>
+                        <span className="font-bold text-purple-600 dark:text-purple-400 tabular-nums">
+                          {(taxSim.irpf.aliquotaEfetiva * 100).toFixed(2)}%
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs py-1 border-t border-border/30">
+                        <span className="text-muted-foreground">Após imposto:</span>
+                        <span className="font-bold text-foreground tabular-nums">
+                          {fmt(taxSim.irpf.liquido, hidden)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div className="pt-3 border-t border-border/40 text-xs space-y-1">
-                    <div className="flex justify-between text-muted-foreground gap-2">
-                      <span className="truncate">Parcela a Deduzir</span>
-                      <span className="whitespace-nowrap tabular-nums">{fmt(taxSim.irpf.deducao, hidden)}</span>
-                    </div>
-                    <div className="flex justify-between font-bold text-foreground gap-2">
-                      <span className="truncate">Líquido após IRPF</span>
-                      <span className="whitespace-nowrap tabular-nums">{fmt(taxSim.irpf.liquido, hidden)}</span>
-                    </div>
+
+                  {/* Ação Ver Cálculo */}
+                  <div className="mt-3 pt-2.5 border-t border-border/40">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedTaxScenario(expandedTaxScenario === "irpf" ? null : "irpf")}
+                      className="text-[11px] font-semibold text-primary hover:underline flex items-center justify-between w-full text-left"
+                    >
+                      <span>{expandedTaxScenario === "irpf" ? "Ocultar cálculo" : "Ver cálculo"}</span>
+                      {expandedTaxScenario === "irpf" ? (
+                        <ChevronUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+
+                    {expandedTaxScenario === "irpf" && (
+                      <div className="mt-2.5 p-2.5 rounded-xl bg-muted/50 text-[11px] space-y-1 text-muted-foreground animate-fade-in">
+                        <div className="flex justify-between">
+                          <span>Base mensal de juros:</span>
+                          <span className="font-medium text-foreground tabular-nums">{fmt(period === "year" ? taxSim.base / 12 : taxSim.base, hidden)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Alíquota tabela progressiva:</span>
+                          <span className="font-medium text-foreground tabular-nums">{(taxSim.irpf.aliquota * 100).toFixed(1)}%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Parcela dedutível:</span>
+                          <span className="font-medium text-foreground tabular-nums">{fmt(taxSim.irpf.deducao, hidden)}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Botão Baixar PDF Tributos no Mobile (Largura Total abaixo dos cards) */}
+              {/* Aviso Importante de Planejamento */}
+              <div className="p-3.5 sm:p-4 rounded-xl border border-border/50 bg-muted/30 text-muted-foreground flex items-start gap-2.5 text-xs">
+                <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                <p className="leading-relaxed">
+                  Esta é uma simulação para planejamento financeiro. Os valores reais podem variar conforme atividade, faturamento, município, tipo de operação e enquadramento tributário. Consulte um contador para confirmar a tributação aplicável ao seu caso.
+                </p>
+              </div>
+
+              {/* Botão Baixar PDF Simulação no Mobile (Largura Total abaixo dos cards) */}
               <Button
                 size="sm"
                 variant="outline"
@@ -1889,7 +2084,7 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
                 className="w-full sm:hidden h-9 gap-2 rounded-xl text-xs font-semibold border-border/60 hover:bg-muted shadow-xs justify-center"
               >
                 <Download className="h-4 w-4 shrink-0 text-primary" />
-                <span>Baixar PDF Tributos</span>
+                <span>Baixar PDF Simulação</span>
               </Button>
             </CardContent>
           </Card>
@@ -1915,35 +2110,35 @@ export function AccountantReport({ loans, payments, sales, expenses }: Accountan
               </div>
             </CardHeader>
             <CardContent className="p-4 sm:p-5 pt-0 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
-                  <span className="text-xs font-semibold text-muted-foreground">Total de Entradas</span>
-                  <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums whitespace-nowrap">
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
+                <div className="p-2 sm:p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 text-center flex flex-col items-center justify-center min-w-0">
+                  <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground truncate w-full">Total de Entradas</span>
+                  <p className="text-xs sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums whitespace-nowrap mt-0.5">
                     {fmt(cashflow.totalIn, hidden)}
                   </p>
-                  <span className="text-[10px] text-muted-foreground">{cashflow.paymentCount} recebimento(s)</span>
+                  <span className="text-[9px] sm:text-[10px] text-muted-foreground truncate w-full mt-0.5">{cashflow.paymentCount} recebimento(s)</span>
                 </div>
 
-                <div className="p-3.5 rounded-xl border border-destructive/30 bg-destructive/5">
-                  <span className="text-xs font-semibold text-muted-foreground">Total de Saídas</span>
-                  <p className="text-lg font-bold text-destructive tabular-nums whitespace-nowrap">
+                <div className="p-2 sm:p-3.5 rounded-xl border border-destructive/30 bg-destructive/5 text-center flex flex-col items-center justify-center min-w-0">
+                  <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground truncate w-full">Total de Saídas</span>
+                  <p className="text-xs sm:text-lg font-bold text-destructive tabular-nums whitespace-nowrap mt-0.5">
                     {fmt(cashflow.totalOut, hidden)}
                   </p>
-                  <span className="text-[10px] text-muted-foreground">
-                    {cashflow.loanCount} empréstimo(s) + {cashflow.expenseCount} despesa(s)
+                  <span className="text-[9px] sm:text-[10px] text-muted-foreground truncate w-full mt-0.5">
+                    {cashflow.loanCount} emp. + {cashflow.expenseCount} desp.
                   </span>
                 </div>
 
-                <div className="p-3.5 rounded-xl border border-primary/30 bg-primary/5">
-                  <span className="text-xs font-semibold text-muted-foreground">Saldo Líquido</span>
+                <div className="p-2 sm:p-3.5 rounded-xl border border-primary/30 bg-primary/5 text-center flex flex-col items-center justify-center min-w-0">
+                  <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground truncate w-full">Saldo Líquido</span>
                   <p
-                    className={`text-lg font-bold tabular-nums whitespace-nowrap ${
+                    className={`text-xs sm:text-lg font-bold tabular-nums whitespace-nowrap mt-0.5 ${
                       cashflow.net >= 0 ? "text-primary" : "text-destructive"
                     }`}
                   >
                     {fmt(cashflow.net, hidden)}
                   </p>
-                  <span className="text-[10px] text-muted-foreground">Variação de disponibilidades</span>
+                  <span className="text-[9px] sm:text-[10px] text-muted-foreground truncate w-full mt-0.5">Variação do período</span>
                 </div>
               </div>
 
