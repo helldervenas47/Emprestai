@@ -873,6 +873,9 @@ const Index = () => {
   const handleHardRefresh = async () => {
     if (refreshing) return;
     setRefreshing(true);
+    try {
+      sessionStorage.setItem("hvcred-splash-shown", "true");
+    } catch {}
     window.location.reload();
   };
 
@@ -1291,22 +1294,20 @@ const Index = () => {
     document.documentElement.classList.toggle("dark", dark);
   }, [dark]);
 
-  const [themeSwitching, setThemeSwitching] = useState(false);
   const [pendingNav, setPendingNav] = useState<string | null>(null);
   const toggleTheme = () => {
-    if (themeSwitching) return;
-    setThemeSwitching(true);
     const next = !dark;
     const root = document.documentElement;
-    // Ativa transição suave de cores/sombras apenas durante a troca
     root.classList.add("theme-transitioning");
     setDark(next);
     root.classList.toggle("dark", next);
-    localStorage.setItem("hvcred-theme", next ? "dark" : "light");
+    try {
+      localStorage.setItem("hvcred-theme", next ? "dark" : "light");
+      localStorage.setItem("hvcred-app-mode", next ? "dark" : "light");
+    } catch {}
     window.setTimeout(() => {
       root.classList.remove("theme-transitioning");
-      setThemeSwitching(false);
-    }, 380);
+    }, 280);
   };
 
   const handleQuickNav = (path: string) => {
@@ -2460,11 +2461,9 @@ const Index = () => {
                                 }}
                               />
                               <QuickAction
-                                icon={themeSwitching ? Loader2 : dark ? Sun : Moon}
-                                label={themeSwitching ? "Aplicando" : dark ? "Claro" : "Escuro"}
+                                icon={dark ? Sun : Moon}
+                                label={dark ? "Claro" : "Escuro"}
                                 active={dark}
-                                spinning={themeSwitching}
-                                disabled={themeSwitching}
                                 onClick={toggleTheme}
                               />
                               <HideValuesQuickTile />

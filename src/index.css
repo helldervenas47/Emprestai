@@ -166,31 +166,70 @@
   }
 
 
-  /* Transição suave ao alternar tema (claro/escuro).
-     Anima apenas propriedades de cor/sombra para não interferir em layout,
-     hover de scale, drawers etc. A classe .theme-transitioning é aplicada
-     temporariamente via JS no <html> apenas no momento da troca. */
+  /* Transição suave e fluida ao alternar tema (claro/escuro).
+     Aplica um fade elegante de 260ms com curva natural (standard ease-in-out),
+     abrangendo superfícies, textos, bordas e sombras sem travar o browser. */
   html.theme-transitioning,
-  html.theme-transitioning *,
-  html.theme-transitioning *::before,
-  html.theme-transitioning *::after {
+  html.theme-transitioning body,
+  html.theme-transitioning header,
+  html.theme-transitioning aside,
+  html.theme-transitioning nav,
+  html.theme-transitioning main,
+  html.theme-transitioning footer,
+  html.theme-transitioning section,
+  html.theme-transitioning .card,
+  html.theme-transitioning [class*="card"],
+  html.theme-transitioning [role="dialog"],
+  html.theme-transitioning [role="tabpanel"],
+  html.theme-transitioning table,
+  html.theme-transitioning thead,
+  html.theme-transitioning tbody,
+  html.theme-transitioning tr,
+  html.theme-transitioning th,
+  html.theme-transitioning td,
+  html.theme-transitioning button,
+  html.theme-transitioning input,
+  html.theme-transitioning textarea,
+  html.theme-transitioning select,
+  html.theme-transitioning [class*="bg-"],
+  html.theme-transitioning [class*="border-"],
+  html.theme-transitioning [class*="text-"] {
     transition:
-      background-color 320ms ease,
-      border-color 320ms ease,
-      color 320ms ease,
-      fill 320ms ease,
-      stroke 320ms ease,
-      box-shadow 320ms ease,
-      backdrop-filter 320ms ease,
-      -webkit-backdrop-filter 320ms ease !important;
+      background-color 260ms cubic-bezier(0.4, 0, 0.2, 1),
+      border-color 260ms cubic-bezier(0.4, 0, 0.2, 1),
+      color 260ms cubic-bezier(0.4, 0, 0.2, 1),
+      fill 260ms cubic-bezier(0.4, 0, 0.2, 1),
+      stroke 260ms cubic-bezier(0.4, 0, 0.2, 1),
+      box-shadow 260ms cubic-bezier(0.4, 0, 0.2, 1) !important;
   }
 
   /* Respeita preferência de redução de movimento */
   @media (prefers-reduced-motion: reduce) {
     html.theme-transitioning,
-    html.theme-transitioning *,
-    html.theme-transitioning *::before,
-    html.theme-transitioning *::after {
+    html.theme-transitioning body,
+    html.theme-transitioning header,
+    html.theme-transitioning aside,
+    html.theme-transitioning nav,
+    html.theme-transitioning main,
+    html.theme-transitioning footer,
+    html.theme-transitioning section,
+    html.theme-transitioning .card,
+    html.theme-transitioning [class*="card"],
+    html.theme-transitioning [role="dialog"],
+    html.theme-transitioning [role="tabpanel"],
+    html.theme-transitioning table,
+    html.theme-transitioning thead,
+    html.theme-transitioning tbody,
+    html.theme-transitioning tr,
+    html.theme-transitioning th,
+    html.theme-transitioning td,
+    html.theme-transitioning button,
+    html.theme-transitioning input,
+    html.theme-transitioning textarea,
+    html.theme-transitioning select,
+    html.theme-transitioning [class*="bg-"],
+    html.theme-transitioning [class*="border-"],
+    html.theme-transitioning [class*="text-"] {
       transition: none !important;
     }
   }

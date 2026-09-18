@@ -122,12 +122,28 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-let hasShownSplashInSession = false;
+const SPLASH_SESSION_KEY = "hvcred-splash-shown";
+
+function hasShownSplashInSession(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    return sessionStorage.getItem(SPLASH_SESSION_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function markSplashShownInSession(): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(SPLASH_SESSION_KEY, "true");
+  } catch {}
+}
 
 const App = () => {
   const [showSplash, setShowSplash] = React.useState(() => {
-    if (hasShownSplashInSession) return false;
-    hasShownSplashInSession = true;
+    if (hasShownSplashInSession()) return false;
+    markSplashShownInSession();
     return true;
   });
   const [appRevealed, setAppRevealed] = React.useState(!showSplash);
