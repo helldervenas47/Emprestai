@@ -56,8 +56,8 @@ export function DashboardManagerSplitSection({ managerSplit, formatCurrency }: P
 
           <CardContent className="p-2.5 sm:p-5 flex flex-col justify-between h-full gap-2.5 sm:gap-4">
             {/* Topo do Card: Badge + Quantidade */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2">
-              <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-1.5 sm:gap-2 text-center sm:text-left">
+              <div className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 min-w-0 w-full sm:w-auto">
                 <div className="h-5 w-5 sm:h-7 sm:w-7 rounded-md bg-primary/15 border border-primary/25 flex items-center justify-center text-primary shrink-0">
                   <UserCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                 </div>
@@ -65,7 +65,7 @@ export function DashboardManagerSplitSection({ managerSplit, formatCurrency }: P
                   COM GERENTE
                 </span>
               </div>
-              <span className="self-start sm:self-auto text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20 tabular-nums shrink-0">
+              <span className="self-center sm:self-auto text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20 tabular-nums shrink-0">
                 {withManager.count} <span className="hidden sm:inline">{withManager.count === 1 ? "empréstimo" : "empréstimos"}</span><span className="sm:hidden">emp.</span>
               </span>
             </div>
@@ -73,27 +73,27 @@ export function DashboardManagerSplitSection({ managerSplit, formatCurrency }: P
             {/* Valores Principais */}
             <div className="flex flex-col gap-1.5 sm:gap-3">
               {/* Juros a Receber */}
-              <div className="p-2 sm:p-3 rounded-lg bg-background/60 border border-border/50 flex flex-col justify-center min-w-0">
-                <div className="flex items-center gap-1 sm:gap-1.5 text-muted-foreground mb-0.5 sm:mb-1">
+              <div className="p-2 sm:p-3 rounded-lg bg-background/60 border border-border/50 flex flex-col items-center sm:items-start justify-center text-center sm:text-left min-w-0">
+                <div className="flex items-center justify-center sm:justify-start gap-1 sm:gap-1.5 text-muted-foreground mb-0.5 sm:mb-1 w-full">
                   <Coins className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-warning shrink-0" />
                   <span className="text-[9px] sm:text-[11px] font-medium uppercase tracking-wider truncate">
                     Juros a Receber
                   </span>
                 </div>
-                <span className="text-xs sm:text-base md:text-lg font-bold text-warning tabular-nums tracking-tight truncate">
+                <span className="text-xs sm:text-base md:text-lg font-bold text-warning tabular-nums tracking-tight truncate w-full text-center sm:text-left">
                   {formatCurrency(withManager.interestPending)}
                 </span>
               </div>
 
               {/* Total a Receber */}
-              <div className="p-2 sm:p-3 rounded-lg bg-background/60 border border-border/50 flex flex-col justify-center min-w-0">
-                <div className="flex items-center gap-1 sm:gap-1.5 text-muted-foreground mb-0.5 sm:mb-1">
+              <div className="p-2 sm:p-3 rounded-lg bg-background/60 border border-border/50 flex flex-col items-center sm:items-start justify-center text-center sm:text-left min-w-0">
+                <div className="flex items-center justify-center sm:justify-start gap-1 sm:gap-1.5 text-muted-foreground mb-0.5 sm:mb-1 w-full">
                   <Wallet className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-success shrink-0" />
                   <span className="text-[9px] sm:text-[11px] font-medium uppercase tracking-wider truncate">
                     Total a Receber
                   </span>
                 </div>
-                <span className="text-xs sm:text-base md:text-lg font-bold text-foreground tabular-nums tracking-tight truncate">
+                <span className="text-xs sm:text-base md:text-lg font-bold text-foreground tabular-nums tracking-tight truncate w-full text-center sm:text-left">
                   {formatCurrency(withManager.totalReceivable)}
                 </span>
               </div>
@@ -127,8 +127,8 @@ export function DashboardManagerSplitSection({ managerSplit, formatCurrency }: P
 
           <CardContent className="p-2.5 sm:p-5 flex flex-col justify-between h-full gap-2.5 sm:gap-4">
             {/* Topo do Card: Badge + Quantidade */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2">
-              <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-1.5 sm:gap-2 text-center sm:text-left">
+              <div className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 min-w-0 w-full sm:w-auto">
                 <div className="h-5 w-5 sm:h-7 sm:w-7 rounded-md bg-muted/60 border border-border flex items-center justify-center text-muted-foreground shrink-0">
                   <UserX className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                 </div>
@@ -136,7 +136,7 @@ export function DashboardManagerSplitSection({ managerSplit, formatCurrency }: P
                   SEM GERENTE
                 </span>
               </div>
-              <span className="self-start sm:self-auto text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 rounded-md bg-muted/60 text-muted-foreground border border-border tabular-nums shrink-0">
+              <span className="self-center sm:self-auto text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 rounded-md bg-muted/60 text-muted-foreground border border-border tabular-nums shrink-0">
                 {withoutManager.count} <span className="hidden sm:inline">{withoutManager.count === 1 ? "empréstimo" : "empréstimos"}</span><span className="sm:hidden">emp.</span>
               </span>
             </div>
@@ -144,27 +144,27 @@ export function DashboardManagerSplitSection({ managerSplit, formatCurrency }: P
             {/* Valores Principais */}
             <div className="flex flex-col gap-1.5 sm:gap-3">
               {/* Juros a Receber */}
-              <div className="p-2 sm:p-3 rounded-lg bg-background/60 border border-border/50 flex flex-col justify-center min-w-0">
-                <div className="flex items-center gap-1 sm:gap-1.5 text-muted-foreground mb-0.5 sm:mb-1">
+              <div className="p-2 sm:p-3 rounded-lg bg-background/60 border border-border/50 flex flex-col items-center sm:items-start justify-center text-center sm:text-left min-w-0">
+                <div className="flex items-center justify-center sm:justify-start gap-1 sm:gap-1.5 text-muted-foreground mb-0.5 sm:mb-1 w-full">
                   <Coins className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-warning shrink-0" />
                   <span className="text-[9px] sm:text-[11px] font-medium uppercase tracking-wider truncate">
                     Juros a Receber
                   </span>
                 </div>
-                <span className="text-xs sm:text-base md:text-lg font-bold text-warning tabular-nums tracking-tight truncate">
+                <span className="text-xs sm:text-base md:text-lg font-bold text-warning tabular-nums tracking-tight truncate w-full text-center sm:text-left">
                   {formatCurrency(withoutManager.interestPending)}
                 </span>
               </div>
 
               {/* Total a Receber */}
-              <div className="p-2 sm:p-3 rounded-lg bg-background/60 border border-border/50 flex flex-col justify-center min-w-0">
-                <div className="flex items-center gap-1 sm:gap-1.5 text-muted-foreground mb-0.5 sm:mb-1">
+              <div className="p-2 sm:p-3 rounded-lg bg-background/60 border border-border/50 flex flex-col items-center sm:items-start justify-center text-center sm:text-left min-w-0">
+                <div className="flex items-center justify-center sm:justify-start gap-1 sm:gap-1.5 text-muted-foreground mb-0.5 sm:mb-1 w-full">
                   <Wallet className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-success shrink-0" />
                   <span className="text-[9px] sm:text-[11px] font-medium uppercase tracking-wider truncate">
                     Total a Receber
                   </span>
                 </div>
-                <span className="text-xs sm:text-base md:text-lg font-bold text-foreground tabular-nums tracking-tight truncate">
+                <span className="text-xs sm:text-base md:text-lg font-bold text-foreground tabular-nums tracking-tight truncate w-full text-center sm:text-left">
                   {formatCurrency(withoutManager.totalReceivable)}
                 </span>
               </div>
