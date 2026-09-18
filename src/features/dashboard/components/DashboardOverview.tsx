@@ -14,6 +14,7 @@ import { DashboardPeriodFilter } from "@/features/dashboard/components/dashboard
 import { DashboardFinancialHealthSection } from "@/features/dashboard/components/dashboard/DashboardFinancialHealthSection";
 import { DashboardMainCards } from "@/features/dashboard/components/dashboard/DashboardMainCards";
 import { DashboardPortfolioMetrics } from "@/features/dashboard/components/dashboard/DashboardPortfolioMetrics";
+import { DashboardManagerSplitSection } from "@/features/dashboard/components/dashboard/DashboardManagerSplitSection";
 import { DashboardBreakdownSection } from "@/features/dashboard/components/dashboard/DashboardBreakdownSection";
 import { DashboardChartsSection } from "@/features/dashboard/components/dashboard/DashboardChartsSection";
 import { DashboardInsightsSection } from "@/features/dashboard/components/dashboard/DashboardInsightsSection";
@@ -111,6 +112,7 @@ export function DashboardOverview({
     receivedDetail,
     profitTargetAmount,
     portfolio,
+    managerSplit,
     monthComparison,
     yearlyAverages,
     riskReturn,
@@ -258,6 +260,12 @@ export function DashboardOverview({
           onOpenInterestReceived={() => setShowInterestDetail(true)}
           onOpenInterestExpectedAll={() => { setInterestExpectedFilter("all"); setShowInterestExpectedDetail(true); }}
           onOpenInterestPending={() => { setInterestExpectedFilter("pending"); setShowInterestExpectedDetail(true); }}
+        />
+
+        {/* 👔 EMPRÉSTIMOS POR GERENCIAMENTO (COM GERENTE / SEM GERENTE) */}
+        <DashboardManagerSplitSection
+          managerSplit={managerSplit}
+          formatCurrency={formatCurrency}
         />
       </div>
 

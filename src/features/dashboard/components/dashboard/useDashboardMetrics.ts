@@ -21,11 +21,25 @@ import type {
   InstallmentSchedule,
 } from "@/types/loan";
 import type { LedgerEntry } from "@/features/financial/lib/ledger";
+import { roundCurrency } from "@/lib/money";
 import {
   isInRange,
   monthNames,
   summarizeMonthMetrics,
 } from "@/features/dashboard/components/dashboard/dashboardHelpers";
+
+export interface ManagerSplitCategory {
+  count: number;
+  interestPending: number;
+  totalReceivable: number;
+  capitalOnStreet: number;
+}
+
+export interface ManagerSplitData {
+  withManager: ManagerSplitCategory;
+  withoutManager: ManagerSplitCategory;
+  total: ManagerSplitCategory;
+}
 import {
   allocateInterestByPaymentUpTo,
   monthlyInterestReceived,
@@ -905,12 +919,53 @@ export function useDashboardMetrics(input: UseDashboardMetricsInput) {
     };
   }, [portfolio, unifiedAggregates, unifiedFlags.unifiedDashboard]);
 
+  const managerSplit = useMemo<ManagerSplitData>(() => {
+    const activeLoans = loans.filter((l) => l.status !== "paid");
+    const withManagerLoans = activeLoans.filter((l) => Boolean(l.hasManager || l.managerId));
+    const withoutManagerLoans = activeLoans.filter((l) => !Boolean(l.hasManager || l.managerId));
+
+    const computeCategory = (categoryLoans: Loan[]): ManagerSplitCategory => {
+      const pendingTotals = aggregatePortfolioPending({
+        loans: categoryLoans,
+        payments,
+        installmentSchedules,
+      });
+
+      const totalReceivable = categoryLoans.reduce(
+        (sum, loan) => sum + getLoanReceivable(loan, payments, installmentSchedules),
+        0
+      );
+
+      return {
+        count: categoryLoans.length,
+        interestPending: roundCurrency(pendingTotals.interestPending),
+        totalReceivable: roundCurrency(totalReceivable),
+        capitalOnStreet: roundCurrency(pendingTotals.capitalOnStreet),
+      };
+    };
+
+    const withManager = computeCategory(withManagerLoans);
+    const withoutManager = computeCategory(withoutManagerLoans);
+
+    return {
+      withManager,
+      withoutManager,
+      total: {
+        count: withManager.count + withoutManager.count,
+        interestPending: roundCurrency(withManager.interestPending + withoutManager.interestPending),
+        totalReceivable: roundCurrency(withManager.totalReceivable + withoutManager.totalReceivable),
+        capitalOnStreet: roundCurrency(withManager.capitalOnStreet + withoutManager.capitalOnStreet),
+      },
+    };
+  }, [loans, payments, installmentSchedules]);
+
   return {
     data,
     receivedByMethod,
     receivedDetail,
     profitTargetAmount,
     portfolio: resolvedPortfolio,
+    managerSplit,
     unifiedAggregates,
     unifiedFlags,
     monthComparison,
