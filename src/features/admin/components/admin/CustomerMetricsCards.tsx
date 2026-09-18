@@ -59,7 +59,7 @@ export function CustomerMetricsCards({ metrics, summary, loading, onFilterStatus
   const cards = [
     {
       id: "all",
-      label: "TOTAL DE CLIENTES",
+      label: "TOTAL DE USUÁRIOS",
       count: data.totalCustomers,
       subtitle: "100% da base",
       icon: Users,
@@ -69,7 +69,7 @@ export function CustomerMetricsCards({ metrics, summary, loading, onFilterStatus
     },
     {
       id: "active",
-      label: "CLIENTES ATIVOS",
+      label: "USUÁRIOS ATIVOS",
       count: data.activeCount,
       subtitle: `${data.activePct}% da base`,
       icon: CheckCircle2,
@@ -167,16 +167,16 @@ export function CustomerMetricsCards({ metrics, summary, loading, onFilterStatus
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground">
-              Acompanhamento de novos cadastros, período de teste e taxa de conversão em clientes pagantes.
+              Acompanhamento de novos cadastros, período de teste e taxa de conversão em usuários pagantes.
             </p>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full md:w-auto">
-            {/* Novos Clientes */}
+            {/* Novos Usuários */}
             <div className="bg-background/80 rounded-xl p-2.5 border border-border/60 min-w-[120px]">
               <div className="flex items-center gap-1.5 text-muted-foreground text-[10px] font-semibold uppercase">
                 <UserPlus className="h-3 w-3 text-primary" />
-                Novos Clientes
+                Novos Usuários
               </div>
               <div className="text-lg font-bold text-foreground mt-0.5">
                 +{data.newCustomersThisMonth}

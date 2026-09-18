@@ -206,7 +206,7 @@ export function PlanManagement() {
           className="gap-2 text-xs sm:text-sm font-semibold h-9 min-h-0 rounded-lg px-3 py-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all"
         >
           <Users className="h-4 w-4 shrink-0" />
-          <span>Clientes e assinaturas</span>
+          <span>Usuários e assinaturas</span>
         </TabsTrigger>
         <TabsTrigger
           value="plans"

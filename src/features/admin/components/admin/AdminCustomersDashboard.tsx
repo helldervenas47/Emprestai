@@ -28,22 +28,22 @@ export function AdminCustomersDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Cabeçalho da Seção de Clientes */}
+      {/* Cabeçalho da Seção de Usuários */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card/60 p-4 rounded-2xl border border-border/50 backdrop-blur-sm shadow-sm">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5 text-primary" />
             <h3 className="text-lg font-bold tracking-tight text-foreground">
-              Gestão de Clientes & Assinaturas
+              Gestão de Usuários & Assinaturas
             </h3>
             {(customerSummary?.totalCustomers ?? 0) > 0 && (
-              <Badge variant="secondary" className="px-2 py-0.5 text-xs font-bold">
-                {customerSummary?.totalCustomers} clientes
+              <Badge variant="secondary" className="px-2 py-0.5 text-xs font-bold uppercase">
+                {customerSummary?.totalCustomers} {customerSummary?.totalCustomers === 1 ? "usuário" : "usuários"}
               </Badge>
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            Acompanhe a base de clientes, períodos de teste gratuito, planos vigentes e status financeiro unificado.
+            Acompanhe a base de usuários, períodos de teste gratuito, planos vigentes e status financeiro unificado.
           </p>
         </div>
 

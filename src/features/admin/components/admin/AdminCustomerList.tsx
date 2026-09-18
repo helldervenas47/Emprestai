@@ -255,10 +255,10 @@ export function AdminCustomerList({
           <div>
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
               <User className="w-5 h-5 text-primary" />
-              Base de Clientes e Assinaturas
+              Base de Usuários e Assinaturas
             </CardTitle>
             <CardDescription className="text-sm text-muted-foreground">
-              Gerencie os status, dados cadastrais, planos contratados e histórico financeiro de cada cliente.
+              Gerencie os status, dados cadastrais, planos contratados e histórico financeiro de cada usuário.
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -371,7 +371,7 @@ export function AdminCustomerList({
                     onClick={() => handleSort("display_name")}
                     className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider hover:text-foreground"
                   >
-                    Cliente
+                    Usuário
                     <ArrowUpDown className="w-3 h-3 text-muted-foreground" />
                   </button>
                 </TableHead>
@@ -431,7 +431,7 @@ export function AdminCustomerList({
                   <TableCell colSpan={7} className="h-32 text-center">
                     <div className="flex flex-col items-center justify-center text-muted-foreground">
                       <Filter className="w-8 h-8 mb-2 opacity-40" />
-                      <p className="font-medium text-sm">Nenhum cliente encontrado com os filtros selecionados.</p>
+                      <p className="font-medium text-sm">Nenhum usuário encontrado com os filtros selecionados.</p>
                       <p className="text-xs mt-1">Tente limpar os termos de busca ou mudar os filtros.</p>
                     </div>
                   </TableCell>
@@ -443,7 +443,7 @@ export function AdminCustomerList({
                     className="hover:bg-muted/30 cursor-pointer transition-colors"
                     onClick={() => handleOpenCustomer(cust)}
                   >
-                    {/* Cliente */}
+                    {/* Usuário */}
                     <TableCell className="font-medium">
                       <div className="flex flex-col">
                         <span className="text-sm font-semibold text-foreground truncate max-w-[220px]">
@@ -528,7 +528,7 @@ export function AdminCustomerList({
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-border text-xs text-muted-foreground">
           <div>
             Exibindo <span className="font-semibold text-foreground">{paginatedCustomers.length}</span> de{" "}
-            <span className="font-semibold text-foreground">{totalItems}</span> clientes
+            <span className="font-semibold text-foreground">{totalItems}</span> {totalItems === 1 ? "usuário" : "usuários"}
           </div>
 
           <div className="flex items-center gap-2">
