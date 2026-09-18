@@ -24,6 +24,7 @@ import ScrollToTop from "./components/ScrollToTop";
 import { TrialExpiredGate } from "./features/admin/components/upgrade/TrialExpiredGate";
 import { ReadOnlyModeSync } from "./features/admin/components/upgrade/ReadOnlyModeSync";
 import { AccessLockRouteGuard } from "./features/admin/components/upgrade/AccessLockRouteGuard";
+import { SplashScreen } from "./components/SplashScreen";
 import { LazyChunkErrorBoundary } from "./components/LazyChunkErrorBoundary";
 
 wireAutoSync();
@@ -121,28 +122,32 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-const App = () => (
-  <AppErrorBoundary>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <AppSonner />
-        <PWAInstallPrompt />
-        <OfflineBadge />
-        <BrowserRouter>
-          <ScrollToTop />
-          <AuthProvider>
-            <PaymentCelebrationProvider>
-              <BrandTitleSync />
-              <BrandFaviconSync />
-              <AppTimezoneSync />
-              <StatusBarScrollSync />
-              <MobileKeyboardScrollSync />
-              <AppFontSync />
-              <ViewAsBanner />
-              <Suspense fallback={<PageLoader />}>
-                <LazyChunkErrorBoundary>
-                <Routes>
+const App = () => {
+  const [showSplash, setShowSplash] = React.useState(true);
+
+  return (
+    <AppErrorBoundary>
+      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <AppSonner />
+          <PWAInstallPrompt />
+          <OfflineBadge />
+          <BrowserRouter>
+            <ScrollToTop />
+            <AuthProvider>
+              <PaymentCelebrationProvider>
+                <BrandTitleSync />
+                <BrandFaviconSync />
+                <AppTimezoneSync />
+                <StatusBarScrollSync />
+                <MobileKeyboardScrollSync />
+                <AppFontSync />
+                <ViewAsBanner />
+                <Suspense fallback={<PageLoader />}>
+                  <LazyChunkErrorBoundary>
+                  <Routes>
                   <Route
                     path="/"
                     element={
@@ -224,6 +229,7 @@ const App = () => (
       </TooltipProvider>
     </QueryClientProvider>
   </AppErrorBoundary>
-);
+  );
+};
 
 export default App;
