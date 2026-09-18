@@ -122,9 +122,15 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+let hasShownSplashInSession = false;
+
 const App = () => {
-  const [showSplash, setShowSplash] = React.useState(true);
-  const [appRevealed, setAppRevealed] = React.useState(false);
+  const [showSplash, setShowSplash] = React.useState(() => {
+    if (hasShownSplashInSession) return false;
+    hasShownSplashInSession = true;
+    return true;
+  });
+  const [appRevealed, setAppRevealed] = React.useState(!showSplash);
 
   return (
     <AppErrorBoundary>

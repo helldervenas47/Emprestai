@@ -71,15 +71,7 @@
         z-index: 2147483000;
       }
       html[data-app-mounted="true"] #app-boot { display: none; }
-      #app-boot .boot-name { font-size: 20px; font-weight: 700; letter-spacing: .5px; }
-      #app-boot .boot-spinner {
-        width: 28px; height: 28px; border-radius: 50%;
-        border: 3px solid currentColor; border-top-color: transparent;
-        opacity: .5; animation: boot-spin .8s linear infinite;
-      }
-      @keyframes boot-spin { to { transform: rotate(360deg); } }
       #app-boot .boot-recovery { display: none; max-width: 340px; text-align: center; padding: 0 24px; }
-      #app-boot[data-state="recovery"] .boot-spinner { display: none; }
       #app-boot[data-state="recovery"] .boot-recovery { display: block; }
       #app-boot .boot-msg { font-size: 14px; opacity: .75; margin: 8px 0 16px; line-height: 1.45; }
       #app-boot button {
@@ -91,8 +83,6 @@
     </style>
 
     <div id="app-boot" data-state="loading" role="status" aria-live="polite">
-      <div class="boot-name">EmprestAI</div>
-      <div class="boot-spinner"></div>
       <div class="boot-recovery">
         <div style="font-size:16px;font-weight:600">Não foi possível abrir o aplicativo</div>
         <p class="boot-msg">Uma atualização ou falha temporária impediu o carregamento. Sua sessão continua salva.</p>
