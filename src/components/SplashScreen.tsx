@@ -3,10 +3,11 @@ import logoIconFallback from "@/assets/logo-icon.png";
 import { useAppBranding } from "@/hooks/useAppBranding";
 
 interface SplashScreenProps {
+  onStartExit?: () => void;
   onFinish?: () => void;
 }
 
-export function SplashScreen({ onFinish }: SplashScreenProps) {
+export function SplashScreen({ onStartExit, onFinish }: SplashScreenProps) {
   const { branding } = useAppBranding();
   const [phase, setPhase] = useState<"initial" | "symbol" | "name" | "settled" | "exiting" | "done">("initial");
 
@@ -18,15 +19,18 @@ export function SplashScreen({ onFinish }: SplashScreenProps) {
     const tSymbol = setTimeout(() => setPhase("symbol"), 300);
     // 800ms: Revelar suavemente o nome
     const tName = setTimeout(() => setPhase("name"), 800);
-    // 1200ms: Microanimação de estabilização
+    // 1200ms: Microanimação de estabilização viva (1200ms a 1450ms = 250ms estabilizado)
     const tSettled = setTimeout(() => setPhase("settled"), 1200);
-    // 1500ms: Iniciar transição suave para o aplicativo
-    const tExit = setTimeout(() => setPhase("exiting"), 1500);
-    // 1800ms: Finalização completa
+    // 1450ms: Iniciar crossfade suave de 600ms simultâneo para o aplicativo
+    const tExit = setTimeout(() => {
+      setPhase("exiting");
+      onStartExit?.();
+    }, 1450);
+    // 2050ms: Finalização completa após o crossfade de 600ms
     const tDone = setTimeout(() => {
       setPhase("done");
       onFinish?.();
-    }, 1800);
+    }, 2050);
 
     return () => {
       clearTimeout(tSymbol);
@@ -35,17 +39,20 @@ export function SplashScreen({ onFinish }: SplashScreenProps) {
       clearTimeout(tExit);
       clearTimeout(tDone);
     };
-  }, [onFinish]);
+  }, [onStartExit, onFinish]);
 
   if (phase === "done") return null;
 
   return (
     <div
-      className={`fixed inset-0 z-[999999] flex flex-col items-center justify-center bg-[#15181D] select-none transition-all duration-[300ms] ease-out pointer-events-none ${
-        phase === "exiting" ? "opacity-0 scale-[1.035]" : "opacity-100 scale-100"
+      className={`fixed inset-0 z-[999999] flex flex-col items-center justify-center bg-[#15181D] select-none pointer-events-none transition-all duration-[600ms] ${
+        phase === "exiting"
+          ? "opacity-0 scale-[1.03] backdrop-blur-[2px]"
+          : "opacity-100 scale-100 backdrop-blur-0"
       }`}
       style={{
-        willChange: "transform, opacity",
+        transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
+        willChange: "transform, opacity, filter",
       }}
       aria-hidden="true"
     >

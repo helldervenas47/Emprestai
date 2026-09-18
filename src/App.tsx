@@ -124,111 +124,132 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 const App = () => {
   const [showSplash, setShowSplash] = React.useState(true);
+  const [appRevealed, setAppRevealed] = React.useState(false);
 
   return (
     <AppErrorBoundary>
-      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <AppSonner />
-          <PWAInstallPrompt />
-          <OfflineBadge />
-          <BrowserRouter>
-            <ScrollToTop />
-            <AuthProvider>
-              <PaymentCelebrationProvider>
-                <BrandTitleSync />
-                <BrandFaviconSync />
-                <AppTimezoneSync />
-                <StatusBarScrollSync />
-                <MobileKeyboardScrollSync />
-                <AppFontSync />
-                <ViewAsBanner />
-                <Suspense fallback={<PageLoader />}>
-                  <LazyChunkErrorBoundary>
-                  <Routes>
-                  <Route
-                    path="/"
-                    element={
-                      <ProtectedRoute>
-                        <Index />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/auth"
-                    element={
-                      <PublicRoute>
-                        <Auth />
-                      </PublicRoute>
-                    }
-                  />
-                  <Route
-                    path="/cadastro"
-                    element={
-                      <PublicRoute>
-                        <Cadastro />
-                      </PublicRoute>
-                    }
-                  />
-                  <Route path="/planos" element={<Pricing />} />
-                  <Route path="/termos" element={<Terms />} />
-                  <Route path="/reembolso" element={<RefundPolicy />} />
-                  <Route path="/privacidade" element={<PrivacyPolicy />} />
-                  <Route path="/reset-password" element={<ResetPassword />} />
-                  <Route
-                    path="/planejamento-do-dia"
-                    element={
-                      <ProtectedRoute>
-                        <DailyPlanning />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/cofrinhos"
-                    element={
-                      <ProtectedRoute>
-                        <PiggyBanks />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/bem-vindo"
-                    element={
-                      <ProtectedRoute skipOnboardingCheck>
-                        <Welcome />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route path="/ajuda" element={<Navigate to="/?tab=help" replace />} />
-                  <Route
-                    path="/cofrinho/:id"
-                    element={
-                      <ProtectedRoute>
-                        <PiggyBankDetail />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/diagnostico-financeiro"
-                    element={
-                      <ProtectedRoute>
-                        <PainelMigracao />
-                      </ProtectedRoute>
-                    }
-                  />
+      {showSplash && (
+        <SplashScreen
+          onStartExit={() => setAppRevealed(true)}
+          onFinish={() => {
+            setAppRevealed(true);
+            setShowSplash(false);
+          }}
+        />
+      )}
+      <div
+        className={`min-h-screen w-full transition-all duration-[600ms] ${
+          showSplash && !appRevealed
+            ? "opacity-0 translate-y-1.5 scale-[0.995]"
+            : "opacity-100 translate-y-0 scale-100"
+        }`}
+        style={{
+          transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
+          willChange: showSplash ? "transform, opacity" : "auto",
+        }}
+      >
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <Toaster />
+            <AppSonner />
+            <PWAInstallPrompt />
+            <OfflineBadge />
+            <BrowserRouter>
+              <ScrollToTop />
+              <AuthProvider>
+                <PaymentCelebrationProvider>
+                  <BrandTitleSync />
+                  <BrandFaviconSync />
+                  <AppTimezoneSync />
+                  <StatusBarScrollSync />
+                  <MobileKeyboardScrollSync />
+                  <AppFontSync />
+                  <ViewAsBanner />
+                  <Suspense fallback={<PageLoader />}>
+                    <LazyChunkErrorBoundary>
+                    <Routes>
+                    <Route
+                      path="/"
+                      element={
+                        <ProtectedRoute>
+                          <Index />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/auth"
+                      element={
+                        <PublicRoute>
+                          <Auth />
+                        </PublicRoute>
+                      }
+                    />
+                    <Route
+                      path="/cadastro"
+                      element={
+                        <PublicRoute>
+                          <Cadastro />
+                        </PublicRoute>
+                      }
+                    />
+                    <Route path="/planos" element={<Pricing />} />
+                    <Route path="/termos" element={<Terms />} />
+                    <Route path="/reembolso" element={<RefundPolicy />} />
+                    <Route path="/privacidade" element={<PrivacyPolicy />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route
+                      path="/planejamento-do-dia"
+                      element={
+                        <ProtectedRoute>
+                          <DailyPlanning />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/cofrinhos"
+                      element={
+                        <ProtectedRoute>
+                          <PiggyBanks />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/bem-vindo"
+                      element={
+                        <ProtectedRoute skipOnboardingCheck>
+                          <Welcome />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route path="/ajuda" element={<Navigate to="/?tab=help" replace />} />
+                    <Route
+                      path="/cofrinho/:id"
+                      element={
+                        <ProtectedRoute>
+                          <PiggyBankDetail />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/diagnostico-financeiro"
+                      element={
+                        <ProtectedRoute>
+                          <PainelMigracao />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-                </LazyChunkErrorBoundary>
-              </Suspense>
-            </PaymentCelebrationProvider>
-          </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </AppErrorBoundary>
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                  </LazyChunkErrorBoundary>
+                </Suspense>
+              </PaymentCelebrationProvider>
+            </AuthProvider>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+      </div>
+    </AppErrorBoundary>
   );
 };
 
