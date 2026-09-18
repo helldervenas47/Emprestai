@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import logoIconFallback from "@/assets/logo-icon.png";
 import { useAppBranding } from "@/hooks/useAppBranding";
 
@@ -10,27 +10,52 @@ interface SplashScreenProps {
 export function SplashScreen({ onStartExit, onFinish }: SplashScreenProps) {
   const { branding } = useAppBranding();
   const [phase, setPhase] = useState<"initial" | "symbol" | "name" | "settled" | "exiting" | "done">("initial");
+  const hasFinishedRef = useRef(false);
 
   const logoSrc = branding.pwa_icon_url || branding.logo_url || logoIconFallback;
   const brandName = branding.brand_name || "EmprestAI";
 
   useEffect(() => {
-    // 0ms - 300ms: Fundo inicial ativo
+    const isReduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (isReduced) {
+      setPhase("settled");
+      const tExit = setTimeout(() => {
+        setPhase("exiting");
+        onStartExit?.();
+      }, 200);
+      const tDone = setTimeout(() => {
+        if (!hasFinishedRef.current) {
+          hasFinishedRef.current = true;
+          setPhase("done");
+          onFinish?.();
+        }
+      }, 400);
+      return () => {
+        clearTimeout(tExit);
+        clearTimeout(tDone);
+      };
+    }
+
+    // 0ms - 300ms: Fundo inicial escuro ativo
     const tSymbol = setTimeout(() => setPhase("symbol"), 300);
     // 800ms: Revelar suavemente o nome
     const tName = setTimeout(() => setPhase("name"), 800);
-    // 1200ms: Microanimação de estabilização viva (1200ms a 1450ms = 250ms estabilizado)
+    // 1200ms: Conclusão da animação da logo -> início da estabilização visual (180ms)
     const tSettled = setTimeout(() => setPhase("settled"), 1200);
-    // 1450ms: Iniciar crossfade suave de 600ms simultâneo para o aplicativo
+    // 1380ms: Fim da estabilização -> início do crossfade suave de 400ms para o Dashboard
     const tExit = setTimeout(() => {
       setPhase("exiting");
       onStartExit?.();
-    }, 1450);
-    // 2050ms: Finalização completa após o crossfade de 600ms
+    }, 1380);
+    // 1780ms: Término completo da transição de 400ms e desmontagem da Splash
     const tDone = setTimeout(() => {
-      setPhase("done");
-      onFinish?.();
-    }, 2050);
+      if (!hasFinishedRef.current) {
+        hasFinishedRef.current = true;
+        setPhase("done");
+        onFinish?.();
+      }
+    }, 1780);
 
     return () => {
       clearTimeout(tSymbol);
@@ -41,18 +66,26 @@ export function SplashScreen({ onStartExit, onFinish }: SplashScreenProps) {
     };
   }, [onStartExit, onFinish]);
 
+  const handleContainerTransitionEnd = (e: React.TransitionEvent<HTMLDivElement>) => {
+    if (phase === "exiting" && e.target === e.currentTarget && e.propertyName === "opacity") {
+      if (!hasFinishedRef.current) {
+        hasFinishedRef.current = true;
+        setPhase("done");
+        onFinish?.();
+      }
+    }
+  };
+
   if (phase === "done") return null;
 
   return (
     <div
-      className={`fixed inset-0 z-[999999] flex flex-col items-center justify-center bg-[#15181D] select-none pointer-events-none transition-all duration-[600ms] ${
-        phase === "exiting"
-          ? "opacity-0 scale-[1.03] backdrop-blur-[2px]"
-          : "opacity-100 scale-100 backdrop-blur-0"
+      onTransitionEnd={handleContainerTransitionEnd}
+      className={`fixed inset-0 z-[999999] flex flex-col items-center justify-center bg-[#15181D] select-none pointer-events-none transition-opacity duration-[400ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        phase === "exiting" ? "opacity-0" : "opacity-100"
       }`}
       style={{
-        transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
-        willChange: "transform, opacity, filter",
+        willChange: phase === "exiting" ? "opacity" : "auto",
       }}
       aria-hidden="true"
     >
