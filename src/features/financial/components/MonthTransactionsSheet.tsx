@@ -17,6 +17,8 @@ import { isCreditCardExpense, listPaidInvoicesInRange, getCardInvoiceTotalsForMo
 import { useCreditCards } from "@/features/creditCards/hooks/useCreditCards";
 import { useCreditCardOpenings } from "@/features/creditCards/hooks/useCreditCardOpenings";
 import { isPiggyExpense } from "@/features/piggyBanks/hooks/usePiggyBanks";
+import { useDataOwner } from "@/hooks/useDataOwner";
+import { supabase } from "@/integrations/supabase/userClient";
 
 function fmt(n: number) {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -73,6 +75,33 @@ export function MonthTransactionsSheet({ open, onOpenChange, type, monthKey, inc
 
   const { cards } = useCreditCards();
   const { openings } = useCreditCardOpenings();
+  const ownerId = useDataOwner();
+  const [ledgerCardPayments, setLedgerCardPayments] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!ownerId) return;
+    let cancelled = false;
+    const loadLedger = async () => {
+      const { data } = await supabase
+        .from("account_ledger")
+        .select("id, amount, occurred_on, created_at, description, wallet, metadata")
+        .eq("user_id", ownerId)
+        .eq("direction", "out")
+        .eq("metadata->>kind", "credit_card_invoice_payment");
+      if (!cancelled && data) {
+        setLedgerCardPayments(data);
+      }
+    };
+    loadLedger();
+    const onLedgerChanged = () => {
+      loadLedger();
+    };
+    window.addEventListener("ledger:changed", onLedgerChanged);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("ledger:changed", onLedgerChanged);
+    };
+  }, [ownerId]);
 
   useEffect(() => {
     if (open) setFilter(initialFilter === "pending" ? "all" : (initialFilter ?? "all"));
@@ -253,9 +282,38 @@ export function MonthTransactionsSheet({ open, onOpenChange, type, monthKey, inc
           status: "paid" as Row["status"],
         };
       });
-    // Faturas de cartão quitadas dentro do mês selecionado — entram como uma
-    // única saída consolidada (substituem os lançamentos individuais filtrados acima).
+    // Pagamentos de fatura de cartão: exibe cada pagamento individual registrado no ledger dentro do mês.
+    const coveredCycles = new Set<string>();
+    for (const r of ledgerCardPayments) {
+      const meta = r.metadata || {};
+      const cardId = meta.credit_card_id;
+      const cycleKey = meta.cycle_key;
+      if (cardId && cycleKey) {
+        coveredCycles.add(`${cardId}::${cycleKey}`);
+      }
+      const pDate = r.occurred_on || "";
+      if (!pDate.startsWith(monthKey)) continue;
+
+      const card = cards.find((c) => c.id === cardId);
+      const label = card?.nickname?.trim() || [card?.bank, card?.lastFour].filter(Boolean).join(" •••• ") || "Cartão";
+      const defaultTitle =
+        meta.pay_mode === "partial" || (!meta.full_payment && meta.pay_mode !== "total")
+          ? `Pagamento parcial fatura ${label}`
+          : `Pagamento fatura ${label}`;
+
+      exp.push({
+        id: `card-ledger-${r.id}`,
+        date: pDate,
+        title: r.description || defaultTitle,
+        subtitle: `Ciclo ${cycleKey || monthKey}`,
+        amount: Number(r.amount) || 0,
+        status: "paid",
+      });
+    }
+
+    // Faturas de cartão legadas quitadas dentro do mês (sem registros no account_ledger).
     for (const inv of paidInvoices) {
+      if (coveredCycles.has(`${inv.card.id}::${inv.cycleKey}`)) continue;
       exp.push({
         id: `card-invoice-${inv.card.id}-${inv.cycleKey}`,
         date: inv.paidDate,
@@ -266,7 +324,7 @@ export function MonthTransactionsSheet({ open, onOpenChange, type, monthKey, inc
       });
     }
     return exp;
-  }, [type, incomes, expenses, sales, monthKey, paidInvoices, pendingMode, cardInvoicesPendingMonth]);
+  }, [type, incomes, expenses, sales, monthKey, paidInvoices, pendingMode, cardInvoicesPendingMonth, ledgerCardPayments, cards]);
 
   const filtered = useMemo(() => {
     let arr = rows;

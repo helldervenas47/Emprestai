@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatDateBR } from "@/features/financial/lib/formatDateSafe";
 import { useIncomes, Income } from "@/features/financial/hooks/useIncomes";
 import { useExpenses } from "@/features/financial/hooks/useExpenses";
 import { useClients } from "@/features/clients/hooks/useClients";
 import { usePaymentMethods } from "@/hooks/usePaymentMethods";
+import { useDataOwner } from "@/hooks/useDataOwner";
+import { supabase } from "@/integrations/supabase/userClient";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -141,6 +143,34 @@ export function FinancialStatement() {
   const { cards } = useCreditCards();
   const { openings } = useCreditCardOpenings();
 
+  const ownerId = useDataOwner();
+  const [ledgerCardPayments, setLedgerCardPayments] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!ownerId) return;
+    let cancelled = false;
+    const loadLedger = async () => {
+      const { data } = await supabase
+        .from("account_ledger")
+        .select("id, amount, occurred_on, created_at, description, wallet, metadata")
+        .eq("user_id", ownerId)
+        .eq("direction", "out")
+        .eq("metadata->>kind", "credit_card_invoice_payment");
+      if (!cancelled && data) {
+        setLedgerCardPayments(data);
+      }
+    };
+    loadLedger();
+    const onLedgerChanged = () => {
+      loadLedger();
+    };
+    window.addEventListener("ledger:changed", onLedgerChanged);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("ledger:changed", onLedgerChanged);
+    };
+  }, [ownerId]);
+
   const today = new Date();
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
     .toISOString().slice(0, 10);
@@ -203,31 +233,77 @@ export function FinancialStatement() {
         account: "Pessoal",
       }));
 
-    // Faturas de cartão pagas no período → 1 lançamento por (cartão, ciclo).
-    const creditCardRows: Row[] = listPaidInvoicesInRange(
+    // Pagamentos de fatura de cartão: exibe cada pagamento individual registrado no ledger.
+    const coveredCycles = new Set<string>();
+    const ledgerCardRows: Row[] = [];
+
+    for (const r of ledgerCardPayments) {
+      const meta = r.metadata || {};
+      const cardId = meta.credit_card_id;
+      const cycleKey = meta.cycle_key;
+      if (cardId && cycleKey) {
+        coveredCycles.add(`${cardId}::${cycleKey}`);
+      }
+      const pDate = r.occurred_on;
+      if (!pDate || pDate < from || pDate > to) continue;
+
+      const card = cards.find((c) => c.id === cardId);
+      const label =
+        card?.nickname?.trim() ||
+        [card?.bank, card?.lastFour].filter(Boolean).join(" •••• ") ||
+        "Cartão";
+
+      const defaultDesc =
+        meta.pay_mode === "partial" || (!meta.full_payment && meta.pay_mode !== "total")
+          ? `Pagamento parcial fatura ${label}`
+          : `Pagamento fatura ${label}`;
+
+      const desc = r.description || defaultDesc;
+      const paymentMethod = r.wallet === "cash" ? "Dinheiro" : "Conta";
+
+      ledgerCardRows.push({
+        id: `cc-ledger-${r.id}`,
+        date: pDate,
+        ts: buildSortTs(pDate, r.created_at),
+        description: desc,
+        category: CREDIT_CARD_INVOICE_CATEGORY,
+        type: "expense",
+        origin: "expense",
+        amount: Number(r.amount) || 0,
+        paymentMethod,
+        account: "Pessoal",
+      });
+    }
+
+    // Faturas de cartão legadas pagas no período (sem registros no account_ledger).
+    const legacyCardRows: Row[] = listPaidInvoicesInRange(
       expenses,
       cards,
       openings,
       from,
       to,
-    ).map((inv) => {
-      const label =
-        inv.card.nickname?.trim() ||
-        [inv.card.bank, inv.card.lastFour].filter(Boolean).join(" •••• ") ||
-        "Cartão";
-      return {
-        id: `cc-${inv.card.id}-${inv.cycleKey}`,
-        date: inv.paidDate,
-        ts: buildSortTs(inv.paidDate),
-        description: `Fatura ${label}`,
-        category: CREDIT_CARD_INVOICE_CATEGORY,
-        type: "expense",
-        origin: "expense",
-        amount: inv.paidTotal,
-        paymentMethod: "—",
-        account: "Pessoal",
-      };
-    });
+    )
+      .filter((inv) => !coveredCycles.has(`${inv.card.id}::${inv.cycleKey}`))
+      .map((inv) => {
+        const label =
+          inv.card.nickname?.trim() ||
+          [inv.card.bank, inv.card.lastFour].filter(Boolean).join(" •••• ") ||
+          "Cartão";
+        return {
+          id: `cc-${inv.card.id}-${inv.cycleKey}`,
+          date: inv.paidDate,
+          ts: buildSortTs(inv.paidDate),
+          description: `Fatura ${label}`,
+          category: CREDIT_CARD_INVOICE_CATEGORY,
+          type: "expense",
+          origin: "expense",
+          amount: inv.paidTotal,
+          paymentMethod: "—",
+          account: "Pessoal",
+        };
+      });
+
+    const creditCardRows = [...ledgerCardRows, ...legacyCardRows];
 
     // Vendas: cada pagamento (paymentHistory) vira um lançamento individual no extrato.
     // Para vendas antigas com paid_installments/partial_paid sem entrada no histórico,
