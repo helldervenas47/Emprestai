@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { CustomerSummaryMetrics } from "@/features/admin/hooks/useAdminCustomersSubscribers";
 
-export const defaultCustomerMetrics: CustomerSummaryMetrics = {
+const defaultCustomerMetrics: CustomerSummaryMetrics = {
   totalCustomers: 0,
   activeCount: 0,
   activePct: 0,
