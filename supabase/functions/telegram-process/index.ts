@@ -611,20 +611,34 @@ interface CardLite {
   last_four: string;
   closing_day: number;
   due_day: number;
+  active?: boolean;
 }
 
 // Cache: user_id → cards (TTL 5min)
 const cardsCache = new Map<string, { cards: CardLite[]; expires: number }>();
 const CARDS_CACHE_TTL_MS = 5 * 60 * 1000;
 
+async function resolveDataOwner(admin: any, userId: string): Promise<string> {
+  try {
+    const { data } = await admin.rpc("get_data_owner_id", { _user_id: userId });
+    if (typeof data === "string" && data) return data;
+  } catch (_) { /* ignore */ }
+  return userId;
+}
+
 async function getUserCards(admin: any, userId: string): Promise<CardLite[]> {
   const cached = cardsCache.get(userId);
   if (cached && cached.expires > Date.now()) return cached.cards;
+  
+  const ownerId = await resolveDataOwner(admin, userId);
+  const userIds = Array.from(new Set([userId, ownerId].filter(Boolean)));
+
   const { data } = await admin
     .from("credit_cards")
-    .select("id, nickname, bank, last_four, closing_day, due_day")
-    .eq("user_id", userId);
-  const cards = (data ?? []) as CardLite[];
+    .select("id, nickname, bank, last_four, closing_day, due_day, active")
+    .in("user_id", userIds);
+
+  const cards = ((data ?? []) as any[]).filter((c) => c.active !== false) as CardLite[];
   cardsCache.set(userId, { cards, expires: Date.now() + CARDS_CACHE_TTL_MS });
   return cards;
 }
@@ -639,38 +653,79 @@ function normalize(s: string): string {
     .trim();
 }
 
+const BANK_ALIASES: Record<string, string[]> = {
+  nubank: ["nubank", "nu", "roxinho", "nuconta", "nu bank"],
+  itau: ["itau", "itaú", "itaucard", "personnalite", "personnalité", "uniclass", "itau card"],
+  bradesco: ["bradesco", "bradescard", "exclusive", "prime"],
+  santander: ["santander", "way", "sx"],
+  bb: ["bb", "bancodobrasil", "banco do brasil", "ourocard"],
+  caixa: ["caixa", "cef", "caixa economica", "caixa econômica"],
+  inter: ["inter", "banco inter", "intermedium", "interbank"],
+  c6: ["c6", "c6bank", "c6 bank"],
+  xp: ["xp", "xp investimentos"],
+  btg: ["btg", "btgpactual", "btg pactual"],
+  picpay: ["picpay", "pic pay", "picpay card"],
+  mercadopago: ["mercadopago", "mercado pago", "mp"],
+  will: ["will", "will bank", "willbank", "meupag"],
+  neon: ["neon", "banco neon"],
+  sicoob: ["sicoob", "sicoobcard"],
+  sicredi: ["sicredi", "sicredicard"],
+  safra: ["safra", "banco safra"],
+  original: ["original", "banco original"],
+  pagbank: ["pagbank", "pag bank", "pagseguro", "pag seguro"],
+  next: ["next", "banco next"],
+};
+
 /**
  * Detects an explicit credit-card mention in the user's message.
- * Matches against the card's nickname, bank name, or last 4 digits.
- * Requires either: an explicit card keyword (cartao/credito/no cartão) OR the last4 digits OR the full nickname.
+ * Matches against the card's nickname, bank name, last 4 digits, or explicit card keywords.
  */
 function detectCardInText(text: string, cards: CardLite[]): CardLite | null {
-  if (cards.length === 0) return null;
+  if (!cards || cards.length === 0) return null;
   const normText = normalize(text);
-  const hasCardKeyword = /\b(cartao|credito|fatura)\b/.test(normText);
+  const hasCardKeyword = /\b(cartao|cartao de credito|credito|fatura|no cartao|no credito|fatura do cartao|fatura cartao)\b/i.test(normText);
 
-  // 1) Try last_four match (very specific)
+  // 1) Try last_four match (e.g. "final 1234", "cartão 1234", "1234")
   for (const c of cards) {
-    if (c.last_four && c.last_four.length >= 3 && normText.includes(c.last_four)) {
-      return c;
-    }
-  }
-  // 2) Try nickname match (substring, must be at least 3 chars)
-  for (const c of cards) {
-    const nick = normalize(c.nickname || "");
-    if (nick && nick.length >= 3 && normText.includes(nick)) {
-      return c;
-    }
-  }
-  // 3) Bank match — only if a card-related keyword is present (avoids false positives)
-  if (hasCardKeyword) {
-    for (const c of cards) {
-      const bank = normalize(c.bank || "");
-      if (bank && bank.length >= 3 && normText.includes(bank)) {
+    if (c.last_four && c.last_four.length >= 3) {
+      const lf = c.last_four.trim();
+      const lfRegex = new RegExp(`(?:final\\s*|cart[aã]o\\s*|\\b)${lf}\\b`, "i");
+      if (lfRegex.test(normText) || normText.includes(lf)) {
         return c;
       }
     }
   }
+
+  // 2) Try nickname match
+  for (const c of cards) {
+    const nick = normalize(c.nickname || "");
+    if (nick && nick.length >= 2) {
+      const nickRegex = new RegExp(`\\b${nick.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+      if (nickRegex.test(normText) || normText.includes(nick)) {
+        return c;
+      }
+    }
+  }
+
+  // 3) Try bank name match and known aliases (e.g. "nubank", "itaucard", "c6", "bb", "ourocard")
+  for (const c of cards) {
+    const bankKey = (c.bank || "").toLowerCase().trim();
+    const aliases = BANK_ALIASES[bankKey] || (bankKey ? [bankKey] : []);
+    for (const alias of aliases) {
+      const normAlias = normalize(alias);
+      if (!normAlias) continue;
+      const aliasRegex = new RegExp(`\\b${normAlias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+      if (aliasRegex.test(normText) || (normAlias.length >= 4 && normText.includes(normAlias))) {
+        return c;
+      }
+    }
+  }
+
+  // 4) If the user explicitly mentioned "cartão" or "crédito" and has registered cards
+  if (hasCardKeyword && cards.length > 0) {
+    return cards[0];
+  }
+
   return null;
 }
 
